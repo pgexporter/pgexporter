@@ -1,0 +1,21 @@
+# systemd service unit for pgexporter
+#
+# - Adjust the user running the service in User
+# - Adjust the path in ExecStart
+#
+[Unit]
+Description=High-performance connection pool for PostgreSQL
+Documentation=man:pgexporter(1)
+Documentation=https://pgexporter.github.io/
+After=network.target
+
+[Service]
+Type=exec
+User=pgexporter
+ExecStart=/usr/bin/pgexporter
+ExecReload=/bin/kill -HUP $MAINPID
+KillSignal=SIGINT
+#LimitNOFILE=1024
+
+[Install]
+WantedBy=multi-user.target

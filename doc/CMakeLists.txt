@@ -1,0 +1,58 @@
+# man target
+add_custom_target(man ALL)
+
+# man page definitions
+set(PGEXPORTER_SRC_FILE "${CMAKE_CURRENT_SOURCE_DIR}/man/pgexporter.1.rst")
+set(PGEXPORTER_DST_FILE "${CMAKE_CURRENT_BINARY_DIR}/pgexporter.1")
+set(PGEXPORTER_CLI_SRC_FILE "${CMAKE_CURRENT_SOURCE_DIR}/man/pgexporter-cli.1.rst")
+set(PGEXPORTER_CLI_DST_FILE "${CMAKE_CURRENT_BINARY_DIR}/pgexporter-cli.1")
+set(PGEXPORTER_ADMIN_SRC_FILE "${CMAKE_CURRENT_SOURCE_DIR}/man/pgexporter-admin.1.rst")
+set(PGEXPORTER_ADMIN_DST_FILE "${CMAKE_CURRENT_BINARY_DIR}/pgexporter-admin.1")
+set(PGEXPORTER_CONF_SRC_FILE "${CMAKE_CURRENT_SOURCE_DIR}/man/pgexporter.conf.5.rst")
+set(PGEXPORTER_CONF_DST_FILE "${CMAKE_CURRENT_BINARY_DIR}/pgexporter.conf.5")
+
+# pgexporter.1
+add_custom_command(
+  TARGET man
+  COMMAND ${RST2MAN_EXECUTABLE} ${PGEXPORTER_SRC_FILE} ${PGEXPORTER_DST_FILE}
+  OUTPUTS ${PGEXPORTER_DST_FILE}
+)
+
+# pgexporter-cli.1
+add_custom_command(
+  TARGET man
+  COMMAND ${RST2MAN_EXECUTABLE} ${PGEXPORTER_CLI_SRC_FILE} ${PGEXPORTER_CLI_DST_FILE}
+  OUTPUTS ${PGEXPORTER_CLI_DST_FILE}
+)
+
+# pgexporter-admin.1
+add_custom_command(
+  TARGET man
+  COMMAND ${RST2MAN_EXECUTABLE} ${PGEXPORTER_ADMIN_SRC_FILE} ${PGEXPORTER_ADMIN_DST_FILE}
+  OUTPUTS ${PGEXPORTER_ADMIN_DST_FILE}
+)
+
+# pgexporter.conf.5
+add_custom_command(
+  TARGET man
+  COMMAND ${RST2MAN_EXECUTABLE} ${PGEXPORTER_CONF_SRC_FILE} ${PGEXPORTER_CONF_DST_FILE}
+  OUTPUTS ${PGEXPORTER_CONF_DST_FILE}
+)
+
+# man pages
+add_custom_command(
+  TARGET man
+  DEPENDS ${PGEXPORTER_DST_FILE} ${PGEXPORTER_CLI_DST_FILE} ${PGEXPORTER_ADMIN_DST_FILE} ${PGEXPORTER_CONF_DST_FILE}
+)
+
+#
+# Install configuration and documentation
+#
+install(FILES etc/pgexporter.conf DESTINATION etc/pgexporter)
+
+install(DIRECTORY . DESTINATION share/doc/pgexporter FILES_MATCHING PATTERN "*.md" PATTERN "etc" EXCLUDE PATTERN "man" EXCLUDE)
+
+install(FILES ${PGEXPORTER_DST_FILE} DESTINATION share/man/man1)
+install(FILES ${PGEXPORTER_CLI_DST_FILE} DESTINATION share/man/man1)
+install(FILES ${PGEXPORTER_ADMIN_DST_FILE} DESTINATION share/man/man1)
+install(FILES ${PGEXPORTER_CONF_DST_FILE} DESTINATION share/man/man5)
