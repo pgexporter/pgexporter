@@ -1,6 +1,11 @@
 # pgexporter
 
-`pgexporter` is a Prometheus exporter for [PostgreSQL](https://www.postgresql.org).
+`pgexporter` is a [Prometheus](https://prometheus.io/) exporter for [PostgreSQL](https://www.postgresql.org).
+
+`pgexporter` will connect to one or more [PostgreSQL](https://www.postgresql.org) instances and let you monitor
+their operation.
+
+See [Metrics](https://pgexporter.github.io/metrics.html) for a list of currently available metrics.
 
 ## Features
 
