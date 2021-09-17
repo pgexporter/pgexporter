@@ -88,7 +88,7 @@ We will run `pgexporter` using the command
 pgexporter -c pgexporter.conf -u pgexporter_users.conf
 ```
 
-If this doesn't give an error, then we are ready to do backups.
+If this doesn't give an error, then we are ready to use the Prometheus endpoint.
 
 `pgexporter` is stopped by pressing Ctrl-C (`^C`) in the console where you started it, or by sending
 the `SIGTERM` signal to the process using `kill <pid>`.
