@@ -50,6 +50,8 @@ See a [sample](./etc/pgexporter.conf) configuration for running `pgexporter` on 
 | host | | String | Yes | The address of the PostgreSQL instance |
 | port | | Int | Yes | The port of the PostgreSQL instance |
 | user | | String | Yes | The user name |
+| data_dir | | String | No | The location of the data directory |
+| wal_dir | | String | No | The location of the WAL directory |
 
 Note, that PostgreSQL 10+ is required.
 

@@ -99,6 +99,8 @@ struct server
    char host[MISC_LENGTH];             /**< The host name of the server */
    int port;                           /**< The port of the server */
    char username[MAX_USERNAME_LENGTH]; /**< The user name */
+   char data[MISC_LENGTH];             /**< The data directory */
+   char wal[MISC_LENGTH];              /**< The WAL directory */
    int fd;                             /**< The socket descriptor */
 } __attribute__ ((aligned (64)));
 

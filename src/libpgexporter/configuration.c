@@ -487,6 +487,42 @@ pgexporter_read_configuration(void* shm, char* filename)
                      unknown = true;
                   }
                }
+               else if (!strcmp(key, "data_dir"))
+               {
+                  if (strlen(section) > 0)
+                  {
+                     max = strlen(section);
+                     if (max > MISC_LENGTH - 1)
+                        max = MISC_LENGTH - 1;
+                     memcpy(&srv.name, section, max);
+                     max = strlen(value);
+                     if (max > MISC_LENGTH - 1)
+                        max = MISC_LENGTH - 1;
+                     memcpy(&srv.data, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "wal_dir"))
+               {
+                  if (strlen(section) > 0)
+                  {
+                     max = strlen(section);
+                     if (max > MISC_LENGTH - 1)
+                        max = MISC_LENGTH - 1;
+                     memcpy(&srv.name, section, max);
+                     max = strlen(value);
+                     if (max > MISC_LENGTH - 1)
+                        max = MISC_LENGTH - 1;
+                     memcpy(&srv.wal, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
                else
                {
                   unknown = true;
@@ -1230,6 +1266,8 @@ copy_server(struct server* dst, struct server* src)
    memcpy(&dst->host[0], &src->host[0], MISC_LENGTH);
    dst->port = src->port;
    memcpy(&dst->username[0], &src->username[0], MAX_USERNAME_LENGTH);
+   memcpy(&dst->data[0], &src->data[0], MISC_LENGTH);
+   memcpy(&dst->wal[0], &src->wal[0], MISC_LENGTH);
    dst->fd = src->fd;
 }
 

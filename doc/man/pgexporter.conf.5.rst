@@ -98,6 +98,12 @@ port
 user
   The user name for the replication role. Mandatory
 
+data_dir
+  The location of the data directory
+
+wal_dir
+  The location of the WAL directory
+
 REPORTING BUGS
 ==============
 

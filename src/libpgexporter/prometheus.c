@@ -57,6 +57,7 @@ static int metrics_page(int client_fd);
 
 static void general_information(int client_fd);
 static void server_information(int client_fd);
+static void disk_space_information(int client_fd);
 static void database_information(int client_fd);
 static void replication_information(int client_fd);
 static void settings_information(int client_fd);
@@ -313,6 +314,7 @@ metrics_page(int client_fd)
 
    general_information(client_fd);
    server_information(client_fd);
+   disk_space_information(client_fd);
    database_information(client_fd);
    replication_information(client_fd);
    settings_information(client_fd);
@@ -389,6 +391,358 @@ server_information(int client_fd)
       data = pgexporter_append(data, "\n");
    }
    data = pgexporter_append(data, "\n");
+
+   if (data != NULL)
+   {
+      send_chunk(client_fd, data);
+      free(data);
+      data = NULL;
+   }
+}
+
+static void
+disk_space_information(int client_fd)
+{
+   char* d;
+   char* data = NULL;
+   bool header = false;
+   struct tuples* tuples = NULL;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   /* data/used */
+   for (int server = 0; server < config->number_of_servers; server++)
+   {
+      if (config->servers[server].fd != -1)
+      {
+         if (strlen(config->servers[server].data) > 0)
+         {
+            pgexporter_query_used_disk_space(server, true, &tuples);
+
+            if (tuples == NULL)
+            {
+               continue;
+            }
+
+            if (!header)
+            {
+               d = NULL;
+               d = pgexporter_append(d, "#HELP pgexporter_used_disk_space_data The used disk space for the data directory\n");
+               data = pgexporter_append(data, d);
+               free(d);
+
+               d = NULL;
+               d = pgexporter_append(d, "#TYPE pgexporter_used_disk_space_data gauge\n");
+               data = pgexporter_append(data, d);
+               free(d);
+
+               header = true;
+            }
+
+            d = NULL;
+            d = pgexporter_append(d, "pgexporter_used_disk_space_data{server=\"");
+            d = pgexporter_append(d, &config->servers[server].name[0]);
+            d = pgexporter_append(d, "\"} ");
+            d = pgexporter_append(d, &tuples->tuple->name[0]);
+            d = pgexporter_append(d, "\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            pgexporter_free_tuples(tuples);
+         }
+      }
+   }
+
+   if (header)
+   {
+      data = pgexporter_append(data, "\n");
+   }
+
+   if (data != NULL)
+   {
+      send_chunk(client_fd, data);
+      free(data);
+      data = NULL;
+   }
+
+   header = false;
+
+   /* data/free */
+   for (int server = 0; server < config->number_of_servers; server++)
+   {
+      if (config->servers[server].fd != -1)
+      {
+         if (strlen(config->servers[server].data) > 0)
+         {
+            pgexporter_query_free_disk_space(server, true, &tuples);
+
+            if (tuples == NULL)
+            {
+               continue;
+            }
+
+            if (!header)
+            {
+               d = NULL;
+               d = pgexporter_append(d, "#HELP pgexporter_free_disk_space_data The free disk space for the data directory\n");
+               data = pgexporter_append(data, d);
+               free(d);
+
+               d = NULL;
+               d = pgexporter_append(d, "#TYPE pgexporter_free_disk_space_data gauge\n");
+               data = pgexporter_append(data, d);
+               free(d);
+
+               header = true;
+            }
+
+            d = NULL;
+            d = pgexporter_append(d, "pgexporter_free_disk_space_data{server=\"");
+            d = pgexporter_append(d, &config->servers[server].name[0]);
+            d = pgexporter_append(d, "\"} ");
+            d = pgexporter_append(d, &tuples->tuple->name[0]);
+            d = pgexporter_append(d, "\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            pgexporter_free_tuples(tuples);
+         }
+      }
+   }
+
+   if (header)
+   {
+      data = pgexporter_append(data, "\n");
+   }
+
+   if (data != NULL)
+   {
+      send_chunk(client_fd, data);
+      free(data);
+      data = NULL;
+   }
+
+   header = false;
+
+   /* data/total */
+   for (int server = 0; server < config->number_of_servers; server++)
+   {
+      if (config->servers[server].fd != -1)
+      {
+         if (strlen(config->servers[server].data) > 0)
+         {
+            pgexporter_query_total_disk_space(server, true, &tuples);
+
+            if (tuples == NULL)
+            {
+               continue;
+            }
+
+            if (!header)
+            {
+               d = NULL;
+               d = pgexporter_append(d, "#HELP pgexporter_total_disk_space_data The total disk space for the data directory\n");
+               data = pgexporter_append(data, d);
+               free(d);
+
+               d = NULL;
+               d = pgexporter_append(d, "#TYPE pgexporter_total_disk_space_data gauge\n");
+               data = pgexporter_append(data, d);
+               free(d);
+
+               header = true;
+            }
+
+            d = NULL;
+            d = pgexporter_append(d, "pgexporter_total_disk_space_data{server=\"");
+            d = pgexporter_append(d, &config->servers[server].name[0]);
+            d = pgexporter_append(d, "\"} ");
+            d = pgexporter_append(d, &tuples->tuple->name[0]);
+            d = pgexporter_append(d, "\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            pgexporter_free_tuples(tuples);
+         }
+      }
+   }
+
+   if (header)
+   {
+      data = pgexporter_append(data, "\n");
+   }
+
+   if (data != NULL)
+   {
+      send_chunk(client_fd, data);
+      free(data);
+      data = NULL;
+   }
+
+   header = false;
+
+   /* wal/used */
+   for (int server = 0; server < config->number_of_servers; server++)
+   {
+      if (config->servers[server].fd != -1)
+      {
+         if (strlen(config->servers[server].wal) > 0)
+         {
+            pgexporter_query_used_disk_space(server, false, &tuples);
+
+            if (tuples == NULL)
+            {
+               continue;
+            }
+
+            if (!header)
+            {
+               d = NULL;
+               d = pgexporter_append(d, "#HELP pgexporter_used_disk_space_wal The used disk space for the WAL directory\n");
+               data = pgexporter_append(data, d);
+               free(d);
+
+               d = NULL;
+               d = pgexporter_append(d, "#TYPE pgexporter_used_disk_space_wal gauge\n");
+               data = pgexporter_append(data, d);
+               free(d);
+
+               header = true;
+            }
+
+            d = NULL;
+            d = pgexporter_append(d, "pgexporter_used_disk_space_wal{server=\"");
+            d = pgexporter_append(d, &config->servers[server].name[0]);
+            d = pgexporter_append(d, "\"} ");
+            d = pgexporter_append(d, &tuples->tuple->name[0]);
+            d = pgexporter_append(d, "\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            pgexporter_free_tuples(tuples);
+         }
+      }
+   }
+
+   if (header)
+   {
+      data = pgexporter_append(data, "\n");
+   }
+
+   if (data != NULL)
+   {
+      send_chunk(client_fd, data);
+      free(data);
+      data = NULL;
+   }
+
+   header = false;
+
+   /* wal/free */
+   for (int server = 0; server < config->number_of_servers; server++)
+   {
+      if (config->servers[server].fd != -1)
+      {
+         if (strlen(config->servers[server].wal) > 0)
+         {
+            pgexporter_query_free_disk_space(server, false, &tuples);
+
+            if (tuples == NULL)
+            {
+               continue;
+            }
+
+            if (!header)
+            {
+               d = NULL;
+               d = pgexporter_append(d, "#HELP pgexporter_free_disk_space_wal The free disk space for the WAL directory\n");
+               data = pgexporter_append(data, d);
+               free(d);
+
+               d = NULL;
+               d = pgexporter_append(d, "#TYPE pgexporter_free_disk_space_wal gauge\n");
+               data = pgexporter_append(data, d);
+               free(d);
+
+               header = true;
+            }
+
+            d = NULL;
+            d = pgexporter_append(d, "pgexporter_free_disk_space_wal{server=\"");
+            d = pgexporter_append(d, &config->servers[server].name[0]);
+            d = pgexporter_append(d, "\"} ");
+            d = pgexporter_append(d, &tuples->tuple->name[0]);
+            d = pgexporter_append(d, "\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            pgexporter_free_tuples(tuples);
+         }
+      }
+   }
+
+   if (header)
+   {
+      data = pgexporter_append(data, "\n");
+   }
+
+   if (data != NULL)
+   {
+      send_chunk(client_fd, data);
+      free(data);
+      data = NULL;
+   }
+
+   header = false;
+
+   /* wal/total */
+   for (int server = 0; server < config->number_of_servers; server++)
+   {
+      if (config->servers[server].fd != -1)
+      {
+         if (strlen(config->servers[server].wal) > 0)
+         {
+            pgexporter_query_total_disk_space(server, false, &tuples);
+
+            if (tuples == NULL)
+            {
+               continue;
+            }
+
+            if (!header)
+            {
+               d = NULL;
+               d = pgexporter_append(d, "#HELP pgexporter_total_disk_space_wal The total disk space for the WAL directory\n");
+               data = pgexporter_append(data, d);
+               free(d);
+
+               d = NULL;
+               d = pgexporter_append(d, "#TYPE pgexporter_total_disk_space_wal gauge\n");
+               data = pgexporter_append(data, d);
+               free(d);
+
+               header = true;
+            }
+
+            d = NULL;
+            d = pgexporter_append(d, "pgexporter_total_disk_space_wal{server=\"");
+            d = pgexporter_append(d, &config->servers[server].name[0]);
+            d = pgexporter_append(d, "\"} ");
+            d = pgexporter_append(d, &tuples->tuple->name[0]);
+            d = pgexporter_append(d, "\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            pgexporter_free_tuples(tuples);
+         }
+      }
+   }
+
+   if (header)
+   {
+      data = pgexporter_append(data, "\n");
+   }
 
    if (data != NULL)
    {

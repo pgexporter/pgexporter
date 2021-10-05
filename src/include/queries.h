@@ -67,6 +67,36 @@ void
 pgexporter_close_connections(void);
 
 /**
+ * Query for used disk space
+ * @param server The server
+ * @param data Data (true) or WAL (false)
+ * @param tuples The resulting tuples
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_query_used_disk_space(int server, bool data, struct tuples** tuples);
+
+/**
+ * Query for free disk space
+ * @param server The server
+ * @param data Data (true) or WAL (false)
+ * @param tuples The resulting tuples
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_query_free_disk_space(int server, bool data, struct tuples** tuples);
+
+/**
+ * Query for total disk space
+ * @param server The server
+ * @param data Data (true) or WAL (false)
+ * @param tuples The resulting tuples
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_query_total_disk_space(int server, bool data, struct tuples** tuples);
+
+/**
  * Query pg_database for size
  * @param server The server
  * @param tuples The resulting tuples
