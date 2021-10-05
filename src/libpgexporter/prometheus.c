@@ -444,7 +444,7 @@ disk_space_information(int client_fd)
             d = pgexporter_append(d, "pgexporter_used_disk_space_data{server=\"");
             d = pgexporter_append(d, &config->servers[server].name[0]);
             d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, &tuples->tuple->name[0]);
+            d = pgexporter_append(d, pgexporter_get_column(0, tuples->tuple));
             d = pgexporter_append(d, "\n");
             data = pgexporter_append(data, d);
             free(d);
@@ -501,7 +501,7 @@ disk_space_information(int client_fd)
             d = pgexporter_append(d, "pgexporter_free_disk_space_data{server=\"");
             d = pgexporter_append(d, &config->servers[server].name[0]);
             d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, &tuples->tuple->name[0]);
+            d = pgexporter_append(d, pgexporter_get_column(0, tuples->tuple));
             d = pgexporter_append(d, "\n");
             data = pgexporter_append(data, d);
             free(d);
@@ -558,7 +558,7 @@ disk_space_information(int client_fd)
             d = pgexporter_append(d, "pgexporter_total_disk_space_data{server=\"");
             d = pgexporter_append(d, &config->servers[server].name[0]);
             d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, &tuples->tuple->name[0]);
+            d = pgexporter_append(d, pgexporter_get_column(0, tuples->tuple));
             d = pgexporter_append(d, "\n");
             data = pgexporter_append(data, d);
             free(d);
@@ -615,7 +615,7 @@ disk_space_information(int client_fd)
             d = pgexporter_append(d, "pgexporter_used_disk_space_wal{server=\"");
             d = pgexporter_append(d, &config->servers[server].name[0]);
             d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, &tuples->tuple->name[0]);
+            d = pgexporter_append(d, pgexporter_get_column(0, tuples->tuple));
             d = pgexporter_append(d, "\n");
             data = pgexporter_append(data, d);
             free(d);
@@ -672,7 +672,7 @@ disk_space_information(int client_fd)
             d = pgexporter_append(d, "pgexporter_free_disk_space_wal{server=\"");
             d = pgexporter_append(d, &config->servers[server].name[0]);
             d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, &tuples->tuple->name[0]);
+            d = pgexporter_append(d, pgexporter_get_column(0, tuples->tuple));
             d = pgexporter_append(d, "\n");
             data = pgexporter_append(data, d);
             free(d);
@@ -729,7 +729,7 @@ disk_space_information(int client_fd)
             d = pgexporter_append(d, "pgexporter_total_disk_space_wal{server=\"");
             d = pgexporter_append(d, &config->servers[server].name[0]);
             d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, &tuples->tuple->name[0]);
+            d = pgexporter_append(d, pgexporter_get_column(0, tuples->tuple));
             d = pgexporter_append(d, "\n");
             data = pgexporter_append(data, d);
             free(d);
@@ -805,9 +805,9 @@ database_information(int client_fd)
          d = pgexporter_append(d, "_size{server=\"");
          d = pgexporter_append(d, &config->servers[current->tuple->server].name[0]);
          d = pgexporter_append(d, "\",database=\"");
-         d = pgexporter_append(d, &current->tuple->name[0]);
+         d = pgexporter_append(d, pgexporter_get_column(0, current->tuple));
          d = pgexporter_append(d, "\"} ");
-         d = pgexporter_append(d, get_value(&current->tuple->tag[0], &current->tuple->name[0], &current->tuple->value[0]));
+         d = pgexporter_append(d, get_value(&current->tuple->tag[0], pgexporter_get_column(0, current->tuple), pgexporter_get_column(1, current->tuple)));
          d = pgexporter_append(d, "\n");
          data = pgexporter_append(data, d);
          free(d);
@@ -881,9 +881,9 @@ replication_information(int client_fd)
          d = pgexporter_append(d, "_active{server=\"");
          d = pgexporter_append(d, &config->servers[current->tuple->server].name[0]);
          d = pgexporter_append(d, "\",slot=\"");
-         d = pgexporter_append(d, &current->tuple->name[0]);
+         d = pgexporter_append(d, pgexporter_get_column(0, current->tuple));
          d = pgexporter_append(d, "\"} ");
-         d = pgexporter_append(d, get_value(&current->tuple->tag[0], &current->tuple->name[0], &current->tuple->value[0]));
+         d = pgexporter_append(d, get_value(&current->tuple->tag[0], pgexporter_get_column(0, current->tuple), pgexporter_get_column(1, current->tuple)));
          d = pgexporter_append(d, "\n");
          data = pgexporter_append(data, d);
          free(d);
@@ -937,9 +937,9 @@ settings_information(int client_fd)
       d = pgexporter_append(d, "#HELP pgexporter_");
       d = pgexporter_append(d, &current->tuple->tag[0]);
       d = pgexporter_append(d, "_");
-      d = pgexporter_append(d, &current->tuple->name[0]);
+      d = pgexporter_append(d, pgexporter_get_column(0, current->tuple));
       d = pgexporter_append(d, " ");
-      d = pgexporter_append(d, &current->tuple->desc[0]);
+      d = pgexporter_append(d, pgexporter_get_column(2, current->tuple));
       d = pgexporter_append(d, "\n");
       data = pgexporter_append(data, d);
       free(d);
@@ -948,7 +948,7 @@ settings_information(int client_fd)
       d = pgexporter_append(d, "#TYPE pgexporter_");
       d = pgexporter_append(d, &current->tuple->tag[0]);
       d = pgexporter_append(d, "_");
-      d = pgexporter_append(d, &current->tuple->name[0]);
+      d = pgexporter_append(d, pgexporter_get_column(0, current->tuple));
       d = pgexporter_append(d, " gauge");
       d = pgexporter_append(d, "\n");
       data = pgexporter_append(data, d);
@@ -959,16 +959,16 @@ data:
       d = pgexporter_append(d, "pgexporter_");
       d = pgexporter_append(d, &current->tuple->tag[0]);
       d = pgexporter_append(d, "_");
-      d = pgexporter_append(d, &current->tuple->name[0]);
+      d = pgexporter_append(d, pgexporter_get_column(0, current->tuple));
       d = pgexporter_append(d, "{server=\"");
       d = pgexporter_append(d, &config->servers[current->tuple->server].name[0]);
       d = pgexporter_append(d, "\"} ");
-      d = pgexporter_append(d, get_value(&current->tuple->tag[0], &current->tuple->name[0], &current->tuple->value[0]));
+      d = pgexporter_append(d, get_value(&current->tuple->tag[0], pgexporter_get_column(0, current->tuple), pgexporter_get_column(1, current->tuple)));
       d = pgexporter_append(d, "\n");
       data = pgexporter_append(data, d);
       free(d);
 
-      if (current->next != NULL && !strcmp(&current->tuple->name[0], &current->next->tuple->name[0]))
+      if (current->next != NULL && !strcmp(pgexporter_get_column(0, current->tuple), pgexporter_get_column(0, current->next->tuple)))
       {
          current = current->next;
          goto data;

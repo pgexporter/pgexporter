@@ -41,11 +41,9 @@ extern "C" {
 struct tuple
 {
    int server;              /**< The server */
-   int columns;             /**< The number of columns */
    char tag[MISC_LENGTH];   /**< The tag */
-   char name[MISC_LENGTH];  /**< The name */
-   char value[MISC_LENGTH]; /**< The value */
-   char desc[MISC_LENGTH];  /**< The description */
+   int number_of_columns;   /**< The number of columns */
+   char** columns;          /**< The columns */
 } __attribute__ ((aligned (64)));
 
 struct tuples
@@ -139,6 +137,15 @@ pgexporter_merge_tuples(struct tuples* t1, struct tuples* t2);
  */
 int
 pgexporter_free_tuples(struct tuples* tuples);
+
+/**
+ * Get column from a tuple
+ * @param col The column
+ * @param tuple The tuple
+ * @return 0 upon success, otherwise 1
+ */
+char*
+pgexporter_get_column(int col, struct tuple* tuple);
 
 #ifdef __cplusplus
 }

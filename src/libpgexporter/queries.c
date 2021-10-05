@@ -40,7 +40,7 @@
 
 static int query_execute(int server, char* query, char* tag, int columns, struct tuples** tuples);
 static void* data_append(void* orig, size_t orig_size, void* n, size_t n_size);
-static int create_D_tuple(int server, int columns, char* tag, struct message* msg, struct tuples** tuples);
+static int create_D_tuple(int server, int number_of_columns, char* tag, struct message* msg, struct tuples** tuples);
 
 void
 pgexporter_open_connections(void)
@@ -219,9 +219,9 @@ pgexporter_merge_tuples(struct tuples* t1, struct tuples* t2)
 
    while (ct1 != NULL)
    {
-      if (ct2 != NULL && !strcmp(&ct1->tuple->name[0], &ct2->tuple->name[0]))
+      if (ct2 != NULL && !strcmp(ct1->tuple->columns[0], ct2->tuple->columns[0]))
       {
-         while (ct1->next != NULL && !strcmp(&ct1->next->tuple->name[0], &ct2->tuple->name[0]))
+         while (ct1->next != NULL && !strcmp(ct1->next->tuple->columns[0], ct2->tuple->columns[0]))
          {
             ct1 = ct1->next;
          }
@@ -261,6 +261,12 @@ pgexporter_free_tuples(struct tuples* tuples)
    {
       next = current->next;
 
+      for (int i = 0; i < current->tuple->number_of_columns; i++)
+      {
+         free(current->tuple->columns[i]);
+      }
+      free(current->tuple->columns);
+
       free(current->tuple);
       free(current);
 
@@ -268,6 +274,12 @@ pgexporter_free_tuples(struct tuples* tuples)
    }
 
    return 0;
+}
+
+char*
+pgexporter_get_column(int col, struct tuple* tuple)
+{
+   return tuple->columns[col];
 }
 
 static int
@@ -354,7 +366,7 @@ query_execute(int server, char* query, char* tag, int columns, struct tuples** t
          }
       }
 
-      pgexporter_free_message(msg);
+      pgexporter_free_copy_message(msg);
       msg = NULL;
    }
 
@@ -387,7 +399,7 @@ data_append(void* orig, size_t orig_size, void* n, size_t n_size)
 }
 
 static int
-create_D_tuple(int server, int columns, char* tag, struct message* msg, struct tuples** tuples)
+create_D_tuple(int server, int number_of_columns, char* tag, struct message* msg, struct tuples** tuples)
 {
    int offset;
    int length;
@@ -401,41 +413,28 @@ create_D_tuple(int server, int columns, char* tag, struct message* msg, struct t
    memset(d, 0, sizeof(struct tuple));
 
    d->server = server;
-   d->columns = columns;
+   d->number_of_columns = number_of_columns;
    memcpy(&d->tag[0], tag, strlen(tag));
    
+   d->columns = (char**)malloc(number_of_columns * sizeof(char*));
+
    offset = 7;
 
-   length = pgexporter_read_int32(msg->data + offset);
-   offset += 4;
-
-   if (length > 0)
-   {
-      memcpy(&d->name[0], msg->data + offset, length);
-      offset += length;
-   }
-
-   if (columns >= 2)
+   for (int i = 0; i < number_of_columns; i++)
    {
       length = pgexporter_read_int32(msg->data + offset);
       offset += 4;
 
       if (length > 0)
       {
-         memcpy(&d->value[0], msg->data + offset, length);
+         d->columns[i] = (char*)malloc(length + 1);
+         memset(d->columns[i], 0, length + 1);
+         memcpy(d->columns[i], msg->data + offset, length);
          offset += length;
       }
-   }
-
-   if (columns >= 3)
-   {
-      length = pgexporter_read_int32(msg->data + offset);
-      offset += 4;
-
-      if (length > 0)
+      else
       {
-         memcpy(&d->desc[0], msg->data + offset, length);
-         offset += length;
+         d->columns[i] = NULL;
       }
    }
 
