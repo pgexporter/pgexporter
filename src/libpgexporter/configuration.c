@@ -43,6 +43,7 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #ifdef HAVE_LINUX
 #include <systemd/sd-daemon.h>
@@ -560,6 +561,7 @@ pgexporter_read_configuration(void* shm, char* filename)
 int
 pgexporter_validate_configuration(void* shm)
 {
+   struct stat st;
    struct configuration* config;
 
    config = (struct configuration*)shm;
@@ -573,6 +575,16 @@ pgexporter_validate_configuration(void* shm)
    if (strlen(config->unix_socket_dir) == 0)
    {
       pgexporter_log_fatal("pgexporter: No unix_socket_dir defined");
+      return 1;
+   }
+
+   if (stat(config->unix_socket_dir, &st) == 0 && S_ISDIR(st.st_mode))
+   {
+      /* Ok */
+   }
+   else
+   {
+      pgexporter_log_fatal("pgexporter: unix_socket_dir is not a directory (%s)", config->unix_socket_dir);
       return 1;
    }
 
