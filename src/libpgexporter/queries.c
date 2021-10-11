@@ -189,6 +189,32 @@ pgexporter_query_replication_slot_active(int server, struct tuples** tuples)
 }
 
 int
+pgexporter_query_locks(int server, struct tuples** tuples)
+{
+   return query_execute(server,
+                        "SELECT pg_database.datname as database, tmp.mode, COALESCE(count, 0) as count "
+                        "FROM "
+                        "("
+                        " VALUES ('accesssharelock'),"
+                        "        ('rowsharelock'),"
+                        "        ('rowexclusivelock'),"
+                        "        ('shareupdateexclusivelock'),"
+                        "        ('sharelock'),"
+                        "        ('sharerowexclusivelock'),"
+                        "        ('exclusivelock'),"
+                        "        ('accessexclusivelock'),"
+                        "        ('sireadlock')"
+                        ") AS tmp(mode) CROSS JOIN pg_database "
+                        "LEFT JOIN "
+                        "(SELECT database, lower(mode) AS mode, count(*) AS count "
+                        " FROM pg_locks WHERE database IS NOT NULL "
+                        " GROUP BY database, lower(mode) "
+                        ") AS tmp2 "
+                        "ON tmp.mode = tmp2.mode and pg_database.oid = tmp2.database ORDER BY 1, 2;",
+                        "pg_locks", 3, tuples);
+}
+
+int
 pgexporter_query_settings(int server, struct tuples** tuples)
 {
    return query_execute(server, "SELECT name,setting,short_desc FROM pg_settings;",

@@ -60,6 +60,7 @@ static void server_information(int client_fd);
 static void disk_space_information(int client_fd);
 static void database_information(int client_fd);
 static void replication_information(int client_fd);
+static void locks_information(int client_fd);
 static void settings_information(int client_fd);
 
 static int send_chunk(int client_fd, char* data);
@@ -242,6 +243,7 @@ home_page(int client_fd)
    data = pgexporter_append(data, "  Support for\n");
    data = pgexporter_append(data, "  <ul>\n");
    data = pgexporter_append(data, "  <li>pg_database</li>\n");
+   data = pgexporter_append(data, "  <li>pg_locks</li>\n");
    data = pgexporter_append(data, "  <li>pg_replication_slots</li>\n");
    data = pgexporter_append(data, "  <li>pg_settings</li>\n");
    data = pgexporter_append(data, "  </ul>\n");
@@ -317,6 +319,7 @@ metrics_page(int client_fd)
    disk_space_information(client_fd);
    database_information(client_fd);
    replication_information(client_fd);
+   locks_information(client_fd);
    settings_information(client_fd);
 
    pgexporter_close_connections();
@@ -884,6 +887,84 @@ replication_information(int client_fd)
          d = pgexporter_append(d, pgexporter_get_column(0, current->tuple));
          d = pgexporter_append(d, "\"} ");
          d = pgexporter_append(d, get_value(&current->tuple->tag[0], pgexporter_get_column(0, current->tuple), pgexporter_get_column(1, current->tuple)));
+         d = pgexporter_append(d, "\n");
+         data = pgexporter_append(data, d);
+         free(d);
+
+         current = current->next;
+      }
+
+      data = pgexporter_append(data, "\n");
+
+      if (data != NULL)
+      {
+         send_chunk(client_fd, data);
+         free(data);
+         data = NULL;
+      }
+   }
+
+   pgexporter_free_tuples(all);
+}
+
+static void
+locks_information(int client_fd)
+{
+   int ret;
+   char* d;
+   char* data = NULL;
+   struct tuples* all = NULL;
+   struct tuples* tuples = NULL;
+   struct tuples* current = NULL;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   for (int server = 0; server < config->number_of_servers; server++)
+   {
+      if (config->servers[server].fd != -1)
+      {
+         ret = pgexporter_query_locks(server, &tuples);
+         if (ret == 0)
+         {
+            all = pgexporter_merge_tuples(all, tuples);
+         }
+         tuples = NULL;
+      }
+   }
+
+   current = all;
+   if (current != NULL)
+   {
+      d = NULL;
+      d = pgexporter_append(d, "#HELP pgexporter_");
+      d = pgexporter_append(d, &current->tuple->tag[0]);
+      d = pgexporter_append(d, "_count Lock count of a database");
+      d = pgexporter_append(d, "\n");
+      data = pgexporter_append(data, d);
+      free(d);
+
+      d = NULL;
+      d = pgexporter_append(d, "#TYPE pgexporter_");
+      d = pgexporter_append(d, &current->tuple->tag[0]);
+      d = pgexporter_append(d, "_count gauge");
+      d = pgexporter_append(d, "\n");
+      data = pgexporter_append(data, d);
+      free(d);
+
+      while (current != NULL)
+      {
+         d = NULL;
+         d = pgexporter_append(d, "pgexporter_");
+         d = pgexporter_append(d, &current->tuple->tag[0]);
+         d = pgexporter_append(d, "_count{server=\"");
+         d = pgexporter_append(d, &config->servers[current->tuple->server].name[0]);
+         d = pgexporter_append(d, "\",database=\"");
+         d = pgexporter_append(d, pgexporter_get_column(0, current->tuple));
+         d = pgexporter_append(d, "\",mode=\"");
+         d = pgexporter_append(d, pgexporter_get_column(1, current->tuple));
+         d = pgexporter_append(d, "\"} ");
+         d = pgexporter_append(d, get_value(&current->tuple->tag[0], pgexporter_get_column(1, current->tuple), pgexporter_get_column(2, current->tuple)));
          d = pgexporter_append(d, "\n");
          data = pgexporter_append(data, d);
          free(d);

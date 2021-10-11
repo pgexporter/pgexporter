@@ -113,6 +113,15 @@ int
 pgexporter_query_replication_slot_active(int server, struct tuples** tuples);
 
 /**
+ * Query pg_locks
+ * @param server The server
+ * @param tuples The resulting tuples
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_query_locks(int server, struct tuples** tuples);
+
+/**
  * Query pg_settings
  * @param server The server
  * @param tuples The resulting tuples
