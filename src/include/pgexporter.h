@@ -102,6 +102,7 @@ struct server
    char data[MISC_LENGTH];             /**< The data directory */
    char wal[MISC_LENGTH];              /**< The WAL directory */
    int fd;                             /**< The socket descriptor */
+   bool new;                           /**< Is the connection new */
 } __attribute__ ((aligned (64)));
 
 /** @struct
@@ -132,6 +133,8 @@ struct configuration
    char host[MISC_LENGTH]; /**< The host */
    int metrics;            /**< The metrics port */
    int management;         /**< The management port */
+
+   bool cache; /**< Cache connection */
 
    int log_type;               /**< The logging type */
    int log_level;              /**< The logging level */

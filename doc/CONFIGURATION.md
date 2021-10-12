@@ -26,6 +26,7 @@ See a [sample](./etc/pgexporter.conf) configuration for running `pgexporter` on 
 | unix_socket_dir | | String | Yes | The Unix Domain Socket location |
 | metrics | | Int | Yes | The metrics port |
 | management | 0 | Int | No | The remote management port (disable = 0) |
+| cache | `on` | Bool | No | Cache connection |
 | log_type | console | String | No | The logging type (console, file, syslog) |
 | log_level | info | String | No | The logging level (fatal, error, warn, info, debug1, ..., debug5) |
 | log_path | pgexporter.log | String | No | The log file location |

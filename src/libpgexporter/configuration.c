@@ -77,6 +77,7 @@ pgexporter_init_configuration(void* shm)
    config = (struct configuration*)shm;
 
    config->metrics = -1;
+   config->cache = true;
 
    config->tls = false;
 
@@ -245,6 +246,20 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (!strcmp(section, "pgexporter"))
                   {
                      if (as_int(value, &config->management))
+                     {
+                        unknown = true;
+                     }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "cache"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     if (as_bool(value, &config->cache))
                      {
                         unknown = true;
                      }
@@ -1210,6 +1225,7 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    memcpy(config->host, reload->host, MISC_LENGTH);
    config->metrics = reload->metrics;
    config->management = reload->management;
+   config->cache = reload->cache;
 
    /* log_type */
    restart_int("log_type", config->log_type, reload->log_type);

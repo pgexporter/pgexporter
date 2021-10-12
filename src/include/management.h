@@ -40,12 +40,13 @@ extern "C" {
 
 #include <openssl/ssl.h>
 
-#define MANAGEMENT_STOP        5
-#define MANAGEMENT_STATUS      6
-#define MANAGEMENT_DETAILS     7
-#define MANAGEMENT_ISALIVE     8
-#define MANAGEMENT_RESET       9
-#define MANAGEMENT_RELOAD     10
+#define MANAGEMENT_TRANSFER_CONNECTION 1
+#define MANAGEMENT_STOP                2
+#define MANAGEMENT_STATUS              3
+#define MANAGEMENT_DETAILS             4
+#define MANAGEMENT_ISALIVE             5
+#define MANAGEMENT_RESET               6
+#define MANAGEMENT_RELOAD              7
 
 /**
  * Read the management header
@@ -60,14 +61,20 @@ pgexporter_management_read_header(int socket, signed char* id);
  * Read the management payload
  * @param socket The socket descriptor
  * @param id The management identifier
- * @param payload_s1 The resulting string payload
- * @param payload_s2 The resulting string payload
- * @param payload_s3 The resulting string payload
- * @param payload_s4 The resulting string payload
+ * @param payload_i1 The resulting integer payload
+ * @param payload_i2 The resulting integer payload
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_management_read_payload(int socket, signed char id, char** payload_s1, char** payload_s2, char** payload_s3, char** payload_s4);
+pgexporter_management_read_payload(int socket, signed char id, int* payload_i1, int* payload_i2);
+
+/**
+ * Management operation: Transfer a connection
+ * @param slot The slot
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_management_transfer_connection(int server);
 
 /**
  * Management operation: Stop

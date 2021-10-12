@@ -637,13 +637,8 @@ accept_mgt_cb(struct ev_loop *loop, struct ev_io *watcher, int revents)
    socklen_t client_addr_length;
    int client_fd;
    signed char id;
-   char* payload_s1 = NULL; 
-   char* payload_s2 = NULL;
-   char* payload_s3 = NULL;
-   char* payload_s4 = NULL;
-   /* int srv; */
-   /* pid_t pid; */
-   /* struct accept_io* ai; */
+   int payload_i1;
+   int payload_i2;
    struct configuration* config;
 
    if (EV_ERROR & revents)
@@ -653,7 +648,6 @@ accept_mgt_cb(struct ev_loop *loop, struct ev_io *watcher, int revents)
    }
 
    config = (struct configuration*)shmem;
-   /* ai = (struct accept_io*)watcher; */
 
    client_addr_length = sizeof(client_addr);
    client_fd = accept(watcher->fd, (struct sockaddr *)&client_addr, &client_addr_length);
@@ -688,10 +682,17 @@ accept_mgt_cb(struct ev_loop *loop, struct ev_io *watcher, int revents)
    {
       goto disconnect;
    }
-   pgexporter_management_read_payload(client_fd, id, &payload_s1, &payload_s2, &payload_s3, &payload_s4);
+   if (pgexporter_management_read_payload(client_fd, id, &payload_i1, &payload_i2))
+   {
+      goto disconnect;
+   }
 
    switch (id)
    {
+      case MANAGEMENT_TRANSFER_CONNECTION:
+         pgexporter_log_debug("pgexporter: Management transfer connection: Server %d FD %d", payload_i1, payload_i2);
+         config->servers[payload_i1].fd = payload_i2;
+         break;
       case MANAGEMENT_STOP:
          pgexporter_log_debug("pgexporter: Management stop");
          ev_break(loop, EVBREAK_ALL);

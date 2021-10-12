@@ -85,15 +85,65 @@ error:
 }
 
 int
-pgexporter_management_read_payload(int socket, signed char id, char** payload_s1, char** payload_s2, char** payload_s3, char** payload_s4)
+pgexporter_management_read_payload(int socket, signed char id, int* payload_i1, int* payload_i2)
 {
-   *payload_s1 = NULL;
-   *payload_s2 = NULL;
-   *payload_s3 = NULL;
-   *payload_s4 = NULL;
+   int nr;
+   char buf2[2];
+   char buf4[4];
+   struct cmsghdr *cmptr = NULL;
+   struct iovec iov[1];
+   struct msghdr msg;
+
+   *payload_i1 = -1;
+   *payload_i2 = -1;
 
    switch (id)
    {
+      case MANAGEMENT_TRANSFER_CONNECTION:
+
+         memset(&buf4[0], 0, sizeof(buf4));
+         if (read_complete(NULL, socket, &buf4, sizeof(buf4)))
+         {
+            pgexporter_log_warn("pgexporter_management_read_status: read: %d %s", socket, strerror(errno));
+            errno = 0;
+            goto error;
+         }
+
+         *payload_i1 = pgexporter_read_int32(&buf4);
+
+         memset(&buf2[0], 0, sizeof(buf2));
+
+         iov[0].iov_base = &buf2[0];
+         iov[0].iov_len = sizeof(buf2);
+
+         cmptr = malloc(CMSG_SPACE(sizeof(int)));
+         memset(cmptr, 0, CMSG_SPACE(sizeof(int)));
+         cmptr->cmsg_len = CMSG_LEN(sizeof(int));
+         cmptr->cmsg_level = SOL_SOCKET;
+         cmptr->cmsg_type = SCM_RIGHTS;
+
+         msg.msg_name = NULL;
+         msg.msg_namelen = 0;
+         msg.msg_iov = iov;
+         msg.msg_iovlen = 1;
+         msg.msg_control    = cmptr;
+         msg.msg_controllen = CMSG_SPACE(sizeof(int));
+         msg.msg_flags = 0;
+
+         if ((nr = recvmsg(socket, &msg, 0)) < 0)
+         {
+            goto error;
+         }
+         else if (nr == 0)
+         {
+            goto error;
+         }
+
+         *payload_i1 = pgexporter_read_int32(&buf4);
+         *payload_i2 = *(int *)CMSG_DATA(cmptr);
+
+         free(cmptr);
+         break;
       case MANAGEMENT_STOP:
       case MANAGEMENT_STATUS:
       case MANAGEMENT_DETAILS:
@@ -108,6 +158,82 @@ pgexporter_management_read_payload(int socket, signed char id, char** payload_s1
    return 0;
 
 error:
+
+   return 1;
+}
+
+int
+pgexporter_management_transfer_connection(int server)
+{
+   int fd;
+   struct configuration* config;
+   struct cmsghdr *cmptr = NULL;
+   struct iovec iov[1];
+   struct msghdr msg;
+   char buf2[2];
+   char buf4[4];
+
+   config = (struct configuration*)shmem;
+
+   if (pgexporter_connect_unix_socket(config->unix_socket_dir, MAIN_UDS, &fd))
+   {
+      pgexporter_log_warn("pgexporter_management_transfer_connection: connect: %d", fd);
+      errno = 0;
+      goto error;
+   }
+
+   if (write_header(NULL, fd, MANAGEMENT_TRANSFER_CONNECTION))
+   {
+      pgexporter_log_warn("pgexporter_management_transfer_connection: write: %d", fd);
+      errno = 0;
+      goto error;
+   }
+
+   memset(&buf4[0], 0, sizeof(buf4));
+   pgexporter_write_int32(&buf4, server);
+
+   if (write_complete(NULL, fd, &buf4, sizeof(buf4)))
+   {
+      pgexporter_log_warn("pgexporter_management_transfer_connection: write: %d %s", fd, strerror(errno));
+      errno = 0;
+      goto error;
+   }
+
+   /* Write file descriptor */
+   memset(&buf2[0], 0, sizeof(buf2));
+
+   iov[0].iov_base = &buf2[0];
+   iov[0].iov_len  = sizeof(buf2);
+
+   cmptr = malloc(CMSG_SPACE(sizeof(int)));
+   memset(cmptr, 0, CMSG_SPACE(sizeof(int)));
+   cmptr->cmsg_level  = SOL_SOCKET;
+   cmptr->cmsg_type   = SCM_RIGHTS;
+   cmptr->cmsg_len    = CMSG_LEN(sizeof(int));
+
+   msg.msg_name    = NULL;
+   msg.msg_namelen = 0;
+   msg.msg_iov     = iov;
+   msg.msg_iovlen  = 1;
+   msg.msg_control    = cmptr;
+   msg.msg_controllen = CMSG_SPACE(sizeof(int));
+   msg.msg_flags = 0;
+   *(int *)CMSG_DATA(cmptr) = config->servers[server].fd;
+
+   if (sendmsg(fd, &msg, 0) != 2)
+   {
+      goto error;
+   }
+
+   free(cmptr);
+   pgexporter_disconnect(fd);
+
+   return 0;
+
+error:
+   if (cmptr)
+      free(cmptr);
+   pgexporter_disconnect(fd);
 
    return 1;
 }

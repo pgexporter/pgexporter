@@ -39,6 +39,9 @@ metrics
 management
   The remote management port. Default is 0 (disabled)
 
+cache
+  Cache connection. Default is on
+
 log_type
   The logging type (console, file, syslog). Default is console
 

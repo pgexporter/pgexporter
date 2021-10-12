@@ -124,6 +124,55 @@ pgexporter_free_copy_message(struct message* msg)
    }
 }
 
+bool
+pgexporter_connection_isvalid(int socket)
+{
+   int status;
+   int size = 15;
+
+   char valid[size];
+   struct message msg;
+   struct message* reply = NULL;
+
+   memset(&msg, 0, sizeof(struct message));
+   memset(&valid, 0, sizeof(valid));
+
+   pgexporter_write_byte(&valid, 'Q');
+   pgexporter_write_int32(&(valid[1]), size - 1);
+   pgexporter_write_string(&(valid[5]), "SELECT 1;");
+
+   msg.kind = 'Q';
+   msg.length = size;
+   msg.data = &valid;
+
+   status = write_message(socket, &msg);
+   if (status != MESSAGE_STATUS_OK)
+   {
+      goto error;
+   }
+
+   status = read_message(socket, true, 0, &reply);
+   if (status != MESSAGE_STATUS_OK)
+   {
+      goto error;
+   }
+
+   if (reply->kind == 'E')
+   {
+      goto error;
+   }
+
+   pgexporter_free_message(reply);
+
+   return true;
+
+error:
+   if (reply)
+      pgexporter_free_message(reply);
+
+   return false;
+}
+
 void
 pgexporter_log_message(struct message* msg)
 {

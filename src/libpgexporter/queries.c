@@ -29,6 +29,7 @@
 /* pgexporter */
 #include <pgexporter.h>
 #include <logging.h>
+#include <management.h>
 #include <message.h>
 #include <network.h>
 #include <queries.h>
@@ -53,6 +54,15 @@ pgexporter_open_connections(void)
 
    for (int server = 0; server < config->number_of_servers; server++)
    {
+      if (config->servers[server].fd != -1)
+      {
+         if (!pgexporter_connection_isvalid(config->servers[server].fd))
+         {
+            pgexporter_disconnect(config->servers[server].fd);
+            config->servers[server].fd = -1;
+         }
+      }
+
       if (config->servers[server].fd == -1)
       {
          user = -1;
@@ -64,10 +74,16 @@ pgexporter_open_connections(void)
             }
          }
 
+         config->servers[server].new = false;
+
          ret = pgexporter_server_authenticate(server, "postgres",
                                               &config->users[user].username[0], &config->users[user].password[0],
                                               &config->servers[server].fd);
-         if (ret != AUTH_SUCCESS)
+         if (ret == AUTH_SUCCESS)
+         {
+            config->servers[server].new = true;
+         }
+         else
          {
             pgexporter_log_error("Failed login for '%s' on server '%s'", &config->users[user].username, &config->servers[server].name);
          }
@@ -78,6 +94,8 @@ pgexporter_open_connections(void)
 void
 pgexporter_close_connections(void)
 {
+   int ret;
+   bool nuke;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
@@ -86,9 +104,33 @@ pgexporter_close_connections(void)
    {
       if (config->servers[server].fd != -1)
       {
-         pgexporter_write_terminate(NULL, config->servers[server].fd);
-         pgexporter_disconnect(config->servers[server].fd);
-         config->servers[server].fd = -1;
+         nuke = true;
+
+         if (config->cache)
+         {
+            if (config->servers[server].new)
+            {
+               ret = pgexporter_management_transfer_connection(server);
+
+               if (ret == 0)
+               {
+                  config->servers[server].new = false;
+               }
+            }
+
+            if (!config->servers[server].new)
+            {
+               nuke = false;
+            }
+         }
+
+         if (nuke)
+         {
+            pgexporter_write_terminate(NULL, config->servers[server].fd);
+            pgexporter_disconnect(config->servers[server].fd);
+            config->servers[server].fd = -1;
+            config->servers[server].new = false;
+         }
       }
    }
 }

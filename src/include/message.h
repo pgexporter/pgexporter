@@ -109,6 +109,14 @@ void
 pgexporter_free_copy_message(struct message* msg);
 
 /**
+ * Is the connection valid
+ * @param socket The socket descriptor
+ * @return true upon success, otherwise false
+ */
+bool
+pgexporter_connection_isvalid(int socket);
+
+/**
  * Log a message
  * @param msg The message
  */
