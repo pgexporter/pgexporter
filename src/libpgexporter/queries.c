@@ -398,6 +398,7 @@ query_execute(int server, char* query, char* tag, int columns, struct tuples** t
 
    *tuples = root;
 
+   free(content);
    free(data);
 
    return 0;
@@ -405,6 +406,7 @@ query_execute(int server, char* query, char* tag, int columns, struct tuples** t
 error:
 
    pgexporter_free_message(msg);
+   free(content);
    free(data);
 
    return 1;

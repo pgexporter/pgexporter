@@ -47,7 +47,7 @@ pgexporter_server_info(int srv)
 {
    int usr;
    int auth;
-   int socket;
+   int socket = -1;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
@@ -78,5 +78,8 @@ pgexporter_server_info(int srv)
 
 done:
 
-   pgexporter_disconnect(socket);
+   if (socket != -1)
+   {
+      pgexporter_disconnect(socket);
+   }
 }
