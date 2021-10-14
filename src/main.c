@@ -921,66 +921,79 @@ accept_fatal(int error)
 static void
 reload_configuration(void)
 {
+   int old_metrics;
+   int old_management;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
 
-   shutdown_metrics();
-   shutdown_management();
+   old_metrics = config->metrics;
+   old_management = config->management;
 
    pgexporter_reload_configuration();
 
-   if (config->metrics > 0)
+   if (old_metrics != config->metrics)
    {
+      shutdown_metrics();
+
       free(metrics_fds);
       metrics_fds = NULL;
       metrics_fds_length = 0;
 
-      /* Bind metrics socket */
-      if (pgexporter_bind(config->host, config->metrics, &metrics_fds, &metrics_fds_length))
+      if (config->metrics > 0)
       {
-         pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->metrics);
-         exit(1);
-      }
+         /* Bind metrics socket */
+         if (pgexporter_bind(config->host, config->metrics, &metrics_fds, &metrics_fds_length))
+         {
+            pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->metrics);
+            exit(1);
+         }
 
-      if (metrics_fds_length > MAX_FDS)
-      {
-         pgexporter_log_fatal("pgexporter: Too many descriptors %d", metrics_fds_length);
-         exit(1);
-      }
+         if (metrics_fds_length > MAX_FDS)
+         {
+            pgexporter_log_fatal("pgexporter: Too many descriptors %d", metrics_fds_length);
+            exit(1);
+         }
 
-      start_metrics();
+         start_metrics();
+
+         for (int i = 0; i < metrics_fds_length; i++)
+         {
+            pgexporter_log_debug("Metrics: %d", *(metrics_fds + i));
+         }
+      }
    }
 
-   if (config->management > 0)
+   if (old_management != config->management)
    {
+      shutdown_management();
+
       free(management_fds);
       management_fds = NULL;
       management_fds_length = 0;
 
-      /* Bind management socket */
-      if (pgexporter_bind(config->host, config->management, &management_fds, &management_fds_length))
+      if (config->management > 0)
       {
-         pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->management);
-         exit(1);
+         /* Bind management socket */
+         if (pgexporter_bind(config->host, config->management, &management_fds, &management_fds_length))
+         {
+            pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->management);
+            exit(1);
+         }
+
+         if (management_fds_length > MAX_FDS)
+         {
+            pgexporter_log_fatal("pgexporter: Too many descriptors %d", management_fds_length);
+            exit(1);
+         }
+
+         start_management();
+
+         for (int i = 0; i < management_fds_length; i++)
+         {
+            pgexporter_log_debug("Remote management: %d", *(management_fds + i));
+         }
       }
-
-      if (management_fds_length > MAX_FDS)
-      {
-         pgexporter_log_fatal("pgexporter: Too many descriptors %d", management_fds_length);
-         exit(1);
-      }
-
-      start_management();
-   }
-
-   for (int i = 0; i < metrics_fds_length; i++)
-   {
-      pgexporter_log_debug("Metrics: %d", *(metrics_fds + i));
-   }
-   for (int i = 0; i < management_fds_length; i++)
-   {
-      pgexporter_log_debug("Remote management: %d", *(management_fds + i));
    }
 }
 
