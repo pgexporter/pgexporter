@@ -76,6 +76,7 @@ static int  create_pidfile(void);
 static void remove_pidfile(void);
 static int  create_lockfile(void);
 static void remove_lockfile(void);
+static void shutdown_ports(void);
 
 struct accept_io
 {
@@ -791,6 +792,7 @@ accept_metrics_cb(struct ev_loop *loop, struct ev_io *watcher, int revents)
    {
       ev_loop_fork(loop);
       /* We are leaving the socket descriptor valid such that the client won't reuse it */
+      shutdown_ports();
       pgexporter_prometheus(client_fd);
    }
 
@@ -866,6 +868,7 @@ accept_management_cb(struct ev_loop *loop, struct ev_io *watcher, int revents)
       memcpy(addr, address, sizeof(address));
 
       ev_loop_fork(loop);
+      shutdown_ports();
       /* We are leaving the socket descriptor valid such that the client won't reuse it */
       pgexporter_remote_management(client_fd, addr);
    }
@@ -1089,4 +1092,22 @@ remove_lockfile(void)
    unlink(f);
 
    free(f);
+}
+
+static void
+shutdown_ports(void)
+{
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (config->metrics > 0)
+   {
+      shutdown_metrics();
+   }
+
+   if (config->management > 0)
+   {
+      shutdown_management();
+   }
 }
