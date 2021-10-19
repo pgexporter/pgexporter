@@ -63,6 +63,7 @@ static void replication_information(int client_fd);
 static void locks_information(int client_fd);
 static void stat_bgwriter_information(int client_fd);
 static void stat_database_information(int client_fd);
+static void stat_database_conflicts_information(int client_fd);
 static void settings_information(int client_fd);
 
 static int send_chunk(int client_fd, char* data);
@@ -250,6 +251,7 @@ home_page(int client_fd)
    data = pgexporter_append(data, "  <li>pg_settings</li>\n");
    data = pgexporter_append(data, "  <li>pg_stat_bgwriter</li>\n");
    data = pgexporter_append(data, "  <li>pg_stat_database</li>\n");
+   data = pgexporter_append(data, "  <li>pg_stat_database_conflicts</li>\n");
    data = pgexporter_append(data, "  </ul>\n");
    data = pgexporter_append(data, "  <p>\n");
    data = pgexporter_append(data, "  <a href=\"https://pgexporter.github.io/\">pgexporter.github.io/</a>\n");
@@ -326,6 +328,7 @@ metrics_page(int client_fd)
    locks_information(client_fd);
    stat_bgwriter_information(client_fd);
    stat_database_information(client_fd);
+   stat_database_conflicts_information(client_fd);
    settings_information(client_fd);
 
    pgexporter_close_connections();
@@ -1108,6 +1111,101 @@ stat_database_information(int client_fd)
       if (config->servers[server].fd != -1)
       {
          ret = pgexporter_query_stat_database(server, &query);
+         if (ret == 0)
+         {
+            all = pgexporter_merge_queries(all, query, SORT_DATA0);
+         }
+         query = NULL;
+      }
+   }
+
+   first = true;
+   current = all->tuples;
+
+   for (int i = 1; i < all->number_of_columns; i++)
+   {
+      if (first)
+      {
+         d = NULL;
+         d = pgexporter_append(d, "#HELP pgexporter_");
+         d = pgexporter_append(d, &all->tag[0]);
+         d = pgexporter_append(d, "_");
+         d = pgexporter_append(d, &all->names[i][0]);
+         d = pgexporter_append(d, " ");
+         d = pgexporter_append(d, &all->tag[0]);
+         d = pgexporter_append(d, "_");
+         d = pgexporter_append(d, &all->names[i][0]);
+         d = pgexporter_append(d, "\n");
+         data = pgexporter_append(data, d);
+         free(d);
+
+         d = NULL;
+         d = pgexporter_append(d, "#TYPE pgexporter_");
+         d = pgexporter_append(d, &all->tag[0]);
+         d = pgexporter_append(d, "_");
+         d = pgexporter_append(d, &all->names[i][0]);
+         d = pgexporter_append(d, " gauge");
+         d = pgexporter_append(d, "\n");
+         data = pgexporter_append(data, d);
+         free(d);
+
+         first = false;
+      }
+
+      while (current != NULL)
+      {
+         d = NULL;
+         d = pgexporter_append(d, "pgexporter_");
+         d = pgexporter_append(d, &all->tag[0]);
+         d = pgexporter_append(d, "_");
+         d = pgexporter_append(d, &all->names[i][0]);
+         d = pgexporter_append(d, "{server=\"");
+         d = pgexporter_append(d, &config->servers[current->server].name[0]);
+         d = pgexporter_append(d, "\",database=\"");
+         d = pgexporter_append(d, pgexporter_get_column(0, current));
+         d = pgexporter_append(d, "\"} ");
+         d = pgexporter_append(d, get_value(&all->tag[0], pgexporter_get_column(i, current), pgexporter_get_column(i, current)));
+         d = pgexporter_append(d, "\n");
+         data = pgexporter_append(data, d);
+         free(d);
+
+         current = current->next;
+      }
+
+      first = true;
+      current = all->tuples;
+   }
+
+   data = pgexporter_append(data, "\n");
+
+   if (data != NULL)
+   {
+      send_chunk(client_fd, data);
+      free(data);
+      data = NULL;
+   }
+
+   pgexporter_free_query(all);
+}
+
+static void
+stat_database_conflicts_information(int client_fd)
+{
+   bool first;
+   int ret;
+   char* d;
+   char* data = NULL;
+   struct query* all = NULL;
+   struct query* query = NULL;
+   struct tuple* current = NULL;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+   for (int server = 0; server < config->number_of_servers; server++)
+   {
+      if (config->servers[server].fd != -1)
+      {
+         ret = pgexporter_query_stat_database_conflicts(server, &query);
          if (ret == 0)
          {
             all = pgexporter_merge_queries(all, query, SORT_DATA0);

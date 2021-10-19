@@ -318,6 +318,25 @@ pgexporter_query_stat_database(int server, struct query** query)
 }
 
 int
+pgexporter_query_stat_database_conflicts(int server, struct query** query)
+{
+   char* names[] = {
+      "database",
+      "confl_tablespace",
+      "confl_lock",
+      "confl_snapshot",
+      "confl_bufferpin",
+      "confl_deadlock"
+   };
+
+   return query_execute(server,
+                        "SELECT datname, confl_tablespace, confl_lock, "
+                        "confl_snapshot, confl_bufferpin, confl_deadlock "
+                        "FROM pg_stat_database_conflicts WHERE datname IS NOT NULL ORDER BY datname;",
+                        "pg_stat_database_conflicts", 6, names, query);
+}
+
+int
 pgexporter_query_settings(int server, struct query** query)
 {
    return query_execute(server, "SELECT name,setting,short_desc FROM pg_settings;",

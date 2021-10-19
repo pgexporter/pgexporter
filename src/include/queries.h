@@ -145,6 +145,15 @@ int
 pgexporter_query_stat_database(int server, struct query** query);
 
 /**
+ * Query pg_stat_database_conflicts
+ * @param server The server
+ * @param query The resulting query
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_query_stat_database_conflicts(int server, struct query** query);
+
+/**
  * Query pg_settings
  * @param server The server
  * @param query The resulting query
