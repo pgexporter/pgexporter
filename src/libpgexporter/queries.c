@@ -281,6 +281,42 @@ pgexporter_query_stat_bgwriter(int server, struct query** query)
                         "pg_stat_bgwriter", 10, names, query);
 }
 
+
+int
+pgexporter_query_stat_database(int server, struct query** query)
+{
+   char* names[] = {
+      "database",
+      "blk_read_time",
+      "blk_write_time",
+      "blks_hit",
+      "blks_read",
+      "checksum_failures",
+      "deadlocks",
+      "temp_files",
+      "temp_bytes",
+      "tup_returned",
+      "tup_fetched",
+      "tup_inserted",
+      "tup_updated",
+      "tup_deleted",
+      "xact_commit",
+      "xact_rollback",
+      "conflicts",
+      "numbackends"
+   };
+
+   return query_execute(server,
+                        "SELECT datname, blk_read_time, blk_write_time, "
+                        "blks_hit, blks_read, checksum_failures, "
+                        "deadlocks, temp_files, temp_bytes, "
+                        "tup_returned, tup_fetched, tup_inserted, "
+                        "tup_updated, tup_deleted, xact_commit, "
+                        "xact_rollback, conflicts, numbackends "
+                        "FROM pg_stat_database WHERE datname IS NOT NULL ORDER BY datname;",
+                        "pg_stat_database", 18, names, query);
+}
+
 int
 pgexporter_query_settings(int server, struct query** query)
 {
