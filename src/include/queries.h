@@ -38,19 +38,24 @@ extern "C" {
 #include <stdbool.h>
 #include <stdlib.h>
 
+#define SORT_NAME  0
+#define SORT_DATA0 1
+
 struct tuple
 {
-   int server;              /**< The server */
-   char tag[MISC_LENGTH];   /**< The tag */
-   int number_of_columns;   /**< The number of columns */
-   char** columns;          /**< The columns */
+   int server;                                     /**< The server */
+   char** data;                                    /**< The data */
+   struct tuple* next;
 } __attribute__ ((aligned (64)));
 
-struct tuples
+struct query
 {
-   struct tuple* tuple;
-   struct tuples* next;
-};
+   char tag[MISC_LENGTH];                          /**< The tag */
+   char names[MAX_NUMBER_OF_COLUMNS][MISC_LENGTH]; /**< The column names */
+   int number_of_columns;                          /**< The number of columns */
+
+   struct tuple* tuples;
+} __attribute__ ((aligned (64)));
 
 /**
  * Open database connections
@@ -68,84 +73,85 @@ pgexporter_close_connections(void);
  * Query for used disk space
  * @param server The server
  * @param data Data (true) or WAL (false)
- * @param tuples The resulting tuples
+ * @param query The resulting query
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_query_used_disk_space(int server, bool data, struct tuples** tuples);
+pgexporter_query_used_disk_space(int server, bool data, struct query** query);
 
 /**
  * Query for free disk space
  * @param server The server
  * @param data Data (true) or WAL (false)
- * @param tuples The resulting tuples
+ * @param query The resulting query
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_query_free_disk_space(int server, bool data, struct tuples** tuples);
+pgexporter_query_free_disk_space(int server, bool data, struct query** query);
 
 /**
  * Query for total disk space
  * @param server The server
  * @param data Data (true) or WAL (false)
- * @param tuples The resulting tuples
+ * @param query The resulting query
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_query_total_disk_space(int server, bool data, struct tuples** tuples);
+pgexporter_query_total_disk_space(int server, bool data, struct query** query);
 
 /**
  * Query pg_database for size
  * @param server The server
- * @param tuples The resulting tuples
+ * @param query The resulting query
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_query_database_size(int server, struct tuples** tuples);
+pgexporter_query_database_size(int server, struct query** query);
 
 /**
  * Query pg_replication_slot for active
  * @param server The server
- * @param tuples The resulting tuples
+ * @param query The resulting query
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_query_replication_slot_active(int server, struct tuples** tuples);
+pgexporter_query_replication_slot_active(int server, struct query** query);
 
 /**
  * Query pg_locks
  * @param server The server
- * @param tuples The resulting tuples
+ * @param query The resulting query
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_query_locks(int server, struct tuples** tuples);
+pgexporter_query_locks(int server, struct query** query);
 
 /**
  * Query pg_settings
  * @param server The server
- * @param tuples The resulting tuples
+ * @param query The resulting query
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_query_settings(int server, struct tuples** tuples);
+pgexporter_query_settings(int server, struct query** query);
 
 /**
- * Merge tuples
- * @param t1 The first tuples list
- * @param t2 The second tuples list
+ * Merge queries
+ * @param q1 The first query
+ * @param q2 The second query
+ * @param sort The sort key
  * @return The resulting list
  */
-struct tuples*
-pgexporter_merge_tuples(struct tuples* t1, struct tuples* t2);
+struct query*
+pgexporter_merge_queries(struct query* q1, struct query* q2, int sort);
 
 /**
- * Free tuples
- * @param tuples The tuples
+ * Free query
+ * @param query The query
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_free_tuples(struct tuples* tuples);
+pgexporter_free_query(struct query* query);
 
 /**
  * Get column from a tuple

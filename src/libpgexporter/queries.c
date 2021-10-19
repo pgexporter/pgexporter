@@ -39,9 +39,9 @@
 /* system */
 #include <stdlib.h>
 
-static int query_execute(int server, char* query, char* tag, int columns, struct tuples** tuples);
+static int query_execute(int server, char* qs, char* tag, int columns, char* names[], struct query** query);
 static void* data_append(void* orig, size_t orig_size, void* n, size_t n_size);
-static int create_D_tuple(int server, int number_of_columns, char* tag, struct message* msg, struct tuples** tuples);
+static int create_D_tuple(int server, int number_of_columns, struct message* msg, struct tuple** tuple);
 
 void
 pgexporter_open_connections(void)
@@ -136,7 +136,7 @@ pgexporter_close_connections(void)
 }
 
 int
-pgexporter_query_used_disk_space(int server, bool data, struct tuples** tuples)
+pgexporter_query_used_disk_space(int server, bool data, struct query** query)
 {
    char* d = NULL;
    int ret;
@@ -155,7 +155,7 @@ pgexporter_query_used_disk_space(int server, bool data, struct tuples** tuples)
    }
    d = pgexporter_append(d, "\');");
 
-   ret = query_execute(server, d, "pgexporter_ext", 1, tuples);
+   ret = query_execute(server, d, "pgexporter_ext", 1, NULL, query);
 
    free(d);
 
@@ -163,7 +163,7 @@ pgexporter_query_used_disk_space(int server, bool data, struct tuples** tuples)
 }
 
 int
-pgexporter_query_free_disk_space(int server, bool data, struct tuples** tuples)
+pgexporter_query_free_disk_space(int server, bool data, struct query** query)
 {
    char* d = NULL;
    int ret;
@@ -182,7 +182,7 @@ pgexporter_query_free_disk_space(int server, bool data, struct tuples** tuples)
    }
    d = pgexporter_append(d, "\');");
 
-   ret = query_execute(server, d, "pgexporter_ext", 1, tuples);
+   ret = query_execute(server, d, "pgexporter_ext", 1, NULL, query);
 
    free(d);
 
@@ -190,7 +190,7 @@ pgexporter_query_free_disk_space(int server, bool data, struct tuples** tuples)
 }
 
 int
-pgexporter_query_total_disk_space(int server, bool data, struct tuples** tuples)
+pgexporter_query_total_disk_space(int server, bool data, struct query** query)
 {
    char* d = NULL;
    int ret;
@@ -209,7 +209,7 @@ pgexporter_query_total_disk_space(int server, bool data, struct tuples** tuples)
    }
    d = pgexporter_append(d, "\');");
 
-   ret = query_execute(server, d, "pgexporter_ext", 1, tuples);
+   ret = query_execute(server, d, "pgexporter_ext", 1, NULL, query);
 
    free(d);
 
@@ -217,21 +217,21 @@ pgexporter_query_total_disk_space(int server, bool data, struct tuples** tuples)
 }
 
 int
-pgexporter_query_database_size(int server, struct tuples** tuples)
+pgexporter_query_database_size(int server, struct query** query)
 {
    return query_execute(server, "SELECT datname, pg_database_size(datname) FROM pg_database;",
-                        "pg_database", 2, tuples);
+                        "pg_database", 2, NULL, query);
 }
 
 int
-pgexporter_query_replication_slot_active(int server, struct tuples** tuples)
+pgexporter_query_replication_slot_active(int server, struct query** query)
 {
    return query_execute(server, "SELECT slot_name,active FROM pg_replication_slots;",
-                        "pg_replication_slots", 2, tuples);
+                        "pg_replication_slots", 2, NULL, query);
 }
 
 int
-pgexporter_query_locks(int server, struct tuples** tuples)
+pgexporter_query_locks(int server, struct query** query)
 {
    return query_execute(server,
                         "SELECT pg_database.datname as database, tmp.mode, COALESCE(count, 0) as count "
@@ -253,57 +253,68 @@ pgexporter_query_locks(int server, struct tuples** tuples)
                         " GROUP BY database, lower(mode) "
                         ") AS tmp2 "
                         "ON tmp.mode = tmp2.mode and pg_database.oid = tmp2.database ORDER BY 1, 2;",
-                        "pg_locks", 3, tuples);
+                        "pg_locks", 3, NULL, query);
 }
 
 int
-pgexporter_query_settings(int server, struct tuples** tuples)
+pgexporter_query_settings(int server, struct query** query)
 {
    return query_execute(server, "SELECT name,setting,short_desc FROM pg_settings;",
-                        "pg_settings", 3, tuples);
+                        "pg_settings", 3, NULL, query);
 }
 
-struct tuples*
-pgexporter_merge_tuples(struct tuples* t1, struct tuples* t2)
+struct query*
+pgexporter_merge_queries(struct query* q1, struct query* q2, int sort)
 {
-   struct tuples* last = NULL;
-   struct tuples* ct1 = NULL;
-   struct tuples* ct2 = NULL;
-   struct tuples* tmp1 = NULL;
-   struct tuples* tmp2 = NULL;
+   struct tuple* last = NULL;
+   struct tuple* ct1 = NULL;
+   struct tuple* ct2 = NULL;
+   struct tuple* tmp1 = NULL;
+   struct tuple* tmp2 = NULL;
 
-   if (t1 == NULL)
+   if (q1 == NULL)
    {
-      return t2;
+      return q2;
    }
 
-   if (t2 == NULL)
+   if (q2 == NULL)
    {
-      return t1;
+      return q1;
    }
 
-   ct1 = t1;
-   ct2 = t2;
+   ct1 = q1->tuples;
+   ct2 = q2->tuples;
 
-   while (ct1 != NULL)
+   if (sort == SORT_NAME)
    {
-      if (ct2 != NULL && !strcmp(ct1->tuple->columns[0], ct2->tuple->columns[0]))
+      while (ct1 != NULL)
       {
-         while (ct1->next != NULL && !strcmp(ct1->next->tuple->columns[0], ct2->tuple->columns[0]))
+         last = ct1;
+         ct1 = ct1->next;
+      }
+   }
+   else
+   {
+      while (ct1 != NULL)
+      {
+         if (ct2 != NULL && !strcmp(ct1->data[0], ct2->data[0]))
          {
-            ct1 = ct1->next;
+            while (ct1->next != NULL && !strcmp(ct1->next->data[0], ct2->data[0]))
+            {
+               ct1 = ct1->next;
+            }
+
+            tmp1 = ct1->next;
+            tmp2 = ct2->next;
+
+            ct1->next = ct2;
+            ct2->next = tmp1;
+            ct2 = tmp2;
          }
 
-         tmp1 = ct1->next;
-         tmp2 = ct2->next;
-
-         ct1->next = ct2;
-         ct2->next = tmp1;
-         ct2 = tmp2;
+         last = ct1;
+         ct1 = ct1->next;
       }
-
-      last = ct1;
-      ct1 = ct1->next;
    }
 
    while (ct2 != NULL)
@@ -314,31 +325,37 @@ pgexporter_merge_tuples(struct tuples* t1, struct tuples* t2)
       ct2 = ct2->next;
    }
 
-   return t1;
+   q2->tuples = NULL;
+   pgexporter_free_query(q2);
+
+   return q1;
 }
 
 int
-pgexporter_free_tuples(struct tuples* tuples)
+pgexporter_free_query(struct query* query)
 {
-   struct tuples* current = NULL;
-   struct tuples* next = NULL;
+   struct tuple* current = NULL;
+   struct tuple* next = NULL;
 
-   current = tuples;
-
-   while (current != NULL)
+   if (query != NULL)
    {
-      next = current->next;
+      current = query->tuples;
 
-      for (int i = 0; i < current->tuple->number_of_columns; i++)
+      while (current != NULL)
       {
-         free(current->tuple->columns[i]);
+         next = current->next;
+
+         for (int i = 0; i < query->number_of_columns; i++)
+         {
+            free(current->data[i]);
+         }
+         free(current->data);
+         free(current);
+
+         current = next;
       }
-      free(current->tuple->columns);
 
-      free(current->tuple);
-      free(current);
-
-      current = next;
+      free(query);
    }
 
    return 0;
@@ -347,11 +364,11 @@ pgexporter_free_tuples(struct tuples* tuples)
 char*
 pgexporter_get_column(int col, struct tuple* tuple)
 {
-   return tuple->columns[col];
+   return tuple->data[col];
 }
 
 static int
-query_execute(int server, char* query, char* tag, int columns, struct tuples** tuples)
+query_execute(int server, char* qs, char* tag, int columns, char* names[], struct query** query)
 {
    int status;
    bool cont;
@@ -359,8 +376,8 @@ query_execute(int server, char* query, char* tag, int columns, struct tuples** t
    size_t size = 0;
    char* content = NULL;
    struct message* msg = NULL;
-   struct tuples* root = NULL;
-   struct tuples* current = NULL;
+   struct query* q = NULL;
+   struct tuple* current = NULL;
    void* data = NULL;
    size_t data_size = 0;
    size_t offset = 0;
@@ -368,15 +385,17 @@ query_execute(int server, char* query, char* tag, int columns, struct tuples** t
 
    config = (struct configuration*)shmem;
 
+   *query = NULL;
+
    memset(&qmsg, 0, sizeof(struct message));
 
-   size = 1 + 4 + strlen(query) + 1;
+   size = 1 + 4 + strlen(qs) + 1;
    content = (char*)malloc(size);
    memset(content, 0, size);
 
    pgexporter_write_byte(content, 'Q');
    pgexporter_write_int32(content + 1, size - 1);
-   pgexporter_write_string(content + 5, query);
+   pgexporter_write_string(content + 5, qs);
 
    qmsg.kind = 'Q';
    qmsg.length = size;
@@ -412,33 +431,47 @@ query_execute(int server, char* query, char* tag, int columns, struct tuples** t
       msg = NULL;
    }
 
+   q = (struct query*)malloc(sizeof(struct query));
+   memset(q, 0, sizeof(struct query));
+
+   q->number_of_columns = columns;
+   memcpy(&q->tag[0], tag, strlen(tag));
+
+   if (names != NULL)
+   {
+      for (int i = 0; i < columns; i++)
+      {
+         memcpy(&q->names[i][0], names[i], strlen(names[i]));
+      }
+   }
+
    while (offset < data_size)
    {
       offset = pgexporter_extract_message_offset(offset, data, &msg);
 
       if (msg != NULL && msg->kind == 'D')
       {
-         struct tuples* dtuples = NULL;
+         struct tuple* dtuple = NULL;
 
-         create_D_tuple(server, columns, tag, msg, &dtuples);
+         create_D_tuple(server, columns, msg, &dtuple);
 
-         if (root == NULL)
+         if (q->tuples == NULL)
          {
-            root = dtuples;
-            current = root;
+            q->tuples = dtuple;
          }
          else
          {
-            current->next = dtuples;
-            current = current->next;
+            current->next = dtuple;
          }
+
+         current = dtuple;
       }
 
       pgexporter_free_copy_message(msg);
       msg = NULL;
    }
 
-   *tuples = root;
+   *query = q;
 
    free(content);
    free(data);
@@ -469,24 +502,18 @@ data_append(void* orig, size_t orig_size, void* n, size_t n_size)
 }
 
 static int
-create_D_tuple(int server, int number_of_columns, char* tag, struct message* msg, struct tuples** tuples)
+create_D_tuple(int server, int number_of_columns, struct message* msg, struct tuple** tuple)
 {
    int offset;
    int length;
-   struct tuples* result = NULL;
-   struct tuple* d = NULL;
+   struct tuple* result = NULL;
 
-   result = (struct tuples*)malloc(sizeof(struct tuples));
-   d = (struct tuple*)malloc(sizeof(struct tuple));
+   result = (struct tuple*)malloc(sizeof(struct tuple));
+   memset(result, 0, sizeof(struct tuple));
 
-   memset(result, 0, sizeof(struct tuples));
-   memset(d, 0, sizeof(struct tuple));
-
-   d->server = server;
-   d->number_of_columns = number_of_columns;
-   memcpy(&d->tag[0], tag, strlen(tag));
-   
-   d->columns = (char**)malloc(number_of_columns * sizeof(char*));
+   result->server = server;
+   result->data = (char**)malloc(number_of_columns * sizeof(char*));
+   result->next = NULL;
 
    offset = 7;
 
@@ -497,21 +524,18 @@ create_D_tuple(int server, int number_of_columns, char* tag, struct message* msg
 
       if (length > 0)
       {
-         d->columns[i] = (char*)malloc(length + 1);
-         memset(d->columns[i], 0, length + 1);
-         memcpy(d->columns[i], msg->data + offset, length);
+         result->data[i] = (char*)malloc(length + 1);
+         memset(result->data[i], 0, length + 1);
+         memcpy(result->data[i], msg->data + offset, length);
          offset += length;
       }
       else
       {
-         d->columns[i] = NULL;
+         result->data[i] = NULL;
       }
    }
 
-   result->tuple = d;
-   result->next = NULL;
-
-   *tuples = result;
+   *tuple = result;
 
    return 0;
 }

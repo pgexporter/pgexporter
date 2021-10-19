@@ -409,7 +409,7 @@ disk_space_information(int client_fd)
    char* d;
    char* data = NULL;
    bool header = false;
-   struct tuples* tuples = NULL;
+   struct query* query = NULL;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
@@ -421,9 +421,9 @@ disk_space_information(int client_fd)
       {
          if (strlen(config->servers[server].data) > 0)
          {
-            pgexporter_query_used_disk_space(server, true, &tuples);
+            pgexporter_query_used_disk_space(server, true, &query);
 
-            if (tuples == NULL)
+            if (query == NULL)
             {
                continue;
             }
@@ -447,12 +447,13 @@ disk_space_information(int client_fd)
             d = pgexporter_append(d, "pgexporter_used_disk_space_data{server=\"");
             d = pgexporter_append(d, &config->servers[server].name[0]);
             d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, pgexporter_get_column(0, tuples->tuple));
+            d = pgexporter_append(d, pgexporter_get_column(0, query->tuples));
             d = pgexporter_append(d, "\n");
             data = pgexporter_append(data, d);
             free(d);
 
-            pgexporter_free_tuples(tuples);
+            pgexporter_free_query(query);
+            query = NULL;
          }
       }
    }
@@ -478,9 +479,9 @@ disk_space_information(int client_fd)
       {
          if (strlen(config->servers[server].data) > 0)
          {
-            pgexporter_query_free_disk_space(server, true, &tuples);
+            pgexporter_query_free_disk_space(server, true, &query);
 
-            if (tuples == NULL)
+            if (query == NULL)
             {
                continue;
             }
@@ -504,12 +505,13 @@ disk_space_information(int client_fd)
             d = pgexporter_append(d, "pgexporter_free_disk_space_data{server=\"");
             d = pgexporter_append(d, &config->servers[server].name[0]);
             d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, pgexporter_get_column(0, tuples->tuple));
+            d = pgexporter_append(d, pgexporter_get_column(0, query->tuples));
             d = pgexporter_append(d, "\n");
             data = pgexporter_append(data, d);
             free(d);
 
-            pgexporter_free_tuples(tuples);
+            pgexporter_free_query(query);
+            query = NULL;
          }
       }
    }
@@ -535,9 +537,9 @@ disk_space_information(int client_fd)
       {
          if (strlen(config->servers[server].data) > 0)
          {
-            pgexporter_query_total_disk_space(server, true, &tuples);
+            pgexporter_query_total_disk_space(server, true, &query);
 
-            if (tuples == NULL)
+            if (query == NULL)
             {
                continue;
             }
@@ -561,12 +563,13 @@ disk_space_information(int client_fd)
             d = pgexporter_append(d, "pgexporter_total_disk_space_data{server=\"");
             d = pgexporter_append(d, &config->servers[server].name[0]);
             d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, pgexporter_get_column(0, tuples->tuple));
+            d = pgexporter_append(d, pgexporter_get_column(0, query->tuples));
             d = pgexporter_append(d, "\n");
             data = pgexporter_append(data, d);
             free(d);
 
-            pgexporter_free_tuples(tuples);
+            pgexporter_free_query(query);
+            query = NULL;
          }
       }
    }
@@ -592,9 +595,9 @@ disk_space_information(int client_fd)
       {
          if (strlen(config->servers[server].wal) > 0)
          {
-            pgexporter_query_used_disk_space(server, false, &tuples);
+            pgexporter_query_used_disk_space(server, false, &query);
 
-            if (tuples == NULL)
+            if (query == NULL)
             {
                continue;
             }
@@ -618,12 +621,13 @@ disk_space_information(int client_fd)
             d = pgexporter_append(d, "pgexporter_used_disk_space_wal{server=\"");
             d = pgexporter_append(d, &config->servers[server].name[0]);
             d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, pgexporter_get_column(0, tuples->tuple));
+            d = pgexporter_append(d, pgexporter_get_column(0, query->tuples));
             d = pgexporter_append(d, "\n");
             data = pgexporter_append(data, d);
             free(d);
 
-            pgexporter_free_tuples(tuples);
+            pgexporter_free_query(query);
+            query = NULL;
          }
       }
    }
@@ -649,9 +653,9 @@ disk_space_information(int client_fd)
       {
          if (strlen(config->servers[server].wal) > 0)
          {
-            pgexporter_query_free_disk_space(server, false, &tuples);
+            pgexporter_query_free_disk_space(server, false, &query);
 
-            if (tuples == NULL)
+            if (query == NULL)
             {
                continue;
             }
@@ -675,12 +679,13 @@ disk_space_information(int client_fd)
             d = pgexporter_append(d, "pgexporter_free_disk_space_wal{server=\"");
             d = pgexporter_append(d, &config->servers[server].name[0]);
             d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, pgexporter_get_column(0, tuples->tuple));
+            d = pgexporter_append(d, pgexporter_get_column(0, query->tuples));
             d = pgexporter_append(d, "\n");
             data = pgexporter_append(data, d);
             free(d);
 
-            pgexporter_free_tuples(tuples);
+            pgexporter_free_query(query);
+            query = NULL;
          }
       }
    }
@@ -706,9 +711,9 @@ disk_space_information(int client_fd)
       {
          if (strlen(config->servers[server].wal) > 0)
          {
-            pgexporter_query_total_disk_space(server, false, &tuples);
+            pgexporter_query_total_disk_space(server, false, &query);
 
-            if (tuples == NULL)
+            if (query == NULL)
             {
                continue;
             }
@@ -732,12 +737,13 @@ disk_space_information(int client_fd)
             d = pgexporter_append(d, "pgexporter_total_disk_space_wal{server=\"");
             d = pgexporter_append(d, &config->servers[server].name[0]);
             d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, pgexporter_get_column(0, tuples->tuple));
+            d = pgexporter_append(d, pgexporter_get_column(0, query->tuples));
             d = pgexporter_append(d, "\n");
             data = pgexporter_append(data, d);
             free(d);
 
-            pgexporter_free_tuples(tuples);
+            pgexporter_free_query(query);
+            query = NULL;
          }
       }
    }
@@ -761,9 +767,9 @@ database_information(int client_fd)
    int ret;
    char* d;
    char* data = NULL;
-   struct tuples* all = NULL;
-   struct tuples* tuples = NULL;
-   struct tuples* current = NULL;
+   struct query* all = NULL;
+   struct query* query = NULL;
+   struct tuple* current = NULL;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
@@ -772,21 +778,21 @@ database_information(int client_fd)
    {
       if (config->servers[server].fd != -1)
       {
-         ret = pgexporter_query_database_size(server, &tuples);
+         ret = pgexporter_query_database_size(server, &query);
          if (ret == 0)
          {
-            all = pgexporter_merge_tuples(all, tuples);
+            all = pgexporter_merge_queries(all, query, SORT_DATA0);
          }
-         tuples = NULL;
+         query = NULL;
       }
    }
 
-   current = all;
+   current = all->tuples;
    if (current != NULL)
    {
       d = NULL;
       d = pgexporter_append(d, "#HELP pgexporter_");
-      d = pgexporter_append(d, &current->tuple->tag[0]);
+      d = pgexporter_append(d, &all->tag[0]);
       d = pgexporter_append(d, "_size Size of the database");
       d = pgexporter_append(d, "\n");
       data = pgexporter_append(data, d);
@@ -794,7 +800,7 @@ database_information(int client_fd)
 
       d = NULL;
       d = pgexporter_append(d, "#TYPE pgexporter_");
-      d = pgexporter_append(d, &current->tuple->tag[0]);
+      d = pgexporter_append(d, &all->tag[0]);
       d = pgexporter_append(d, "_size gauge");
       d = pgexporter_append(d, "\n");
       data = pgexporter_append(data, d);
@@ -804,13 +810,13 @@ database_information(int client_fd)
       {
          d = NULL;
          d = pgexporter_append(d, "pgexporter_");
-         d = pgexporter_append(d, &current->tuple->tag[0]);
+         d = pgexporter_append(d, &all->tag[0]);
          d = pgexporter_append(d, "_size{server=\"");
-         d = pgexporter_append(d, &config->servers[current->tuple->server].name[0]);
+         d = pgexporter_append(d, &config->servers[current->server].name[0]);
          d = pgexporter_append(d, "\",database=\"");
-         d = pgexporter_append(d, pgexporter_get_column(0, current->tuple));
+         d = pgexporter_append(d, pgexporter_get_column(0, current));
          d = pgexporter_append(d, "\"} ");
-         d = pgexporter_append(d, get_value(&current->tuple->tag[0], pgexporter_get_column(0, current->tuple), pgexporter_get_column(1, current->tuple)));
+         d = pgexporter_append(d, get_value(&all->tag[0], pgexporter_get_column(0, current), pgexporter_get_column(1, current)));
          d = pgexporter_append(d, "\n");
          data = pgexporter_append(data, d);
          free(d);
@@ -828,7 +834,7 @@ database_information(int client_fd)
       }
    }
 
-   pgexporter_free_tuples(all);
+   pgexporter_free_query(all);
 }
 
 static void
@@ -837,9 +843,9 @@ replication_information(int client_fd)
    int ret;
    char* d;
    char* data = NULL;
-   struct tuples* all = NULL;
-   struct tuples* tuples = NULL;
-   struct tuples* current = NULL;
+   struct query* all = NULL;
+   struct query* query = NULL;
+   struct tuple* current = NULL;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
@@ -848,21 +854,21 @@ replication_information(int client_fd)
    {
       if (config->servers[server].fd != -1)
       {
-         ret = pgexporter_query_replication_slot_active(server, &tuples);
+         ret = pgexporter_query_replication_slot_active(server, &query);
          if (ret == 0)
          {
-            all = pgexporter_merge_tuples(all, tuples);
+            all = pgexporter_merge_queries(all, query, SORT_DATA0);
          }
-         tuples = NULL;
+         query = NULL;
       }
    }
 
-   current = all;
+   current = all->tuples;
    if (current != NULL)
    {
       d = NULL;
       d = pgexporter_append(d, "#HELP pgexporter_");
-      d = pgexporter_append(d, &current->tuple->tag[0]);
+      d = pgexporter_append(d, &all->tag[0]);
       d = pgexporter_append(d, "_active Display status of replication slots");
       d = pgexporter_append(d, "\n");
       data = pgexporter_append(data, d);
@@ -870,7 +876,7 @@ replication_information(int client_fd)
 
       d = NULL;
       d = pgexporter_append(d, "#TYPE pgexporter_");
-      d = pgexporter_append(d, &current->tuple->tag[0]);
+      d = pgexporter_append(d, &all->tag[0]);
       d = pgexporter_append(d, "_active gauge");
       d = pgexporter_append(d, "\n");
       data = pgexporter_append(data, d);
@@ -880,13 +886,13 @@ replication_information(int client_fd)
       {
          d = NULL;
          d = pgexporter_append(d, "pgexporter_");
-         d = pgexporter_append(d, &current->tuple->tag[0]);
+         d = pgexporter_append(d, &all->tag[0]);
          d = pgexporter_append(d, "_active{server=\"");
-         d = pgexporter_append(d, &config->servers[current->tuple->server].name[0]);
+         d = pgexporter_append(d, &config->servers[current->server].name[0]);
          d = pgexporter_append(d, "\",slot=\"");
-         d = pgexporter_append(d, pgexporter_get_column(0, current->tuple));
+         d = pgexporter_append(d, pgexporter_get_column(0, current));
          d = pgexporter_append(d, "\"} ");
-         d = pgexporter_append(d, get_value(&current->tuple->tag[0], pgexporter_get_column(0, current->tuple), pgexporter_get_column(1, current->tuple)));
+         d = pgexporter_append(d, get_value(&all->tag[0], pgexporter_get_column(0, current), pgexporter_get_column(1, current)));
          d = pgexporter_append(d, "\n");
          data = pgexporter_append(data, d);
          free(d);
@@ -904,7 +910,7 @@ replication_information(int client_fd)
       }
    }
 
-   pgexporter_free_tuples(all);
+   pgexporter_free_query(all);
 }
 
 static void
@@ -913,9 +919,9 @@ locks_information(int client_fd)
    int ret;
    char* d;
    char* data = NULL;
-   struct tuples* all = NULL;
-   struct tuples* tuples = NULL;
-   struct tuples* current = NULL;
+   struct query* all = NULL;
+   struct query* query = NULL;
+   struct tuple* current = NULL;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
@@ -924,21 +930,21 @@ locks_information(int client_fd)
    {
       if (config->servers[server].fd != -1)
       {
-         ret = pgexporter_query_locks(server, &tuples);
+         ret = pgexporter_query_locks(server, &query);
          if (ret == 0)
          {
-            all = pgexporter_merge_tuples(all, tuples);
+            all = pgexporter_merge_queries(all, query, SORT_DATA0);
          }
-         tuples = NULL;
+         query = NULL;
       }
    }
 
-   current = all;
+   current = all->tuples;
    if (current != NULL)
    {
       d = NULL;
       d = pgexporter_append(d, "#HELP pgexporter_");
-      d = pgexporter_append(d, &current->tuple->tag[0]);
+      d = pgexporter_append(d, &all->tag[0]);
       d = pgexporter_append(d, "_count Lock count of a database");
       d = pgexporter_append(d, "\n");
       data = pgexporter_append(data, d);
@@ -946,7 +952,7 @@ locks_information(int client_fd)
 
       d = NULL;
       d = pgexporter_append(d, "#TYPE pgexporter_");
-      d = pgexporter_append(d, &current->tuple->tag[0]);
+      d = pgexporter_append(d, &all->tag[0]);
       d = pgexporter_append(d, "_count gauge");
       d = pgexporter_append(d, "\n");
       data = pgexporter_append(data, d);
@@ -956,15 +962,15 @@ locks_information(int client_fd)
       {
          d = NULL;
          d = pgexporter_append(d, "pgexporter_");
-         d = pgexporter_append(d, &current->tuple->tag[0]);
+         d = pgexporter_append(d, &all->tag[0]);
          d = pgexporter_append(d, "_count{server=\"");
-         d = pgexporter_append(d, &config->servers[current->tuple->server].name[0]);
+         d = pgexporter_append(d, &config->servers[current->server].name[0]);
          d = pgexporter_append(d, "\",database=\"");
-         d = pgexporter_append(d, pgexporter_get_column(0, current->tuple));
+         d = pgexporter_append(d, pgexporter_get_column(0, current));
          d = pgexporter_append(d, "\",mode=\"");
-         d = pgexporter_append(d, pgexporter_get_column(1, current->tuple));
+         d = pgexporter_append(d, pgexporter_get_column(1, current));
          d = pgexporter_append(d, "\"} ");
-         d = pgexporter_append(d, get_value(&current->tuple->tag[0], pgexporter_get_column(1, current->tuple), pgexporter_get_column(2, current->tuple)));
+         d = pgexporter_append(d, get_value(&all->tag[0], pgexporter_get_column(1, current), pgexporter_get_column(2, current)));
          d = pgexporter_append(d, "\n");
          data = pgexporter_append(data, d);
          free(d);
@@ -982,7 +988,7 @@ locks_information(int client_fd)
       }
    }
 
-   pgexporter_free_tuples(all);
+   pgexporter_free_query(all);
 }
 
 static void
@@ -991,9 +997,9 @@ settings_information(int client_fd)
    int ret;
    char* d;
    char* data = NULL;
-   struct tuples* all = NULL;
-   struct tuples* tuples = NULL;
-   struct tuples* current = NULL;
+   struct query* all = NULL;
+   struct query* query = NULL;
+   struct tuple* current = NULL;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
@@ -1002,34 +1008,34 @@ settings_information(int client_fd)
    {
       if (config->servers[server].fd != -1)
       {
-         ret = pgexporter_query_settings(server, &tuples);
+         ret = pgexporter_query_settings(server, &query);
          if (ret == 0)
          {
-            all = pgexporter_merge_tuples(all, tuples);
+            all = pgexporter_merge_queries(all, query, SORT_DATA0);
          }
-         tuples = NULL;
+         query = NULL;
       }
    }
 
-   current = all;
+   current = all->tuples;
    while (current != NULL)
    {
       d = NULL;
       d = pgexporter_append(d, "#HELP pgexporter_");
-      d = pgexporter_append(d, &current->tuple->tag[0]);
+      d = pgexporter_append(d, &all->tag[0]);
       d = pgexporter_append(d, "_");
-      d = pgexporter_append(d, pgexporter_get_column(0, current->tuple));
+      d = pgexporter_append(d, pgexporter_get_column(0, current));
       d = pgexporter_append(d, " ");
-      d = pgexporter_append(d, pgexporter_get_column(2, current->tuple));
+      d = pgexporter_append(d, pgexporter_get_column(2, current));
       d = pgexporter_append(d, "\n");
       data = pgexporter_append(data, d);
       free(d);
 
       d = NULL;
       d = pgexporter_append(d, "#TYPE pgexporter_");
-      d = pgexporter_append(d, &current->tuple->tag[0]);
+      d = pgexporter_append(d, &all->tag[0]);
       d = pgexporter_append(d, "_");
-      d = pgexporter_append(d, pgexporter_get_column(0, current->tuple));
+      d = pgexporter_append(d, pgexporter_get_column(0, current));
       d = pgexporter_append(d, " gauge");
       d = pgexporter_append(d, "\n");
       data = pgexporter_append(data, d);
@@ -1038,18 +1044,18 @@ settings_information(int client_fd)
 data:
       d = NULL;
       d = pgexporter_append(d, "pgexporter_");
-      d = pgexporter_append(d, &current->tuple->tag[0]);
+      d = pgexporter_append(d, &all->tag[0]);
       d = pgexporter_append(d, "_");
-      d = pgexporter_append(d, pgexporter_get_column(0, current->tuple));
+      d = pgexporter_append(d, pgexporter_get_column(0, current));
       d = pgexporter_append(d, "{server=\"");
-      d = pgexporter_append(d, &config->servers[current->tuple->server].name[0]);
+      d = pgexporter_append(d, &config->servers[current->server].name[0]);
       d = pgexporter_append(d, "\"} ");
-      d = pgexporter_append(d, get_value(&current->tuple->tag[0], pgexporter_get_column(0, current->tuple), pgexporter_get_column(1, current->tuple)));
+      d = pgexporter_append(d, get_value(&all->tag[0], pgexporter_get_column(0, current), pgexporter_get_column(1, current)));
       d = pgexporter_append(d, "\n");
       data = pgexporter_append(data, d);
       free(d);
 
-      if (current->next != NULL && !strcmp(pgexporter_get_column(0, current->tuple), pgexporter_get_column(0, current->next->tuple)))
+      if (current->next != NULL && !strcmp(pgexporter_get_column(0, current), pgexporter_get_column(0, current->next)))
       {
          current = current->next;
          goto data;
@@ -1065,7 +1071,7 @@ data:
       current = current->next;
    }
 
-   pgexporter_free_tuples(all);
+   pgexporter_free_query(all);
 }
 
 static int

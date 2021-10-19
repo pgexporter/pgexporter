@@ -48,6 +48,8 @@ extern "C" {
 
 #define MAIN_UDS ".s.pgexporter"
 
+#define MAX_NUMBER_OF_COLUMNS 16
+
 #define MAX_BUFFER_SIZE      65535
 #define DEFAULT_BUFFER_SIZE  65535
 
