@@ -257,6 +257,31 @@ pgexporter_query_locks(int server, struct query** query)
 }
 
 int
+pgexporter_query_stat_bgwriter(int server, struct query** query)
+{
+   char* names[] = {
+      "buffers_alloc",
+      "buffers_backend",
+      "buffers_backend_fsync",
+      "buffers_checkpoint",
+      "buffers_clean",
+      "checkpoint_sync_time",
+      "checkpoint_write_time",
+      "checkpoints_req",
+      "checkpoints_timed",
+      "maxwritten_clean"
+   };
+
+   return query_execute(server,
+                        "SELECT buffers_alloc, buffers_backend, buffers_backend_fsync, "
+                        "buffers_checkpoint, buffers_clean, checkpoint_sync_time, "
+                        "checkpoint_write_time, checkpoints_req, checkpoints_timed, "
+                        "maxwritten_clean "
+                        "FROM pg_stat_bgwriter;",
+                        "pg_stat_bgwriter", 10, names, query);
+}
+
+int
 pgexporter_query_settings(int server, struct query** query)
 {
    return query_execute(server, "SELECT name,setting,short_desc FROM pg_settings;",

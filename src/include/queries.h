@@ -127,6 +127,15 @@ int
 pgexporter_query_locks(int server, struct query** query);
 
 /**
+ * Query pg_stat_bgwriter
+ * @param server The server
+ * @param query The resulting query
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_query_stat_bgwriter(int server, struct query** query);
+
+/**
  * Query pg_settings
  * @param server The server
  * @param query The resulting query
