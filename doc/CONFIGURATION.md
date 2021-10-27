@@ -56,6 +56,8 @@ See a [sample](./etc/pgexporter.conf) configuration for running `pgexporter` on 
 
 Note, that PostgreSQL 10+ is required.
 
+Note, that if `host` starts with a `/` it represents a path and `pgexporter` will connect using a Unix Domain Socket.
+
 # pgexporter_users configuration
 
 The `pgexporter_users` configuration defines the users known to the system. This file is created and managed through
