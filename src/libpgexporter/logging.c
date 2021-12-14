@@ -65,6 +65,52 @@ static const char* colors[] =
  *
  */
 int
+pgexporter_init_logging(void)
+{
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (config->log_type == PGEXPORTER_LOGGING_TYPE_FILE)
+   {
+      if (strlen(config->log_path) > 0)
+      {
+         if (config->log_mode == PGEXPORTER_LOGGING_MODE_APPEND)
+         {
+            log_file = fopen(config->log_path, "a");
+         }
+         else
+         {
+            log_file = fopen(config->log_path, "w");
+         }
+      }
+      else
+      {
+         if (config->log_mode == PGEXPORTER_LOGGING_MODE_APPEND)
+         {
+            log_file = fopen("pgexporter.log", "a");
+         }
+         else
+         {
+            log_file = fopen("pgexporter.log", "w");
+         }
+      }
+
+      if (!log_file)
+      {
+         printf("Failed to open log file %s due to %s\n", strlen(config->log_path) > 0 ? config->log_path : "pgexporter.log", strerror(errno));
+         errno = 0;
+         return 1;
+      }
+   }
+
+   return 0;
+}
+
+/**
+ *
+ */
+int
 pgexporter_start_logging(void)
 {
    struct configuration* config;

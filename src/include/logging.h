@@ -49,12 +49,22 @@ extern "C" {
 #define PGEXPORTER_LOGGING_LEVEL_ERROR   5
 #define PGEXPORTER_LOGGING_LEVEL_FATAL   6
 
+#define PGEXPORTER_LOGGING_MODE_CREATE 0
+#define PGEXPORTER_LOGGING_MODE_APPEND 1
+
 #define pgexporter_log_trace(...) pgexporter_log_line(PGEXPORTER_LOGGING_LEVEL_DEBUG5, __FILE__, __LINE__, __VA_ARGS__)
 #define pgexporter_log_debug(...) pgexporter_log_line(PGEXPORTER_LOGGING_LEVEL_DEBUG1, __FILE__, __LINE__, __VA_ARGS__)
 #define pgexporter_log_info(...)  pgexporter_log_line(PGEXPORTER_LOGGING_LEVEL_INFO,  __FILE__, __LINE__,  __VA_ARGS__)
 #define pgexporter_log_warn(...)  pgexporter_log_line(PGEXPORTER_LOGGING_LEVEL_WARN,  __FILE__, __LINE__, __VA_ARGS__)
 #define pgexporter_log_error(...) pgexporter_log_line(PGEXPORTER_LOGGING_LEVEL_ERROR, __FILE__, __LINE__, __VA_ARGS__)
 #define pgexporter_log_fatal(...) pgexporter_log_line(PGEXPORTER_LOGGING_LEVEL_FATAL, __FILE__, __LINE__, __VA_ARGS__)
+
+/**
+ * Initialize the logging system
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_init_logging(void);
 
 /**
  * Start the logging system

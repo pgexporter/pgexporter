@@ -389,6 +389,14 @@ main(int argc, char **argv)
       }
    }
 
+   if (pgexporter_init_logging())
+   {
+#ifdef HAVE_LINUX
+      sd_notify(0, "STATUS=Failed to init logging");
+#endif
+      exit(1);
+   }
+
    if (pgexporter_start_logging())
    {
 #ifdef HAVE_LINUX
