@@ -332,6 +332,8 @@ pgexporter_connect(const char* hostname, int port, int* fd)
 
 error:
 
+   freeaddrinfo(servinfo);
+
    pgexporter_log_debug("pgexporter_connect: %s", strerror(error));
    return 1;
 }
