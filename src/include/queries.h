@@ -109,6 +109,15 @@ int
 pgexporter_query_version(int server, struct query** query);
 
 /**
+ * Query PostgreSQL uptime
+ * @param server The server
+ * @param query The resulting query
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_query_uptime(int server, struct query** query);
+
+/**
  * Query pg_database for size
  * @param server The server
  * @param query The resulting query
