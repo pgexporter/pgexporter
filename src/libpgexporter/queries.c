@@ -224,6 +224,13 @@ pgexporter_query_version(int server, struct query** query)
 }
 
 int
+pgexporter_query_uptime(int server, struct query** query)
+{
+   return query_execute(server, "SELECT FLOOR(EXTRACT(EPOCH FROM now() - pg_postmaster_start_time)) FROM pg_postmaster_start_time();",
+                        "pg_uptime", 1, NULL, query);
+}
+
+int
 pgexporter_query_database_size(int server, struct query** query)
 {
    return query_execute(server, "SELECT datname, pg_database_size(datname) FROM pg_database;",
