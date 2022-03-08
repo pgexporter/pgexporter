@@ -217,6 +217,13 @@ pgexporter_query_total_disk_space(int server, bool data, struct query** query)
 }
 
 int
+pgexporter_query_version(int server, struct query** query)
+{
+   return query_execute(server, "SELECT version();",
+                        "pg_version", 1, NULL, query);
+}
+
+int
 pgexporter_query_database_size(int server, struct query** query)
 {
    return query_execute(server, "SELECT datname, pg_database_size(datname) FROM pg_database;",
