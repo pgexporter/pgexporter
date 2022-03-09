@@ -231,6 +231,13 @@ pgexporter_query_uptime(int server, struct query** query)
 }
 
 int
+pgexporter_query_primary(int server, struct query** query)
+{
+   return query_execute(server, "SELECT (CASE pg_is_in_recovery() WHEN 'f' THEN 't' ELSE 'f' END);",
+                        "pg_primary", 1, NULL, query);
+}
+
+int
 pgexporter_query_database_size(int server, struct query** query)
 {
    return query_execute(server, "SELECT datname, pg_database_size(datname) FROM pg_database;",

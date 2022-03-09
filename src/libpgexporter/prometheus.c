@@ -59,6 +59,7 @@ static void general_information(int client_fd);
 static void server_information(int client_fd);
 static void version_information(int client_fd);
 static void uptime_information(int client_fd);
+static void primary_information(int client_fd);
 static void disk_space_information(int client_fd);
 static void database_information(int client_fd);
 static void replication_information(int client_fd);
@@ -326,6 +327,7 @@ metrics_page(int client_fd)
    server_information(client_fd);
    version_information(client_fd);
    uptime_information(client_fd);
+   primary_information(client_fd);
    disk_space_information(client_fd);
    database_information(client_fd);
    replication_information(client_fd);
@@ -546,6 +548,88 @@ uptime_information(int client_fd)
             d = pgexporter_append(d, &config->servers[server].name[0]);
             d = pgexporter_append(d, "\"} ");
             d = pgexporter_append(d, pgexporter_get_column(0, current));
+            d = pgexporter_append(d, "\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            server++;
+            current = current->next;
+         }
+
+         data = pgexporter_append(data, "\n");
+
+         if (data != NULL)
+         {
+            send_chunk(client_fd, data);
+            free(data);
+            data = NULL;
+         }
+      }
+   }
+
+   pgexporter_free_query(all);
+}
+
+static void
+primary_information(int client_fd)
+{
+   int ret;
+   int server;
+   char* d;
+   char* data = NULL;
+   struct query* all = NULL;
+   struct query* query = NULL;
+   struct tuple* current = NULL;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   for (server = 0; server < config->number_of_servers; server++)
+   {
+      if (config->servers[server].fd != -1)
+      {
+         ret = pgexporter_query_primary(server, &query);
+         if (ret == 0)
+         {
+            all = pgexporter_merge_queries(all, query, SORT_NAME);
+         }
+         query = NULL;
+      }
+   }
+
+   if (all != NULL)
+   {
+      current = all->tuples;
+      if (current != NULL)
+      {
+         d = NULL;
+         d = pgexporter_append(d, "#HELP pgexporter_postgresql_primary Is the PostgreSQL instance the primary");
+         d = pgexporter_append(d, "\n");
+         data = pgexporter_append(data, d);
+         free(d);
+
+         d = NULL;
+         d = pgexporter_append(d, "#TYPE pgexporter_postgresql_primary gauge");
+         d = pgexporter_append(d, "\n");
+         data = pgexporter_append(data, d);
+         free(d);
+
+         server = 0;
+
+         while (current != NULL)
+         {
+            d = NULL;
+            d = pgexporter_append(d, "pgexporter_postgresql_primary{server=\"");
+            d = pgexporter_append(d, &config->servers[server].name[0]);
+            d = pgexporter_append(d, "\"} ");
+            if (!strcmp("t", pgexporter_get_column(0, current)))
+            {
+               d = pgexporter_append(d, "1");
+            }
+            else
+            {
+               d = pgexporter_append(d, "0");
+            }
             d = pgexporter_append(d, "\n");
             data = pgexporter_append(data, d);
             free(d);
