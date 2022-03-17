@@ -1,20 +1,20 @@
 /*
- * Copyright (C) 2021 Red Hat
- * 
+ * Copyright (C) 2022 Red Hat
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this list
  * of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright notice, this
  * list of conditions and the following disclaimer in the documentation and/or other
  * materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the copyright holder nor the names of its contributors may
  * be used to endorse or promote products derived from this software without specific
  * prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
@@ -74,7 +74,7 @@ pgexporter_management_read_header(int socket, signed char* id)
    }
 
    *id = pgexporter_read_byte(&(header));
-   
+
    return 0;
 
 error:
@@ -90,7 +90,7 @@ pgexporter_management_read_payload(int socket, signed char id, int* payload_i1, 
    int nr;
    char buf2[2];
    char buf4[4];
-   struct cmsghdr *cmptr = NULL;
+   struct cmsghdr* cmptr = NULL;
    struct iovec iov[1];
    struct msghdr msg;
 
@@ -140,7 +140,7 @@ pgexporter_management_read_payload(int socket, signed char id, int* payload_i1, 
          }
 
          *payload_i1 = pgexporter_read_int32(&buf4);
-         *payload_i2 = *(int *)CMSG_DATA(cmptr);
+         *payload_i2 = *(int*)CMSG_DATA(cmptr);
 
          free(cmptr);
          break;
@@ -153,7 +153,7 @@ pgexporter_management_read_payload(int socket, signed char id, int* payload_i1, 
       default:
          goto error;
          break;
-   }   
+   }
 
    return 0;
 
@@ -167,7 +167,7 @@ pgexporter_management_transfer_connection(int server)
 {
    int fd;
    struct configuration* config;
-   struct cmsghdr *cmptr = NULL;
+   struct cmsghdr* cmptr = NULL;
    struct iovec iov[1];
    struct msghdr msg;
    char buf2[2];
@@ -218,7 +218,7 @@ pgexporter_management_transfer_connection(int server)
    msg.msg_control    = cmptr;
    msg.msg_controllen = CMSG_SPACE(sizeof(int));
    msg.msg_flags = 0;
-   *(int *)CMSG_DATA(cmptr) = config->servers[server].fd;
+   *(int*)CMSG_DATA(cmptr) = config->servers[server].fd;
 
    if (sendmsg(fd, &msg, 0) != 2)
    {
