@@ -997,7 +997,6 @@ pgexporter_validate_admins_configuration(void* shm)
    return 0;
 }
 
-
 int
 pgexporter_reload_configuration(void)
 {

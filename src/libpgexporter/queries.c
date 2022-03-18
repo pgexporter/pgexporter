@@ -302,7 +302,6 @@ pgexporter_query_stat_bgwriter(int server, struct query** query)
                         "pg_stat_bgwriter", 10, names, query);
 }
 
-
 int
 pgexporter_query_stat_database(int server, struct query** query)
 {

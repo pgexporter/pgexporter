@@ -54,8 +54,8 @@ extern "C" {
 
 #define pgexporter_log_trace(...) pgexporter_log_line(PGEXPORTER_LOGGING_LEVEL_DEBUG5, __FILE__, __LINE__, __VA_ARGS__)
 #define pgexporter_log_debug(...) pgexporter_log_line(PGEXPORTER_LOGGING_LEVEL_DEBUG1, __FILE__, __LINE__, __VA_ARGS__)
-#define pgexporter_log_info(...)  pgexporter_log_line(PGEXPORTER_LOGGING_LEVEL_INFO,  __FILE__, __LINE__,  __VA_ARGS__)
-#define pgexporter_log_warn(...)  pgexporter_log_line(PGEXPORTER_LOGGING_LEVEL_WARN,  __FILE__, __LINE__, __VA_ARGS__)
+#define pgexporter_log_info(...)  pgexporter_log_line(PGEXPORTER_LOGGING_LEVEL_INFO, __FILE__, __LINE__, __VA_ARGS__)
+#define pgexporter_log_warn(...)  pgexporter_log_line(PGEXPORTER_LOGGING_LEVEL_WARN, __FILE__, __LINE__, __VA_ARGS__)
 #define pgexporter_log_error(...) pgexporter_log_line(PGEXPORTER_LOGGING_LEVEL_ERROR, __FILE__, __LINE__, __VA_ARGS__)
 #define pgexporter_log_fatal(...) pgexporter_log_line(PGEXPORTER_LOGGING_LEVEL_FATAL, __FILE__, __LINE__, __VA_ARGS__)
 
@@ -91,4 +91,3 @@ pgexporter_log_mem(void* data, size_t size);
 #endif
 
 #endif
-
