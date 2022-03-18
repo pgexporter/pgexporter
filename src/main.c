@@ -223,7 +223,7 @@ main(int argc, char** argv)
    {
       static struct option long_options[] =
       {
-         {"config",  required_argument, 0, 'c'},
+         {"config", required_argument, 0, 'c'},
          {"users", required_argument, 0, 'u'},
          {"admins", required_argument, 0, 'A'},
          {"daemon", no_argument, 0, 'd'},

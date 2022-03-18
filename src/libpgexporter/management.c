@@ -51,7 +51,6 @@
 
 #define MANAGEMENT_HEADER_SIZE 1
 
-
 static int read_int32(char* prefix, int socket, int* i);
 static int read_string(char* prefix, int socket, char** str);
 static int write_int32(char* prefix, int socket, int i);
@@ -126,7 +125,7 @@ pgexporter_management_read_payload(int socket, signed char id, int* payload_i1, 
          msg.msg_namelen = 0;
          msg.msg_iov = iov;
          msg.msg_iovlen = 1;
-         msg.msg_control    = cmptr;
+         msg.msg_control = cmptr;
          msg.msg_controllen = CMSG_SPACE(sizeof(int));
          msg.msg_flags = 0;
 
@@ -203,19 +202,19 @@ pgexporter_management_transfer_connection(int server)
    memset(&buf2[0], 0, sizeof(buf2));
 
    iov[0].iov_base = &buf2[0];
-   iov[0].iov_len  = sizeof(buf2);
+   iov[0].iov_len = sizeof(buf2);
 
    cmptr = malloc(CMSG_SPACE(sizeof(int)));
    memset(cmptr, 0, CMSG_SPACE(sizeof(int)));
-   cmptr->cmsg_level  = SOL_SOCKET;
-   cmptr->cmsg_type   = SCM_RIGHTS;
-   cmptr->cmsg_len    = CMSG_LEN(sizeof(int));
+   cmptr->cmsg_level = SOL_SOCKET;
+   cmptr->cmsg_type = SCM_RIGHTS;
+   cmptr->cmsg_len = CMSG_LEN(sizeof(int));
 
-   msg.msg_name    = NULL;
+   msg.msg_name = NULL;
    msg.msg_namelen = 0;
-   msg.msg_iov     = iov;
-   msg.msg_iovlen  = 1;
-   msg.msg_control    = cmptr;
+   msg.msg_iov = iov;
+   msg.msg_iovlen = 1;
+   msg.msg_control = cmptr;
    msg.msg_controllen = CMSG_SPACE(sizeof(int));
    msg.msg_flags = 0;
    *(int*)CMSG_DATA(cmptr) = config->servers[server].fd;
@@ -719,7 +718,8 @@ write_socket(int socket, void* buf, size_t size)
                break;
          }
       }
-   } while (keep_write);
+   }
+   while (keep_write);
 
    return 1;
 }
@@ -801,7 +801,8 @@ write_ssl(SSL* ssl, void* buf, size_t size)
             return 1;
          }
       }
-   } while (keep_write);
+   }
+   while (keep_write);
 
    return 1;
 }
