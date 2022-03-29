@@ -1,6 +1,6 @@
 # Contributing guide
 
-**Want to contribute? Great!** 
+**Want to contribute? Great!**
 
 All contributions are more than welcome ! This includes bug reports, bug fixes, enhancements, features, questions, ideas,
 and documentation.
@@ -27,14 +27,14 @@ All contributions to pgexporter are licensed under the [The 3-Clause BSD License
 This project uses GitHub issues to manage the issues. Open an issue directly in GitHub.
 
 If you believe you found a bug, and it's likely possible, please indicate a way to reproduce it, what you are seeing and what you would expect to see.
-Don't forget to indicate your pgexporter version. 
+Don't forget to indicate your pgexporter version.
 
 ## Setup your build environment
 
-You can use the follow command, if you are using a [Fedora](https://getfedora.org/) based platform:
+For Red Hat RPM based distributions use the following command:
 
 ```
-dnf install git gcc cmake make libev libev-devel openssl openssl-devel systemd systemd-devel zlib zlib-devel libzstd libzstd-devel liblz4 liblz4-dev python3-docutils
+dnf install git gcc cmake make libev libev-devel openssl openssl-devel systemd systemd-devel python3-docutils
 ```
 
 in order to get the necessary dependencies.
