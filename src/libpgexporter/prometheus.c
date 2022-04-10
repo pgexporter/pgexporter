@@ -74,6 +74,7 @@ static void settings_information(int client_fd);
 static int send_chunk(int client_fd, char* data);
 
 static char* get_value(char* tag, char* name, char* val);
+static char* safe_prometheus_key(char* key);
 
 void
 pgexporter_prometheus(int client_fd)
@@ -510,7 +511,7 @@ version_information(int client_fd)
             d = pgexporter_append(d, "pgexporter_postgresql_version{server=\"");
             d = pgexporter_append(d, &config->servers[server].name[0]);
             d = pgexporter_append(d, "\",version=\"");
-            d = pgexporter_append(d, pgexporter_get_column(0, current));
+            d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
             d = pgexporter_append(d, "\"} ");
             d = pgexporter_append(d, "1");
             d = pgexporter_append(d, "\n");
@@ -587,7 +588,7 @@ uptime_information(int client_fd)
             d = pgexporter_append(d, "pgexporter_postgresql_uptime{server=\"");
             d = pgexporter_append(d, &config->servers[server].name[0]);
             d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, pgexporter_get_column(0, current));
+            d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
             d = pgexporter_append(d, "\n");
             data = pgexporter_append(data, d);
             free(d);
@@ -1105,7 +1106,7 @@ database_information(int client_fd)
             d = pgexporter_append(d, "_size{server=\"");
             d = pgexporter_append(d, &config->servers[current->server].name[0]);
             d = pgexporter_append(d, "\",database=\"");
-            d = pgexporter_append(d, pgexporter_get_column(0, current));
+            d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
             d = pgexporter_append(d, "\"} ");
             d = pgexporter_append(d, get_value(&all->tag[0], pgexporter_get_column(0, current), pgexporter_get_column(1, current)));
             d = pgexporter_append(d, "\n");
@@ -1184,7 +1185,7 @@ replication_information(int client_fd)
             d = pgexporter_append(d, "_active{server=\"");
             d = pgexporter_append(d, &config->servers[current->server].name[0]);
             d = pgexporter_append(d, "\",slot=\"");
-            d = pgexporter_append(d, pgexporter_get_column(0, current));
+            d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
             d = pgexporter_append(d, "\"} ");
             d = pgexporter_append(d, get_value(&all->tag[0], pgexporter_get_column(0, current), pgexporter_get_column(1, current)));
             d = pgexporter_append(d, "\n");
@@ -1263,9 +1264,9 @@ locks_information(int client_fd)
             d = pgexporter_append(d, "_count{server=\"");
             d = pgexporter_append(d, &config->servers[current->server].name[0]);
             d = pgexporter_append(d, "\",database=\"");
-            d = pgexporter_append(d, pgexporter_get_column(0, current));
+            d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
             d = pgexporter_append(d, "\",mode=\"");
-            d = pgexporter_append(d, pgexporter_get_column(1, current));
+            d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(1, current)));
             d = pgexporter_append(d, "\"} ");
             d = pgexporter_append(d, get_value(&all->tag[0], pgexporter_get_column(1, current), pgexporter_get_column(2, current)));
             d = pgexporter_append(d, "\n");
@@ -1458,7 +1459,7 @@ stat_database_information(int client_fd)
             d = pgexporter_append(d, "{server=\"");
             d = pgexporter_append(d, &config->servers[current->server].name[0]);
             d = pgexporter_append(d, "\",database=\"");
-            d = pgexporter_append(d, pgexporter_get_column(0, current));
+            d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
             d = pgexporter_append(d, "\"} ");
             d = pgexporter_append(d, get_value(&all->tag[0], pgexporter_get_column(i, current), pgexporter_get_column(i, current)));
             d = pgexporter_append(d, "\n");
@@ -1557,7 +1558,7 @@ stat_database_conflicts_information(int client_fd)
             d = pgexporter_append(d, "{server=\"");
             d = pgexporter_append(d, &config->servers[current->server].name[0]);
             d = pgexporter_append(d, "\",database=\"");
-            d = pgexporter_append(d, pgexporter_get_column(0, current));
+            d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
             d = pgexporter_append(d, "\"} ");
             d = pgexporter_append(d, get_value(&all->tag[0], pgexporter_get_column(i, current), pgexporter_get_column(i, current)));
             d = pgexporter_append(d, "\n");
@@ -1619,9 +1620,9 @@ settings_information(int client_fd)
          d = pgexporter_append(d, "#HELP pgexporter_");
          d = pgexporter_append(d, &all->tag[0]);
          d = pgexporter_append(d, "_");
-         d = pgexporter_append(d, pgexporter_get_column(0, current));
+         d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
          d = pgexporter_append(d, " ");
-         d = pgexporter_append(d, pgexporter_get_column(2, current));
+         d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(2, current)));
          d = pgexporter_append(d, "\n");
          data = pgexporter_append(data, d);
          free(d);
@@ -1630,7 +1631,7 @@ settings_information(int client_fd)
          d = pgexporter_append(d, "#TYPE pgexporter_");
          d = pgexporter_append(d, &all->tag[0]);
          d = pgexporter_append(d, "_");
-         d = pgexporter_append(d, pgexporter_get_column(0, current));
+         d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
          d = pgexporter_append(d, " gauge");
          d = pgexporter_append(d, "\n");
          data = pgexporter_append(data, d);
@@ -1641,7 +1642,7 @@ data:
          d = pgexporter_append(d, "pgexporter_");
          d = pgexporter_append(d, &all->tag[0]);
          d = pgexporter_append(d, "_");
-         d = pgexporter_append(d, pgexporter_get_column(0, current));
+         d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
          d = pgexporter_append(d, "{server=\"");
          d = pgexporter_append(d, &config->servers[current->server].name[0]);
          d = pgexporter_append(d, "\"} ");
@@ -1744,4 +1745,27 @@ get_value(char* tag, char* name, char* val)
 
    /* Map general strings to 1 */
    return "1";
+}
+
+static char*
+safe_prometheus_key(char* key)
+{
+   int i = 0;
+
+   while (key[i] != '\0')
+   {
+      if (key[i] == '.')
+      {
+         if (i == strlen(key) - 1)
+         {
+            key[i] = '\0';
+         }
+         else
+         {
+            key[i] = '_';
+         }
+      }
+      i++;
+   }
+   return key;
 }
