@@ -311,7 +311,6 @@ pgexporter_query_stat_database(int server, struct query** query)
       "blk_write_time",
       "blks_hit",
       "blks_read",
-      "checksum_failures",
       "deadlocks",
       "temp_files",
       "temp_bytes",
@@ -328,13 +327,13 @@ pgexporter_query_stat_database(int server, struct query** query)
 
    return query_execute(server,
                         "SELECT datname, blk_read_time, blk_write_time, "
-                        "blks_hit, blks_read, checksum_failures, "
+                        "blks_hit, blks_read, "
                         "deadlocks, temp_files, temp_bytes, "
                         "tup_returned, tup_fetched, tup_inserted, "
                         "tup_updated, tup_deleted, xact_commit, "
                         "xact_rollback, conflicts, numbackends "
                         "FROM pg_stat_database WHERE datname IS NOT NULL ORDER BY datname;",
-                        "pg_stat_database", 18, names, query);
+                        "pg_stat_database", 17, names, query);
 }
 
 int
