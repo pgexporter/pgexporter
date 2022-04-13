@@ -707,7 +707,7 @@ disk_space_information(int client_fd)
    /* data/used */
    for (int server = 0; server < config->number_of_servers; server++)
    {
-      if (config->servers[server].fd != -1)
+      if (config->servers[server].extension && config->servers[server].fd != -1)
       {
          if (strlen(config->servers[server].data) > 0)
          {
@@ -715,6 +715,7 @@ disk_space_information(int client_fd)
 
             if (query == NULL)
             {
+               config->servers[server].extension = false;
                continue;
             }
 
@@ -765,7 +766,7 @@ disk_space_information(int client_fd)
    /* data/free */
    for (int server = 0; server < config->number_of_servers; server++)
    {
-      if (config->servers[server].fd != -1)
+      if (config->servers[server].extension && config->servers[server].fd != -1)
       {
          if (strlen(config->servers[server].data) > 0)
          {
@@ -773,6 +774,7 @@ disk_space_information(int client_fd)
 
             if (query == NULL)
             {
+               config->servers[server].extension = false;
                continue;
             }
 
@@ -823,7 +825,7 @@ disk_space_information(int client_fd)
    /* data/total */
    for (int server = 0; server < config->number_of_servers; server++)
    {
-      if (config->servers[server].fd != -1)
+      if (config->servers[server].extension && config->servers[server].fd != -1)
       {
          if (strlen(config->servers[server].data) > 0)
          {
@@ -831,6 +833,7 @@ disk_space_information(int client_fd)
 
             if (query == NULL)
             {
+               config->servers[server].extension = false;
                continue;
             }
 
@@ -881,7 +884,7 @@ disk_space_information(int client_fd)
    /* wal/used */
    for (int server = 0; server < config->number_of_servers; server++)
    {
-      if (config->servers[server].fd != -1)
+      if (config->servers[server].extension && config->servers[server].fd != -1)
       {
          if (strlen(config->servers[server].wal) > 0)
          {
@@ -889,6 +892,7 @@ disk_space_information(int client_fd)
 
             if (query == NULL)
             {
+               config->servers[server].extension = false;
                continue;
             }
 
@@ -939,7 +943,7 @@ disk_space_information(int client_fd)
    /* wal/free */
    for (int server = 0; server < config->number_of_servers; server++)
    {
-      if (config->servers[server].fd != -1)
+      if (config->servers[server].extension && config->servers[server].fd != -1)
       {
          if (strlen(config->servers[server].wal) > 0)
          {
@@ -947,6 +951,7 @@ disk_space_information(int client_fd)
 
             if (query == NULL)
             {
+               config->servers[server].extension = false;
                continue;
             }
 
@@ -997,7 +1002,7 @@ disk_space_information(int client_fd)
    /* wal/total */
    for (int server = 0; server < config->number_of_servers; server++)
    {
-      if (config->servers[server].fd != -1)
+      if (config->servers[server].extension && config->servers[server].fd != -1)
       {
          if (strlen(config->servers[server].wal) > 0)
          {
@@ -1005,6 +1010,7 @@ disk_space_information(int client_fd)
 
             if (query == NULL)
             {
+               config->servers[server].extension = false;
                continue;
             }
 
