@@ -216,6 +216,14 @@ pgexporter_free_query(struct query* query);
 char*
 pgexporter_get_column(int col, struct tuple* tuple);
 
+/**
+ * Debug query
+ * @param query The resulting query
+ * @return 0 upon success, otherwise 1
+ */
+void
+pgexporter_query_debug(struct query* query);
+
 #ifdef __cplusplus
 }
 #endif
