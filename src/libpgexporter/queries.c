@@ -467,6 +467,36 @@ pgexporter_get_column(int col, struct tuple* tuple)
    return tuple->data[col];
 }
 
+void
+pgexporter_query_debug(struct query* query)
+{
+   int number_of_tuples = 0;
+   struct tuple* t = NULL;
+
+   if (query == NULL)
+   {
+      pgexporter_log_info("Query is NULL");
+      return;
+   }
+
+   pgexporter_log_trace("Query: %s", query->tag);
+   pgexporter_log_trace("Columns: %d", query->number_of_columns);
+
+   for (int i = 0; i < query->number_of_columns; i++)
+   {
+      pgexporter_log_trace("Column: %s", query->names[i]);
+   }
+
+   t = query->tuples;
+   while (t != NULL)
+   {
+      number_of_tuples++;
+      t = t->next;
+   }
+
+   pgexporter_log_trace("Tuples: %d", number_of_tuples);
+}
+
 static int
 query_execute(int server, char* qs, char* tag, int columns, char* names[], struct query** query)
 {
@@ -529,6 +559,11 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
 
       pgexporter_free_message(msg);
       msg = NULL;
+   }
+
+   if (pgexporter_has_message('E', data, data_size))
+   {
+      goto error;
    }
 
    q = (struct query*)malloc(sizeof(struct query));
