@@ -105,6 +105,7 @@ struct server
    char wal[MISC_LENGTH];              /**< The WAL directory */
    int fd;                             /**< The socket descriptor */
    bool new;                           /**< Is the connection new */
+   bool extension;                     /**< Is the pgexporter_ext extension installed */
 } __attribute__ ((aligned (64)));
 
 /** @struct

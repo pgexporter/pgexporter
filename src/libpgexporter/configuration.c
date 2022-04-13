@@ -151,6 +151,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                   memset(&srv, 0, sizeof(struct server));
                   memcpy(&srv.name, &section, strlen(section));
                   srv.fd = -1;
+                  srv.extension = true;
 
                   idx_server++;
                }
@@ -1296,6 +1297,7 @@ copy_server(struct server* dst, struct server* src)
    memcpy(&dst->data[0], &src->data[0], MISC_LENGTH);
    memcpy(&dst->wal[0], &src->wal[0], MISC_LENGTH);
    dst->fd = src->fd;
+   dst->extension = true;
 }
 
 static void
