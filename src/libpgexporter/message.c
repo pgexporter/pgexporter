@@ -168,7 +168,9 @@ pgexporter_connection_isvalid(int socket)
 
 error:
    if (reply)
+   {
       pgexporter_free_message(reply);
+   }
 
    return false;
 }
