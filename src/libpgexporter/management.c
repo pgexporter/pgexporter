@@ -231,7 +231,9 @@ pgexporter_management_transfer_connection(int server)
 
 error:
    if (cmptr)
+   {
       free(cmptr);
+   }
    pgexporter_disconnect(fd);
 
    return 1;
