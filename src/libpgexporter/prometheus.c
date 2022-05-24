@@ -1758,6 +1758,11 @@ safe_prometheus_key(char* key)
 {
    int i = 0;
 
+   if (key == NULL)
+   {
+      return "";
+   }
+
    while (key[i] != '\0')
    {
       if (key[i] == '.')
