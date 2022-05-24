@@ -75,6 +75,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
   add_compile_options(-Wstrict-prototypes)
 endif()
 
+# Debug
 if (CMAKE_BUILD_TYPE MATCHES Debug)
   add_compile_options(-O0)
   add_compile_options(-DDEBUG)
@@ -86,82 +87,65 @@ if (CMAKE_BUILD_TYPE MATCHES Debug)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -fsanitize=address")
   endif()
 
-  check_c_compiler_flag(-Wformat HAS_FORMAT)
-  if (HAS_FORMAT)
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wformat")
-  endif()
-
-  check_c_compiler_flag(-Wformat-security HAS_FORMAT_SECURITY)
-  if (HAS_FORMAT_SECURITY)
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wformat-security")
-  endif()
-
   check_c_compiler_flag(-fno-omit-frame-pointer HAS_NO_OMIT_FRAME_POINTER)
   if (HAS_NO_OMIT_FRAME_POINTER)
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer")
   endif()
-
-  check_c_compiler_flag(-fstack-protector-strong HAS_STACK_PROTECTOR_STRONG)
-  if (HAS_STACK_PROTECTOR_STRONG)
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fstack-protector-strong")
-  endif()
-
-  check_c_compiler_flag(-rdynamic HAS_DYNAMIC)
-  if (HAS_DYNAMIC)
-    set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -rdynamic")
-    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic")
-  endif()
 endif()
 
+# Release
 if (CMAKE_BUILD_TYPE MATCHES Release OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
   add_compile_options(-O2)
   add_compile_options(-DNDEBUG)
-
-  check_c_compiler_flag(-Wformat HAS_FORMAT)
-  if (HAS_FORMAT)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wformat")
-  endif()
-
-  check_c_compiler_flag(-Wformat-security HAS_FORMAT_SECURITY)
-  if (HAS_FORMAT_SECURITY)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wformat-security")
-  endif()
-
-  check_c_compiler_flag(-fstack-protector-strong HAS_STACKPROTECTOR_STRONG)
-  if (HAS_STACKPROTECTOR_STRONG)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-strong")
-  else()
-    check_c_compiler_flag(-fstack-protector HAS_STACKPROTECTOR)
-    if (HAS_STACKPROTECTOR)
-      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector")
-    endif()
-  endif()
-
-  check_c_compiler_flag(-fPIC HAS_PIC)
-  if (HAS_PIC)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
-  endif()
-
-  if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-    check_c_compiler_flag(-fPIE HAS_PIE)
-    if (HAS_PIE)
-      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIE")
-      set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie")
-    endif()
-  endif()
-
-  check_c_compiler_flag(-Wl,-z,relro HAS_RELRO)
-  if (HAS_RELRO)
-    set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,relro")
-    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,relro")
-  endif()
-
-  check_c_compiler_flag(-Wl,-z,now HAS_NOW)
-  if (HAS_RELRO)
-    set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,now")
-    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,now")
-  endif()
 endif (CMAKE_BUILD_TYPE MATCHES Release OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
+
+check_c_compiler_flag(-Wformat HAS_FORMAT)
+if (HAS_FORMAT)
+  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wformat")
+endif()
+
+check_c_compiler_flag(-Wformat-security HAS_FORMAT_SECURITY)
+if (HAS_FORMAT_SECURITY)
+  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wformat-security")
+endif()
+
+check_c_compiler_flag(-fstack-protector-strong HAS_STACKPROTECTOR_STRONG)
+if (HAS_STACKPROTECTOR_STRONG)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-strong")
+else()
+  check_c_compiler_flag(-fstack-protector HAS_STACKPROTECTOR)
+  if (HAS_STACKPROTECTOR)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector")
+  endif()
+endif()
+
+check_c_compiler_flag(-rdynamic HAS_DYNAMIC)
+if (HAS_DYNAMIC)
+  set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -rdynamic")
+  set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic")
+endif()
+
+check_c_compiler_flag(-fPIC HAS_PIC)
+if (HAS_PIC)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+endif()
+
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+  include(CheckPIESupported)
+  check_pie_supported()
+endif()
+
+check_c_compiler_flag(-Wl,-z,relro HAS_RELRO)
+if (HAS_RELRO)
+  set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,relro")
+  set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,relro")
+endif()
+
+check_c_compiler_flag(-Wl,-z,now HAS_NOW)
+if (HAS_NOW)
+  set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,now")
+  set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,now")
+endif()
 
 #
 # Build libpgexporter
@@ -177,7 +161,11 @@ install(TARGETS pgexporter DESTINATION ${CMAKE_INSTALL_LIBDIR}/)
 # Build pgexporter
 #
 add_executable(pgexporter-bin main.c ${RESOURCE_OBJECT})
-set_target_properties(pgexporter-bin PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME pgexporter)
+if (CMAKE_C_LINK_PIE_SUPPORTED)
+  set_target_properties(pgexporter-bin PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME pgexporter POSITION_INDEPENDENT_CODE TRUE)
+else()
+  set_target_properties(pgexporter-bin PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME pgexporter POSITION_INDEPENDENT_CODE FALSE)
+endif()
 target_link_libraries(pgexporter-bin pgexporter)
 
 install(TARGETS pgexporter-bin DESTINATION ${CMAKE_INSTALL_BINDIR})
@@ -186,7 +174,11 @@ install(TARGETS pgexporter-bin DESTINATION ${CMAKE_INSTALL_BINDIR})
 # Build pgexporter-cli
 #
 add_executable(pgexporter-cli-bin cli.c ${RESOURCE_OBJECT})
-set_target_properties(pgexporter-cli-bin PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME pgexporter-cli)
+if (CMAKE_C_LINK_PIE_SUPPORTED)
+  set_target_properties(pgexporter-cli-bin PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME pgexporter-cli POSITION_INDEPENDENT_CODE TRUE)
+else()
+  set_target_properties(pgexporter-cli-bin PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME pgexporter-cli POSITION_INDEPENDENT_CODE FALSE)
+endif()
 target_link_libraries(pgexporter-cli-bin pgexporter)
 
 install(TARGETS pgexporter-cli-bin DESTINATION ${CMAKE_INSTALL_BINDIR})
@@ -195,7 +187,11 @@ install(TARGETS pgexporter-cli-bin DESTINATION ${CMAKE_INSTALL_BINDIR})
 # Build pgexporter-admin
 #
 add_executable(pgexporter-admin-bin admin.c ${RESOURCE_OBJECT})
-set_target_properties(pgexporter-admin-bin PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME pgexporter-admin)
+if (CMAKE_C_LINK_PIE_SUPPORTED)
+  set_target_properties(pgexporter-admin-bin PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME pgexporter-admin POSITION_INDEPENDENT_CODE TRUE)
+else()
+  set_target_properties(pgexporter-admin-bin PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME pgexporter-admin POSITION_INDEPENDENT_CODE FALSE)
+endif()
 target_link_libraries(pgexporter-admin-bin pgexporter)
 
 install(TARGETS pgexporter-admin-bin DESTINATION ${CMAKE_INSTALL_BINDIR})
