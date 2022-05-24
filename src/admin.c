@@ -449,7 +449,7 @@ static int
 add_user(char* users_path, char* username, char* password, bool generate_pwd, int pwd_length)
 {
    FILE* users_file = NULL;
-   char line[MISC_LENGTH];
+   char line[2 * MISC_LENGTH];
    char* master_key = NULL;
    char* ptr = NULL;
    char* encrypted = NULL;
@@ -616,8 +616,8 @@ update_user(char* users_path, char* username, char* password, bool generate_pwd,
    FILE* users_file = NULL;
    FILE* users_file_tmp = NULL;
    char tmpfilename[MISC_LENGTH];
-   char line[MISC_LENGTH];
-   char line_copy[MISC_LENGTH];
+   char line[2 * MISC_LENGTH];
+   char line_copy[2 * MISC_LENGTH];
    char* master_key = NULL;
    char* ptr = NULL;
    char* encrypted = NULL;
