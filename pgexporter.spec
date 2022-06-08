@@ -29,6 +29,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__mkdir} -p %{buildroot}%{_bindir}
 %{__mkdir} -p %{buildroot}%{_libdir}
 %{__mkdir} -p %{buildroot}%{_docdir}/%{name}/etc
+%{__mkdir} -p %{buildroot}%{_docdir}/%{name}/tutorial
 %{__mkdir} -p %{buildroot}%{_mandir}/man1
 %{__mkdir} -p %{buildroot}%{_mandir}/man5
 %{__mkdir} -p %{buildroot}%{_sysconfdir}/pgexporter
@@ -42,6 +43,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/GETTING_STARTED.md %{buildroot}%{_docdir}/%{name}/GETTING_STARTED.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/RPM.md %{buildroot}%{_docdir}/%{name}/RPM.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/etc/pgexporter.service %{buildroot}%{_docdir}/%{name}/etc/pgexporter.service
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/01_install.md %{buildroot}%{_docdir}/%{name}/tutorial/01_install.md
 
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/etc/pgexporter.conf %{buildroot}%{_sysconfdir}/pgexporter/pgexporter.conf
 
@@ -74,6 +76,7 @@ cd %{buildroot}%{_libdir}/
 %{_docdir}/%{name}/README.md
 %{_docdir}/%{name}/RPM.md
 %{_docdir}/%{name}/etc/pgexporter.service
+%{_docdir}/%{name}/tutorial/01_install.md
 %{_mandir}/man1/pgexporter.1*
 %{_mandir}/man1/pgexporter-admin.1*
 %{_mandir}/man1/pgexporter-cli.1*
