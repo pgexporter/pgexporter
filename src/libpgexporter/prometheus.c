@@ -71,6 +71,10 @@ static void stat_database_information(int client_fd);
 static void stat_database_conflicts_information(int client_fd);
 static void settings_information(int client_fd);
 
+static void metrics_information(struct prometheus* metric, int client_fd);
+static void append_help_info(char** data, char* tag, char* name, char* description);
+static void append_type_info(char** data, char* tag, char* name, int typeId);
+
 static int send_chunk(int client_fd, char* data);
 
 static char* get_value(char* tag, char* name, char* val);
@@ -212,6 +216,9 @@ home_page(int client_fd)
    char time_buf[32];
    int status;
    struct message msg;
+   struct configuration* config;
+
+   config = (struct configuration*) shmem;
 
    memset(&msg, 0, sizeof(struct message));
    memset(&data, 0, sizeof(data));
@@ -255,13 +262,27 @@ home_page(int client_fd)
    data = pgexporter_append(data, "  <p>\n");
    data = pgexporter_append(data, "  Support for\n");
    data = pgexporter_append(data, "  <ul>\n");
-   data = pgexporter_append(data, "  <li>pg_database</li>\n");
-   data = pgexporter_append(data, "  <li>pg_locks</li>\n");
-   data = pgexporter_append(data, "  <li>pg_replication_slots</li>\n");
-   data = pgexporter_append(data, "  <li>pg_settings</li>\n");
-   data = pgexporter_append(data, "  <li>pg_stat_bgwriter</li>\n");
-   data = pgexporter_append(data, "  <li>pg_stat_database</li>\n");
-   data = pgexporter_append(data, "  <li>pg_stat_database_conflicts</li>\n");
+
+   if (config->number_of_metrics == 0)
+   {
+      data = pgexporter_append(data, "  <li>pg_database</li>\n");
+      data = pgexporter_append(data, "  <li>pg_locks</li>\n");
+      data = pgexporter_append(data, "  <li>pg_replication_slots</li>\n");
+      data = pgexporter_append(data, "  <li>pg_settings</li>\n");
+      data = pgexporter_append(data, "  <li>pg_stat_bgwriter</li>\n");
+      data = pgexporter_append(data, "  <li>pg_stat_database</li>\n");
+      data = pgexporter_append(data, "  <li>pg_stat_database_conflicts</li>\n");
+   }
+   else
+   {
+      for (int i = 0; i < config->number_of_metrics; i++)
+      {
+         data = pgexporter_append(data, "  <li>");
+         data = pgexporter_append(data, config->prometheus[i].tag);
+         data = pgexporter_append(data, "</li>\n");
+      }
+   }
+
    data = pgexporter_append(data, "  </ul>\n");
    data = pgexporter_append(data, "  <p>\n");
    data = pgexporter_append(data, "  <a href=\"https://pgexporter.github.io/\">pgexporter.github.io/</a>\n");
@@ -298,7 +319,9 @@ metrics_page(int client_fd)
    char time_buf[32];
    int status;
    struct message msg;
+   struct configuration* config;
 
+   config = (struct configuration*) shmem;
    memset(&msg, 0, sizeof(struct message));
 
    now = time(NULL);
@@ -330,19 +353,31 @@ metrics_page(int client_fd)
 
    pgexporter_open_connections();
 
+   /* default information */
    general_information(client_fd);
    server_information(client_fd);
    version_information(client_fd);
    uptime_information(client_fd);
-   primary_information(client_fd);
-   disk_space_information(client_fd);
-   database_information(client_fd);
-   replication_information(client_fd);
-   locks_information(client_fd);
-   stat_bgwriter_information(client_fd);
-   stat_database_information(client_fd);
-   stat_database_conflicts_information(client_fd);
    settings_information(client_fd);
+   disk_space_information(client_fd);
+
+   if (config->number_of_metrics == 0)
+   {
+      primary_information(client_fd);
+      database_information(client_fd);
+      replication_information(client_fd);
+      locks_information(client_fd);
+      stat_bgwriter_information(client_fd);
+      stat_database_information(client_fd);
+      stat_database_conflicts_information(client_fd);
+   }
+   else
+   {
+      for (int i = 0; i < config->number_of_metrics; i++)
+      {
+         metrics_information(&config->prometheus[i], client_fd);
+      }
+   }
 
    pgexporter_close_connections();
 
@@ -1675,6 +1710,158 @@ data:
    }
 
    pgexporter_free_query(all);
+}
+
+static void
+metrics_information(struct prometheus* prom, int client_fd)
+{
+   bool first;
+   int ret;
+   int number_of_label;
+   char* d;
+   char* data = NULL;
+   struct query* all = NULL;
+   struct query* query = NULL;
+   struct tuple* current = NULL;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+   char* names[prom->number_of_columns];
+
+   number_of_label = 0;
+   for (int i = 0; i < prom->number_of_columns; i++)
+   {
+      if (prom->columns[i].type == LABEL_TYPE)
+      {
+         number_of_label++;
+      }
+      names[i] = prom->columns[i].name;
+   }
+
+   for (int server = 0; server < config->number_of_servers; server++)
+   {
+      if (config->servers[server].fd != -1)
+      {
+         ret = pgexporter_custom_query(server, prom->query, prom->tag, prom->number_of_columns, names, &query);
+         if (ret == 0)
+         {
+            all = pgexporter_merge_queries(all, query, prom->sort_type);
+         }
+         query = NULL;
+      }
+   }
+
+   first = true;
+   if (all != NULL)
+   {
+      current = all->tuples;
+      if (current != NULL)
+      {
+         for (int i = number_of_label; i < all->number_of_columns; i++)
+         {
+            if (first)
+            {
+               append_help_info(&data, all->tag, all->names[i], prom->columns[i].description);
+               append_type_info(&data, all->tag, all->names[i], prom->columns[i].type);
+               first = false;
+            }
+
+            while (current != NULL)
+            {
+               d = NULL;
+               d = pgexporter_append(d, "pgexporter_");
+               d = pgexporter_append(d, all->tag);
+               if (strlen(all->names[i]) > 0)
+               {
+                  d = pgexporter_append(d, "_");
+                  d = pgexporter_append(d, all->names[i]);
+               }
+               d = pgexporter_append(d, "{server=\"");
+               d = pgexporter_append(d, &config->servers[current->server].name[0]);
+               d = pgexporter_append(d, "\"");
+
+               // handle label
+               for (int j = 0; j < number_of_label; j++)
+               {
+                  d = pgexporter_append(d, ",");
+                  d = pgexporter_append(d, prom->columns[j].name);
+                  d = pgexporter_append(d, "=\"");
+                  d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(j, current)));
+                  d = pgexporter_append(d, "\"");
+               }
+               d = pgexporter_append(d, "} ");
+               d = pgexporter_append(d, get_value(all->tag, pgexporter_get_column(i, current), pgexporter_get_column(i, current)));
+               d = pgexporter_append(d, "\n");
+               data = pgexporter_append(data, d);
+               free(d);
+
+               current = current->next;
+            }
+
+            first = true;
+            current = all->tuples;
+         }
+
+         data = pgexporter_append(data, "\n");
+
+         if (data != NULL)
+         {
+            send_chunk(client_fd, data);
+            free(data);
+            data = NULL;
+         }
+      }
+   }
+
+   pgexporter_free_query(all);
+}
+
+static void
+append_help_info(char** data, char* tag, char* name, char* description)
+{
+   char* d;
+
+   d = NULL;
+   d = pgexporter_append(d, "#HELP pgexporter_");
+   d = pgexporter_append(d, tag);
+   if (strlen(name) > 0)
+   {
+      d = pgexporter_append(d, "_");
+      d = pgexporter_append(d, name);
+   }
+   d = pgexporter_append(d, " ");
+   d = pgexporter_append(d, description);
+   d = pgexporter_append(d, "\n");
+   *data = pgexporter_append(*data, d);
+   free(d);
+}
+
+static void
+append_type_info(char** data, char* tag, char* name, int typeId)
+{
+   char* d;
+
+   d = NULL;
+   d = pgexporter_append(d, "#TYPE pgexporter_");
+   d = pgexporter_append(d, tag);
+   if (strlen(name) > 0)
+   {
+      d = pgexporter_append(d, "_");
+      d = pgexporter_append(d, name);
+   }
+
+   if (typeId == GAUGE_TYPE)
+   {
+      d = pgexporter_append(d, " gauge");
+   }
+   else if (typeId == COUNTER_TYPE)
+   {
+      d = pgexporter_append(d, " counter");
+   }
+
+   d = pgexporter_append(d, "\n");
+   *data = pgexporter_append(*data, d);
+   free(d);
 }
 
 static int

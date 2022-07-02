@@ -7,8 +7,8 @@ URL:           https://github.com/pgexporter/pgexporter
 Source0:       https://github.com/pgexporter/pgexporter/archive/%{version}.tar.gz
 
 BuildRequires: gcc cmake make python3-docutils
-BuildRequires: libev libev-devel openssl openssl-devel systemd systemd-devel
-Requires:      libev openssl systemd
+BuildRequires: libev libev-devel openssl openssl-devel systemd systemd-devel libyaml libyaml-devel
+Requires:      libev openssl systemd libyaml
 
 %description
 Prometheus exporter for PostgreSQL
@@ -44,6 +44,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/RPM.md %{buildroot}%{_docdir}/%{name}/RPM.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/etc/pgexporter.service %{buildroot}%{_docdir}/%{name}/etc/pgexporter.service
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/01_install.md %{buildroot}%{_docdir}/%{name}/tutorial/01_install.md
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/YAML.md %{buildroot}%{_docdir}/%{name}/YAML.md
 
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/etc/pgexporter.conf %{buildroot}%{_sysconfdir}/pgexporter/pgexporter.conf
 
@@ -77,6 +78,7 @@ cd %{buildroot}%{_libdir}/
 %{_docdir}/%{name}/RPM.md
 %{_docdir}/%{name}/etc/pgexporter.service
 %{_docdir}/%{name}/tutorial/01_install.md
+%{_docdir}/%{name}/YAML.md
 %{_mandir}/man1/pgexporter.1*
 %{_mandir}/man1/pgexporter-admin.1*
 %{_mandir}/man1/pgexporter-cli.1*

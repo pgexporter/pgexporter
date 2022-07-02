@@ -29,6 +29,7 @@
 /* pgexporter */
 #include <pgexporter.h>
 #include <configuration.h>
+#include <yaml_configuration.h>
 #include <logging.h>
 #include <security.h>
 #include <shmem.h>
@@ -62,6 +63,8 @@ static int as_hugepage(char* str);
 static int transfer_configuration(struct configuration* config, struct configuration* reload);
 static void copy_server(struct server* dst, struct server* src);
 static void copy_user(struct user* dst, struct user* src);
+static void copy_promethus(struct prometheus* dst, struct prometheus* src);
+static void copy_column(struct column* dst, struct column* src);
 static int restart_int(char* name, int e, int n);
 static int restart_string(char* name, char* e, char* n);
 
@@ -96,6 +99,11 @@ pgexporter_init_configuration(void* shm)
    config->log_level = PGEXPORTER_LOGGING_LEVEL_INFO;
    config->log_mode = PGEXPORTER_LOGGING_MODE_APPEND;
    atomic_init(&config->log_lock, STATE_FREE);
+
+   for (int i = 0; i < NUMBER_OF_METRICS; i++)
+   {
+      config->prometheus[i].sort_type = SORT_NAME;
+   }
 
    return 0;
 }
@@ -590,6 +598,22 @@ pgexporter_read_configuration(void* shm, char* filename)
                      unknown = true;
                   }
                }
+               else if (!strcmp(key, "metrics_path"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MISC_LENGTH - 1)
+                     {
+                        max = MISC_LENGTH - 1;
+                     }
+                     memcpy(config->metrics_path, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
                else
                {
                   unknown = true;
@@ -615,7 +639,6 @@ pgexporter_read_configuration(void* shm, char* filename)
    }
 
    config->number_of_servers = idx_server;
-
    fclose(file);
 
    return 0;
@@ -1090,6 +1113,17 @@ pgexporter_reload_configuration(void)
       goto error;
    }
 
+   if (strlen(reload->metrics_path) > 0)
+   {
+      if (pgexporter_read_metrics_configuration((void*)reload))
+      {
+#ifdef HAVE_LINUX
+         sd_notify(0, "STATUS=Invalid metrics yaml");
+#endif
+         exit(1);
+      }
+   }
+
    if (transfer_configuration(config, reload))
    {
       goto error;
@@ -1376,6 +1410,12 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    config->number_of_admins = reload->number_of_admins;
 
    /* prometheus */
+   memcpy(config->metrics_path, reload->metrics_path, MISC_LENGTH);
+   for (int i = 0; i < reload->number_of_metrics; i++)
+   {
+      copy_promethus(&config->prometheus[i], &reload->prometheus[i]);
+   }
+   config->number_of_metrics = reload->number_of_metrics;
 
 #ifdef HAVE_LINUX
    sd_notify(0, "READY=1");
@@ -1402,6 +1442,27 @@ copy_user(struct user* dst, struct user* src)
 {
    memcpy(&dst->username[0], &src->username[0], MAX_USERNAME_LENGTH);
    memcpy(&dst->password[0], &src->password[0], MAX_PASSWORD_LENGTH);
+}
+
+static void
+copy_promethus(struct prometheus* dst, struct prometheus* src)
+{
+   memcpy(&dst->query[0], &src->query[0], MAX_QUERY_LENGTH);
+   memcpy(&dst->tag[0], &src->tag[0], MISC_LENGTH);
+   dst->sort_type = src->sort_type;
+   dst->number_of_columns = src->number_of_columns;
+   for (int i = 0; i < src->number_of_columns; i++)
+   {
+      copy_column(&dst->columns[i], &src->columns[i]);
+   }
+}
+
+static void
+copy_column(struct column* dst, struct column* src)
+{
+   dst->type = src->type;
+   memcpy(&dst->name[0], &src->name[0], MISC_LENGTH);
+   memcpy(&dst->description[0], &src->description[0], MISC_LENGTH);
 }
 
 static int

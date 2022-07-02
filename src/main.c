@@ -29,6 +29,7 @@
 /* pgexporter */
 #include <pgexporter.h>
 #include <configuration.h>
+#include <yaml_configuration.h>
 #include <logging.h>
 #include <management.h>
 #include <network.h>
@@ -430,6 +431,16 @@ main(int argc, char** argv)
    }
 
    config = (struct configuration*)shmem;
+   if (strlen(config->metrics_path) > 0)
+   {
+      if (pgexporter_read_metrics_configuration(shmem))
+      {
+#ifdef HAVE_LINUX
+         sd_notify(0, "STATUS=Invalid metrics yaml");
+#endif
+         exit(1);
+      }
+   }
 
    if (daemon)
    {

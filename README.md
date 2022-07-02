@@ -49,9 +49,10 @@ See [Architecture](./doc/ARCHITECTURE.md) for the architecture of `pgexporter`.
 * [OpenSSL](http://www.openssl.org/)
 * [systemd](https://www.freedesktop.org/wiki/Software/systemd/)
 * [rst2man](https://docutils.sourceforge.io/)
+* [libyaml](https://pyyaml.org/wiki/LibYAML)
 
 ```sh
-dnf install git gcc cmake make libev libev-devel openssl openssl-devel systemd systemd-devel python3-docutils
+dnf install git gcc cmake make libev libev-devel openssl openssl-devel systemd systemd-devel python3-docutils libyaml libyaml-devel
 ```
 
 Alternative [clang 8+](https://clang.llvm.org/) can be used.

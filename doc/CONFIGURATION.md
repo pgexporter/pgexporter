@@ -44,6 +44,7 @@ See a [sample](./etc/pgexporter.conf) configuration for running `pgexporter` on 
 | backlog | 16 | Int | No | The backlog for `listen()`. Minimum `16` |
 | hugepage | `try` | String | No | Huge page support (`off`, `try`, `on`) |
 | pidfile | | String | No | Path to the PID file |
+| metrics_path | | String | No | Path to customized metrics (either a YAML file or a directory with YAML files) |
 
 ## Server section
 

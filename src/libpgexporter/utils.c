@@ -1414,6 +1414,22 @@ pgexporter_is_file(char* file)
 }
 
 bool
+pgexporter_is_directory(char* file)
+{
+   struct stat statbuf;
+   memset(&statbuf, 0, sizeof(struct stat));
+
+   if (!lstat(file, &statbuf))
+   {
+      if (S_ISDIR(statbuf.st_mode))
+      {
+         return true;
+      }
+   }
+   return false;
+}
+
+bool
 pgexporter_compare_files(char* f1, char* f2)
 {
    FILE* fp1 = NULL;

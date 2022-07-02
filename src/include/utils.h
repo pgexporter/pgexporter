@@ -390,6 +390,14 @@ bool
 pgexporter_is_file(char* file);
 
 /**
+ * Check for directory
+ * @param file the file
+ * @return The result
+ */
+bool
+pgexporter_is_directory(char* file);
+
+/**
  * Compare files
  * @param f1 The first file path
  * @param f2 The second file path
