@@ -365,6 +365,12 @@ pgexporter_query_settings(int server, struct query** query)
                         "pg_settings", 3, NULL, query);
 }
 
+int
+pgexporter_custom_query(int server, char* qs, char* tag, int columns, char** names, struct query** query)
+{
+   return query_execute(server, qs, tag, columns, names, query);
+}
+
 struct query*
 pgexporter_merge_queries(struct query* q1, struct query* q2, int sort)
 {

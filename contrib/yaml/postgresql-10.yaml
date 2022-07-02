@@ -1,0 +1,241 @@
+# This a sample file for PostgreSQL 10
+
+# primary_information()
+  -
+    query: SELECT (CASE pg_is_in_recovery() WHEN 'f' THEN 't' ELSE 'f' END);
+    tag: postgresql_primary
+    sort: name
+    columns:
+      - 
+        description: Is the PostgreSQL instance the primary
+        type: gauge
+
+
+# database_information()
+  -
+    query: SELECT datname, pg_database_size(datname) FROM pg_database;
+    tag: pg_database_size
+    sort: data
+    columns: 
+      - 
+        name: database
+        type: label
+      - 
+        description: Size of the database
+        type: gauge
+
+
+# replication_information()
+  -
+    query: SELECT slot_name,active,temporary FROM pg_replication_slots;
+    tag: pg_replication_slots
+    sort: data
+    columns:
+      - 
+        name: slot_name
+        type: label 
+      - 
+        description: Is the replication active
+        name: active
+        type: gauge
+      - 
+        description: Is the replication temporary
+        name: temporary
+        type: gauge
+
+# locks_information()
+  -
+    query: SELECT pg_database.datname as database, tmp.mode, COALESCE(count, 0) as count 
+                        FROM 
+                        (
+                         VALUES ('accesssharelock'),
+                                ('rowsharelock'),
+                                ('rowexclusivelock'),
+                                ('shareupdateexclusivelock'),
+                                ('sharelock'),
+                                ('sharerowexclusivelock'),
+                                ('exclusivelock'),
+                                ('accessexclusivelock'),
+                                ('sireadlock')
+                        ) AS tmp(mode) CROSS JOIN pg_database 
+                        LEFT JOIN 
+                        (SELECT database, lower(mode) AS mode, count(*) AS count 
+                         FROM pg_locks WHERE database IS NOT NULL 
+                         GROUP BY database, lower(mode) 
+                        ) AS tmp2 
+                        ON tmp.mode = tmp2.mode and pg_database.oid = tmp2.database ORDER BY 1, 2;
+    tag: pg_locks_count
+    sort: data
+    columns:
+      -
+        name: database
+        type: label
+      - 
+        name: mode
+        type: label
+      - 
+        description: Lock count of a database
+        type: gauge
+
+# stat_bgwriter_information() 
+  -
+    query: SELECT buffers_alloc, buffers_backend, buffers_backend_fsync, 
+                        buffers_checkpoint, buffers_clean, checkpoint_sync_time, 
+                        checkpoint_write_time, checkpoints_req, checkpoints_timed, 
+                        maxwritten_clean 
+                        FROM pg_stat_bgwriter;
+    tag: pg_stat_bgwriter
+    sort: name
+    columns:
+      -
+        description: pg_stat_bgwriter_buffers_alloc
+        name: buffers_alloc
+        type: gauge
+      -
+        description: pg_stat_bgwriter_buffers_backend
+        name: buffers_backend
+        type: gauge
+      -
+        description: pg_stat_bgwriter_buffers_backend_fsync
+        name: buffers_backend_fsync
+        type: gauge
+      -
+        description: pg_stat_bgwriter_buffers_checkpoint
+        name: buffers_checkpoint
+        type: gauge
+      -
+        description: pg_stat_bgwriter_buffers_clean
+        name: buffers_clean
+        type: gauge
+      -
+        description: pg_stat_bgwriter_checkpoint_sync_time
+        name: checkpoint_sync_time
+        type: gauge
+      -
+        description: pg_stat_bgwriter_checkpoint_write_time
+        name: checkpoint_write_time
+        type: gauge
+      -
+        description: pg_stat_bgwriter_checkpoints_req
+        name: checkpoints_req
+        type: gauge
+      -
+        description: pg_stat_bgwriter_checkpoints_timed
+        name: checkpoints_timed
+        type: gauge
+      -
+        description: pg_stat_bgwriter_maxwritten_clean
+        name: maxwritten_clean
+        type: gauge
+
+# stat_database_information()
+  -
+    query:  SELECT datname, blk_read_time, blk_write_time, 
+                        blks_hit, blks_read, 
+                        deadlocks, temp_files, temp_bytes, 
+                        tup_returned, tup_fetched, tup_inserted, 
+                        tup_updated, tup_deleted, xact_commit, 
+                        xact_rollback, conflicts, numbackends 
+                        FROM pg_stat_database WHERE datname IS NOT NULL ORDER BY datname;
+    tag: pg_stat_database
+    sort: data
+    columns:
+      -
+        name: database
+        type: label
+      - 
+        name: blk_read_time
+        type: gauge
+        description: pg_stat_database_blk_read_time
+      -
+        name: blk_write_time
+        type: gauge
+        description: pg_stat_database_blk_write_time
+      - 
+        name: blks_hit
+        type: gauge
+        description: pg_stat_database_blks_hit
+      -
+        name: blks_read
+        type: gauge
+        description: pg_stat_database_blks_read
+      -
+        name: deadlocks
+        type: gauge
+        description: pg_stat_database_deadlocks
+      - 
+        name: temp_files
+        type: gauge
+        description: pg_stat_database_temp_files
+      -
+        name: temp_bytes
+        type: gauge
+        description: pg_stat_database_temp_bytes
+      -
+        name: tup_returned
+        type: gauge
+        description: pg_stat_database_tup_returned
+      -
+        name: tup_fetched
+        type: gauge
+        description: pg_stat_database_tup_fetched
+      -
+        name: tup_inserted
+        type: gauge
+        description: pg_stat_database_tup_inserted
+      -
+        name: tup_updated
+        type: gauge
+        description: pg_stat_database_tup_updated
+      -
+        name: tup_deleted 
+        type: gauge
+        description: pg_stat_database_tup_deleted
+      -
+        name: xact_commit
+        type: gauge
+        description: pg_stat_database_xact_commit
+      -
+        name: xact_rollback
+        type: gauge
+        description: pg_stat_database_xact_rollback
+      -
+        name: conflicts
+        type: gauge
+        description: pg_stat_database_conflicts
+      -
+        name: numbackends
+        type: gauge
+        description: pg_stat_database_numbackends
+
+# stat_database_conflicts_information()
+  -
+    query: SELECT datname, confl_tablespace, confl_lock, 
+                      confl_snapshot, confl_bufferpin, confl_deadlock 
+                      FROM pg_stat_database_conflicts WHERE datname IS NOT NULL ORDER BY datname;
+    tag: pg_stat_database_conflicts
+    sort: data
+    columns: 
+      - 
+        name: database
+        type: label
+      -
+        name: confl_tablespace
+        type: gauge
+        description: pg_stat_database_conflicts_confl_tablespace
+      - 
+        name: confl_lock
+        type: gauge
+        description: pg_stat_database_conflicts_confl_lock
+      -
+        name: confl_snapshot
+        type: gauge
+        description: pg_stat_database_conflicts_confl_snapshot
+      -
+        name: confl_bufferpin
+        type: gauge
+        description: pg_stat_database_conflicts_confl_bufferpin
+      -
+        name: confl_deadlock
+        type: gauge
+        description: pg_stat_database_conflicts_confl_deadlock

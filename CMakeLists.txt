@@ -85,6 +85,13 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   endif()
 endif()
 
+find_package(LibYAML)
+if (LIBYAML_FOUND)
+  message(STATUS "LibYAML found")
+else ()
+  message(FATAL_ERROR "LibYAML needed")
+endif()
+
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/")
 
 add_subdirectory(doc)

@@ -38,9 +38,6 @@ extern "C" {
 #include <stdbool.h>
 #include <stdlib.h>
 
-#define SORT_NAME  0
-#define SORT_DATA0 1
-
 struct tuple
 {
    int server;                                     /**< The server */
@@ -188,6 +185,19 @@ pgexporter_query_stat_database_conflicts(int server, struct query** query);
  */
 int
 pgexporter_query_settings(int server, struct query** query);
+
+/**
+ * Query custom metrics
+ * @param server The server
+ * @param qs Query string
+ * @param tag
+ * @param columns
+ * @param names
+ * @param query The resulting query
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_custom_query(int server, char* qs, char* tag, int columns, char** names, struct query** query);
 
 /**
  * Merge queries

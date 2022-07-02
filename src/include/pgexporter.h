@@ -61,6 +61,7 @@ extern "C" {
 #define NUMBER_OF_SERVERS 64
 #define NUMBER_OF_USERS    64
 #define NUMBER_OF_ADMINS    8
+#define NUMBER_OF_METRICS 256
 
 #define STATE_FREE        0
 #define STATE_IN_USE      1
@@ -77,6 +78,26 @@ extern "C" {
 #define HUGEPAGE_OFF 0
 #define HUGEPAGE_TRY 1
 #define HUGEPAGE_ON  2
+
+#define MAX_QUERY_LENGTH 1024
+
+#define LABEL_TYPE   0
+#define COUNTER_TYPE 1
+#define GAUGE_TYPE   2
+
+#define SORT_NAME  0
+#define SORT_DATA0 1
+
+#define START_STATUS            0
+#define SEQUENCE_STAUS          1
+#define BLOCK_STAUS             2
+#define BLOCK_MAPPING_STATUS    3
+#define COLUMN_SEQUENCE_STATUS  4
+#define COLUMN_BLOCK_STATUS     5
+#define COLUMN_MAPPING_STATUS   6
+#define KEY_STATUS              7
+#define VALUE_STATUS            8
+#define END_STATUS              9
 
 #define likely(x)    __builtin_expect (!!(x), 1)
 #define unlikely(x)  __builtin_expect (!!(x), 0)
@@ -123,10 +144,25 @@ struct user
 } __attribute__ ((aligned (64)));
 
 /** @struct
+ *  Define a column
+ */
+struct column
+{
+   int type;                        /*< Metrics type 0--label 1--counter 2--gauge */
+   char name[MISC_LENGTH];          /*< Column name */
+   char description[MISC_LENGTH];   /*< Description of column */
+} __attribute__ ((aligned (64)));
+
+/** @struct
  * Defines the Prometheus metrics
  */
 struct prometheus
 {
+   char query[MAX_QUERY_LENGTH];                   /*< The query string of metric */
+   char tag[MISC_LENGTH];                          /*< The metric name */
+   int sort_type;                                  /*< Sorting type of multi queries 0--SORT_NAME 1--SORT_DATA0 */
+   int number_of_columns;                          /*< The number of columns */
+   struct column columns[MAX_NUMBER_OF_COLUMNS];   /*< Metric columns */
 } __attribute__ ((aligned (64)));
 
 /** @struct
@@ -172,11 +208,14 @@ struct configuration
    int number_of_servers;        /**< The number of servers */
    int number_of_users;          /**< The number of users */
    int number_of_admins;         /**< The number of admins */
+   int number_of_metrics;        /**< The number of metrics*/
+
+   char metrics_path[MISC_LENGTH]; /**< The metrics path */
 
    struct server servers[NUMBER_OF_SERVERS];       /**< The servers */
    struct user users[NUMBER_OF_USERS];             /**< The users */
    struct user admins[NUMBER_OF_ADMINS];           /**< The admins */
-   struct prometheus prometheus;                   /**< The Prometheus metrics */
+   struct prometheus prometheus[NUMBER_OF_METRICS];/**< The Prometheus metrics */
 } __attribute__ ((aligned (64)));
 
 #ifdef __cplusplus

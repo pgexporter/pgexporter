@@ -22,6 +22,7 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     ${LIBEV_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIRS}
     ${SYSTEMD_INCLUDE_DIRS}
+    ${LIBYAML_INCLUDE_DIRS}
   )
 
   #
@@ -31,6 +32,7 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     ${LIBEV_LIBRARIES}
     ${OPENSSL_LIBRARIES}
     ${SYSTEMD_LIBRARIES}
+    ${LIBYAML_LIBRARIES}
   )
 
 else()
@@ -47,6 +49,7 @@ else()
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${LIBEV_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIRS}
+    ${LIBYAML_INCLUDE_DIRS}
   )
 
   #
@@ -55,6 +58,7 @@ else()
   link_libraries(
     ${LIBEV_LIBRARIES}
     ${OPENSSL_LIBRARIES}
+    ${LIBYAML_LIBRARIES}
   )
 endif()
 
