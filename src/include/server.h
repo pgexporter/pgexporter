@@ -38,8 +38,9 @@ extern "C" {
 /**
  * Get the information for a server
  * @param srv The server index
+ * @return 0 upon success, otherwise 1
  */
-void
+int
 pgexporter_server_info(int srv);
 
 #ifdef __cplusplus

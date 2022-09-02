@@ -42,44 +42,65 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-void
+int
 pgexporter_server_info(int srv)
 {
-   int usr;
-   int auth;
-   int socket = -1;
+   int status;
+   int socket;
+   size_t size = 40;
+   char is_recovery[size];
+   signed char state;
+   struct message qmsg;
+   struct message* tmsg = NULL;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
+   socket = config->servers[srv].fd;
 
-   usr = -1;
-   for (int i = 0; usr == -1 && i < config->number_of_users; i++)
+   memset(&qmsg, 0, sizeof(struct message));
+   memset(&is_recovery, 0, size);
+
+   pgexporter_write_byte(&is_recovery, 'Q');
+   pgexporter_write_int32(&(is_recovery[1]), size - 1);
+   pgexporter_write_string(&(is_recovery[5]), "SELECT * FROM pg_is_in_recovery();");
+
+   qmsg.kind = 'Q';
+   qmsg.length = size;
+   qmsg.data = &is_recovery;
+
+   status = pgexporter_write_message(NULL, socket, &qmsg);
+   if (status != MESSAGE_STATUS_OK)
    {
-      if (!strcmp(config->servers[srv].username, config->users[i].username))
-      {
-         usr = i;
-      }
+      goto error;
    }
 
-   if (usr == -1)
+   status = pgexporter_read_block_message(NULL, socket, &tmsg);
+   if (status != MESSAGE_STATUS_OK)
    {
-      goto done;
+      goto error;
    }
 
-   auth = pgexporter_server_authenticate(srv, "postgres", config->users[usr].username, config->users[usr].password, &socket);
+   /* Read directly from the D message fragment */
+   state = pgexporter_read_byte(tmsg->data + 54);
 
-   if (auth != AUTH_SUCCESS)
+   pgexporter_free_message(tmsg);
+
+   if (state == 'f')
    {
-      pgexporter_log_trace("Invalid credentials for %s", config->users[usr].username);
-      goto done;
+      config->servers[srv].state = SERVER_PRIMARY;
+   }
+   else
+   {
+      config->servers[srv].state = SERVER_REPLICA;
    }
 
-   pgexporter_write_terminate(NULL, socket);
+   pgexporter_free_message(tmsg);
 
-done:
+   return 0;
 
-   if (socket != -1)
-   {
-      pgexporter_disconnect(socket);
-   }
+error:
+
+   pgexporter_free_message(tmsg);
+
+   return 1;
 }

@@ -158,6 +158,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                   memcpy(&srv.name, &section, strlen(section));
                   srv.fd = -1;
                   srv.extension = true;
+                  srv.state = SERVER_UNKNOWN;
 
                   idx_server++;
                }

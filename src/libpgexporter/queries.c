@@ -34,6 +34,7 @@
 #include <network.h>
 #include <queries.h>
 #include <security.h>
+#include <server.h>
 #include <utils.h>
 
 /* system */
@@ -82,6 +83,7 @@ pgexporter_open_connections(void)
          if (ret == AUTH_SUCCESS)
          {
             config->servers[server].new = true;
+            pgexporter_server_info(server);
          }
          else
          {
@@ -130,6 +132,7 @@ pgexporter_close_connections(void)
             pgexporter_disconnect(config->servers[server].fd);
             config->servers[server].fd = -1;
             config->servers[server].new = false;
+            config->servers[server].state = SERVER_UNKNOWN;
          }
       }
    }

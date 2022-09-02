@@ -65,6 +65,10 @@ extern "C" {
 #define STATE_FREE        0
 #define STATE_IN_USE      1
 
+#define SERVER_UNKNOWN 0
+#define SERVER_PRIMARY 1
+#define SERVER_REPLICA 2
+
 #define AUTH_SUCCESS      0
 #define AUTH_BAD_PASSWORD 1
 #define AUTH_ERROR        2
@@ -106,6 +110,7 @@ struct server
    int fd;                             /**< The socket descriptor */
    bool new;                           /**< Is the connection new */
    bool extension;                     /**< Is the pgexporter_ext extension installed */
+   int state;                          /**< The state of the server */
 } __attribute__ ((aligned (64)));
 
 /** @struct
