@@ -103,6 +103,7 @@ pgexporter_init_configuration(void* shm)
    for (int i = 0; i < NUMBER_OF_METRICS; i++)
    {
       config->prometheus[i].sort_type = SORT_NAME;
+      config->prometheus[i].server_query_type = SERVER_QUERY_BOTH;
    }
 
    return 0;
@@ -1447,6 +1448,7 @@ copy_promethus(struct prometheus* dst, struct prometheus* src)
    memcpy(&dst->query[0], &src->query[0], MAX_QUERY_LENGTH);
    memcpy(&dst->tag[0], &src->tag[0], MISC_LENGTH);
    dst->sort_type = src->sort_type;
+   dst->server_query_type = src->server_query_type;
    dst->number_of_columns = src->number_of_columns;
    for (int i = 0; i < src->number_of_columns; i++)
    {

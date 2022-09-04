@@ -1742,6 +1742,17 @@ metrics_information(struct prometheus* prom, int client_fd)
    {
       if (config->servers[server].fd != -1)
       {
+         if (prom->server_query_type == SERVER_QUERY_PRIMARY && config->servers[server].state != SERVER_PRIMARY)
+         {
+            /* skip */
+            continue;
+         }
+         if (prom->server_query_type == SERVER_QUERY_REPLICA && config->servers[server].state != SERVER_REPLICA)
+         {
+            /* skip */
+            continue;
+         }
+
          ret = pgexporter_custom_query(server, prom->query, prom->tag, prom->number_of_columns, names, &query);
          if (ret == 0)
          {
@@ -1780,7 +1791,7 @@ metrics_information(struct prometheus* prom, int client_fd)
                d = pgexporter_append(d, &config->servers[current->server].name[0]);
                d = pgexporter_append(d, "\"");
 
-               // handle label
+               /* handle label */
                for (int j = 0; j < number_of_label; j++)
                {
                   d = pgexporter_append(d, ",");

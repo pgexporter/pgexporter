@@ -88,6 +88,10 @@ extern "C" {
 #define SORT_NAME  0
 #define SORT_DATA0 1
 
+#define SERVER_QUERY_BOTH    0  /* Default */
+#define SERVER_QUERY_PRIMARY 1
+#define SERVER_QUERY_REPLICA 2
+
 #define START_STATUS            0
 #define SEQUENCE_STAUS          1
 #define BLOCK_STAUS             2
@@ -161,6 +165,7 @@ struct prometheus
    char query[MAX_QUERY_LENGTH];                   /*< The query string of metric */
    char tag[MISC_LENGTH];                          /*< The metric name */
    int sort_type;                                  /*< Sorting type of multi queries 0--SORT_NAME 1--SORT_DATA0 */
+   int server_query_type;                          /*< Query type 0--SERVER_QUERY_BOTH 1--SERVER_QUERY_PRIMARY 2--SERVER_QUERY_REPLICA */
    int number_of_columns;                          /*< The number of columns */
    struct column columns[MAX_NUMBER_OF_COLUMNS];   /*< Metric columns */
 } __attribute__ ((aligned (64)));

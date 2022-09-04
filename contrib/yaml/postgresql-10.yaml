@@ -4,6 +4,7 @@
   -
     query: SELECT (CASE pg_is_in_recovery() WHEN 'f' THEN 't' ELSE 'f' END);
     tag: postgresql_primary
+    server: primary
     sort: name
     columns:
       - 

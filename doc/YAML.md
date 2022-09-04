@@ -11,6 +11,7 @@ Each yaml is sequcence of queries. Every query can include four parts. See a [sa
 |----------|---------|----------|-------------|
 | query | | Yes | The query sql of metric |
 | tag | | Yes | The tag of metric |
+| server  | both | No | The query on which server type. Valid options: `both`, `primary`, `replica` |
 | sort | name | No | The sort type of metric. Valid options: `name`, `data` |
 | columns | | Yes | The specific information of columns  | 
 

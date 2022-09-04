@@ -332,6 +332,26 @@ handle_key_value(struct prometheus* metric, char* key, char* value)
          return 1;
       }
    }
+   else if (!strcmp(key, "server"))
+   {
+      if (!strcmp(value, "both"))
+      {
+         metric->server_query_type = SERVER_QUERY_BOTH;
+      }
+      else if (!strcmp(value, "primary"))
+      {
+         metric->server_query_type = SERVER_QUERY_PRIMARY;
+      }
+      else if (!strcmp(value, "replica"))
+      {
+         metric->server_query_type = SERVER_QUERY_REPLICA;
+      }
+      else
+      {
+         pgexporter_log_error("pgexporter: unexpected server %s", value);
+         return 1;
+      }
+   }
    else
    {
       //unexpected key
