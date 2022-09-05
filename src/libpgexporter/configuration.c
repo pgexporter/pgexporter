@@ -1098,6 +1098,14 @@ pgexporter_reload_configuration(void)
       }
    }
 
+   if (strlen(reload->metrics_path) > 0)
+   {
+      if (pgexporter_read_metrics_configuration((void*)reload))
+      {
+         goto error;
+      }
+   }
+
    if (pgexporter_validate_configuration(reload))
    {
       goto error;
@@ -1111,17 +1119,6 @@ pgexporter_reload_configuration(void)
    if (pgexporter_validate_admins_configuration(reload))
    {
       goto error;
-   }
-
-   if (strlen(reload->metrics_path) > 0)
-   {
-      if (pgexporter_read_metrics_configuration((void*)reload))
-      {
-#ifdef HAVE_LINUX
-         sd_notify(0, "STATUS=Invalid metrics yaml");
-#endif
-         exit(1);
-      }
    }
 
    if (transfer_configuration(config, reload))
