@@ -193,12 +193,13 @@ usage(void)
    printf("  pgexporter [ -c CONFIG_FILE ] [ -u USERS_FILE ] [ -d ]\n");
    printf("\n");
    printf("Options:\n");
-   printf("  -c, --config CONFIG_FILE Set the path to the pgexporter.conf file\n");
-   printf("  -u, --users USERS_FILE   Set the path to the pgexporter_users.conf file\n");
-   printf("  -A, --admins ADMINS_FILE Set the path to the pgexporter_admins.conf file\n");
-   printf("  -d, --daemon             Run as a daemon\n");
-   printf("  -V, --version            Display version information\n");
-   printf("  -?, --help               Display help\n");
+   printf("  -c, --config CONFIG_FILE    Set the path to the pgexporter.conf file\n");
+   printf("  -u, --users USERS_FILE      Set the path to the pgexporter_users.conf file\n");
+   printf("  -A, --admins ADMINS_FILE    Set the path to the pgexporter_admins.conf file\n");
+   printf("  -Y, --yaml METRICS_FILE_DIR Set the path to YAML file/directory\n");
+   printf("  -d, --daemon                Run as a daemon\n");
+   printf("  -V, --version               Display version information\n");
+   printf("  -?, --help                  Display help\n");
    printf("\n");
    printf("pgexporter: %s\n", PGEXPORTER_HOMEPAGE);
    printf("Report bugs: %s\n", PGEXPORTER_ISSUES);
@@ -210,6 +211,7 @@ main(int argc, char** argv)
    char* configuration_path = NULL;
    char* users_path = NULL;
    char* admins_path = NULL;
+   char* yaml_path = NULL;
    bool daemon = false;
    pid_t pid, sid;
    struct signal_info signal_watcher[5];
@@ -227,13 +229,14 @@ main(int argc, char** argv)
          {"config", required_argument, 0, 'c'},
          {"users", required_argument, 0, 'u'},
          {"admins", required_argument, 0, 'A'},
+         {"yaml", required_argument, 0, 'Y'},
          {"daemon", no_argument, 0, 'd'},
          {"version", no_argument, 0, 'V'},
          {"help", no_argument, 0, '?'}
       };
       int option_index = 0;
 
-      c = getopt_long (argc, argv, "dV?c:u:A:",
+      c = getopt_long (argc, argv, "dV?c:u:A:Y:",
                        long_options, &option_index);
 
       if (c == -1)
@@ -251,6 +254,9 @@ main(int argc, char** argv)
             break;
          case 'A':
             admins_path = optarg;
+            break;
+         case 'Y':
+            yaml_path = optarg;
             break;
          case 'd':
             daemon = true;
@@ -431,6 +437,10 @@ main(int argc, char** argv)
    }
 
    config = (struct configuration*)shmem;
+   if (yaml_path != NULL)
+   {
+      memcpy(config->metrics_path, yaml_path, MIN(strlen(yaml_path), MAX_PATH - 1));
+   }
    if (strlen(config->metrics_path) > 0)
    {
       if (pgexporter_read_metrics_configuration(shmem))
