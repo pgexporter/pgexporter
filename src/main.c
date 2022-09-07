@@ -193,13 +193,13 @@ usage(void)
    printf("  pgexporter [ -c CONFIG_FILE ] [ -u USERS_FILE ] [ -d ]\n");
    printf("\n");
    printf("Options:\n");
-   printf("  -c, --config CONFIG_FILE Set the path to the pgexporter.conf file\n");
-   printf("  -u, --users USERS_FILE   Set the path to the pgexporter_users.conf file\n");
-   printf("  -A, --admins ADMINS_FILE Set the path to the pgexporter_admins.conf file\n");
-   printf("  -Y, --yaml CUSTOM_METRICS_FILE Set the path to the custom_metrics.yaml file\n");
-   printf("  -d, --daemon             Run as a daemon\n");
-   printf("  -V, --version            Display version information\n");
-   printf("  -?, --help               Display help\n");
+   printf("  -c, --config CONFIG_FILE        Set the path to the pgexporter.conf file\n");
+   printf("  -u, --users USERS_FILE          Set the path to the pgexporter_users.conf file\n");
+   printf("  -A, --admins ADMINS_FILE        Set the path to the pgexporter_admins.conf file\n");
+   printf("  -Y, --yaml CUSTOM_METRICS_FILE  Set the path to the custom_metrics.yaml file\n");
+   printf("  -d, --daemon                    Run as a daemon\n");
+   printf("  -V, --version                   Display version information\n");
+   printf("  -?, --help                      Display help\n");
    printf("\n");
    printf("pgexporter: %s\n", PGEXPORTER_HOMEPAGE);
    printf("Report bugs: %s\n", PGEXPORTER_ISSUES);
@@ -437,9 +437,9 @@ main(int argc, char** argv)
    }
 
    config = (struct configuration*)shmem;
-   if (yaml_path!=NULL)
+   if (yaml_path != NULL)
    {
-      memcpy(config->metrics_path,yaml_path,MIN(strlen(yaml_path),MAX_PATH-1));
+      memcpy(config->metrics_path, yaml_path, MIN(strlen(yaml_path), MAX_PATH - 1));
    }
    if (strlen(config->metrics_path) > 0)
    {
