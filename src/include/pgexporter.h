@@ -215,7 +215,7 @@ struct configuration
    int number_of_admins;         /**< The number of admins */
    int number_of_metrics;        /**< The number of metrics*/
 
-   char metrics_path[MISC_LENGTH]; /**< The metrics path */
+   char metrics_path[MAX_PATH]; /**< The metrics path */
 
    struct server servers[NUMBER_OF_SERVERS];       /**< The servers */
    struct user users[NUMBER_OF_USERS];             /**< The users */
