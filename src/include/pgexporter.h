@@ -81,9 +81,10 @@ extern "C" {
 
 #define MAX_QUERY_LENGTH 1024
 
-#define LABEL_TYPE   0
-#define COUNTER_TYPE 1
-#define GAUGE_TYPE   2
+#define LABEL_TYPE      0
+#define COUNTER_TYPE    1
+#define GAUGE_TYPE      2
+#define HISTOGRAM_TYPE  3
 
 #define SORT_NAME  0
 #define SORT_DATA0 1
@@ -152,7 +153,7 @@ struct user
  */
 struct column
 {
-   int type;                        /*< Metrics type 0--label 1--counter 2--gauge */
+   int type;                        /*< Metrics type 0--label 1--counter 2--gauge 3--histogram*/
    char name[MISC_LENGTH];          /*< Column name */
    char description[MISC_LENGTH];   /*< Description of column */
 } __attribute__ ((aligned (64)));

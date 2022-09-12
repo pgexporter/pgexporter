@@ -51,6 +51,8 @@
 #define PAGE_METRICS 2
 #define BAD_REQUEST  3
 
+#define MAX_ARR_LENGTH 256
+
 static int resolve_page(struct message* msg);
 static int unknown_page(int client_fd);
 static int home_page(int client_fd);
@@ -71,11 +73,13 @@ static void stat_database_information(int client_fd);
 static void stat_database_conflicts_information(int client_fd);
 static void settings_information(int client_fd);
 
-static void metrics_information(struct prometheus* metric, int client_fd);
+static void gauge_counter_information(struct prometheus* metric, int client_fd);
+static void histogram_information(struct prometheus* metric, int cilent_fd);
 static void append_help_info(char** data, char* tag, char* name, char* description);
 static void append_type_info(char** data, char* tag, char* name, int typeId);
 
 static int send_chunk(int client_fd, char* data);
+static int parse_list(char* list_str, char** strs, int* n_strs);
 
 static char* get_value(char* tag, char* name, char* val);
 static char* safe_prometheus_key(char* key);
@@ -318,6 +322,7 @@ metrics_page(int client_fd)
    time_t now;
    char time_buf[32];
    int status;
+   bool is_histogram;
    struct message msg;
    struct configuration* config;
 
@@ -375,7 +380,24 @@ metrics_page(int client_fd)
    {
       for (int i = 0; i < config->number_of_metrics; i++)
       {
-         metrics_information(&config->prometheus[i], client_fd);
+         is_histogram = false;
+         for (int j = 0; j < config->prometheus[i].number_of_columns; j++)
+         {
+            if (config->prometheus[i].columns[j].type == HISTOGRAM_TYPE)
+            {
+               is_histogram = true;
+               break;
+            }
+         }
+
+         if (is_histogram)
+         {
+            histogram_information(&config->prometheus[i], client_fd);
+         }
+         else
+         {
+            gauge_counter_information(&config->prometheus[i], client_fd);
+         }
       }
    }
 
@@ -1713,7 +1735,7 @@ data:
 }
 
 static void
-metrics_information(struct prometheus* prom, int client_fd)
+gauge_counter_information(struct prometheus* prom, int client_fd)
 {
    bool first;
    int ret;
@@ -1828,6 +1850,194 @@ metrics_information(struct prometheus* prom, int client_fd)
 }
 
 static void
+histogram_information(struct prometheus* prom, int client_fd)
+{
+   int ret;
+   int n_bounds = 0;
+   int n_buckets = 0;
+   int histogram_start_idx;
+   char* bounds_arr[MAX_ARR_LENGTH];
+   char* buckets_arr[MAX_ARR_LENGTH];
+   char* data = NULL;
+   char* d = NULL;
+   char* bounds_str = NULL;
+   char* buckets_str = NULL;
+   struct query* all = NULL;
+   struct query* query = NULL;
+   struct tuple* current = NULL;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   memset(bounds_arr, 0, sizeof(char*) * MAX_ARR_LENGTH);
+   memset(buckets_arr, 0, sizeof(char*) * MAX_ARR_LENGTH);
+
+   histogram_start_idx = 0;
+   for (int i = 0; i < prom->number_of_columns; i++)
+   {
+      if (prom->columns[i].type == HISTOGRAM_TYPE)
+      {
+         histogram_start_idx = i;
+         break;
+      }
+   }
+
+   for (int server = 0; server < config->number_of_servers; server++)
+   {
+      if (config->servers[server].fd != -1)
+      {
+         if (prom->server_query_type == SERVER_QUERY_PRIMARY && config->servers[server].state != SERVER_PRIMARY)
+         {
+            /* skip */
+            continue;
+         }
+         if (prom->server_query_type == SERVER_QUERY_REPLICA && config->servers[server].state != SERVER_REPLICA)
+         {
+            /* skip */
+            continue;
+         }
+
+         ret = pgexporter_custom_query(server, prom->query, prom->tag, 5, NULL, &query);
+         if (ret == 0)
+         {
+            all = pgexporter_merge_queries(all, query, prom->sort_type);
+         }
+         query = NULL;
+      }
+   }
+
+   if (all != NULL)
+   {
+      current = all->tuples;
+      if (current != NULL)
+      {
+         append_help_info(&data, all->tag, "", prom->columns[histogram_start_idx].description);
+         append_type_info(&data, all->tag, "", prom->columns[histogram_start_idx].type);
+
+         while (current != NULL)
+         {
+            d = NULL;
+
+            /* bucket */
+            bounds_str = pgexporter_get_column(histogram_start_idx + 2, current);
+            parse_list(bounds_str, bounds_arr, &n_bounds);
+
+            buckets_str = pgexporter_get_column(histogram_start_idx + 3, current);
+            parse_list(buckets_str, buckets_arr, &n_buckets);
+
+            for (int i = 0; i < n_bounds; i++)
+            {
+               d = NULL;
+               d = pgexporter_append(d, "pgexporter_");
+               d = pgexporter_append(d, prom->tag);
+               d = pgexporter_append(d, "_buckets{le=\"");
+               d = pgexporter_append(d, bounds_arr[i]);
+               d = pgexporter_append(d, "\",");
+               d = pgexporter_append(d, "server=\"");
+               d = pgexporter_append(d, &config->servers[current->server].name[0]);
+               d = pgexporter_append(d, "\"");
+               for (int j = 0; j < histogram_start_idx; j++)
+               {
+                  d = pgexporter_append(d, ",");
+                  d = pgexporter_append(d, prom->columns[j].name);
+                  d = pgexporter_append(d, "=\"");
+                  d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(j, current)));
+                  d = pgexporter_append(d, "\"");
+               }
+               d = pgexporter_append(d, "} ");
+               d = pgexporter_append(d, buckets_arr[i]);
+               d = pgexporter_append(d, "\n");
+               data = pgexporter_append(data, d);
+               free(d);
+            }
+
+            d = NULL;
+            d = pgexporter_append(d, "pgexporter_");
+            d = pgexporter_append(d, prom->tag);
+            d = pgexporter_append(d, "_buckets{le=\"+inf\",");
+            d = pgexporter_append(d, "server=\"");
+            d = pgexporter_append(d, &config->servers[current->server].name[0]);
+            d = pgexporter_append(d, "\"");
+            for (int j = 0; j < histogram_start_idx; j++)
+            {
+               d = pgexporter_append(d, ",");
+               d = pgexporter_append(d, prom->columns[j].name);
+               d = pgexporter_append(d, "=\"");
+               d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(j, current)));
+               d = pgexporter_append(d, "\"");
+            }
+            d = pgexporter_append(d, "} ");
+            d = pgexporter_append(d, pgexporter_get_column(histogram_start_idx + 1, current));
+            d = pgexporter_append(d, "\n");
+
+            /* sum */
+            d = pgexporter_append(d, "pgexporter_");
+            d = pgexporter_append(d, prom->tag);
+            d = pgexporter_append(d, "_sum");
+            d = pgexporter_append(d, "{server=\"");
+            d = pgexporter_append(d, &config->servers[current->server].name[0]);
+            d = pgexporter_append(d, "\"");
+            for (int j = 0; j < histogram_start_idx; j++)
+            {
+               d = pgexporter_append(d, ",");
+               d = pgexporter_append(d, prom->columns[j].name);
+               d = pgexporter_append(d, "=\"");
+               d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(j, current)));
+               d = pgexporter_append(d, "\"");
+            }
+            d = pgexporter_append(d, "} ");
+            d = pgexporter_append(d, pgexporter_get_column(histogram_start_idx, current));
+            d = pgexporter_append(d, "\n");
+
+            /* count */
+            d = pgexporter_append(d, "pgexporter_");
+            d = pgexporter_append(d, prom->tag);
+            d = pgexporter_append(d, "_count");
+            d = pgexporter_append(d, "{server=\"");
+            d = pgexporter_append(d, &config->servers[current->server].name[0]);
+            d = pgexporter_append(d, "\"");
+            for (int j = 0; j < histogram_start_idx; j++)
+            {
+               d = pgexporter_append(d, ",");
+               d = pgexporter_append(d, prom->columns[j].name);
+               d = pgexporter_append(d, "=\"");
+               d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(j, current)));
+               d = pgexporter_append(d, "\"");
+            }
+            d = pgexporter_append(d, "} ");
+            d = pgexporter_append(d, pgexporter_get_column(histogram_start_idx + 1, current));
+            d = pgexporter_append(d, "\n");
+
+            data = pgexporter_append(data, d);
+            free(d);
+            current = current->next;
+         }
+
+      }
+
+      data = pgexporter_append(data, "\n");
+
+      if (data != NULL)
+      {
+         send_chunk(client_fd, data);
+         free(data);
+         data = NULL;
+      }
+   }
+
+   for (int i = 0; i < n_bounds; i++)
+   {
+      free(bounds_arr[i]);
+   }
+   for (int i = 0; i < n_buckets; i++)
+   {
+      free(buckets_arr[i]);
+   }
+
+   pgexporter_free_query(all);
+}
+
+static void
 append_help_info(char** data, char* tag, char* name, char* description)
 {
    char* d;
@@ -1869,6 +2079,10 @@ append_type_info(char** data, char* tag, char* name, int typeId)
    {
       d = pgexporter_append(d, " counter");
    }
+   else if (typeId == HISTOGRAM_TYPE)
+   {
+      d = pgexporter_append(d, " histogram");
+   }
 
    d = pgexporter_append(d, "\n");
    *data = pgexporter_append(*data, d);
@@ -1901,6 +2115,34 @@ send_chunk(int client_fd, char* data)
    free(m);
 
    return status;
+}
+
+static int
+parse_list(char* list_str, char** strs, int* n_strs)
+{
+   int idx = 0;
+   char* data;
+   char* p;
+   int len = strlen(list_str);
+
+   data = (char*) malloc(len * sizeof(char));
+   memset(data, 0, len * sizeof(char));
+   strncpy(data, list_str + 1, len - 2);
+
+   p = strtok(data, ",");
+   while (p)
+   {
+      len = strlen(p);
+      strs[idx] = (char*) malloc((len + 1) * sizeof(char));
+      memset(strs[idx], 0, (len + 1) * sizeof(char));
+      strncpy(strs[idx], p, len);
+      idx++;
+      p = strtok(NULL, ",");
+   }
+
+   *n_strs = idx;
+   free(data);
+   return 0;
 }
 
 static char*

@@ -20,5 +20,5 @@ Each yaml is sequcence of queries. Every query can include four parts. See a [sa
 | Property | Default | Required | Description |
 |----------|---------|----------|-------------|
 | name | | No | The name of this column |
-| type | | Yes | The type of column. Valid options: `label`, `gauge`, `counter` |
+| type | | Yes | The type of column. Valid options: `label`, `gauge`, `counter`, `histogram` |
 | description |  | No | The description of this column |

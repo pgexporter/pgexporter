@@ -383,6 +383,10 @@ handle_column_key_value(struct prometheus* metric, int idx_columns, char* key, c
       {
          metric->columns[idx_columns].type = COUNTER_TYPE;
       }
+      else if (!strcmp(value, "histogram"))
+      {
+         metric->columns[idx_columns].type = HISTOGRAM_TYPE;
+      }
       else
       {
          //unexpected type
