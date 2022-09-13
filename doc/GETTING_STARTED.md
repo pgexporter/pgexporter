@@ -198,6 +198,11 @@ Next steps in improving pgexporter's configuration could be
 
 See [Configuration](./CONFIGURATION.md) for more information on these subjects.
 
+## Tutorials
+
+There is a short tutorial available to help you better understand and configure `pgexporter`:
+- [Installing pgexporter](https://github.com/pgexporter/pgexporter/blob/master/doc/tutorial/01_install.md)
+
 ## Closing
 
 The [pgexporter](https://github.com/pgexporter/pgexporter) community hopes that you find
