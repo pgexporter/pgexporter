@@ -154,3 +154,45 @@ curl http://localhost:5002/metrics
 ```
 
 (`pgexporter` user)
+
+## Shell completion
+
+There is a minimal shell completion support for `pgexporter-cli` and `pgexporter-admin`. If you are running such commands from a Bash or Zsh, you can take some advantage of command completion.
+
+
+### Installing command completions in Bash
+
+There is a completion script into `contrib/shell_comp/pgexporter_comp.bash` that can be used
+to help you complete the command line while you are typing.
+
+It is required to source the script into your current shell, for instance
+by doing:
+
+``` shell
+source contrib/shell_comp/pgexporter_comp.bash
+```
+
+At this point, the completions should be active, so you can type the name of one the commands between `pgexporter-cli` and `pgexporter-admin` and hit `<TAB>` to help the command line completion.
+
+### Installing the command completions on Zsh
+
+In order to enable completion into `zsh` you first need to have `compinit` loaded;
+ensure your `.zshrc` file contains the following lines:
+
+``` shell
+autoload -U compinit
+compinit
+```
+
+and add the sourcing of the `contrib/shell_comp/pgexporter_comp.zsh` file into your `~/.zshrc`
+also associating the `_pgexporter_cli` and `_pgexporter_admin` functions
+to completion by means of `compdef`:
+
+``` shell
+source contrib/shell_comp/pgexporter_comp.zsh
+compdef _pgexporter_cli    pgexporter-cli
+compdef _pgexporter_admin  pgexporter-admin
+```
+
+If you want completions only for one command, e.g., `pgexporter-admin`, remove the `compdef` line that references the command you don't want to have automatic completion.
+At this point, digit the name of a `pgexporter-cli` or `pgexporter-admin` command and hit `<TAB>` to trigger the completion system.
