@@ -186,7 +186,7 @@ static void
 usage(void)
 {
    printf("pgexporter %s\n", VERSION);
-   printf("  Backup / restore solution for PostgreSQL\n");
+   printf("  Prometheus exporter for PostgreSQL\n");
    printf("\n");
 
    printf("Usage:\n");
