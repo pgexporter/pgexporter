@@ -34,6 +34,9 @@ extern "C" {
 #endif
 
 #include <ev.h>
+#if HAVE_OPENBSD
+#include <sys/limits.h>
+#endif
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdlib.h>

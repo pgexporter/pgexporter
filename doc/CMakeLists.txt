@@ -48,7 +48,7 @@ add_custom_command(
 #
 # Install configuration and documentation
 #
-install(FILES etc/pgexporter.conf DESTINATION etc/pgexporter)
+install(FILES etc/pgexporter.conf DESTINATION share/doc/pgexporter/etc)
 
 install(DIRECTORY . DESTINATION share/doc/pgexporter FILES_MATCHING PATTERN "*.md" PATTERN "etc" EXCLUDE PATTERN "man" EXCLUDE)
 

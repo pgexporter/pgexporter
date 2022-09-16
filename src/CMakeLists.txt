@@ -20,7 +20,7 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${LIBEV_INCLUDE_DIRS}
-    ${OPENSSL_INCLUDE_DIRS}
+    ${OPENSSL_INCLUDE_DIR}
     ${SYSTEMD_INCLUDE_DIRS}
     ${LIBYAML_INCLUDE_DIRS}
   )
@@ -30,10 +30,13 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   #
   link_libraries(
     ${LIBEV_LIBRARIES}
-    ${OPENSSL_LIBRARIES}
+    ${OPENSSL_CRYPTO_LIBRARY}
+    ${OPENSSL_SSL_LIBRARY}
     ${SYSTEMD_LIBRARIES}
     ${LIBYAML_LIBRARIES}
   )
+
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")
 
 else()
 
@@ -48,7 +51,7 @@ else()
   include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${LIBEV_INCLUDE_DIRS}
-    ${OPENSSL_INCLUDE_DIRS}
+    ${OPENSSL_INCLUDE_DIR}
     ${LIBYAML_INCLUDE_DIRS}
   )
 
@@ -57,9 +60,17 @@ else()
   #
   link_libraries(
     ${LIBEV_LIBRARIES}
-    ${OPENSSL_LIBRARIES}
+    ${OPENSSL_CRYPTO_LIBRARY}
+    ${OPENSSL_SSL_LIBRARY}
     ${LIBYAML_LIBRARIES}
   )
+
+  if (${CMAKE_SYSTEM_NAME} STREQUAL "OpenBSD")
+    add_compile_options(-DHAVE_OPENBSD)
+  elseif (${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD")
+    add_compile_options(-DHAVE_FREEBSD)
+  endif()
+
 endif()
 
 #
@@ -73,8 +84,6 @@ add_compile_options(-D_GNU_SOURCE)
 add_compile_options(-Wno-deprecated)
 add_compile_options(-Wno-deprecated-declarations)
 
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")
-
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
   add_compile_options(-Wstrict-prototypes)
 endif()
@@ -85,10 +94,12 @@ if (CMAKE_BUILD_TYPE MATCHES Debug)
   add_compile_options(-DDEBUG)
 
   if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
-    add_compile_options(-fsanitize=address)
+    if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "OpenBSD")
+      add_compile_options(-fsanitize=address)
 
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS_DEBUG} -fsanitize=address")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -fsanitize=address")
+      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS_DEBUG} -fsanitize=address")
+      set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -fsanitize=address")
+    endif()
   endif()
 
   check_c_compiler_flag(-fno-omit-frame-pointer HAS_NO_OMIT_FRAME_POINTER)
