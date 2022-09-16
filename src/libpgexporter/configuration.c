@@ -36,6 +36,7 @@
 #include <utils.h>
 
 /* system */
+#include <err.h>
 #include <errno.h>
 #include <stdatomic.h>
 #include <stdbool.h>
@@ -160,7 +161,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                   }
                   else if (idx_server > NUMBER_OF_SERVERS)
                   {
-                     printf("Maximum number of servers exceeded\n");
+                     warnx("Maximum number of servers exceeded");
                   }
 
                   memset(&srv, 0, sizeof(struct server));
@@ -622,7 +623,7 @@ pgexporter_read_configuration(void* shm, char* filename)
 
                if (unknown)
                {
-                  printf("Unknown: Section=%s, Key=%s, Value=%s\n", strlen(section) > 0 ? section : "<unknown>", key, value);
+                  warnx("Unknown: Section=%s, Key=%s, Value=%s", strlen(section) > 0 ? section : "<unknown>", key, value);
                }
 
                free(key);
@@ -797,8 +798,8 @@ pgexporter_read_users_configuration(void* shm, char* filename)
             }
             else
             {
-               printf("pgexporter: Invalid USER entry\n");
-               printf("%s\n", line);
+               warnx("pgexporter: Invalid USER entry");
+               warnx("%s\n", line);
             }
 
             free(password);
@@ -969,8 +970,8 @@ pgexporter_read_admins_configuration(void* shm, char* filename)
             }
             else
             {
-               printf("pgexporter: Invalid ADMIN entry\n");
-               printf("%s\n", line);
+               warnx("pgexporter: Invalid ADMIN entry");
+               warnx("%s", line);
             }
 
             free(password);

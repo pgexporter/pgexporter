@@ -37,6 +37,7 @@
 #include <utils.h>
 
 /* system */
+#include <err.h>
 #include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -193,13 +194,13 @@ main(int argc, char** argv)
 
    if (getuid() == 0)
    {
-      printf("pgexporter-cli: Using the root account is not allowed\n");
+      warnx("pgexporter-cli: Using the root account is not allowed");
       exit(1);
    }
 
    if (configuration_path != NULL && (host != NULL || port != NULL))
    {
-      printf("pgexporter-cli: Use either -c or -h/-p to define endpoint\n");
+      warnx("pgexporter-cli: Use either -c or -h/-p to define endpoint");
       exit(1);
    }
 
@@ -212,7 +213,7 @@ main(int argc, char** argv)
    size = sizeof(struct configuration);
    if (pgexporter_create_shared_memory(size, HUGEPAGE_OFF, &shmem))
    {
-      printf("pgexporter-cli: Error creating shared memory\n");
+      warnx("pgexporter-cli: Error creating shared memory");
       exit(1);
    }
    pgexporter_init_configuration(shmem);
@@ -222,7 +223,7 @@ main(int argc, char** argv)
       ret = pgexporter_read_configuration(shmem, configuration_path);
       if (ret)
       {
-         printf("pgexporter-cli: Configuration not found: %s\n", configuration_path);
+         warnx("pgexporter-cli: Configuration not found: %s", configuration_path);
          exit(1);
       }
 
@@ -249,7 +250,7 @@ main(int argc, char** argv)
       {
          if (host == NULL || port == NULL)
          {
-            printf("pgexporter-cli: Host and port must be specified\n");
+            warnx("pgexporter-cli: Host and port must be specified");
             exit(1);
          }
       }
@@ -324,7 +325,7 @@ main(int argc, char** argv)
             /* Remote connection */
             if (pgexporter_connect(host, atoi(port), &socket))
             {
-               printf("pgexporter-cli: No route to host: %s:%s\n", host, port);
+               warnx("pgexporter-cli: No route to host: %s:%s", host, port);
                goto done;
             }
 
@@ -379,7 +380,7 @@ password:
             /* Authenticate */
             if (pgexporter_remote_management_scram_sha256(username, password, socket, &s_ssl) != AUTH_SUCCESS)
             {
-               printf("pgexporter-cli: Bad credentials for %s\n", username);
+               warnx("pgexporter-cli: Bad credentials for %s", username);
                goto done;
             }
          }
@@ -442,7 +443,7 @@ done:
       }
       else if (action != ACTION_UNKNOWN && exit_code != 0)
       {
-         printf("No connection to pgexporter on %s\n", config->unix_socket_dir);
+         warnx("No connection to pgexporter on %s", config->unix_socket_dir);
       }
    }
 

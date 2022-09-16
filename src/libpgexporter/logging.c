@@ -31,6 +31,7 @@
 #include <logging.h>
 
 /* system */
+#include <err.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -98,7 +99,7 @@ pgexporter_init_logging(void)
 
       if (!log_file)
       {
-         printf("Failed to open log file %s due to %s\n", strlen(config->log_path) > 0 ? config->log_path : "pgexporter.log", strerror(errno));
+         warn("Failed to open log file %s", strlen(config->log_path) > 0 ? config->log_path : "pgexporter.log");
          errno = 0;
          return 1;
       }
@@ -130,7 +131,7 @@ pgexporter_start_logging(void)
 
       if (!log_file)
       {
-         printf("Failed to open log file %s due to %s\n", strlen(config->log_path) > 0 ? config->log_path : "pgexporter.log", strerror(errno));
+         warn("Failed to open log file %s", strlen(config->log_path) > 0 ? config->log_path : "pgexporter.log");
          errno = 0;
          return 1;
       }
