@@ -267,12 +267,7 @@ retry:
       else
       {
          /* Sleep for 1ms */
-         struct timespec ts;
-         ts.tv_sec = 0;
-         ts.tv_nsec = 1000000L;
-         nanosleep(&ts, NULL);
-
-         goto retry;
+         SLEEP_AND_GOTO(1000000L, retry);
       }
    }
 }
@@ -361,12 +356,7 @@ retry:
       else
       {
          /* Sleep for 1ms */
-         struct timespec ts;
-         ts.tv_sec = 0;
-         ts.tv_nsec = 1000000L;
-         nanosleep(&ts, NULL);
-
-         goto retry;
+         SLEEP_AND_GOTO(1000000L, retry);
       }
    }
 }
