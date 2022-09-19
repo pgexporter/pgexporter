@@ -239,11 +239,14 @@ struct configuration
 
    bool cache; /**< Cache connection */
 
-   int log_type;               /**< The logging type */
-   int log_level;              /**< The logging level */
-   char log_path[MISC_LENGTH]; /**< The logging path */
-   int log_mode;               /**< The logging mode */
-   atomic_schar log_lock;      /**< The logging lock */
+   int log_type;                      /**< The logging type */
+   int log_level;                     /**< The logging level */
+   char log_path[MISC_LENGTH];        /**< The logging path */
+   int log_mode;                      /**< The logging mode */
+   unsigned int log_rotation_size;    /**< bytes to force log rotation */
+   unsigned int log_rotation_age;     /**< minutes for log rotation */
+   char log_line_prefix[MISC_LENGTH]; /**< The logging prefix */
+   atomic_schar log_lock;             /**< The logging lock */
 
    bool tls;                        /**< Is TLS enabled */
    char tls_cert_file[MISC_LENGTH]; /**< TLS certificate path */
