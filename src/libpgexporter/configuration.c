@@ -60,6 +60,7 @@ static int as_logging_type(char* str);
 static int as_logging_level(char* str);
 static int as_logging_mode(char* str);
 static int as_hugepage(char* str);
+static unsigned int as_update_process_title(char* str, unsigned int default_policy);
 
 static int transfer_configuration(struct configuration* config, struct configuration* reload);
 static void copy_server(struct server* dst, struct server* src);
@@ -95,6 +96,8 @@ pgexporter_init_configuration(void* shm)
    config->non_blocking = true;
    config->backlog = 16;
    config->hugepage = HUGEPAGE_TRY;
+
+   config->update_process_title = UPDATE_PROCESS_TITLE_VERBOSE;
 
    config->log_type = PGEXPORTER_LOGGING_TYPE_CONSOLE;
    config->log_level = PGEXPORTER_LOGGING_LEVEL_INFO;
@@ -387,6 +390,17 @@ pgexporter_read_configuration(void* shm, char* filename)
                   else
                   {
                      unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "update_process_title"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     config->update_process_title = as_update_process_title(value, UPDATE_PROCESS_TITLE_VERBOSE);
+                  }
+                  else
+                  {
+                     unknown = false;
                   }
                }
                else if (!strcmp(key, "log_type"))
@@ -1344,6 +1358,45 @@ as_hugepage(char* str)
    return HUGEPAGE_OFF;
 }
 
+/**
+ * Utility function to understand the setting for updating
+ * the process title.
+ *
+ * @param str the value obtained by the configuration parsing
+ * @param default_policy a value to set when the configuration cannot be
+ * understood
+ *
+ * @return The policy
+ */
+static unsigned int
+as_update_process_title(char* str, unsigned int default_policy)
+{
+   if (is_empty_string(str))
+   {
+      return default_policy;
+   }
+
+   if (!strncmp(str, "never", MISC_LENGTH) || !strncmp(str, "off", MISC_LENGTH))
+   {
+      return UPDATE_PROCESS_TITLE_NEVER;
+   }
+   else if (!strncmp(str, "strict", MISC_LENGTH))
+   {
+      return UPDATE_PROCESS_TITLE_STRICT;
+   }
+   else if (!strncmp(str, "minimal", MISC_LENGTH))
+   {
+      return UPDATE_PROCESS_TITLE_MINIMAL;
+   }
+   else if (!strncmp(str, "verbose", MISC_LENGTH) || !strncmp(str, "full", MISC_LENGTH))
+   {
+      return UPDATE_PROCESS_TITLE_VERBOSE;
+   }
+
+   // not a valid setting
+   return default_policy;
+}
+
 static int
 transfer_configuration(struct configuration* config, struct configuration* reload)
 {
@@ -1384,6 +1437,9 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    /* hugepage */
    restart_int("hugepage", config->hugepage, reload->hugepage);
 
+   /* update_process_title */
+   restart_int("update_process_title", config->update_process_title, reload->update_process_title);
+   
    /* unix_socket_dir */
    restart_string("unix_socket_dir", config->unix_socket_dir, reload->unix_socket_dir);
 

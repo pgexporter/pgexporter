@@ -25,6 +25,7 @@ See a [sample](./etc/pgexporter.conf) configuration for running `pgexporter` on 
 | host | | String | Yes | The bind address for pgexporter |
 | unix_socket_dir | | String | Yes | The Unix Domain Socket location |
 | metrics | | Int | Yes | The metrics port |
+| metrics_path | | String | No | Path to customized metrics (either a YAML file or a directory with YAML files) |
 | management | 0 | Int | No | The remote management port (disable = 0) |
 | cache | `on` | Bool | No | Cache connection |
 | log_type | console | String | No | The logging type (console, file, syslog) |
@@ -44,7 +45,7 @@ See a [sample](./etc/pgexporter.conf) configuration for running `pgexporter` on 
 | backlog | 16 | Int | No | The backlog for `listen()`. Minimum `16` |
 | hugepage | `try` | String | No | Huge page support (`off`, `try`, `on`) |
 | pidfile | | String | No | Path to the PID file |
-| metrics_path | | String | No | Path to customized metrics (either a YAML file or a directory with YAML files) |
+| update_process_title | `verbose` | String | No | The behavior for updating the operating system process title. Allowed settings are: `never` (or `off`), does not update the process title; `strict` to set the process title without overriding the existing initial process title length; `minimal` to set the process title to the base description; `verbose` (or `full`) to set the process title to the full description. Please note that `strict` and `minimal` are honored only on those systems that do not provide a native way to set the process title (e.g., Linux). On other systems, there is no difference between `strict` and `minimal` and the assumed behaviour is `minimal` even if `strict` is used. `never` and `verbose` are always honored, on every system. On Linux systems the process title is always trimmed to 255 characters, while on system that provide a natve way to set the process title it can be longer. |
 
 ## Server section
 
