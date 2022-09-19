@@ -507,6 +507,20 @@ pgexporter_query_debug(struct query* query)
    pgexporter_log_trace("Tuples: %d", number_of_tuples);
 }
 
+char*
+pgexporter_get_column_by_name(char* name, struct query* query, struct tuple* tuple)
+{
+   for (int i = 0; i < query->number_of_columns; i++)
+   {
+      if (!strcmp(query->names[i], name))
+      {
+         return pgexporter_get_column(i, tuple);
+      }
+   }
+
+   return NULL;
+}
+
 static int
 query_execute(int server, char* qs, char* tag, int columns, char* names[], struct query** query)
 {

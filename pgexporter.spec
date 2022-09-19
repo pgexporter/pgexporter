@@ -47,6 +47,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/shell_comp/pgexporter_comp.bash %{buildroot}%{_docdir}/%{name}/shell_comp/pgexporter_comp.bash
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/shell_comp/pgexporter_comp.zsh %{buildroot}%{_docdir}/%{name}/shell_comp/pgexporter_comp.zsh
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/01_install.md %{buildroot}%{_docdir}/%{name}/tutorial/01_install.md
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/02_custom_metrics.md %{buildroot}%{_docdir}/%{name}/tutorial/02_custom_metrics.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/YAML.md %{buildroot}%{_docdir}/%{name}/YAML.md
 
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/etc/pgexporter.conf %{buildroot}%{_sysconfdir}/pgexporter/pgexporter.conf
