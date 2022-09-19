@@ -267,10 +267,65 @@ pgexporter_extract_message_offset(size_t offset, void* data, struct message** ex
    return offset + 1 + m_length;
 }
 
+int
+pgexporter_extract_message_from_data(char type, void* data, size_t data_size, struct message** extracted)
+{
+   int offset;
+   void* m_data = NULL;
+   int m_length;
+   struct message* result = NULL;
+
+   offset = 0;
+   *extracted = NULL;
+
+   while (result == NULL && offset < data_size)
+   {
+      char t = (char)pgexporter_read_byte(data + offset);
+
+      if (type == t)
+      {
+         m_length = pgexporter_read_int32(data + offset + 1);
+
+         result = (struct message*)malloc(sizeof(struct message));
+         m_data = (void*)malloc(1 + m_length);
+
+         memcpy(m_data, data + offset, 1 + m_length);
+
+         result->kind = pgexporter_read_byte(m_data);
+         result->length = 1 + m_length;
+         result->max_length = 1 + m_length;
+         result->data = m_data;
+
+         *extracted = result;
+
+         return 0;
+      }
+      else
+      {
+         offset += 1;
+         offset += pgexporter_read_int32(data + offset);
+      }
+   }
+
+   return 1;
+}
+
 signed char
 pgexporter_read_byte(void* data)
 {
    return (signed char) *((char*)data);
+}
+
+int16_t
+pgexporter_read_int16(void* data)
+{
+   unsigned char bytes[] = {*((unsigned char*)data),
+                            *((unsigned char*)(data + 1))};
+
+   int16_t res = (int16_t)((bytes[0] << 8)) |
+                 ((bytes[1]));
+
+   return res;
 }
 
 int32_t

@@ -87,6 +87,17 @@ size_t
 pgexporter_extract_message_offset(size_t offset, void* data, struct message** extracted);
 
 /**
+ * Extract a message based on a type
+ * @param type The type
+ * @param data The data segment
+ * @param data_size The data size
+ * @param extracted The resulting message
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_extract_message_from_data(char type, void* data, size_t data_size, struct message** extracted);
+
+/**
  * Has a message
  * @param type The message type to be extracted
  * @param data The data
@@ -103,6 +114,14 @@ pgexporter_has_message(char type, void* data, size_t data_size);
  */
 signed char
 pgexporter_read_byte(void* data);
+
+/**
+ * Read an int16
+ * @param data Pointer to the data
+ * @return The int16
+ */
+int16_t
+pgexporter_read_int16(void* data);
 
 /**
  * Read an int32
