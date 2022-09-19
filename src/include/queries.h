@@ -234,6 +234,15 @@ pgexporter_get_column(int col, struct tuple* tuple);
 void
 pgexporter_query_debug(struct query* query);
 
+/**
+ * Get column from a tuple by name
+ * @param name The column name
+ * @param query The query
+ * @param tuple The tuple
+ */
+char*
+pgexporter_get_column_by_name(char* name, struct query* query, struct tuple* tuple);
+
 #ifdef __cplusplus
 }
 #endif

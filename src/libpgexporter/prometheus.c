@@ -53,6 +53,7 @@
 #define BAD_REQUEST  3
 
 #define MAX_ARR_LENGTH 256
+#define NUMBER_OF_HISTOGRAM_COLUMNS 4
 
 static int resolve_page(struct message* msg);
 static int unknown_page(int client_fd);
@@ -350,9 +351,9 @@ retry_cache_locking:
       {
          // serve the message directly out of the cache
          pgexporter_log_debug("Serving metrics out of cache (%d/%d bytes valid until %lld)",
-                            strlen(cache->data),
-                            cache->size,
-                            cache->valid_until);
+                              strlen(cache->data),
+                              cache->size,
+                              cache->valid_until);
 
          msg.kind = 0;
          msg.length = strlen(cache->data);
@@ -1927,7 +1928,8 @@ histogram_information(struct prometheus* prom, int client_fd)
    int ret;
    int n_bounds = 0;
    int n_buckets = 0;
-   int histogram_start_idx;
+   int histogram_idx;
+   char* names[NUMBER_OF_HISTOGRAM_COLUMNS];
    char* bounds_arr[MAX_ARR_LENGTH];
    char* buckets_arr[MAX_ARR_LENGTH];
    char* data = NULL;
@@ -1941,18 +1943,28 @@ histogram_information(struct prometheus* prom, int client_fd)
 
    config = (struct configuration*)shmem;
 
+   memset(names, 0, sizeof(char*) * 4);
    memset(bounds_arr, 0, sizeof(char*) * MAX_ARR_LENGTH);
    memset(buckets_arr, 0, sizeof(char*) * MAX_ARR_LENGTH);
 
-   histogram_start_idx = 0;
+   histogram_idx = 0;
    for (int i = 0; i < prom->number_of_columns; i++)
    {
       if (prom->columns[i].type == HISTOGRAM_TYPE)
       {
-         histogram_start_idx = i;
+         histogram_idx = i;
          break;
       }
    }
+
+   /* generate column names X_sum, X_count,X, X_bucket*/
+   names[0] = pgexporter_append(names[0], prom->columns[histogram_idx].name);
+   names[0] = pgexporter_append(names[0], "_sum");
+   names[1] = pgexporter_append(names[1], prom->columns[histogram_idx].name);
+   names[1] = pgexporter_append(names[1], "_count");
+   names[2] = pgexporter_append(names[2], prom->columns[histogram_idx].name);
+   names[3] = pgexporter_append(names[3], prom->columns[histogram_idx].name);
+   names[3] = pgexporter_append(names[3], "_bucket");
 
    for (int server = 0; server < config->number_of_servers; server++)
    {
@@ -1969,7 +1981,7 @@ histogram_information(struct prometheus* prom, int client_fd)
             continue;
          }
 
-         ret = pgexporter_custom_query(server, prom->query, prom->tag, 5, NULL, &query);
+         ret = pgexporter_custom_query(server, prom->query, prom->tag, -1, NULL, &query);
          if (ret == 0)
          {
             all = pgexporter_merge_queries(all, query, prom->sort_type);
@@ -1983,18 +1995,18 @@ histogram_information(struct prometheus* prom, int client_fd)
       current = all->tuples;
       if (current != NULL)
       {
-         append_help_info(&data, all->tag, "", prom->columns[histogram_start_idx].description);
-         append_type_info(&data, all->tag, "", prom->columns[histogram_start_idx].type);
+         append_help_info(&data, all->tag, "", prom->columns[histogram_idx].description);
+         append_type_info(&data, all->tag, "", prom->columns[histogram_idx].type);
 
          while (current != NULL)
          {
             d = NULL;
 
             /* bucket */
-            bounds_str = pgexporter_get_column(histogram_start_idx + 2, current);
+            bounds_str = pgexporter_get_column_by_name(names[2], all, current);
             parse_list(bounds_str, bounds_arr, &n_bounds);
 
-            buckets_str = pgexporter_get_column(histogram_start_idx + 3, current);
+            buckets_str = pgexporter_get_column_by_name(names[3], all, current);
             parse_list(buckets_str, buckets_arr, &n_buckets);
 
             for (int i = 0; i < n_bounds; i++)
@@ -2002,13 +2014,13 @@ histogram_information(struct prometheus* prom, int client_fd)
                d = NULL;
                d = pgexporter_append(d, "pgexporter_");
                d = pgexporter_append(d, prom->tag);
-               d = pgexporter_append(d, "_buckets{le=\"");
+               d = pgexporter_append(d, "_bucket{le=\"");
                d = pgexporter_append(d, bounds_arr[i]);
                d = pgexporter_append(d, "\",");
                d = pgexporter_append(d, "server=\"");
                d = pgexporter_append(d, &config->servers[current->server].name[0]);
                d = pgexporter_append(d, "\"");
-               for (int j = 0; j < histogram_start_idx; j++)
+               for (int j = 0; j < histogram_idx; j++)
                {
                   d = pgexporter_append(d, ",");
                   d = pgexporter_append(d, prom->columns[j].name);
@@ -2026,11 +2038,11 @@ histogram_information(struct prometheus* prom, int client_fd)
             d = NULL;
             d = pgexporter_append(d, "pgexporter_");
             d = pgexporter_append(d, prom->tag);
-            d = pgexporter_append(d, "_buckets{le=\"+inf\",");
+            d = pgexporter_append(d, "_bucket{le=\"+Inf\",");
             d = pgexporter_append(d, "server=\"");
             d = pgexporter_append(d, &config->servers[current->server].name[0]);
             d = pgexporter_append(d, "\"");
-            for (int j = 0; j < histogram_start_idx; j++)
+            for (int j = 0; j < histogram_idx; j++)
             {
                d = pgexporter_append(d, ",");
                d = pgexporter_append(d, prom->columns[j].name);
@@ -2039,7 +2051,8 @@ histogram_information(struct prometheus* prom, int client_fd)
                d = pgexporter_append(d, "\"");
             }
             d = pgexporter_append(d, "} ");
-            d = pgexporter_append(d, pgexporter_get_column(histogram_start_idx + 1, current));
+
+            d = pgexporter_append(d, pgexporter_get_column_by_name(names[1], all, current));
             d = pgexporter_append(d, "\n");
 
             /* sum */
@@ -2049,7 +2062,7 @@ histogram_information(struct prometheus* prom, int client_fd)
             d = pgexporter_append(d, "{server=\"");
             d = pgexporter_append(d, &config->servers[current->server].name[0]);
             d = pgexporter_append(d, "\"");
-            for (int j = 0; j < histogram_start_idx; j++)
+            for (int j = 0; j < histogram_idx; j++)
             {
                d = pgexporter_append(d, ",");
                d = pgexporter_append(d, prom->columns[j].name);
@@ -2058,7 +2071,7 @@ histogram_information(struct prometheus* prom, int client_fd)
                d = pgexporter_append(d, "\"");
             }
             d = pgexporter_append(d, "} ");
-            d = pgexporter_append(d, pgexporter_get_column(histogram_start_idx, current));
+            d = pgexporter_append(d, pgexporter_get_column_by_name(names[0], all, current));
             d = pgexporter_append(d, "\n");
 
             /* count */
@@ -2068,7 +2081,7 @@ histogram_information(struct prometheus* prom, int client_fd)
             d = pgexporter_append(d, "{server=\"");
             d = pgexporter_append(d, &config->servers[current->server].name[0]);
             d = pgexporter_append(d, "\"");
-            for (int j = 0; j < histogram_start_idx; j++)
+            for (int j = 0; j < histogram_idx; j++)
             {
                d = pgexporter_append(d, ",");
                d = pgexporter_append(d, prom->columns[j].name);
@@ -2077,7 +2090,8 @@ histogram_information(struct prometheus* prom, int client_fd)
                d = pgexporter_append(d, "\"");
             }
             d = pgexporter_append(d, "} ");
-            d = pgexporter_append(d, pgexporter_get_column(histogram_start_idx + 1, current));
+
+            d = pgexporter_append(d, pgexporter_get_column_by_name(names[1], all, current));
             d = pgexporter_append(d, "\n");
 
             data = pgexporter_append(data, d);
@@ -2105,6 +2119,10 @@ histogram_information(struct prometheus* prom, int client_fd)
    for (int i = 0; i < n_buckets; i++)
    {
       free(buckets_arr[i]);
+   }
+   for (int i = 0; i < NUMBER_OF_HISTOGRAM_COLUMNS; i++)
+   {
+      free(names[i]);
    }
 
    pgexporter_free_query(all);
@@ -2471,9 +2489,9 @@ metrics_cache_append(char* data)
    {
       // cannot append new data, so invalidate cache
       pgexporter_log_debug("Cannot append %d bytes to the Prometheus cache because it will overflow the size of %d bytes (currently at %d bytes). HINT: try adjusting `metrics_cache_max_size`",
-                         append_length,
-                         cache->size,
-                         origin_length);
+                           append_length,
+                           cache->size,
+                           origin_length);
       metrics_cache_invalidate();
       return false;
    }

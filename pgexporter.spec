@@ -43,11 +43,12 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/CONFIGURATION.md %{buildroot}%{_docdir}/%{name}/CONFIGURATION.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/GETTING_STARTED.md %{buildroot}%{_docdir}/%{name}/GETTING_STARTED.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/RPM.md %{buildroot}%{_docdir}/%{name}/RPM.md
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/YAML.md %{buildroot}%{_docdir}/%{name}/YAML.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/etc/pgexporter.service %{buildroot}%{_docdir}/%{name}/etc/pgexporter.service
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/shell_comp/pgexporter_comp.bash %{buildroot}%{_docdir}/%{name}/shell_comp/pgexporter_comp.bash
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/shell_comp/pgexporter_comp.zsh %{buildroot}%{_docdir}/%{name}/shell_comp/pgexporter_comp.zsh
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/01_install.md %{buildroot}%{_docdir}/%{name}/tutorial/01_install.md
-%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/YAML.md %{buildroot}%{_docdir}/%{name}/YAML.md
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/02_custom_metrics.md %{buildroot}%{_docdir}/%{name}/tutorial/02_custom_metrics.md
 
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/etc/pgexporter.conf %{buildroot}%{_sysconfdir}/pgexporter/pgexporter.conf
 
@@ -79,11 +80,12 @@ cd %{buildroot}%{_libdir}/
 %{_docdir}/%{name}/GETTING_STARTED.md
 %{_docdir}/%{name}/README.md
 %{_docdir}/%{name}/RPM.md
+%{_docdir}/%{name}/YAML.md
 %{_docdir}/%{name}/etc/pgexporter.service
 %{_docdir}/%{name}/shell_comp/pgexporter_comp.bash
 %{_docdir}/%{name}/shell_comp/pgexporter_comp.zsh
 %{_docdir}/%{name}/tutorial/01_install.md
-%{_docdir}/%{name}/YAML.md
+%{_docdir}/%{name}/tutorial/02_custom_metrics.md
 %{_mandir}/man1/pgexporter.1*
 %{_mandir}/man1/pgexporter-admin.1*
 %{_mandir}/man1/pgexporter-cli.1*
