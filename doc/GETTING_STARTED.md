@@ -200,8 +200,10 @@ See [Configuration](./CONFIGURATION.md) for more information on these subjects.
 
 ## Tutorials
 
-There is a short tutorial available to help you better understand and configure `pgexporter`:
+There are some short tutorials available to help you better understand and configure `pgexporter`:
+
 - [Installing pgexporter](https://github.com/pgexporter/pgexporter/blob/master/doc/tutorial/01_install.md)
+- [Custom metrics](https://github.com/pgexporter/pgexporter/blob/master/doc/tutorial/02_custom_metrics.md)
 
 ## Closing
 
