@@ -19,6 +19,8 @@ See [Getting Started](./doc/GETTING_STARTED.md) on how to get started with `pgex
 
 See [Configuration](./doc/CONFIGURATION.md) on how to configure `pgexporter`.
 
+See [YAML](./doc/YAML.md) on how to configure `pgexporter` with custom queries.
+
 ## Overview
 
 `pgexporter` makes use of
