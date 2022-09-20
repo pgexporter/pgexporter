@@ -2142,7 +2142,22 @@ append_help_info(char** data, char* tag, char* name, char* description)
       d = pgexporter_append(d, name);
    }
    d = pgexporter_append(d, " ");
-   d = pgexporter_append(d, description);
+
+   if (description != NULL && strcmp("", description))
+   {
+      d = pgexporter_append(d, description);
+   }
+   else
+   {
+      d = pgexporter_append(d, "pgexporter_");
+      d = pgexporter_append(d, tag);
+      if (strlen(name) > 0)
+      {
+         d = pgexporter_append(d, "_");
+         d = pgexporter_append(d, name);
+      }
+   }
+
    d = pgexporter_append(d, "\n");
    *data = pgexporter_append(*data, d);
    free(d);
