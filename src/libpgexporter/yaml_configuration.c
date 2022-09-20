@@ -143,13 +143,13 @@ pgexporter_read_yaml(struct prometheus* prometheus, char* filename, int* number_
             }
             else
             {
-               status = SEQUENCE_STAUS;
+               status = SEQUENCE_STATUS;
             }
             break;
          case YAML_BLOCK_ENTRY_TOKEN:
-            if (status == SEQUENCE_STAUS)
+            if (status == SEQUENCE_STATUS)
             {
-               status = BLOCK_STAUS;
+               status = BLOCK_STATUS;
             }
             else if (status == COLUMN_SEQUENCE_STATUS)
             {
@@ -162,7 +162,7 @@ pgexporter_read_yaml(struct prometheus* prometheus, char* filename, int* number_
             }
             break;
          case YAML_BLOCK_MAPPING_START_TOKEN:
-            if (status == BLOCK_STAUS)
+            if (status == BLOCK_STATUS)
             {
                status = BLOCK_MAPPING_STATUS;
             }
@@ -242,9 +242,9 @@ pgexporter_read_yaml(struct prometheus* prometheus, char* filename, int* number_
             }
             else if (status == BLOCK_MAPPING_STATUS)
             {
-               status = SEQUENCE_STAUS;
+               status = SEQUENCE_STATUS;
             }
-            else if (status == SEQUENCE_STAUS)
+            else if (status == SEQUENCE_STATUS)
             {
                status = END_STATUS;
             }

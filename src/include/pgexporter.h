@@ -99,8 +99,8 @@ extern "C" {
 #define SERVER_QUERY_REPLICA 2
 
 #define START_STATUS            0
-#define SEQUENCE_STAUS          1
-#define BLOCK_STAUS             2
+#define SEQUENCE_STATUS         1
+#define BLOCK_STATUS            2
 #define BLOCK_MAPPING_STATUS    3
 #define COLUMN_SEQUENCE_STATUS  4
 #define COLUMN_BLOCK_STATUS     5
