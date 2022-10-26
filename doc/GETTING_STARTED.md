@@ -56,7 +56,7 @@ The `pgexporter` user must have the `pg_monitor` role and have access to the `po
 so for example
 
 ```
-CREATE ROLE pgexporter WITH LOGIN PASSWORD 'secretpassword';
+CREATE ROLE pgexporter WITH NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION LOGIN PASSWORD 'secretpassword';
 GRANT pg_monitor TO pgexporter;
 ```
 
