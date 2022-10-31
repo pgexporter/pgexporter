@@ -97,6 +97,51 @@ int
 pgexporter_query_total_disk_space(int server, bool data, struct query** query);
 
 /**
+ * Query OS information
+ * @param server The server
+ * @param query The resulting query
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_query_os_info(int server, struct query** query);
+
+/**
+ * Query CPU information
+ * @param server The server
+ * @param query The resulting query
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_query_cpu_info(int server, struct query** query);
+
+/**
+ * Query memory information
+ * @param server The server
+ * @param query The resulting query
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_query_memory_info(int server, struct query** query);
+
+/**
+ * Query network information
+ * @param server The server
+ * @param query The resulting query
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_query_network_info(int server, struct query** query);
+
+/**
+ * Query load avg
+ * @param server The server
+ * @param query The resulting query
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_query_load_avg(int server, struct query** query);
+
+/**
  * Query PostgreSQL version
  * @param server The server
  * @param query The resulting query

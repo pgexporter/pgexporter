@@ -222,6 +222,81 @@ pgexporter_query_total_disk_space(int server, bool data, struct query** query)
 }
 
 int
+pgexporter_query_os_info(int server, struct query** query)
+{
+   char* d = NULL;
+   int ret;
+
+   d = pgexporter_append(d, "SELECT * FROM pgexporter_os_info();");
+
+   ret = query_execute(server, d, "pgexporter_ext", -1, NULL, query);
+
+   free(d);
+
+   return ret;
+}
+
+int
+pgexporter_query_cpu_info(int server, struct query** query)
+{
+   char* d = NULL;
+   int ret;
+
+   d = pgexporter_append(d, "SELECT * FROM pgexporter_cpu_info();");
+
+   ret = query_execute(server, d, "pgexporter_ext", -1, NULL, query);
+
+   free(d);
+
+   return ret;
+}
+
+int
+pgexporter_query_memory_info(int server, struct query** query)
+{
+   char* d = NULL;
+   int ret;
+
+   d = pgexporter_append(d, "SELECT * FROM pgexporter_memory_info();");
+
+   ret = query_execute(server, d, "pgexporter_ext", -1, NULL, query);
+
+   free(d);
+
+   return ret;
+}
+
+int
+pgexporter_query_network_info(int server, struct query** query)
+{
+   char* d = NULL;
+   int ret;
+
+   d = pgexporter_append(d, "SELECT * FROM pgexporter_network_info();");
+
+   ret = query_execute(server, d, "pgexporter_ext", -1, NULL, query);
+
+   free(d);
+
+   return ret;
+}
+
+int
+pgexporter_query_load_avg(int server, struct query** query)
+{
+   char* d = NULL;
+   int ret;
+
+   d = pgexporter_append(d, "SELECT * FROM pgexporter_load_avg();");
+
+   ret = query_execute(server, d, "pgexporter_ext", -1, NULL, query);
+
+   free(d);
+
+   return ret;
+}
+
+int
 pgexporter_query_version(int server, struct query** query)
 {
    return query_execute(server, "SELECT version();",
