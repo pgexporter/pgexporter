@@ -66,6 +66,11 @@ static void server_information(int client_fd);
 static void version_information(int client_fd);
 static void uptime_information(int client_fd);
 static void primary_information(int client_fd);
+static void os_information(int client_fd);
+static void cpu_information(int client_fd);
+static void memory_information(int client_fd);
+static void network_information(int client_fd);
+static void load_avg_information(int client_fd);
 static void disk_space_information(int client_fd);
 static void database_information(int client_fd);
 static void replication_information(int client_fd);
@@ -424,6 +429,11 @@ retry_cache_locking:
          version_information(client_fd);
          uptime_information(client_fd);
          settings_information(client_fd);
+         os_information(client_fd);
+         cpu_information(client_fd);
+         memory_information(client_fd);
+         network_information(client_fd);
+         load_avg_information(client_fd);
          disk_space_information(client_fd);
 
          if (config->number_of_metrics == 0)
@@ -1198,6 +1208,466 @@ disk_space_information(int client_fd)
 }
 
 static void
+os_information(int client_fd)
+{
+   char* d;
+   char* data = NULL;
+   bool header = false;
+   struct query* query = NULL;
+   struct tuple* tuple = NULL;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   for (int server = 0; server < config->number_of_servers; server++)
+   {
+      if (config->servers[server].extension && config->servers[server].fd != -1)
+      {
+         pgexporter_query_os_info(server, &query);
+
+         if (query == NULL)
+         {
+            config->servers[server].extension = false;
+            continue;
+         }
+
+         if (!header)
+         {
+            d = NULL;
+            d = pgexporter_append(d, "#HELP pgexporter_os_info The OS information\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            d = NULL;
+            d = pgexporter_append(d, "#TYPE pgexporter_os_info gauge\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            header = true;
+         }
+
+         tuple = query->tuples;
+
+         while (tuple != NULL)
+         {
+            d = NULL;
+            d = pgexporter_append(d, "pgexporter_os_info{server=\"");
+            d = pgexporter_append(d, &config->servers[server].name[0]);
+            d = pgexporter_append(d, "\"");
+
+            if (query->number_of_columns > 0)
+            {
+               d = pgexporter_append(d, ", ");
+            }
+
+            for (int col = 0; col < query->number_of_columns; col++)
+            {
+               d = pgexporter_append(d, query->names[col]);
+               d = pgexporter_append(d, "=\"");
+               d = pgexporter_append(d, tuple->data[col]);
+               d = pgexporter_append(d, "\"");
+
+               if (col < query->number_of_columns - 1)
+               {
+                  d = pgexporter_append(d, ", ");
+               }
+            }
+
+            d = pgexporter_append(d, "} 1\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            tuple = tuple->next;
+         }
+
+         pgexporter_free_query(query);
+         query = NULL;
+      }
+   }
+
+   if (header)
+   {
+      data = pgexporter_append(data, "\n");
+   }
+
+   if (data != NULL)
+   {
+      send_chunk(client_fd, data);
+      metrics_cache_append(data);
+      free(data);
+      data = NULL;
+   }
+}
+
+static void
+cpu_information(int client_fd)
+{
+   char* d;
+   char* data = NULL;
+   bool header = false;
+   struct query* query = NULL;
+   struct tuple* tuple = NULL;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   for (int server = 0; server < config->number_of_servers; server++)
+   {
+      if (config->servers[server].extension && config->servers[server].fd != -1)
+      {
+         pgexporter_query_cpu_info(server, &query);
+
+         if (query == NULL)
+         {
+            config->servers[server].extension = false;
+            continue;
+         }
+
+         if (!header)
+         {
+            d = NULL;
+            d = pgexporter_append(d, "#HELP pgexporter_cpu_info The CPU information\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            d = NULL;
+            d = pgexporter_append(d, "#TYPE pgexporter_cpu_info gauge\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            header = true;
+         }
+
+         tuple = query->tuples;
+
+         while (tuple != NULL)
+         {
+            d = NULL;
+            d = pgexporter_append(d, "pgexporter_cpu_info{server=\"");
+            d = pgexporter_append(d, &config->servers[server].name[0]);
+            d = pgexporter_append(d, "\"");
+
+            if (query->number_of_columns > 0)
+            {
+               d = pgexporter_append(d, ", ");
+            }
+
+            for (int col = 0; col < query->number_of_columns; col++)
+            {
+               d = pgexporter_append(d, query->names[col]);
+               d = pgexporter_append(d, "=\"");
+               d = pgexporter_append(d, tuple->data[col]);
+               d = pgexporter_append(d, "\"");
+
+               if (col < query->number_of_columns - 1)
+               {
+                  d = pgexporter_append(d, ", ");
+               }
+            }
+
+            d = pgexporter_append(d, "} 1\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            tuple = tuple->next;
+         }
+
+         pgexporter_free_query(query);
+         query = NULL;
+      }
+   }
+
+   if (header)
+   {
+      data = pgexporter_append(data, "\n");
+   }
+
+   if (data != NULL)
+   {
+      send_chunk(client_fd, data);
+      metrics_cache_append(data);
+      free(data);
+      data = NULL;
+   }
+}
+
+static void
+memory_information(int client_fd)
+{
+   char* d;
+   char* data = NULL;
+   bool header = false;
+   struct query* query = NULL;
+   struct tuple* tuple = NULL;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   for (int server = 0; server < config->number_of_servers; server++)
+   {
+      if (config->servers[server].extension && config->servers[server].fd != -1)
+      {
+         pgexporter_query_memory_info(server, &query);
+
+         if (query == NULL)
+         {
+            config->servers[server].extension = false;
+            continue;
+         }
+
+         if (!header)
+         {
+            d = NULL;
+            d = pgexporter_append(d, "#HELP pgexporter_memory_info The memory information\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            d = NULL;
+            d = pgexporter_append(d, "#TYPE pgexporter_memory_info gauge\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            header = true;
+         }
+
+         tuple = query->tuples;
+
+         while (tuple != NULL)
+         {
+            d = NULL;
+            d = pgexporter_append(d, "pgexporter_memory_info{server=\"");
+            d = pgexporter_append(d, &config->servers[server].name[0]);
+            d = pgexporter_append(d, "\"");
+
+            if (query->number_of_columns > 0)
+            {
+               d = pgexporter_append(d, ", ");
+            }
+
+            for (int col = 0; col < query->number_of_columns; col++)
+            {
+               d = pgexporter_append(d, query->names[col]);
+               d = pgexporter_append(d, "=\"");
+               d = pgexporter_append(d, tuple->data[col]);
+               d = pgexporter_append(d, "\"");
+
+               if (col < query->number_of_columns - 1)
+               {
+                  d = pgexporter_append(d, ", ");
+               }
+            }
+
+            d = pgexporter_append(d, "} 1\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            tuple = tuple->next;
+         }
+
+         pgexporter_free_query(query);
+         query = NULL;
+      }
+   }
+
+   if (header)
+   {
+      data = pgexporter_append(data, "\n");
+   }
+
+   if (data != NULL)
+   {
+      send_chunk(client_fd, data);
+      metrics_cache_append(data);
+      free(data);
+      data = NULL;
+   }
+}
+
+static void
+network_information(int client_fd)
+{
+   char* d;
+   char* data = NULL;
+   bool header = false;
+   struct query* query = NULL;
+   struct tuple* tuple = NULL;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   for (int server = 0; server < config->number_of_servers; server++)
+   {
+      if (config->servers[server].extension && config->servers[server].fd != -1)
+      {
+         pgexporter_query_network_info(server, &query);
+
+         if (query == NULL)
+         {
+            config->servers[server].extension = false;
+            continue;
+         }
+
+         if (!header)
+         {
+            d = NULL;
+            d = pgexporter_append(d, "#HELP pgexporter_network_info The network information\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            d = NULL;
+            d = pgexporter_append(d, "#TYPE pgexporter_network_info gauge\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            header = true;
+         }
+
+         tuple = query->tuples;
+
+         while (tuple != NULL)
+         {
+            d = NULL;
+            d = pgexporter_append(d, "pgexporter_network_info{server=\"");
+            d = pgexporter_append(d, &config->servers[server].name[0]);
+            d = pgexporter_append(d, "\"");
+
+            if (query->number_of_columns > 0)
+            {
+               d = pgexporter_append(d, ", ");
+            }
+
+            for (int col = 0; col < query->number_of_columns; col++)
+            {
+               d = pgexporter_append(d, query->names[col]);
+               d = pgexporter_append(d, "=\"");
+               d = pgexporter_append(d, tuple->data[col]);
+               d = pgexporter_append(d, "\"");
+
+               if (col < query->number_of_columns - 1)
+               {
+                  d = pgexporter_append(d, ", ");
+               }
+            }
+
+            d = pgexporter_append(d, "} 1\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            tuple = tuple->next;
+         }
+
+         pgexporter_free_query(query);
+         query = NULL;
+      }
+   }
+
+   if (header)
+   {
+      data = pgexporter_append(data, "\n");
+   }
+
+   if (data != NULL)
+   {
+      send_chunk(client_fd, data);
+      metrics_cache_append(data);
+      free(data);
+      data = NULL;
+   }
+}
+
+static void
+load_avg_information(int client_fd)
+{
+   char* d;
+   char* data = NULL;
+   bool header = false;
+   struct query* query = NULL;
+   struct tuple* tuple = NULL;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   for (int server = 0; server < config->number_of_servers; server++)
+   {
+      if (config->servers[server].extension && config->servers[server].fd != -1)
+      {
+         pgexporter_query_load_avg(server, &query);
+
+         if (query == NULL)
+         {
+            config->servers[server].extension = false;
+            continue;
+         }
+
+         if (!header)
+         {
+            d = NULL;
+            d = pgexporter_append(d, "#HELP pgexporter_load_avg The load averages\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            d = NULL;
+            d = pgexporter_append(d, "#TYPE pgexporter_load_avg gauge\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            header = true;
+         }
+
+         tuple = query->tuples;
+
+         while (tuple != NULL)
+         {
+            d = NULL;
+            d = pgexporter_append(d, "pgexporter_load_avg{server=\"");
+            d = pgexporter_append(d, &config->servers[server].name[0]);
+            d = pgexporter_append(d, "\"");
+
+            if (query->number_of_columns > 0)
+            {
+               d = pgexporter_append(d, ", ");
+            }
+
+            for (int col = 0; col < query->number_of_columns; col++)
+            {
+               d = pgexporter_append(d, query->names[col]);
+               d = pgexporter_append(d, "=\"");
+               d = pgexporter_append(d, tuple->data[col]);
+               d = pgexporter_append(d, "\"");
+
+               if (col < query->number_of_columns - 1)
+               {
+                  d = pgexporter_append(d, ", ");
+               }
+            }
+
+            d = pgexporter_append(d, "} 1\n");
+            data = pgexporter_append(data, d);
+            free(d);
+
+            tuple = tuple->next;
+         }
+
+         pgexporter_free_query(query);
+         query = NULL;
+      }
+   }
+
+   if (header)
+   {
+      data = pgexporter_append(data, "\n");
+   }
+
+   if (data != NULL)
+   {
+      send_chunk(client_fd, data);
+      metrics_cache_append(data);
+      free(data);
+      data = NULL;
+   }
+}
+
+static void
 database_information(int client_fd)
 {
    int ret;
@@ -1819,6 +2289,16 @@ data:
 
          current = current->next;
       }
+   }
+
+   data = pgexporter_append(data, "\n");
+
+   if (data != NULL)
+   {
+      send_chunk(client_fd, data);
+      metrics_cache_append(data);
+      free(data);
+      data = NULL;
    }
 
    pgexporter_free_query(all);
