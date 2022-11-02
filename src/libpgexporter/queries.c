@@ -141,6 +141,27 @@ pgexporter_close_connections(void)
 }
 
 int
+pgexporter_query_get_functions(int server, struct query** query)
+{
+   char* d = NULL;
+   int ret;
+
+   d = pgexporter_append(d, "SELECT * FROM pgexporter_get_functions();");
+
+   ret = pgexporter_query_execute(server, d, "pgexporter_ext", query);
+
+   free(d);
+
+   return ret;
+}
+
+int
+pgexporter_query_execute(int server, char* sql, char* tag, struct query** query)
+{
+   return query_execute(server, sql, tag, -1, NULL, query);
+}
+
+int
 pgexporter_query_used_disk_space(int server, bool data, struct query** query)
 {
    char* d = NULL;
@@ -215,81 +236,6 @@ pgexporter_query_total_disk_space(int server, bool data, struct query** query)
    d = pgexporter_append(d, "\');");
 
    ret = query_execute(server, d, "pgexporter_ext", 1, NULL, query);
-
-   free(d);
-
-   return ret;
-}
-
-int
-pgexporter_query_os_info(int server, struct query** query)
-{
-   char* d = NULL;
-   int ret;
-
-   d = pgexporter_append(d, "SELECT * FROM pgexporter_os_info();");
-
-   ret = query_execute(server, d, "pgexporter_ext", -1, NULL, query);
-
-   free(d);
-
-   return ret;
-}
-
-int
-pgexporter_query_cpu_info(int server, struct query** query)
-{
-   char* d = NULL;
-   int ret;
-
-   d = pgexporter_append(d, "SELECT * FROM pgexporter_cpu_info();");
-
-   ret = query_execute(server, d, "pgexporter_ext", -1, NULL, query);
-
-   free(d);
-
-   return ret;
-}
-
-int
-pgexporter_query_memory_info(int server, struct query** query)
-{
-   char* d = NULL;
-   int ret;
-
-   d = pgexporter_append(d, "SELECT * FROM pgexporter_memory_info();");
-
-   ret = query_execute(server, d, "pgexporter_ext", -1, NULL, query);
-
-   free(d);
-
-   return ret;
-}
-
-int
-pgexporter_query_network_info(int server, struct query** query)
-{
-   char* d = NULL;
-   int ret;
-
-   d = pgexporter_append(d, "SELECT * FROM pgexporter_network_info();");
-
-   ret = query_execute(server, d, "pgexporter_ext", -1, NULL, query);
-
-   free(d);
-
-   return ret;
-}
-
-int
-pgexporter_query_load_avg(int server, struct query** query)
-{
-   char* d = NULL;
-   int ret;
-
-   d = pgexporter_append(d, "SELECT * FROM pgexporter_load_avg();");
-
-   ret = query_execute(server, d, "pgexporter_ext", -1, NULL, query);
 
    free(d);
 

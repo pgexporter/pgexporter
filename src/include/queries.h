@@ -67,6 +67,26 @@ void
 pgexporter_close_connections(void);
 
 /**
+ * Get functions
+ * @param server The server
+ * @param query The resulting query
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_query_get_functions(int server, struct query** query);
+
+/**
+ * Execute query
+ * @param server The server
+ * @param sql The SQL query
+ * @param tag The tag
+ * @param query The resulting query
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_query_execute(int server, char* sql, char* tag, struct query** query);
+
+/**
  * Query for used disk space
  * @param server The server
  * @param data Data (true) or WAL (false)
@@ -95,51 +115,6 @@ pgexporter_query_free_disk_space(int server, bool data, struct query** query);
  */
 int
 pgexporter_query_total_disk_space(int server, bool data, struct query** query);
-
-/**
- * Query OS information
- * @param server The server
- * @param query The resulting query
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_query_os_info(int server, struct query** query);
-
-/**
- * Query CPU information
- * @param server The server
- * @param query The resulting query
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_query_cpu_info(int server, struct query** query);
-
-/**
- * Query memory information
- * @param server The server
- * @param query The resulting query
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_query_memory_info(int server, struct query** query);
-
-/**
- * Query network information
- * @param server The server
- * @param query The resulting query
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_query_network_info(int server, struct query** query);
-
-/**
- * Query load avg
- * @param server The server
- * @param query The resulting query
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_query_load_avg(int server, struct query** query);
 
 /**
  * Query PostgreSQL version
