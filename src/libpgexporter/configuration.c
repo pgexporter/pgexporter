@@ -1469,7 +1469,7 @@ as_logging_level(char* str)
          }
          free(debug_value);
       }
- 
+
       if (debug_level <= 1)
       {
          return PGEXPORTER_LOGGING_LEVEL_DEBUG1;
@@ -1891,7 +1891,7 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
 
    /* update_process_title */
    restart_int("update_process_title", config->update_process_title, reload->update_process_title);
-   
+
    /* unix_socket_dir */
    restart_string("unix_socket_dir", config->unix_socket_dir, reload->unix_socket_dir);
 

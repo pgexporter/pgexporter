@@ -292,6 +292,15 @@ int
 pgexporter_mkdir(char* dir);
 
 /**
+ * Append multiple strings
+ * @param orig The original string
+ * @param n_str The number of strings that will be appended
+ * @return The resulting string
+ */
+char*
+pgexporter_vappend(char* orig, unsigned int n_str, ...);
+
+/**
  * Append a string
  * @param orig The original string
  * @param s The string

@@ -2,3 +2,5 @@
 _site/
 build/
 vendor/
+.cache/
+*.uncrustify

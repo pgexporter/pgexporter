@@ -41,6 +41,7 @@
 #include <pwd.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
@@ -881,35 +882,56 @@ pgexporter_mkdir(char* dir)
 }
 
 char*
-pgexporter_append(char* orig, char* s)
+pgexporter_vappend(char* orig, unsigned int n_str, ...)
 {
-   size_t orig_length;
-   size_t s_length;
-   char* n = NULL;
+   size_t orig_len, fin_len;
+   va_list args;
+   char* str = NULL;
+   char** strings = NULL;
+   char* ptr = NULL;
 
-   if (s == NULL)
+   if (orig)
    {
-      return orig;
-   }
-
-   if (orig != NULL)
-   {
-      orig_length = strlen(orig);
+      fin_len = orig_len = strlen(orig);
    }
    else
    {
-      orig_length = 0;
+      fin_len = orig_len = 0;
    }
 
-   s_length = strlen(s);
+   strings = (char**) malloc(n_str * sizeof(char*));
 
-   n = (char*)realloc(orig, orig_length + s_length + 1);
+   va_start(args, n_str);
 
-   memcpy(n + orig_length, s, s_length);
+   for (unsigned int i = 0; i < n_str; i++)
+   {
+      strings[i] = va_arg(args, char*);
+      fin_len += strlen(strings[i]);
+   }
 
-   n[orig_length + s_length] = '\0';
+   str = (char*) realloc(orig, fin_len + 1);
+   ptr = str + orig_len;
 
-   return n;
+   for (unsigned int i = 0; i < n_str; i++)
+   {
+      int j = 0;
+      while (strings[i][j])
+         *ptr++ = strings[i][j++];
+   }
+
+   *ptr = 0;
+
+   va_end(args);
+
+   free(strings);
+
+   return str;
+}
+
+char*
+pgexporter_append(char* orig, char* s)
+{
+   return pgexporter_vappend(orig, 1, s);
 }
 
 char*
@@ -957,7 +979,7 @@ pgexporter_directory_size(char* directory)
    unsigned long total_size = 0;
    DIR* dir;
    struct dirent* entry;
-   char* p;
+   char* p = NULL;
    struct stat st;
    unsigned long l;
 
@@ -984,10 +1006,11 @@ pgexporter_directory_size(char* directory)
       else if (entry->d_type == DT_REG)
       {
          p = NULL;
-
-         p = pgexporter_append(p, directory);
-         p = pgexporter_append(p, "/");
-         p = pgexporter_append(p, entry->d_name);
+         p = pgexporter_vappend(p, 3,
+                                directory,
+                                "/",
+                                entry->d_name
+                                );
 
          memset(&st, 0, sizeof(struct stat));
 
@@ -1007,10 +1030,11 @@ pgexporter_directory_size(char* directory)
       else if (entry->d_type == DT_LNK)
       {
          p = NULL;
-
-         p = pgexporter_append(p, directory);
-         p = pgexporter_append(p, "/");
-         p = pgexporter_append(p, entry->d_name);
+         p = pgexporter_vappend(p, 3,
+                                directory,
+                                "/",
+                                entry->d_name
+                                );
 
          memset(&st, 0, sizeof(struct stat));
 
@@ -1841,8 +1865,10 @@ pgexporter_read_version(char* directory, char** version)
 
    *version = NULL;
 
-   filename = pgexporter_append(filename, directory);
-   filename = pgexporter_append(filename, "/PG_VERSION");
+   filename = pgexporter_vappend(filename, 2,
+                                 directory,
+                                 "/PG_VERSION"
+                                 );
 
    file = fopen(filename, "r");
    if (file == NULL)
@@ -1891,8 +1917,10 @@ pgexporter_read_wal(char* directory, char** wal)
 
    *wal = NULL;
 
-   pgwal = pgexporter_append(pgwal, directory);
-   pgwal = pgexporter_append(pgwal, "/pg_wal/");
+   pgwal = pgexporter_vappend(pgwal, 2,
+                              directory,
+                              "/pg_wal/"
+                              );
 
    number_of_wal_files = 0;
    wal_files = NULL;

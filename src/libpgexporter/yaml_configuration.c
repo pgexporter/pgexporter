@@ -70,9 +70,13 @@ pgexporter_read_metrics_configuration(void* shmem)
       for (int i = 0; i < number_of_yaml_files; i++)
       {
          number_of_metrics = 0;
-         yaml_path = pgexporter_append(yaml_path, config->metrics_path);
-         yaml_path = pgexporter_append(yaml_path, "/");
-         yaml_path = pgexporter_append(yaml_path, yaml_files[i]);
+
+         yaml_path = pgexporter_vappend(yaml_path, 3,
+                                        config->metrics_path,
+                                        "/",
+                                        yaml_files[i]
+                                        );
+
          if (pgexporter_read_yaml(config->prometheus + idx_metrics, yaml_path, &number_of_metrics))
          {
             free(yaml_path);

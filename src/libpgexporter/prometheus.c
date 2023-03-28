@@ -226,10 +226,12 @@ unknown_page(int client_fd)
    ctime_r(&now, &time_buf[0]);
    time_buf[strlen(time_buf) - 1] = 0;
 
-   data = pgexporter_append(data, "HTTP/1.1 403 Forbidden\r\n");
-   data = pgexporter_append(data, "Date: ");
-   data = pgexporter_append(data, &time_buf[0]);
-   data = pgexporter_append(data, "\r\n");
+   data = pgexporter_vappend(data, 4,
+                             "HTTP/1.1 403 Forbidden\r\n",
+                             "Date: ",
+                             &time_buf[0],
+                             "\r\n"
+                             );
 
    msg.kind = 0;
    msg.length = strlen(data);
@@ -263,13 +265,15 @@ home_page(int client_fd)
    ctime_r(&now, &time_buf[0]);
    time_buf[strlen(time_buf) - 1] = 0;
 
-   data = pgexporter_append(data, "HTTP/1.1 200 OK\r\n");
-   data = pgexporter_append(data, "Content-Type: text/html; charset=utf-8\r\n");
-   data = pgexporter_append(data, "Date: ");
-   data = pgexporter_append(data, &time_buf[0]);
-   data = pgexporter_append(data, "\r\n");
-   data = pgexporter_append(data, "Transfer-Encoding: chunked\r\n");
-   data = pgexporter_append(data, "\r\n");
+   data = pgexporter_vappend(data, 7,
+                             "HTTP/1.1 200 OK\r\n",
+                             "Content-Type: text/html; charset=utf-8\r\n",
+                             "Date: ",
+                             &time_buf[0],
+                             "\r\n",
+                             "Transfer-Encoding: chunked\r\n",
+                             "\r\n"
+                             );
 
    msg.kind = 0;
    msg.length = strlen(data);
@@ -284,44 +288,52 @@ home_page(int client_fd)
    free(data);
    data = NULL;
 
-   data = pgexporter_append(data, "<html>\n");
-   data = pgexporter_append(data, "<head>\n");
-   data = pgexporter_append(data, "  <title>pgexporter</title>\n");
-   data = pgexporter_append(data, "</head>\n");
-   data = pgexporter_append(data, "<body>\n");
-   data = pgexporter_append(data, "  <h1>pgexporter</h1>\n");
-   data = pgexporter_append(data, "  Prometheus exporter for PostgreSQL\n");
-   data = pgexporter_append(data, "  <p>\n");
-   data = pgexporter_append(data, "  <a href=\"/metrics\">Metrics</a>\n");
-   data = pgexporter_append(data, "  <p>\n");
-   data = pgexporter_append(data, "  Support for\n");
-   data = pgexporter_append(data, "  <ul>\n");
+   data = pgexporter_vappend(data, 12,
+                             "<html>\n",
+                             "<head>\n",
+                             "  <title>pgexporter</title>\n",
+                             "</head>\n",
+                             "<body>\n",
+                             "  <h1>pgexporter</h1>\n",
+                             "  Prometheus exporter for PostgreSQL\n",
+                             "  <p>\n",
+                             "  <a href=\"/metrics\">Metrics</a>\n",
+                             "  <p>\n",
+                             "  Support for\n",
+                             "  <ul>\n"
+                             );
 
    if (config->number_of_metrics == 0)
    {
-      data = pgexporter_append(data, "  <li>pg_database</li>\n");
-      data = pgexporter_append(data, "  <li>pg_locks</li>\n");
-      data = pgexporter_append(data, "  <li>pg_replication_slots</li>\n");
-      data = pgexporter_append(data, "  <li>pg_settings</li>\n");
-      data = pgexporter_append(data, "  <li>pg_stat_bgwriter</li>\n");
-      data = pgexporter_append(data, "  <li>pg_stat_database</li>\n");
-      data = pgexporter_append(data, "  <li>pg_stat_database_conflicts</li>\n");
+      data = pgexporter_vappend(data, 7,
+                                "  <li>pg_database</li>\n",
+                                "  <li>pg_locks</li>\n",
+                                "  <li>pg_replication_slots</li>\n",
+                                "  <li>pg_settings</li>\n",
+                                "  <li>pg_stat_bgwriter</li>\n",
+                                "  <li>pg_stat_database</li>\n",
+                                "  <li>pg_stat_database_conflicts</li>\n"
+                                );
    }
    else
    {
       for (int i = 0; i < config->number_of_metrics; i++)
       {
-         data = pgexporter_append(data, "  <li>");
-         data = pgexporter_append(data, config->prometheus[i].tag);
-         data = pgexporter_append(data, "</li>\n");
+         data = pgexporter_vappend(data, 3,
+                                   "  <li>",
+                                   config->prometheus[i].tag,
+                                   "</li>\n"
+                                   );
       }
    }
 
-   data = pgexporter_append(data, "  </ul>\n");
-   data = pgexporter_append(data, "  <p>\n");
-   data = pgexporter_append(data, "  <a href=\"https://pgexporter.github.io/\">pgexporter.github.io/</a>\n");
-   data = pgexporter_append(data, "</body>\n");
-   data = pgexporter_append(data, "</html>\n");
+   data = pgexporter_vappend(data, 5,
+                             "  </ul>\n",
+                             "  <p>\n",
+                             "  <a href=\"https://pgexporter.github.io/\">pgexporter.github.io/</a>\n",
+                             "</body>\n",
+                             "</html>\n"
+                             );
 
    send_chunk(client_fd, data);
    free(data);
@@ -397,14 +409,18 @@ retry_cache_locking:
          ctime_r(&now, &time_buf[0]);
          time_buf[strlen(time_buf) - 1] = 0;
 
-         data = pgexporter_append(data, "HTTP/1.1 200 OK\r\n");
-         data = pgexporter_append(data, "Content-Type: text/plain; version=0.0.1; charset=utf-8\r\n");
-         data = pgexporter_append(data, "Date: ");
-         data = pgexporter_append(data, &time_buf[0]);
-         data = pgexporter_append(data, "\r\n");
+         data = pgexporter_vappend(data, 5,
+                                   "HTTP/1.1 200 OK\r\n",
+                                   "Content-Type: text/plain; version=0.0.1; charset=utf-8\r\n",
+                                   "Date: ",
+                                   &time_buf[0],
+                                   "\r\n"
+                                   );
          metrics_cache_append(data);  // cache here to avoid the chunking for the cache
-         data = pgexporter_append(data, "Transfer-Encoding: chunked\r\n");
-         data = pgexporter_append(data, "\r\n");
+         data = pgexporter_vappend(data, 2,
+                                   "Transfer-Encoding: chunked\r\n",
+                                   "\r\n"
+                                   );
 
          msg.kind = 0;
          msg.length = strlen(data);
@@ -484,6 +500,7 @@ retry_cache_locking:
          metrics_cache_finalize();
       }
 
+
       // free the cache
       atomic_store(&cache->lock, STATE_FREE);
    }
@@ -522,10 +539,12 @@ bad_request(int client_fd)
    ctime_r(&now, &time_buf[0]);
    time_buf[strlen(time_buf) - 1] = 0;
 
-   data = pgexporter_append(data, "HTTP/1.1 400 Bad Request\r\n");
-   data = pgexporter_append(data, "Date: ");
-   data = pgexporter_append(data, &time_buf[0]);
-   data = pgexporter_append(data, "\r\n");
+   data = pgexporter_vappend(data, 4,
+                             "HTTP/1.1 400 Bad Request\r\n",
+                             "Date: ",
+                             &time_buf[0],
+                             "\r\n"
+                             );
 
    msg.kind = 0;
    msg.length = strlen(data);
@@ -543,11 +562,12 @@ general_information(int client_fd)
 {
    char* data = NULL;
 
-   data = pgexporter_append(data, "#HELP pgexporter_state The state of pgexporter\n");
-   data = pgexporter_append(data, "#TYPE pgexporter_state gauge\n");
-   data = pgexporter_append(data, "pgexporter_state ");
-   data = pgexporter_append(data, "1");
-   data = pgexporter_append(data, "\n\n");
+   data = pgexporter_vappend(data, 4,
+                             "#HELP pgexporter_state The state of pgexporter\n",
+                             "#TYPE pgexporter_state gauge\n",
+                             "pgexporter_state 1\n",
+                             "\n"
+                             );
 
    if (data != NULL)
    {
@@ -566,14 +586,18 @@ server_information(int client_fd)
 
    config = (struct configuration*)shmem;
 
-   data = pgexporter_append(data, "#HELP pgexporter_postgresql_active The state of PostgreSQL\n");
-   data = pgexporter_append(data, "#TYPE pgexporter_postgresql_active gauge\n");
+   data = pgexporter_vappend(data, 2,
+                             "#HELP pgexporter_postgresql_active The state of PostgreSQL\n",
+                             "#TYPE pgexporter_postgresql_active gauge\n"
+                             );
 
    for (int server = 0; server < config->number_of_servers; server++)
    {
-      data = pgexporter_append(data, "pgexporter_postgresql_active{server=\"");
-      data = pgexporter_append(data, &config->servers[server].name[0]);
-      data = pgexporter_append(data, "\"} ");
+      data = pgexporter_vappend(data, 3,
+                                "pgexporter_postgresql_active{server=\"",
+                                &config->servers[server].name[0],
+                                "\"} "
+                                );
       if (config->servers[server].fd != -1)
       {
          data = pgexporter_append(data, "1");
@@ -600,7 +624,6 @@ version_information(int client_fd)
 {
    int ret;
    int server;
-   char* d;
    char* data = NULL;
    struct query* all = NULL;
    struct query* query = NULL;
@@ -627,32 +650,24 @@ version_information(int client_fd)
       current = all->tuples;
       if (current != NULL)
       {
-         d = NULL;
-         d = pgexporter_append(d, "#HELP pgexporter_postgresql_version The PostgreSQL version");
-         d = pgexporter_append(d, "\n");
-         data = pgexporter_append(data, d);
-         free(d);
-
-         d = NULL;
-         d = pgexporter_append(d, "#TYPE pgexporter_postgresql_version gauge");
-         d = pgexporter_append(d, "\n");
-         data = pgexporter_append(data, d);
-         free(d);
+         data = pgexporter_vappend(data, 2,
+                                   "#HELP pgexporter_postgresql_version The PostgreSQL version\n",
+                                   "#TYPE pgexporter_postgresql_version gauge"
+                                   );
 
          server = 0;
 
          while (current != NULL)
          {
-            d = NULL;
-            d = pgexporter_append(d, "pgexporter_postgresql_version{server=\"");
-            d = pgexporter_append(d, &config->servers[server].name[0]);
-            d = pgexporter_append(d, "\",version=\"");
-            d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
-            d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, "1");
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+
+            data = pgexporter_vappend(data, 6,
+                                      "pgexporter_postgresql_version{server=\"",
+                                      &config->servers[server].name[0],
+                                      "\",version=\"",
+                                      safe_prometheus_key(pgexporter_get_column(0, current)),
+                                      "\"} ",
+                                      "1\n"
+                                      );
 
             server++;
             current = current->next;
@@ -678,7 +693,6 @@ uptime_information(int client_fd)
 {
    int ret;
    int server;
-   char* d;
    char* data = NULL;
    struct query* all = NULL;
    struct query* query = NULL;
@@ -705,30 +719,22 @@ uptime_information(int client_fd)
       current = all->tuples;
       if (current != NULL)
       {
-         d = NULL;
-         d = pgexporter_append(d, "#HELP pgexporter_postgresql_uptime The PostgreSQL uptime in seconds");
-         d = pgexporter_append(d, "\n");
-         data = pgexporter_append(data, d);
-         free(d);
-
-         d = NULL;
-         d = pgexporter_append(d, "#TYPE pgexporter_postgresql_uptime gauge");
-         d = pgexporter_append(d, "\n");
-         data = pgexporter_append(data, d);
-         free(d);
+         data = pgexporter_vappend(data, 2,
+                                   "#HELP pgexporter_postgresql_uptime The PostgreSQL uptime in seconds\n",
+                                   "#TYPE pgexporter_postgresql_uptime gauge\n"
+                                   );
 
          server = 0;
 
          while (current != NULL)
          {
-            d = NULL;
-            d = pgexporter_append(d, "pgexporter_postgresql_uptime{server=\"");
-            d = pgexporter_append(d, &config->servers[server].name[0]);
-            d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_vappend(data, 5,
+                                      "pgexporter_postgresql_uptime{server=\"",
+                                      &config->servers[server].name[0],
+                                      "\"} ",
+                                      safe_prometheus_key(pgexporter_get_column(0, current)),
+                                      "\n"
+                                      );
 
             server++;
             current = current->next;
@@ -754,7 +760,6 @@ primary_information(int client_fd)
 {
    int ret;
    int server;
-   char* d;
    char* data = NULL;
    struct query* all = NULL;
    struct query* query = NULL;
@@ -781,37 +786,30 @@ primary_information(int client_fd)
       current = all->tuples;
       if (current != NULL)
       {
-         d = NULL;
-         d = pgexporter_append(d, "#HELP pgexporter_postgresql_primary Is the PostgreSQL instance the primary");
-         d = pgexporter_append(d, "\n");
-         data = pgexporter_append(data, d);
-         free(d);
-
-         d = NULL;
-         d = pgexporter_append(d, "#TYPE pgexporter_postgresql_primary gauge");
-         d = pgexporter_append(d, "\n");
-         data = pgexporter_append(data, d);
-         free(d);
+         data = pgexporter_vappend(data, 2,
+                                   "#HELP pgexporter_postgresql_primary Is the PostgreSQL instance the primary\n",
+                                   "#TYPE pgexporter_postgresql_primary gauge\n"
+                                   );
 
          server = 0;
 
          while (current != NULL)
          {
-            d = NULL;
-            d = pgexporter_append(d, "pgexporter_postgresql_primary{server=\"");
-            d = pgexporter_append(d, &config->servers[server].name[0]);
-            d = pgexporter_append(d, "\"} ");
+            data = pgexporter_vappend(data, 3,
+                                      "pgexporter_postgresql_primary{server=\"",
+                                      &config->servers[server].name[0],
+                                      "\"} "
+                                      );
+
             if (!strcmp("t", pgexporter_get_column(0, current)))
             {
-               d = pgexporter_append(d, "1");
+               data = pgexporter_append(data, "1");
             }
             else
             {
-               d = pgexporter_append(d, "0");
+               data = pgexporter_append(data, "0");
             }
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_append(data, "\n");
 
             server++;
             current = current->next;
@@ -835,7 +833,6 @@ primary_information(int client_fd)
 static void
 disk_space_information(int client_fd)
 {
-   char* d;
    char* data = NULL;
    bool header = false;
    struct query* query = NULL;
@@ -860,27 +857,21 @@ disk_space_information(int client_fd)
 
             if (!header)
             {
-               d = NULL;
-               d = pgexporter_append(d, "#HELP pgexporter_used_disk_space_data The used disk space for the data directory\n");
-               data = pgexporter_append(data, d);
-               free(d);
-
-               d = NULL;
-               d = pgexporter_append(d, "#TYPE pgexporter_used_disk_space_data gauge\n");
-               data = pgexporter_append(data, d);
-               free(d);
+               data = pgexporter_vappend(data, 2,
+                                         "#HELP pgexporter_used_disk_space_data The used disk space for the data directory\n",
+                                         "#TYPE pgexporter_used_disk_space_data gauge\n"
+                                         );
 
                header = true;
             }
 
-            d = NULL;
-            d = pgexporter_append(d, "pgexporter_used_disk_space_data{server=\"");
-            d = pgexporter_append(d, &config->servers[server].name[0]);
-            d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, pgexporter_get_column(0, query->tuples));
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_vappend(data, 5,
+                                      "pgexporter_used_disk_space_data{server=\"",
+                                      &config->servers[server].name[0],
+                                      "\"} ",
+                                      pgexporter_get_column(0, query->tuples),
+                                      "\n"
+                                      );
 
             pgexporter_free_query(query);
             query = NULL;
@@ -920,27 +911,21 @@ disk_space_information(int client_fd)
 
             if (!header)
             {
-               d = NULL;
-               d = pgexporter_append(d, "#HELP pgexporter_free_disk_space_data The free disk space for the data directory\n");
-               data = pgexporter_append(data, d);
-               free(d);
-
-               d = NULL;
-               d = pgexporter_append(d, "#TYPE pgexporter_free_disk_space_data gauge\n");
-               data = pgexporter_append(data, d);
-               free(d);
+               data = pgexporter_vappend(data, 2,
+                                         "#HELP pgexporter_free_disk_space_data The free disk space for the data directory\n",
+                                         "#TYPE pgexporter_free_disk_space_data gauge\n"
+                                         );
 
                header = true;
             }
 
-            d = NULL;
-            d = pgexporter_append(d, "pgexporter_free_disk_space_data{server=\"");
-            d = pgexporter_append(d, &config->servers[server].name[0]);
-            d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, pgexporter_get_column(0, query->tuples));
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_vappend(data, 5,
+                                      "pgexporter_free_disk_space_data{server=\"",
+                                      &config->servers[server].name[0],
+                                      "\"} ",
+                                      pgexporter_get_column(0, query->tuples),
+                                      "\n"
+                                      );
 
             pgexporter_free_query(query);
             query = NULL;
@@ -980,27 +965,21 @@ disk_space_information(int client_fd)
 
             if (!header)
             {
-               d = NULL;
-               d = pgexporter_append(d, "#HELP pgexporter_total_disk_space_data The total disk space for the data directory\n");
-               data = pgexporter_append(data, d);
-               free(d);
-
-               d = NULL;
-               d = pgexporter_append(d, "#TYPE pgexporter_total_disk_space_data gauge\n");
-               data = pgexporter_append(data, d);
-               free(d);
+               data = pgexporter_vappend(data, 2,
+                                         "#HELP pgexporter_total_disk_space_data The total disk space for the data directory\n",
+                                         "#TYPE pgexporter_total_disk_space_data gauge\n"
+                                         );
 
                header = true;
             }
 
-            d = NULL;
-            d = pgexporter_append(d, "pgexporter_total_disk_space_data{server=\"");
-            d = pgexporter_append(d, &config->servers[server].name[0]);
-            d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, pgexporter_get_column(0, query->tuples));
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_vappend(data, 5,
+                                      "pgexporter_total_disk_space_data{server=\"",
+                                      &config->servers[server].name[0],
+                                      "\"} ",
+                                      pgexporter_get_column(0, query->tuples),
+                                      "\n"
+                                      );
 
             pgexporter_free_query(query);
             query = NULL;
@@ -1040,27 +1019,21 @@ disk_space_information(int client_fd)
 
             if (!header)
             {
-               d = NULL;
-               d = pgexporter_append(d, "#HELP pgexporter_used_disk_space_wal The used disk space for the WAL directory\n");
-               data = pgexporter_append(data, d);
-               free(d);
-
-               d = NULL;
-               d = pgexporter_append(d, "#TYPE pgexporter_used_disk_space_wal gauge\n");
-               data = pgexporter_append(data, d);
-               free(d);
+               data = pgexporter_vappend(data, 2,
+                                         "#HELP pgexporter_used_disk_space_wal The used disk space for the WAL directory\n",
+                                         "#TYPE pgexporter_used_disk_space_wal gauge\n"
+                                         );
 
                header = true;
             }
 
-            d = NULL;
-            d = pgexporter_append(d, "pgexporter_used_disk_space_wal{server=\"");
-            d = pgexporter_append(d, &config->servers[server].name[0]);
-            d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, pgexporter_get_column(0, query->tuples));
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_vappend(data, 5,
+                                      "pgexporter_used_disk_space_wal{server=\"",
+                                      &config->servers[server].name[0],
+                                      "\"} ",
+                                      pgexporter_get_column(0, query->tuples),
+                                      "\n"
+                                      );
 
             pgexporter_free_query(query);
             query = NULL;
@@ -1100,27 +1073,21 @@ disk_space_information(int client_fd)
 
             if (!header)
             {
-               d = NULL;
-               d = pgexporter_append(d, "#HELP pgexporter_free_disk_space_wal The free disk space for the WAL directory\n");
-               data = pgexporter_append(data, d);
-               free(d);
-
-               d = NULL;
-               d = pgexporter_append(d, "#TYPE pgexporter_free_disk_space_wal gauge\n");
-               data = pgexporter_append(data, d);
-               free(d);
+               data = pgexporter_vappend(data, 2,
+                                         "#HELP pgexporter_free_disk_space_wal The free disk space for the WAL directory\n",
+                                         "#TYPE pgexporter_free_disk_space_wal gauge\n"
+                                         );
 
                header = true;
             }
 
-            d = NULL;
-            d = pgexporter_append(d, "pgexporter_free_disk_space_wal{server=\"");
-            d = pgexporter_append(d, &config->servers[server].name[0]);
-            d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, pgexporter_get_column(0, query->tuples));
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_vappend(data, 5,
+                                      "pgexporter_free_disk_space_wal{server=\"",
+                                      &config->servers[server].name[0],
+                                      "\"} ",
+                                      pgexporter_get_column(0, query->tuples),
+                                      "\n"
+                                      );
 
             pgexporter_free_query(query);
             query = NULL;
@@ -1160,27 +1127,21 @@ disk_space_information(int client_fd)
 
             if (!header)
             {
-               d = NULL;
-               d = pgexporter_append(d, "#HELP pgexporter_total_disk_space_wal The total disk space for the WAL directory\n");
-               data = pgexporter_append(data, d);
-               free(d);
-
-               d = NULL;
-               d = pgexporter_append(d, "#TYPE pgexporter_total_disk_space_wal gauge\n");
-               data = pgexporter_append(data, d);
-               free(d);
+               data = pgexporter_vappend(data, 2,
+                                         "#HELP pgexporter_total_disk_space_wal The total disk space for the WAL directory\n",
+                                         "#TYPE pgexporter_total_disk_space_wal gauge\n"
+                                         );
 
                header = true;
             }
 
-            d = NULL;
-            d = pgexporter_append(d, "pgexporter_total_disk_space_wal{server=\"");
-            d = pgexporter_append(d, &config->servers[server].name[0]);
-            d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, pgexporter_get_column(0, query->tuples));
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_vappend(data, 5,
+                                      "pgexporter_total_disk_space_wal{server=\"",
+                                      &config->servers[server].name[0],
+                                      "\"} ",
+                                      pgexporter_get_column(0, query->tuples),
+                                      "\n"
+                                      );
 
             pgexporter_free_query(query);
             query = NULL;
@@ -1207,12 +1168,15 @@ core_information(int client_fd)
 {
    char* data = NULL;
 
-   data = pgexporter_append(data, "#HELP pgexporter_version The pgexporter version\n");
-   data = pgexporter_append(data, "#TYPE pgexporter_version gauge\n");
-   data = pgexporter_append(data, "pgexporter_version{pgexporter_version=\"");
-   data = pgexporter_append(data, VERSION);
-   data = pgexporter_append(data, "\"} 1");
-   data = pgexporter_append(data, "\n\n");
+   data = pgexporter_vappend(data, 6,
+                             "#HELP pgexporter_version The pgexporter version\n",
+                             //
+                             "#TYPE pgexporter_version gauge\n",
+                             "pgexporter_version{pgexporter_version=\"",
+                             VERSION,
+                             "\"} 1\n",
+                             "\n"
+                             );
 
    if (data != NULL)
    {
@@ -1271,7 +1235,6 @@ extension_information(int client_fd)
 static void
 extension_function(int client_fd, char* function, char* description, char* type)
 {
-   char* d;
    char* data = NULL;
    bool header = false;
    char* sql = NULL;
@@ -1285,9 +1248,11 @@ extension_function(int client_fd, char* function, char* description, char* type)
    {
       if (config->servers[server].extension && config->servers[server].fd != -1)
       {
-         sql = pgexporter_append(sql, "SELECT * FROM ");
-         sql = pgexporter_append(sql, function);
-         sql = pgexporter_append(sql, "();");
+         sql = pgexporter_vappend(sql, 3,
+                                  "SELECT * FROM ",
+                                  function,
+                                  "();"
+                                  );
 
          pgexporter_query_execute(server, sql, "pgexporter_ext", &query);
 
@@ -1299,23 +1264,19 @@ extension_function(int client_fd, char* function, char* description, char* type)
 
          if (!header)
          {
-            d = NULL;
-            d = pgexporter_append(d, "#HELP ");
-            d = pgexporter_append(d, function);
-            d = pgexporter_append(d, " ");
-            d = pgexporter_append(d, description);
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
-
-            d = NULL;
-            d = pgexporter_append(d, "#TYPE ");
-            d = pgexporter_append(d, function);
-            d = pgexporter_append(d, " ");
-            d = pgexporter_append(d, type);
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_vappend(data, 10,
+                                      "#HELP ",
+                                      function,
+                                      " ",
+                                      description,
+                                      "\n",
+                                      //
+                                      "#TYPE ",
+                                      function,
+                                      " ",
+                                      type,
+                                      "\n"
+                                      );
 
             header = true;
          }
@@ -1324,33 +1285,34 @@ extension_function(int client_fd, char* function, char* description, char* type)
 
          while (tuple != NULL)
          {
-            d = NULL;
-            d = pgexporter_append(d, function);
-            d = pgexporter_append(d, "{server=\"");
-            d = pgexporter_append(d, &config->servers[server].name[0]);
-            d = pgexporter_append(d, "\"");
+            data = pgexporter_vappend(data, 4,
+                                      function,
+                                      "{server=\"",
+                                      &config->servers[server].name[0],
+                                      "\""
+                                      );
 
             if (query->number_of_columns > 0)
             {
-               d = pgexporter_append(d, ", ");
+               data = pgexporter_append(data, ", ");
             }
 
             for (int col = 0; col < query->number_of_columns; col++)
             {
-               d = pgexporter_append(d, query->names[col]);
-               d = pgexporter_append(d, "=\"");
-               d = pgexporter_append(d, tuple->data[col]);
-               d = pgexporter_append(d, "\"");
+               data = pgexporter_vappend(data, 4,
+                                         query->names[col],
+                                         "=\"",
+                                         tuple->data[col],
+                                         "\""
+                                         );
 
                if (col < query->number_of_columns - 1)
                {
-                  d = pgexporter_append(d, ", ");
+                  data = pgexporter_append(data, ", ");
                }
             }
 
-            d = pgexporter_append(d, "} 1\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_append(data, "} 1\n");
 
             tuple = tuple->next;
          }
@@ -1381,7 +1343,6 @@ static void
 database_information(int client_fd)
 {
    int ret;
-   char* d;
    char* data = NULL;
    struct query* all = NULL;
    struct query* query = NULL;
@@ -1408,36 +1369,28 @@ database_information(int client_fd)
       current = all->tuples;
       if (current != NULL)
       {
-         d = NULL;
-         d = pgexporter_append(d, "#HELP pgexporter_");
-         d = pgexporter_append(d, &all->tag[0]);
-         d = pgexporter_append(d, "_size Size of the database");
-         d = pgexporter_append(d, "\n");
-         data = pgexporter_append(data, d);
-         free(d);
-
-         d = NULL;
-         d = pgexporter_append(d, "#TYPE pgexporter_");
-         d = pgexporter_append(d, &all->tag[0]);
-         d = pgexporter_append(d, "_size gauge");
-         d = pgexporter_append(d, "\n");
-         data = pgexporter_append(data, d);
-         free(d);
+         data = pgexporter_vappend(data, 6,
+                                   "#HELP pgexporter_",
+                                   &all->tag[0],
+                                   "_size Size of the database\n",
+                                   "#TYPE pgexporter_",
+                                   &all->tag[0],
+                                   "_size gauge\n"
+                                   );
 
          while (current != NULL)
          {
-            d = NULL;
-            d = pgexporter_append(d, "pgexporter_");
-            d = pgexporter_append(d, &all->tag[0]);
-            d = pgexporter_append(d, "_size{server=\"");
-            d = pgexporter_append(d, &config->servers[current->server].name[0]);
-            d = pgexporter_append(d, "\",database=\"");
-            d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
-            d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, get_value(&all->tag[0], pgexporter_get_column(0, current), pgexporter_get_column(1, current)));
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_vappend(data, 9,
+                                      "pgexporter_",
+                                      &all->tag[0],
+                                      "_size{server=\"",
+                                      &config->servers[current->server].name[0],
+                                      "\",database=\"",
+                                      safe_prometheus_key(pgexporter_get_column(0, current)),
+                                      "\"} ",
+                                      get_value(&all->tag[0], pgexporter_get_column(0, current), pgexporter_get_column(1, current)),
+                                      "\n"
+                                      );
 
             current = current->next;
          }
@@ -1461,7 +1414,6 @@ static void
 replication_information(int client_fd)
 {
    int ret;
-   char* d;
    char* data = NULL;
    struct query* all = NULL;
    struct query* query = NULL;
@@ -1488,36 +1440,28 @@ replication_information(int client_fd)
       current = all->tuples;
       if (current != NULL)
       {
-         d = NULL;
-         d = pgexporter_append(d, "#HELP pgexporter_");
-         d = pgexporter_append(d, &all->tag[0]);
-         d = pgexporter_append(d, "_active Display status of replication slots");
-         d = pgexporter_append(d, "\n");
-         data = pgexporter_append(data, d);
-         free(d);
-
-         d = NULL;
-         d = pgexporter_append(d, "#TYPE pgexporter_");
-         d = pgexporter_append(d, &all->tag[0]);
-         d = pgexporter_append(d, "_active gauge");
-         d = pgexporter_append(d, "\n");
-         data = pgexporter_append(data, d);
-         free(d);
+         data = pgexporter_vappend(data, 6,
+                                   "#HELP pgexporter_",
+                                   &all->tag[0],
+                                   "_active Display status of replication slots\n",
+                                   "#TYPE pgexporter_",
+                                   &all->tag[0],
+                                   "_active gauge\n"
+                                   );
 
          while (current != NULL)
          {
-            d = NULL;
-            d = pgexporter_append(d, "pgexporter_");
-            d = pgexporter_append(d, &all->tag[0]);
-            d = pgexporter_append(d, "_active{server=\"");
-            d = pgexporter_append(d, &config->servers[current->server].name[0]);
-            d = pgexporter_append(d, "\",slot=\"");
-            d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
-            d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, get_value(&all->tag[0], pgexporter_get_column(0, current), pgexporter_get_column(1, current)));
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_vappend(data, 9,
+                                      "pgexporter_",
+                                      &all->tag[0],
+                                      "_active{server=\"",
+                                      &config->servers[current->server].name[0],
+                                      "\",slot=\"",
+                                      safe_prometheus_key(pgexporter_get_column(0, current)),
+                                      "\"} ",
+                                      get_value(&all->tag[0], pgexporter_get_column(0, current), pgexporter_get_column(1, current)),
+                                      "\n"
+                                      );
 
             current = current->next;
          }
@@ -1541,7 +1485,6 @@ static void
 locks_information(int client_fd)
 {
    int ret;
-   char* d;
    char* data = NULL;
    struct query* all = NULL;
    struct query* query = NULL;
@@ -1568,38 +1511,30 @@ locks_information(int client_fd)
       current = all->tuples;
       if (current != NULL)
       {
-         d = NULL;
-         d = pgexporter_append(d, "#HELP pgexporter_");
-         d = pgexporter_append(d, &all->tag[0]);
-         d = pgexporter_append(d, "_count Lock count of a database");
-         d = pgexporter_append(d, "\n");
-         data = pgexporter_append(data, d);
-         free(d);
-
-         d = NULL;
-         d = pgexporter_append(d, "#TYPE pgexporter_");
-         d = pgexporter_append(d, &all->tag[0]);
-         d = pgexporter_append(d, "_count gauge");
-         d = pgexporter_append(d, "\n");
-         data = pgexporter_append(data, d);
-         free(d);
+         data = pgexporter_vappend(data, 6,
+                                   "#HELP pgexporter_",
+                                   &all->tag[0],
+                                   "_count Lock count of a database\n",
+                                   "#TYPE pgexporter_",
+                                   &all->tag[0],
+                                   "_count gauge\n"
+                                   );
 
          while (current != NULL)
          {
-            d = NULL;
-            d = pgexporter_append(d, "pgexporter_");
-            d = pgexporter_append(d, &all->tag[0]);
-            d = pgexporter_append(d, "_count{server=\"");
-            d = pgexporter_append(d, &config->servers[current->server].name[0]);
-            d = pgexporter_append(d, "\",database=\"");
-            d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
-            d = pgexporter_append(d, "\",mode=\"");
-            d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(1, current)));
-            d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, get_value(&all->tag[0], pgexporter_get_column(1, current), pgexporter_get_column(2, current)));
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_vappend(data, 11,
+                                      "pgexporter_",
+                                      &all->tag[0],
+                                      "_count{server=\"",
+                                      &config->servers[current->server].name[0],
+                                      "\",database=\"",
+                                      safe_prometheus_key(pgexporter_get_column(0, current)),
+                                      "\",mode=\"",
+                                      safe_prometheus_key(pgexporter_get_column(1, current)),
+                                      "\"} ",
+                                      get_value(&all->tag[0], pgexporter_get_column(1, current), pgexporter_get_column(2, current)),
+                                      "\n"
+                                      );
 
             current = current->next;
          }
@@ -1624,7 +1559,6 @@ stat_bgwriter_information(int client_fd)
 {
    bool first;
    int ret;
-   char* d;
    char* data = NULL;
    struct query* all = NULL;
    struct query* query = NULL;
@@ -1655,46 +1589,39 @@ stat_bgwriter_information(int client_fd)
       {
          if (first)
          {
-            d = NULL;
-            d = pgexporter_append(d, "#HELP pgexporter_");
-            d = pgexporter_append(d, &all->tag[0]);
-            d = pgexporter_append(d, "_");
-            d = pgexporter_append(d, &all->names[i][0]);
-            d = pgexporter_append(d, " ");
-            d = pgexporter_append(d, &all->tag[0]);
-            d = pgexporter_append(d, "_");
-            d = pgexporter_append(d, &all->names[i][0]);
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
-
-            d = NULL;
-            d = pgexporter_append(d, "#TYPE pgexporter_");
-            d = pgexporter_append(d, &all->tag[0]);
-            d = pgexporter_append(d, "_");
-            d = pgexporter_append(d, &all->names[i][0]);
-            d = pgexporter_append(d, " gauge");
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_vappend(data, 14,
+                                      "#HELP pgexporter_",
+                                      &all->tag[0],
+                                      "_",
+                                      &all->names[i][0],
+                                      " ",
+                                      &all->tag[0],
+                                      "_",
+                                      &all->names[i][0],
+                                      "\n",
+                                      "#TYPE pgexporter_",
+                                      &all->tag[0],
+                                      "_",
+                                      &all->names[i][0],
+                                      " gauge\n"
+                                      );
 
             first = false;
          }
 
          while (current != NULL)
          {
-            d = NULL;
-            d = pgexporter_append(d, "pgexporter_");
-            d = pgexporter_append(d, &all->tag[0]);
-            d = pgexporter_append(d, "_");
-            d = pgexporter_append(d, &all->names[i][0]);
-            d = pgexporter_append(d, "{server=\"");
-            d = pgexporter_append(d, &config->servers[current->server].name[0]);
-            d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, get_value(&all->tag[0], pgexporter_get_column(i, current), pgexporter_get_column(i, current)));
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_vappend(data, 9,
+                                      "pgexporter_",
+                                      &all->tag[0],
+                                      "_",
+                                      &all->names[i][0],
+                                      "{server=\"",
+                                      &config->servers[current->server].name[0],
+                                      "\"} ",
+                                      get_value(&all->tag[0], pgexporter_get_column(i, current), pgexporter_get_column(i, current)),
+                                      "\n"
+                                      );
 
             current = current->next;
          }
@@ -1753,28 +1680,23 @@ stat_database_information(int client_fd)
       {
          if (first)
          {
-            d = NULL;
-            d = pgexporter_append(d, "#HELP pgexporter_");
-            d = pgexporter_append(d, &all->tag[0]);
-            d = pgexporter_append(d, "_");
-            d = pgexporter_append(d, &all->names[i][0]);
-            d = pgexporter_append(d, " ");
-            d = pgexporter_append(d, &all->tag[0]);
-            d = pgexporter_append(d, "_");
-            d = pgexporter_append(d, &all->names[i][0]);
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
-
-            d = NULL;
-            d = pgexporter_append(d, "#TYPE pgexporter_");
-            d = pgexporter_append(d, &all->tag[0]);
-            d = pgexporter_append(d, "_");
-            d = pgexporter_append(d, &all->names[i][0]);
-            d = pgexporter_append(d, " gauge");
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_vappend(data, 14,
+               "#HELP pgexporter_",
+               &all->tag[0],
+               "_",
+               &all->names[i][0],
+               " ",
+               &all->tag[0],
+               "_",
+               &all->names[i][0],
+               "\n",
+               //
+               "#TYPE pgexporter_",
+               &all->tag[0],
+               "_",
+               &all->names[i][0],
+               " gauge\n"
+            );
 
             first = false;
          }
@@ -1822,7 +1744,6 @@ stat_database_conflicts_information(int client_fd)
 {
    bool first;
    int ret;
-   char* d;
    char* data = NULL;
    struct query* all = NULL;
    struct query* query = NULL;
@@ -1853,48 +1774,41 @@ stat_database_conflicts_information(int client_fd)
       {
          if (first)
          {
-            d = NULL;
-            d = pgexporter_append(d, "#HELP pgexporter_");
-            d = pgexporter_append(d, &all->tag[0]);
-            d = pgexporter_append(d, "_");
-            d = pgexporter_append(d, &all->names[i][0]);
-            d = pgexporter_append(d, " ");
-            d = pgexporter_append(d, &all->tag[0]);
-            d = pgexporter_append(d, "_");
-            d = pgexporter_append(d, &all->names[i][0]);
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
-
-            d = NULL;
-            d = pgexporter_append(d, "#TYPE pgexporter_");
-            d = pgexporter_append(d, &all->tag[0]);
-            d = pgexporter_append(d, "_");
-            d = pgexporter_append(d, &all->names[i][0]);
-            d = pgexporter_append(d, " gauge");
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_vappend(data, 14,
+                                      "#HELP pgexporter_",
+                                      &all->tag[0],
+                                      "_",
+                                      &all->names[i][0],
+                                      " ",
+                                      &all->tag[0],
+                                      "_",
+                                      &all->names[i][0],
+                                      "\n",
+                                      "#TYPE pgexporter_",
+                                      &all->tag[0],
+                                      "_",
+                                      &all->names[i][0],
+                                      " gauge\n"
+                                      );
 
             first = false;
          }
 
          while (current != NULL)
          {
-            d = NULL;
-            d = pgexporter_append(d, "pgexporter_");
-            d = pgexporter_append(d, &all->tag[0]);
-            d = pgexporter_append(d, "_");
-            d = pgexporter_append(d, &all->names[i][0]);
-            d = pgexporter_append(d, "{server=\"");
-            d = pgexporter_append(d, &config->servers[current->server].name[0]);
-            d = pgexporter_append(d, "\",database=\"");
-            d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
-            d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, get_value(&all->tag[0], pgexporter_get_column(i, current), pgexporter_get_column(i, current)));
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_vappend(data, 11,
+                                      "pgexporter_",
+                                      &all->tag[0],
+                                      "_",
+                                      &all->names[i][0],
+                                      "{server=\"",
+                                      &config->servers[current->server].name[0],
+                                      "\",database=\"",
+                                      safe_prometheus_key(pgexporter_get_column(0, current)),
+                                      "\"} ",
+                                      get_value(&all->tag[0], pgexporter_get_column(i, current), pgexporter_get_column(i, current)),
+                                      "\n"
+                                      );
 
             current = current->next;
          }
@@ -1921,7 +1835,6 @@ static void
 settings_information(int client_fd)
 {
    int ret;
-   char* d;
    char* data = NULL;
    struct query* all = NULL;
    struct query* query = NULL;
@@ -1948,40 +1861,33 @@ settings_information(int client_fd)
       current = all->tuples;
       while (current != NULL)
       {
-         d = NULL;
-         d = pgexporter_append(d, "#HELP pgexporter_");
-         d = pgexporter_append(d, &all->tag[0]);
-         d = pgexporter_append(d, "_");
-         d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
-         d = pgexporter_append(d, " ");
-         d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(2, current)));
-         d = pgexporter_append(d, "\n");
-         data = pgexporter_append(data, d);
-         free(d);
-
-         d = NULL;
-         d = pgexporter_append(d, "#TYPE pgexporter_");
-         d = pgexporter_append(d, &all->tag[0]);
-         d = pgexporter_append(d, "_");
-         d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
-         d = pgexporter_append(d, " gauge");
-         d = pgexporter_append(d, "\n");
-         data = pgexporter_append(data, d);
-         free(d);
+         data = pgexporter_vappend(data, 12,
+                                   "#HELP pgexporter_",
+                                   &all->tag[0],
+                                   "_",
+                                   safe_prometheus_key(pgexporter_get_column(0, current)),
+                                   " ",
+                                   safe_prometheus_key(pgexporter_get_column(2, current)),
+                                   "\n",
+                                   "#TYPE pgexporter_",
+                                   &all->tag[0],
+                                   "_",
+                                   safe_prometheus_key(pgexporter_get_column(0, current)),
+                                   " gauge\n"
+                                   );
 
 data:
-         d = NULL;
-         d = pgexporter_append(d, "pgexporter_");
-         d = pgexporter_append(d, &all->tag[0]);
-         d = pgexporter_append(d, "_");
-         d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
-         d = pgexporter_append(d, "{server=\"");
-         d = pgexporter_append(d, &config->servers[current->server].name[0]);
-         d = pgexporter_append(d, "\"} ");
-         d = pgexporter_append(d, get_value(&all->tag[0], pgexporter_get_column(0, current), pgexporter_get_column(1, current)));
-         d = pgexporter_append(d, "\n");
-         data = pgexporter_append(data, d);
-         free(d);
+         data = pgexporter_vappend(data, 9,
+                                   "pgexporter_",
+                                   &all->tag[0],
+                                   "_",
+                                   safe_prometheus_key(pgexporter_get_column(0, current)),
+                                   "{server=\"",
+                                   &config->servers[current->server].name[0],
+                                   "\"} ",
+                                   get_value(&all->tag[0], pgexporter_get_column(0, current), pgexporter_get_column(1, current)),
+                                   "\n"
+                                   );
 
          if (current->next != NULL && !strcmp(pgexporter_get_column(0, current), pgexporter_get_column(0, current->next)))
          {
@@ -2020,7 +1926,6 @@ gauge_counter_information(struct prometheus* prom, int client_fd)
    bool first;
    int ret;
    int number_of_label;
-   char* d;
    char* data = NULL;
    struct query* all = NULL;
    struct query* query = NULL;
@@ -2081,32 +1986,42 @@ gauge_counter_information(struct prometheus* prom, int client_fd)
 
             while (current != NULL)
             {
-               d = NULL;
-               d = pgexporter_append(d, "pgexporter_");
-               d = pgexporter_append(d, all->tag);
+               data = pgexporter_vappend(data, 2,
+                                         "pgexporter_",
+                                         all->tag
+                                         );
+
                if (strlen(all->names[i]) > 0)
                {
-                  d = pgexporter_append(d, "_");
-                  d = pgexporter_append(d, all->names[i]);
+                  data = pgexporter_vappend(data, 2,
+                                            "_",
+                                            all->names[i]
+                                            );
                }
-               d = pgexporter_append(d, "{server=\"");
-               d = pgexporter_append(d, &config->servers[current->server].name[0]);
-               d = pgexporter_append(d, "\"");
+
+               data = pgexporter_vappend(data, 3,
+                                         "{server=\"",
+                                         &config->servers[current->server].name[0],
+                                         "\""
+                                         );
 
                /* handle label */
                for (int j = 0; j < number_of_label; j++)
                {
-                  d = pgexporter_append(d, ",");
-                  d = pgexporter_append(d, prom->columns[j].name);
-                  d = pgexporter_append(d, "=\"");
-                  d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(j, current)));
-                  d = pgexporter_append(d, "\"");
+                  data = pgexporter_vappend(data, 5,
+                                            ",",
+                                            prom->columns[j].name,
+                                            "=\"",
+                                            safe_prometheus_key(pgexporter_get_column(j, current)),
+                                            "\""
+                                            );
                }
-               d = pgexporter_append(d, "} ");
-               d = pgexporter_append(d, get_value(all->tag, pgexporter_get_column(i, current), pgexporter_get_column(i, current)));
-               d = pgexporter_append(d, "\n");
-               data = pgexporter_append(data, d);
-               free(d);
+
+               data = pgexporter_vappend(data, 3,
+                                         "} ",
+                                         get_value(all->tag, pgexporter_get_column(i, current), pgexporter_get_column(i, current)),
+                                         "\n"
+                                         );
 
                current = current->next;
             }
@@ -2141,7 +2056,6 @@ histogram_information(struct prometheus* prom, int client_fd)
    char* bounds_arr[MAX_ARR_LENGTH];
    char* buckets_arr[MAX_ARR_LENGTH];
    char* data = NULL;
-   char* d = NULL;
    char* bounds_str = NULL;
    char* buckets_str = NULL;
    struct query* all = NULL;
@@ -2166,13 +2080,21 @@ histogram_information(struct prometheus* prom, int client_fd)
    }
 
    /* generate column names X_sum, X_count,X, X_bucket*/
-   names[0] = pgexporter_append(names[0], prom->columns[histogram_idx].name);
-   names[0] = pgexporter_append(names[0], "_sum");
-   names[1] = pgexporter_append(names[1], prom->columns[histogram_idx].name);
-   names[1] = pgexporter_append(names[1], "_count");
-   names[2] = pgexporter_append(names[2], prom->columns[histogram_idx].name);
-   names[3] = pgexporter_append(names[3], prom->columns[histogram_idx].name);
-   names[3] = pgexporter_append(names[3], "_bucket");
+   names[0] = pgexporter_vappend(names[0], 2,
+                                 prom->columns[histogram_idx].name,
+                                 "_sum"
+                                 );
+   names[1] = pgexporter_vappend(names[1], 2,
+                                 prom->columns[histogram_idx].name,
+                                 "_count"
+                                 );
+   names[2] = pgexporter_vappend(names[2], 1,
+                                 prom->columns[histogram_idx].name
+                                 );
+   names[3] = pgexporter_vappend(names[3], 2,
+                                 prom->columns[histogram_idx].name,
+                                 "_bucket"
+                                 );
 
    for (int server = 0; server < config->number_of_servers; server++)
    {
@@ -2208,8 +2130,6 @@ histogram_information(struct prometheus* prom, int client_fd)
 
          while (current != NULL)
          {
-            d = NULL;
-
             /* bucket */
             bounds_str = pgexporter_get_column_by_name(names[2], all, current);
             parse_list(bounds_str, bounds_arr, &n_bounds);
@@ -2219,91 +2139,115 @@ histogram_information(struct prometheus* prom, int client_fd)
 
             for (int i = 0; i < n_bounds; i++)
             {
-               d = NULL;
-               d = pgexporter_append(d, "pgexporter_");
-               d = pgexporter_append(d, prom->tag);
-               d = pgexporter_append(d, "_bucket{le=\"");
-               d = pgexporter_append(d, bounds_arr[i]);
-               d = pgexporter_append(d, "\",");
-               d = pgexporter_append(d, "server=\"");
-               d = pgexporter_append(d, &config->servers[current->server].name[0]);
-               d = pgexporter_append(d, "\"");
+               data = pgexporter_vappend(data, 8,
+                                         "pgexporter_",
+                                         prom->tag,
+                                         "_bucket{le=\"",
+                                         bounds_arr[i],
+                                         "\",",
+                                         "server=\"",
+                                         &config->servers[current->server].name[0],
+                                         "\""
+                                         );
+
                for (int j = 0; j < histogram_idx; j++)
                {
-                  d = pgexporter_append(d, ",");
-                  d = pgexporter_append(d, prom->columns[j].name);
-                  d = pgexporter_append(d, "=\"");
-                  d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(j, current)));
-                  d = pgexporter_append(d, "\"");
+                  data = pgexporter_vappend(data, 5,
+                                            ",",
+                                            prom->columns[j].name,
+                                            "=\"",
+                                            safe_prometheus_key(pgexporter_get_column(j, current)),
+                                            "\""
+                                            );
                }
-               d = pgexporter_append(d, "} ");
-               d = pgexporter_append(d, buckets_arr[i]);
-               d = pgexporter_append(d, "\n");
-               data = pgexporter_append(data, d);
-               free(d);
+
+               data = pgexporter_vappend(data, 3,
+                                         "} ",
+                                         buckets_arr[i],
+                                         "\n"
+                                         );
             }
 
-            d = NULL;
-            d = pgexporter_append(d, "pgexporter_");
-            d = pgexporter_append(d, prom->tag);
-            d = pgexporter_append(d, "_bucket{le=\"+Inf\",");
-            d = pgexporter_append(d, "server=\"");
-            d = pgexporter_append(d, &config->servers[current->server].name[0]);
-            d = pgexporter_append(d, "\"");
+            data = pgexporter_vappend(data, 6,
+                                      "pgexporter_",
+                                      prom->tag,
+                                      "_bucket{le=\"+Inf\",",
+                                      "server=\"",
+                                      &config->servers[current->server].name[0],
+                                      "\""
+                                      );
+
             for (int j = 0; j < histogram_idx; j++)
             {
-               d = pgexporter_append(d, ",");
-               d = pgexporter_append(d, prom->columns[j].name);
-               d = pgexporter_append(d, "=\"");
-               d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(j, current)));
-               d = pgexporter_append(d, "\"");
+               data = pgexporter_vappend(data, 5,
+                                         ",",
+                                         prom->columns[j].name,
+                                         "=\"",
+                                         safe_prometheus_key(pgexporter_get_column(j, current)),
+                                         "\""
+                                         );
             }
-            d = pgexporter_append(d, "} ");
 
-            d = pgexporter_append(d, pgexporter_get_column_by_name(names[1], all, current));
-            d = pgexporter_append(d, "\n");
+            data = pgexporter_vappend(data, 3,
+                                      "} ",
+                                      pgexporter_get_column_by_name(names[1], all, current),
+                                      "\n"
+                                      );
 
             /* sum */
-            d = pgexporter_append(d, "pgexporter_");
-            d = pgexporter_append(d, prom->tag);
-            d = pgexporter_append(d, "_sum");
-            d = pgexporter_append(d, "{server=\"");
-            d = pgexporter_append(d, &config->servers[current->server].name[0]);
-            d = pgexporter_append(d, "\"");
+            data = pgexporter_vappend(data, 6,
+                                      "pgexporter_",
+                                      prom->tag,
+                                      "_sum",
+                                      "{server=\"",
+                                      &config->servers[current->server].name[0],
+                                      "\""
+                                      );
+
             for (int j = 0; j < histogram_idx; j++)
             {
-               d = pgexporter_append(d, ",");
-               d = pgexporter_append(d, prom->columns[j].name);
-               d = pgexporter_append(d, "=\"");
-               d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(j, current)));
-               d = pgexporter_append(d, "\"");
+               data = pgexporter_vappend(data, 5,
+                                         ",",
+                                         prom->columns[j].name,
+                                         "=\"",
+                                         safe_prometheus_key(pgexporter_get_column(j, current)),
+                                         "\""
+                                         );
             }
-            d = pgexporter_append(d, "} ");
-            d = pgexporter_append(d, pgexporter_get_column_by_name(names[0], all, current));
-            d = pgexporter_append(d, "\n");
+
+            data = pgexporter_vappend(data, 3,
+                                      "} ",
+                                      pgexporter_get_column_by_name(names[0], all, current),
+                                      "\n"
+                                      );
 
             /* count */
-            d = pgexporter_append(d, "pgexporter_");
-            d = pgexporter_append(d, prom->tag);
-            d = pgexporter_append(d, "_count");
-            d = pgexporter_append(d, "{server=\"");
-            d = pgexporter_append(d, &config->servers[current->server].name[0]);
-            d = pgexporter_append(d, "\"");
+            data = pgexporter_vappend(data, 6,
+                                      "pgexporter_",
+                                      prom->tag,
+                                      "_count",
+                                      "{server=\"",
+                                      &config->servers[current->server].name[0],
+                                      "\""
+                                      );
+
             for (int j = 0; j < histogram_idx; j++)
             {
-               d = pgexporter_append(d, ",");
-               d = pgexporter_append(d, prom->columns[j].name);
-               d = pgexporter_append(d, "=\"");
-               d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(j, current)));
-               d = pgexporter_append(d, "\"");
+               data = pgexporter_vappend(data, 5,
+                                         ",",
+                                         prom->columns[j].name,
+                                         "=\"",
+                                         safe_prometheus_key(pgexporter_get_column(j, current)),
+                                         "\""
+                                         );
             }
-            d = pgexporter_append(d, "} ");
 
-            d = pgexporter_append(d, pgexporter_get_column_by_name(names[1], all, current));
-            d = pgexporter_append(d, "\n");
+            data = pgexporter_vappend(data, 3,
+                                      "} ",
+                                      pgexporter_get_column_by_name(names[1], all, current),
+                                      "\n"
+                                      );
 
-            data = pgexporter_append(data, d);
-            free(d);
             current = current->next;
          }
 
@@ -2339,68 +2283,74 @@ histogram_information(struct prometheus* prom, int client_fd)
 static void
 append_help_info(char** data, char* tag, char* name, char* description)
 {
-   char* d;
+   *data = pgexporter_vappend(*data, 2,
+                              "#HELP pgexporter_",
+                              tag
+                              );
 
-   d = NULL;
-   d = pgexporter_append(d, "#HELP pgexporter_");
-   d = pgexporter_append(d, tag);
    if (strlen(name) > 0)
    {
-      d = pgexporter_append(d, "_");
-      d = pgexporter_append(d, name);
+      *data = pgexporter_vappend(*data, 2,
+                                 "_",
+                                 name
+                                 );
    }
-   d = pgexporter_append(d, " ");
+
+   *data = pgexporter_append(*data, " ");
 
    if (description != NULL && strcmp("", description))
    {
-      d = pgexporter_append(d, description);
+      *data = pgexporter_append(*data, description);
    }
    else
    {
-      d = pgexporter_append(d, "pgexporter_");
-      d = pgexporter_append(d, tag);
+      *data = pgexporter_vappend(*data, 2,
+                                 "pgexporter_",
+                                 tag
+                                 );
+
       if (strlen(name) > 0)
       {
-         d = pgexporter_append(d, "_");
-         d = pgexporter_append(d, name);
+         *data = pgexporter_vappend(*data, 2,
+                                    "_",
+                                    name
+                                    );
       }
    }
 
-   d = pgexporter_append(d, "\n");
-   *data = pgexporter_append(*data, d);
-   free(d);
+   *data = pgexporter_append(*data, "\n");
 }
 
 static void
 append_type_info(char** data, char* tag, char* name, int typeId)
 {
-   char* d;
+   *data = pgexporter_vappend(*data, 2,
+                              "#TYPE pgexporter_",
+                              tag
+                              );
 
-   d = NULL;
-   d = pgexporter_append(d, "#TYPE pgexporter_");
-   d = pgexporter_append(d, tag);
    if (strlen(name) > 0)
    {
-      d = pgexporter_append(d, "_");
-      d = pgexporter_append(d, name);
+      *data = pgexporter_vappend(*data, 2,
+                                 "_",
+                                 name
+                                 );
    }
 
    if (typeId == GAUGE_TYPE)
    {
-      d = pgexporter_append(d, " gauge");
+      *data = pgexporter_append(*data, " gauge");
    }
    else if (typeId == COUNTER_TYPE)
    {
-      d = pgexporter_append(d, " counter");
+      *data = pgexporter_append(*data, " counter");
    }
    else if (typeId == HISTOGRAM_TYPE)
    {
-      d = pgexporter_append(d, " histogram");
+      *data = pgexporter_append(*data, " histogram");
    }
 
-   d = pgexporter_append(d, "\n");
-   *data = pgexporter_append(*data, d);
-   free(d);
+   *data = pgexporter_append(*data, "\n");
 }
 
 static int
@@ -2417,8 +2367,10 @@ send_chunk(int client_fd, char* data)
 
    sprintf(m, "%lX\r\n", strlen(data));
 
-   m = pgexporter_append(m, data);
-   m = pgexporter_append(m, "\r\n");
+   m = pgexporter_vappend(m, 2,
+                          data,
+                          "\r\n"
+                          );
 
    msg.kind = 0;
    msg.length = strlen(m);
