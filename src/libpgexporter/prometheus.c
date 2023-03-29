@@ -500,7 +500,6 @@ retry_cache_locking:
          metrics_cache_finalize();
       }
 
-
       // free the cache
       atomic_store(&cache->lock, STATE_FREE);
    }
@@ -1690,7 +1689,6 @@ stat_database_information(int client_fd)
                "_",
                &all->names[i][0],
                "\n",
-               //
                "#TYPE pgexporter_",
                &all->tag[0],
                "_",
@@ -2387,21 +2385,33 @@ static int
 parse_list(char* list_str, char** strs, int* n_strs)
 {
    int idx = 0;
-   char* data;
-   char* p;
+   char* data = NULL;
+   char* p = NULL;
    int len = strlen(list_str);
 
-   data = (char*) malloc(len * sizeof(char));
-   memset(data, 0, len * sizeof(char));
+   /**
+    * If the `list_str` is `{c1,c2,c3,...,cn}`, and if the `strlen(list_str)`
+    * is `x`, then it takes `x + 1` bytes in memory including the null character.
+    *
+    * `data` will have `list_str` without the first and last bracket (so `data` will
+    * just be `c1,c2,c3,...,cn`) and thus `strlen(data)` will be `x - 2`, and
+    * so will take `x - 1` bytes in memory including the null character.
+    */
+   data = (char*) malloc((len - 1) * sizeof(char));
+   memset(data, 0, (len - 1) * sizeof(char));
+
+   /**
+    * If list_str is `{c1,c2,c3,...,cn}`, then and if `len(list_str)` is `len`
+    * then this starts from `c1`, and goes for `len - 2`, so till `cn`, so the
+    * `data` string becomes `c1,c2,c3,...,cn`
+    */
    strncpy(data, list_str + 1, len - 2);
 
    p = strtok(data, ",");
    while (p)
    {
-      len = strlen(p);
-      strs[idx] = (char*) malloc((len + 1) * sizeof(char));
-      memset(strs[idx], 0, (len + 1) * sizeof(char));
-      strncpy(strs[idx], p, len);
+      strs[idx] = NULL;
+      strs[idx] = pgexporter_append(strs[idx], p);
       idx++;
       p = strtok(NULL, ",");
    }
