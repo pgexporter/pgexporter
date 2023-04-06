@@ -1648,7 +1648,6 @@ stat_database_information(int client_fd)
 {
    bool first;
    int ret;
-   char* d;
    char* data = NULL;
    struct query* all = NULL;
    struct query* query = NULL;
@@ -1680,41 +1679,40 @@ stat_database_information(int client_fd)
          if (first)
          {
             data = pgexporter_vappend(data, 14,
-               "#HELP pgexporter_",
-               &all->tag[0],
-               "_",
-               &all->names[i][0],
-               " ",
-               &all->tag[0],
-               "_",
-               &all->names[i][0],
-               "\n",
-               "#TYPE pgexporter_",
-               &all->tag[0],
-               "_",
-               &all->names[i][0],
-               " gauge\n"
-            );
+                                      "#HELP pgexporter_",
+                                      &all->tag[0],
+                                      "_",
+                                      &all->names[i][0],
+                                      " ",
+                                      &all->tag[0],
+                                      "_",
+                                      &all->names[i][0],
+                                      "\n",
+                                      "#TYPE pgexporter_",
+                                      &all->tag[0],
+                                      "_",
+                                      &all->names[i][0],
+                                      " gauge\n"
+                                      );
 
             first = false;
          }
 
          while (current != NULL)
          {
-            d = NULL;
-            d = pgexporter_append(d, "pgexporter_");
-            d = pgexporter_append(d, &all->tag[0]);
-            d = pgexporter_append(d, "_");
-            d = pgexporter_append(d, &all->names[i][0]);
-            d = pgexporter_append(d, "{server=\"");
-            d = pgexporter_append(d, &config->servers[current->server].name[0]);
-            d = pgexporter_append(d, "\",database=\"");
-            d = pgexporter_append(d, safe_prometheus_key(pgexporter_get_column(0, current)));
-            d = pgexporter_append(d, "\"} ");
-            d = pgexporter_append(d, get_value(&all->tag[0], pgexporter_get_column(i, current), pgexporter_get_column(i, current)));
-            d = pgexporter_append(d, "\n");
-            data = pgexporter_append(data, d);
-            free(d);
+            data = pgexporter_vappend(data, 11,
+                                      "pgexporter_",
+                                      &all->tag[0],
+                                      "_",
+                                      &all->names[i][0],
+                                      "{server=\"",
+                                      &config->servers[current->server].name[0],
+                                      "\",database=\"",
+                                      safe_prometheus_key(pgexporter_get_column(0, current)),
+                                      "\"} ",
+                                      get_value(&all->tag[0], pgexporter_get_column(i, current), pgexporter_get_column(i, current)),
+                                      "\n"
+                                      );
 
             current = current->next;
          }
