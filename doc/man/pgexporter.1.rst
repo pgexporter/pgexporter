@@ -30,8 +30,14 @@ OPTIONS
 -A, --admins ADMINS_FILE
   Set the path to the pgexporter_admins.conf file
 
+-Y, --yaml METRICS_FILE_DIR
+  Set the path to YAML file/directory
+
 -d, --daemon
   Run as a daemon
+
+-C, --colectors NAME_1,NAME_2,...,NAME_N
+  Enable only specific collectors
 
 -V, --version
   Display version information

@@ -651,7 +651,7 @@ version_information(int client_fd)
       {
          data = pgexporter_vappend(data, 2,
                                    "#HELP pgexporter_postgresql_version The PostgreSQL version\n",
-                                   "#TYPE pgexporter_postgresql_version gauge"
+                                   "#TYPE pgexporter_postgresql_version gauge\n"
                                    );
 
          server = 0;
@@ -838,6 +838,11 @@ disk_space_information(int client_fd)
    struct configuration* config;
 
    config = (struct configuration*)shmem;
+
+   if (!(config->collectors & FLAG_EXTENSION))
+   {
+      return;
+   }
 
    /* data/used */
    for (int server = 0; server < config->number_of_servers; server++)
@@ -1169,7 +1174,6 @@ core_information(int client_fd)
 
    data = pgexporter_vappend(data, 6,
                              "#HELP pgexporter_version The pgexporter version\n",
-                             //
                              "#TYPE pgexporter_version gauge\n",
                              "pgexporter_version{pgexporter_version=\"",
                              VERSION,
@@ -1194,6 +1198,11 @@ extension_information(int client_fd)
    struct configuration* config;
 
    config = (struct configuration*)shmem;
+
+   if (!(config->collectors & FLAG_EXTENSION))
+   {
+      return;
+   }
 
    for (int server = 0; query == NULL && server < config->number_of_servers; server++)
    {
@@ -1269,7 +1278,6 @@ extension_function(int client_fd, char* function, char* description, char* type)
                                       " ",
                                       description,
                                       "\n",
-                                      //
                                       "#TYPE ",
                                       function,
                                       " ",
@@ -1350,6 +1358,11 @@ database_information(int client_fd)
 
    config = (struct configuration*)shmem;
 
+   if (!(config->collectors & FLAG_DB))
+   {
+      return;
+   }
+
    for (int server = 0; server < config->number_of_servers; server++)
    {
       if (config->servers[server].fd != -1)
@@ -1421,6 +1434,11 @@ replication_information(int client_fd)
 
    config = (struct configuration*)shmem;
 
+   if (!(config->collectors & FLAG_REPLICATION))
+   {
+      return;
+   }
+
    for (int server = 0; server < config->number_of_servers; server++)
    {
       if (config->servers[server].fd != -1)
@@ -1491,6 +1509,11 @@ locks_information(int client_fd)
    struct configuration* config;
 
    config = (struct configuration*)shmem;
+
+   if (!(config->collectors & FLAG_LOCKS))
+   {
+      return;
+   }
 
    for (int server = 0; server < config->number_of_servers; server++)
    {
@@ -1565,6 +1588,12 @@ stat_bgwriter_information(int client_fd)
    struct configuration* config;
 
    config = (struct configuration*)shmem;
+
+   if (!(config->collectors & FLAG_STAT_BGWRITER))
+   {
+      return;
+   }
+
    for (int server = 0; server < config->number_of_servers; server++)
    {
       if (config->servers[server].fd != -1)
@@ -1655,6 +1684,12 @@ stat_database_information(int client_fd)
    struct configuration* config;
 
    config = (struct configuration*)shmem;
+
+   if (!(config->collectors & FLAG_STAT_DB))
+   {
+      return;
+   }
+
    for (int server = 0; server < config->number_of_servers; server++)
    {
       if (config->servers[server].fd != -1)
@@ -1747,6 +1782,12 @@ stat_database_conflicts_information(int client_fd)
    struct configuration* config;
 
    config = (struct configuration*)shmem;
+
+   if (!(config->collectors & FLAG_STAT_CONFLICTS))
+   {
+      return;
+   }
+
    for (int server = 0; server < config->number_of_servers; server++)
    {
       if (config->servers[server].fd != -1)
@@ -1838,6 +1879,11 @@ settings_information(int client_fd)
    struct configuration* config;
 
    config = (struct configuration*)shmem;
+
+   if (!(config->collectors & FLAG_SETTINGS))
+   {
+      return;
+   }
 
    for (int server = 0; server < config->number_of_servers; server++)
    {

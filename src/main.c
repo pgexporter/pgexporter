@@ -194,13 +194,14 @@ usage(void)
    printf("  pgexporter [ -c CONFIG_FILE ] [ -u USERS_FILE ] [ -d ]\n");
    printf("\n");
    printf("Options:\n");
-   printf("  -c, --config CONFIG_FILE    Set the path to the pgexporter.conf file\n");
-   printf("  -u, --users USERS_FILE      Set the path to the pgexporter_users.conf file\n");
-   printf("  -A, --admins ADMINS_FILE    Set the path to the pgexporter_admins.conf file\n");
-   printf("  -Y, --yaml METRICS_FILE_DIR Set the path to YAML file/directory\n");
-   printf("  -d, --daemon                Run as a daemon\n");
-   printf("  -V, --version               Display version information\n");
-   printf("  -?, --help                  Display help\n");
+   printf("  -c, --config CONFIG_FILE                    Set the path to the pgexporter.conf file\n");
+   printf("  -u, --users USERS_FILE                      Set the path to the pgexporter_users.conf file\n");
+   printf("  -A, --admins ADMINS_FILE                    Set the path to the pgexporter_admins.conf file\n");
+   printf("  -Y, --yaml METRICS_FILE_DIR                 Set the path to YAML file/directory\n");
+   printf("  -d, --daemon                                Run as a daemon\n");
+   printf("  -C, --collectors NAME_1,NAME_2,...,NAME_N   Enable only specific collectors\n");
+   printf("  -V, --version                               Display version information\n");
+   printf("  -?, --help                                  Display help\n");
    printf("\n");
    printf("pgexporter: %s\n", PGEXPORTER_HOMEPAGE);
    printf("Report bugs: %s\n", PGEXPORTER_ISSUES);
@@ -213,6 +214,8 @@ main(int argc, char** argv)
    char* users_path = NULL;
    char* admins_path = NULL;
    char* yaml_path = NULL;
+   char* collector = NULL;
+   short int collector_flags = FLAG_ALL;
    bool daemon = false;
    pid_t pid, sid;
    struct signal_info signal_watcher[5];
@@ -234,11 +237,13 @@ main(int argc, char** argv)
          {"yaml", required_argument, 0, 'Y'},
          {"daemon", no_argument, 0, 'd'},
          {"version", no_argument, 0, 'V'},
-         {"help", no_argument, 0, '?'}
+         {"help", no_argument, 0, '?'},
+         {"collectors", required_argument, 0, 'C'},
+         {0, 0, 0, 0}
       };
       int option_index = 0;
 
-      c = getopt_long (argc, argv, "dV?c:u:A:Y:",
+      c = getopt_long (argc, argv, "dV?c:u:A:Y:C:",
                        long_options, &option_index);
 
       if (c == -1)
@@ -265,6 +270,48 @@ main(int argc, char** argv)
             break;
          case 'V':
             version();
+            break;
+         case 'C':
+            /* If a flag is set, it means it is exposed as a metric */
+
+            collector = optarg;
+            collector_flags = FLAG_GENERAL;
+
+            while ((collector = strtok_r(optarg, ",", &optarg)) != NULL)
+            {
+               if (!strcmp(collector, "db"))
+               {
+                  collector_flags |= FLAG_DB;
+               }
+               else if (!strcmp(collector, "locks"))
+               {
+                  collector_flags |= FLAG_LOCKS;
+               }
+               else if (!strcmp(collector, "replication"))
+               {
+                  collector_flags |= FLAG_REPLICATION;
+               }
+               else if (!strcmp(collector, "stat_bgwriter"))
+               {
+                  collector_flags |= FLAG_STAT_BGWRITER;
+               }
+               else if (!strcmp(collector, "stat_db"))
+               {
+                  collector_flags |= FLAG_STAT_DB;
+               }
+               else if (!strcmp(collector, "stat_conflicts"))
+               {
+                  collector_flags |= FLAG_STAT_CONFLICTS;
+               }
+               else if (!strcmp(collector, "settings"))
+               {
+                  collector_flags |= FLAG_SETTINGS;
+               }
+               else if (!strcmp(collector, "extension"))
+               {
+                  collector_flags |= FLAG_EXTENSION;
+               }
+            }
             break;
          case '?':
             usage();
@@ -296,6 +343,7 @@ main(int argc, char** argv)
 
    pgexporter_init_configuration(shmem);
    config = (struct configuration*)shmem;
+   config->collectors = collector_flags;
 
    if (configuration_path != NULL)
    {

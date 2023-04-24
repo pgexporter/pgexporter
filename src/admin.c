@@ -128,7 +128,8 @@ main(int argc, char** argv)
          {"generate", no_argument, 0, 'g'},
          {"length", required_argument, 0, 'l'},
          {"version", no_argument, 0, 'V'},
-         {"help", no_argument, 0, '?'}
+         {"help", no_argument, 0, '?'},
+         {0, 0, 0, 0}
       };
 
       c = getopt_long(argc, argv, "gV?f:U:P:l:",

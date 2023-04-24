@@ -114,6 +114,18 @@ extern "C" {
 #define UPDATE_PROCESS_TITLE_MINIMAL 2
 #define UPDATE_PROCESS_TITLE_VERBOSE 3
 
+/* Bit Masks for Metrics Collectors flags */
+#define FLAG_GENERAL          1 << 0
+#define FLAG_DB               1 << 1
+#define FLAG_LOCKS            1 << 2
+#define FLAG_REPLICATION      1 << 3
+#define FLAG_STAT_BGWRITER    1 << 4
+#define FLAG_STAT_DB          1 << 5
+#define FLAG_STAT_CONFLICTS   1 << 6
+#define FLAG_SETTINGS         1 << 7
+#define FLAG_EXTENSION        1 << 8
+#define FLAG_ALL              (1 << 9) - 1
+
 #define likely(x)    __builtin_expect (!!(x), 1)
 #define unlikely(x)  __builtin_expect (!!(x), 0)
 
@@ -266,6 +278,7 @@ struct configuration
    int metrics_cache_max_age;  /**< Number of seconds to cache the Prometheus response */
    int metrics_cache_max_size; /**< Number of bytes max to cache the Prometheus response */
    int management;             /**< The management port */
+   short int collectors;       /**< Flag for collectors */
 
    bool cache; /**< Cache connection */
 

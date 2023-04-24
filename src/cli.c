@@ -146,7 +146,8 @@ main(int argc, char** argv)
          {"logfile", required_argument, 0, 'L'},
          {"verbose", no_argument, 0, 'v'},
          {"version", no_argument, 0, 'V'},
-         {"help", no_argument, 0, '?'}
+         {"help", no_argument, 0, '?'},
+         {0, 0, 0, 0}
       };
 
       c = getopt_long(argc, argv, "vV?c:h:p:U:P:L:",

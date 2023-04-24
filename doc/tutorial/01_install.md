@@ -145,6 +145,39 @@ pgexporter -c pgexporter.conf -u pgexporter_users.conf
 
 (`pgexporter` user)
 
+## Metrics Collectors
+
+|Name|Metrics Collector|
+|---|---|
+|general|General|
+|db|pg_database|
+|locks|pg_locks|
+|replication|pg_replication_slots|
+|stat_bgwriter|pg_stat_bgwriter|
+|stat_db|pg_stat_database|
+|stat_conflicts|pg_stat_database_conflicts|
+|settings|pg_settings|
+|extension|[pgexporter_ext](https://github.com/pgexporter/pgexporter_ext) metric collector|
+
+The metrics exposed by the corresponding metrics collectors can be found [here](https://pgexporter.github.io/metrics.html)
+
+Some metrics collectors can be enabled using:
+```sh
+pgexporter -c pgexporter.conf -u pgexporter_users.conf -C name_1,name_2,...,name_n
+
+# or
+
+pgexporter -c pgexporter.conf -u pgexporter_users.conf --collectors name_1,name_2,...,name_n
+```
+where `name_1`, `name_2` and `name_n` can be one of the `names` of metric collectors.
+
+eg.
+```sh
+pgexporter -c pgexporter.conf -u pgexporter_users.conf -C db,locks,replication
+```
+
+By default all metrics are enabled. But, if `-C` or `--collectors` is specified, then all of the default metrics collectors except `general` are turned off and the user has to specify which they want to enable.
+
 ## View metrics
 
 In another terminal

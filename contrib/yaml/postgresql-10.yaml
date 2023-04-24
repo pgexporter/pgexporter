@@ -7,7 +7,7 @@
     server: primary
     sort: name
     columns:
-      - 
+      -
         description: Is the PostgreSQL instance the primary
         type: gauge
 
@@ -17,11 +17,11 @@
     query: SELECT datname, pg_database_size(datname) FROM pg_database;
     tag: pg_database_size
     sort: data
-    columns: 
-      - 
+    columns:
+      -
         name: database
         type: label
-      - 
+      -
         description: Size of the database
         type: gauge
 
@@ -32,22 +32,22 @@
     tag: pg_replication_slots
     sort: data
     columns:
-      - 
+      -
         name: slot_name
-        type: label 
-      - 
+        type: label
+      -
         description: Is the replication active
         name: active
         type: gauge
-      - 
+      -
         description: Is the replication temporary
         name: temporary
         type: gauge
 
 # locks_information()
   -
-    query: SELECT pg_database.datname as database, tmp.mode, COALESCE(count, 0) as count 
-                        FROM 
+    query: SELECT pg_database.datname as database, tmp.mode, COALESCE(count, 0) as count
+                        FROM
                         (
                          VALUES ('accesssharelock'),
                                 ('rowsharelock'),
@@ -58,12 +58,12 @@
                                 ('exclusivelock'),
                                 ('accessexclusivelock'),
                                 ('sireadlock')
-                        ) AS tmp(mode) CROSS JOIN pg_database 
-                        LEFT JOIN 
-                        (SELECT database, lower(mode) AS mode, count(*) AS count 
-                         FROM pg_locks WHERE database IS NOT NULL 
-                         GROUP BY database, lower(mode) 
-                        ) AS tmp2 
+                        ) AS tmp(mode) CROSS JOIN pg_database
+                        LEFT JOIN
+                        (SELECT database, lower(mode) AS mode, count(*) AS count
+                         FROM pg_locks WHERE database IS NOT NULL
+                         GROUP BY database, lower(mode)
+                        ) AS tmp2
                         ON tmp.mode = tmp2.mode and pg_database.oid = tmp2.database ORDER BY 1, 2;
     tag: pg_locks_count
     sort: data
@@ -71,19 +71,19 @@
       -
         name: database
         type: label
-      - 
+      -
         name: mode
         type: label
-      - 
+      -
         description: Lock count of a database
         type: gauge
 
-# stat_bgwriter_information() 
+# stat_bgwriter_information()
   -
-    query: SELECT buffers_alloc, buffers_backend, buffers_backend_fsync, 
-                        buffers_checkpoint, buffers_clean, checkpoint_sync_time, 
-                        checkpoint_write_time, checkpoints_req, checkpoints_timed, 
-                        maxwritten_clean 
+    query: SELECT buffers_alloc, buffers_backend, buffers_backend_fsync,
+                        buffers_checkpoint, buffers_clean, checkpoint_sync_time,
+                        checkpoint_write_time, checkpoints_req, checkpoints_timed,
+                        maxwritten_clean
                         FROM pg_stat_bgwriter;
     tag: pg_stat_bgwriter
     sort: name
@@ -131,12 +131,12 @@
 
 # stat_database_information()
   -
-    query:  SELECT datname, blk_read_time, blk_write_time, 
-                        blks_hit, blks_read, 
-                        deadlocks, temp_files, temp_bytes, 
-                        tup_returned, tup_fetched, tup_inserted, 
-                        tup_updated, tup_deleted, xact_commit, 
-                        xact_rollback, conflicts, numbackends 
+    query:  SELECT datname, blk_read_time, blk_write_time,
+                        blks_hit, blks_read,
+                        deadlocks, temp_files, temp_bytes,
+                        tup_returned, tup_fetched, tup_inserted,
+                        tup_updated, tup_deleted, xact_commit,
+                        xact_rollback, conflicts, numbackends
                         FROM pg_stat_database WHERE datname IS NOT NULL ORDER BY datname;
     tag: pg_stat_database
     sort: data
@@ -144,7 +144,7 @@
       -
         name: database
         type: label
-      - 
+      -
         name: blk_read_time
         type: gauge
         description: pg_stat_database_blk_read_time
@@ -152,7 +152,7 @@
         name: blk_write_time
         type: gauge
         description: pg_stat_database_blk_write_time
-      - 
+      -
         name: blks_hit
         type: gauge
         description: pg_stat_database_blks_hit
@@ -164,7 +164,7 @@
         name: deadlocks
         type: gauge
         description: pg_stat_database_deadlocks
-      - 
+      -
         name: temp_files
         type: gauge
         description: pg_stat_database_temp_files
@@ -189,7 +189,7 @@
         type: gauge
         description: pg_stat_database_tup_updated
       -
-        name: tup_deleted 
+        name: tup_deleted
         type: gauge
         description: pg_stat_database_tup_deleted
       -
@@ -211,20 +211,20 @@
 
 # stat_database_conflicts_information()
   -
-    query: SELECT datname, confl_tablespace, confl_lock, 
-                      confl_snapshot, confl_bufferpin, confl_deadlock 
+    query: SELECT datname, confl_tablespace, confl_lock,
+                      confl_snapshot, confl_bufferpin, confl_deadlock
                       FROM pg_stat_database_conflicts WHERE datname IS NOT NULL ORDER BY datname;
     tag: pg_stat_database_conflicts
     sort: data
-    columns: 
-      - 
+    columns:
+      -
         name: database
         type: label
       -
         name: confl_tablespace
         type: gauge
         description: pg_stat_database_conflicts_confl_tablespace
-      - 
+      -
         name: confl_lock
         type: gauge
         description: pg_stat_database_conflicts_confl_lock
@@ -279,11 +279,11 @@
       FROM metrics JOIN buckets USING (application_name)
       GROUP BY 1, 2, 3;
     tag: pg_process_idle_seconds
-    columns: 
+    columns:
       -
         name: application_name
         type: label
-      - 
+      -
         name: seconds
         type: histogram
         description: Histogram of idle processes
