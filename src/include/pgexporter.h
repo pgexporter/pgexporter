@@ -61,12 +61,13 @@ extern "C" {
 #define MAX_USERNAME_LENGTH  128
 #define MAX_PASSWORD_LENGTH 1024
 
-#define MAX_PATH 1024
-#define MISC_LENGTH 128
-#define NUMBER_OF_SERVERS 64
-#define NUMBER_OF_USERS    64
-#define NUMBER_OF_ADMINS    8
-#define NUMBER_OF_METRICS 256
+#define MAX_PATH             1024
+#define MISC_LENGTH           128
+#define NUMBER_OF_SERVERS      64
+#define NUMBER_OF_USERS        64
+#define NUMBER_OF_ADMINS        8
+#define NUMBER_OF_METRICS     256
+#define NUMBER_OF_COLLECTORS  256
 
 #define STATE_FREE        0
 #define STATE_IN_USE      1
@@ -84,7 +85,8 @@ extern "C" {
 #define HUGEPAGE_TRY 1
 #define HUGEPAGE_ON  2
 
-#define MAX_QUERY_LENGTH 1024
+#define MAX_QUERY_LENGTH      1024
+#define MAX_COLLECTOR_LENGTH  1024
 
 #define LABEL_TYPE      0
 #define COUNTER_TYPE    1
@@ -113,18 +115,6 @@ extern "C" {
 #define UPDATE_PROCESS_TITLE_STRICT  1
 #define UPDATE_PROCESS_TITLE_MINIMAL 2
 #define UPDATE_PROCESS_TITLE_VERBOSE 3
-
-/* Bit Masks for Metrics Collectors flags */
-#define FLAG_GENERAL          1 << 0
-#define FLAG_DB               1 << 1
-#define FLAG_LOCKS            1 << 2
-#define FLAG_REPLICATION      1 << 3
-#define FLAG_STAT_BGWRITER    1 << 4
-#define FLAG_STAT_DB          1 << 5
-#define FLAG_STAT_CONFLICTS   1 << 6
-#define FLAG_SETTINGS         1 << 7
-#define FLAG_EXTENSION        1 << 8
-#define FLAG_ALL              (1 << 9) - 1
 
 #define likely(x)    __builtin_expect (!!(x), 1)
 #define unlikely(x)  __builtin_expect (!!(x), 0)
@@ -262,6 +252,7 @@ struct prometheus
    int server_query_type;                          /*< Query type 0--SERVER_QUERY_BOTH 1--SERVER_QUERY_PRIMARY 2--SERVER_QUERY_REPLICA */
    int number_of_columns;                          /*< The number of columns */
    struct column columns[MAX_NUMBER_OF_COLUMNS];   /*< Metric columns */
+   char collector[MAX_COLLECTOR_LENGTH];           /*< Collector Tag for query */
 } __attribute__ ((aligned (64)));
 
 /** @struct
@@ -278,7 +269,6 @@ struct configuration
    int metrics_cache_max_age;  /**< Number of seconds to cache the Prometheus response */
    int metrics_cache_max_size; /**< Number of bytes max to cache the Prometheus response */
    int management;             /**< The management port */
-   short int collectors;       /**< Flag for collectors */
 
    bool cache; /**< Cache connection */
 
@@ -316,13 +306,15 @@ struct configuration
    int number_of_users;          /**< The number of users */
    int number_of_admins;         /**< The number of admins */
    int number_of_metrics;        /**< The number of metrics*/
+   int number_of_collectors;     /**< Number of total collectors */
 
    char metrics_path[MAX_PATH]; /**< The metrics path */
 
-   struct server servers[NUMBER_OF_SERVERS];       /**< The servers */
-   struct user users[NUMBER_OF_USERS];             /**< The users */
-   struct user admins[NUMBER_OF_ADMINS];           /**< The admins */
-   struct prometheus prometheus[NUMBER_OF_METRICS];/**< The Prometheus metrics */
+   char collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];/**< List of collectors in total */
+   struct server servers[NUMBER_OF_SERVERS];                   /**< The servers */
+   struct user users[NUMBER_OF_USERS];                         /**< The users */
+   struct user admins[NUMBER_OF_ADMINS];                       /**< The admins */
+   struct prometheus prometheus[NUMBER_OF_METRICS];            /**< The Prometheus metrics */
 } __attribute__ ((aligned (64)));
 
 #ifdef __cplusplus

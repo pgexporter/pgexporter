@@ -29,7 +29,7 @@
 /* pgexporter */
 #include <pgexporter.h>
 #include <configuration.h>
-#include <yaml_configuration.h>
+#include <internal.h>
 #include <logging.h>
 #include <management.h>
 #include <network.h>
@@ -39,6 +39,7 @@
 #include <security.h>
 #include <shmem.h>
 #include <utils.h>
+#include <yaml_configuration.h>
 
 /* system */
 #include <err.h>
@@ -47,6 +48,7 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -215,7 +217,9 @@ main(int argc, char** argv)
    char* admins_path = NULL;
    char* yaml_path = NULL;
    char* collector = NULL;
-   short int collector_flags = FLAG_ALL;
+   char collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];
+   int collector_idx = 0;
+   int number_of_metrics = 0;
    bool daemon = false;
    pid_t pid, sid;
    struct signal_info signal_watcher[5];
@@ -272,46 +276,49 @@ main(int argc, char** argv)
             version();
             break;
          case 'C':
-            /* If a flag is set, it means it is exposed as a metric */
+            memset(collectors, 0, (NUMBER_OF_COLLECTORS * MAX_COLLECTOR_LENGTH) * sizeof(char));
 
+            collector_idx = 0;
             collector = optarg;
-            collector_flags = FLAG_GENERAL;
-
-            while ((collector = strtok_r(optarg, ",", &optarg)) != NULL)
+            while (*collector)
             {
-               if (!strcmp(collector, "db"))
+               if (*collector == ',')
                {
-                  collector_flags |= FLAG_DB;
+                  collector_idx++;
                }
-               else if (!strcmp(collector, "locks"))
+               collector++;
+            }
+            collector_idx++;
+
+            if (collector_idx > NUMBER_OF_COLLECTORS)
+            {
+               warnx("pgexporter: Too many collectors specified.");
+         #ifdef HAVE_LINUX
+               sd_notify(0, "STATUS=pgexporter: Too many collectors specified.");
+         #endif
+               exit(1);
+            }
+
+            collector_idx = 0;
+            while ((collector = strtok_r(optarg, ",", &optarg)))
+            {
+               bool found = false;
+
+               for (int i = 0; i < collector_idx; i++)
                {
-                  collector_flags |= FLAG_LOCKS;
+                  if (!strncmp(collector, collectors[i], MAX_COLLECTOR_LENGTH - 1))
+                  {
+                     found = true;
+                     break;
+                  }
                }
-               else if (!strcmp(collector, "replication"))
+
+               if (!found)
                {
-                  collector_flags |= FLAG_REPLICATION;
-               }
-               else if (!strcmp(collector, "stat_bgwriter"))
-               {
-                  collector_flags |= FLAG_STAT_BGWRITER;
-               }
-               else if (!strcmp(collector, "stat_db"))
-               {
-                  collector_flags |= FLAG_STAT_DB;
-               }
-               else if (!strcmp(collector, "stat_conflicts"))
-               {
-                  collector_flags |= FLAG_STAT_CONFLICTS;
-               }
-               else if (!strcmp(collector, "settings"))
-               {
-                  collector_flags |= FLAG_SETTINGS;
-               }
-               else if (!strcmp(collector, "extension"))
-               {
-                  collector_flags |= FLAG_EXTENSION;
+                  strncpy(collectors[collector_idx++], collector, MAX_COLLECTOR_LENGTH - 1);
                }
             }
+
             break;
          case '?':
             usage();
@@ -343,8 +350,10 @@ main(int argc, char** argv)
 
    pgexporter_init_configuration(shmem);
    config = (struct configuration*)shmem;
-   config->collectors = collector_flags;
+   memcpy(config->collectors, collectors, (NUMBER_OF_COLLECTORS * MAX_COLLECTOR_LENGTH) * sizeof(char));
+   config->number_of_collectors = collector_idx;
 
+   /* Configuration File */
    if (configuration_path != NULL)
    {
       if (pgexporter_read_configuration(shmem, configuration_path))
@@ -370,6 +379,17 @@ main(int argc, char** argv)
    }
    memcpy(&config->configuration_path[0], configuration_path, MIN(strlen(configuration_path), MAX_PATH - 1));
 
+   /* Internal Metrics Collectors YAML File */
+   number_of_metrics = 0;
+   FILE* internal_yaml_ptr = NULL;
+
+   internal_yaml_ptr = fmemopen(INTERNAL_YAML, strlen(INTERNAL_YAML), "r");
+   read_yaml_from_file_pointer(config->prometheus, &number_of_metrics, internal_yaml_ptr);
+   fclose(internal_yaml_ptr);
+
+   config->number_of_metrics = number_of_metrics;
+
+   /* Users Configuration File */
    if (users_path != NULL)
    {
       ret = pgexporter_read_users_configuration(shmem, users_path);
@@ -409,6 +429,7 @@ main(int argc, char** argv)
       }
    }
 
+   /* Admins Configuration File */
    if (admins_path != NULL)
    {
       ret = pgexporter_read_admins_configuration(shmem, admins_path);

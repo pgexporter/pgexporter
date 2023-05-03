@@ -38,12 +38,22 @@ extern "C" {
 #include <yaml.h>
 
 /**
- * Read the custome configuration from YAML file
+ * Read the custome configuration from YAML file provided by user.
  * @param shmem The shared memory segment
  * @return 0 upon success, otherwise 1
  */
 int
 pgexporter_read_metrics_configuration(void* shmem);
+
+/**
+ * Read and load YAML configuration from file pointer.
+ * @param prometheus The data structure where the YAML configuration is loaded
+ * @param number_of_metrics The number of metrics the configuration has. This value will be set by the function.
+ * @param file File pointer
+ * @return 0 upon success, otherwise 1
+ */
+int
+read_yaml_from_file_pointer(struct prometheus* prometheus, int* number_of_metrics, FILE* file);
 
 #ifdef __cplusplus
 }

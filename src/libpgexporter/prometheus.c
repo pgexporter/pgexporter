@@ -61,21 +61,16 @@ static int home_page(int client_fd);
 static int metrics_page(int client_fd);
 static int bad_request(int client_fd);
 
+static bool collector_pass(const char* collector);
+
 static void general_information(int client_fd);
+static void core_information(int client_fd);
+static void extension_information(int client_fd);
+static void extension_function(int client_fd, char* function, char* description, char* type);
 static void server_information(int client_fd);
 static void version_information(int client_fd);
 static void uptime_information(int client_fd);
 static void primary_information(int client_fd);
-static void core_information(int client_fd);
-static void extension_information(int client_fd);
-static void extension_function(int client_fd, char* function, char* description, char* type);
-static void disk_space_information(int client_fd);
-static void database_information(int client_fd);
-static void replication_information(int client_fd);
-static void locks_information(int client_fd);
-static void stat_bgwriter_information(int client_fd);
-static void stat_database_information(int client_fd);
-static void stat_database_conflicts_information(int client_fd);
 static void settings_information(int client_fd);
 
 static void gauge_counter_information(struct prometheus* metric, int client_fd);
@@ -437,48 +432,36 @@ retry_cache_locking:
 
          pgexporter_open_connections();
 
-         /* default information */
+         /* General Metric Collector */
          general_information(client_fd);
          core_information(client_fd);
          server_information(client_fd);
          version_information(client_fd);
          uptime_information(client_fd);
+         primary_information(client_fd);
          settings_information(client_fd);
          extension_information(client_fd);
-         disk_space_information(client_fd);
 
-         if (config->number_of_metrics == 0)
+         /* Iterate through the other metrics */
+         for (int i = 0; i < config->number_of_metrics; i++)
          {
-            primary_information(client_fd);
-            database_information(client_fd);
-            replication_information(client_fd);
-            locks_information(client_fd);
-            stat_bgwriter_information(client_fd);
-            stat_database_information(client_fd);
-            stat_database_conflicts_information(client_fd);
-         }
-         else
-         {
-            for (int i = 0; i < config->number_of_metrics; i++)
+            is_histogram = false;
+            for (int j = 0; j < config->prometheus[i].number_of_columns; j++)
             {
-               is_histogram = false;
-               for (int j = 0; j < config->prometheus[i].number_of_columns; j++)
+               if (config->prometheus[i].columns[j].type == HISTOGRAM_TYPE)
                {
-                  if (config->prometheus[i].columns[j].type == HISTOGRAM_TYPE)
-                  {
-                     is_histogram = true;
-                     break;
-                  }
+                  is_histogram = true;
+                  break;
                }
+            }
 
-               if (is_histogram)
-               {
-                  histogram_information(&config->prometheus[i], client_fd);
-               }
-               else
-               {
-                  gauge_counter_information(&config->prometheus[i], client_fd);
-               }
+            if (is_histogram)
+            {
+               histogram_information(&config->prometheus[i], client_fd);
+            }
+            else
+            {
+               gauge_counter_information(&config->prometheus[i], client_fd);
             }
          }
 
@@ -554,6 +537,29 @@ bad_request(int client_fd)
    free(data);
 
    return status;
+}
+
+static bool
+collector_pass(const char* collector)
+{
+   struct configuration* config = NULL;
+
+   config = (struct configuration*)shmem;
+
+   if (config->number_of_collectors == 0)
+   {
+      return true;
+   }
+
+   for (int i = 0; i < config->number_of_collectors; i++)
+   {
+      if (!strcmp(config->collectors[i], collector))
+      {
+         return true;
+      }
+   }
+
+   return false;
 }
 
 static void
@@ -720,7 +726,7 @@ uptime_information(int client_fd)
       {
          data = pgexporter_vappend(data, 2,
                                    "#HELP pgexporter_postgresql_uptime The PostgreSQL uptime in seconds\n",
-                                   "#TYPE pgexporter_postgresql_uptime gauge\n"
+                                   "#TYPE pgexporter_postgresql_uptime counter\n"
                                    );
 
          server = 0;
@@ -830,351 +836,13 @@ primary_information(int client_fd)
 }
 
 static void
-disk_space_information(int client_fd)
-{
-   char* data = NULL;
-   bool header = false;
-   struct query* query = NULL;
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (!(config->collectors & FLAG_EXTENSION))
-   {
-      return;
-   }
-
-   /* data/used */
-   for (int server = 0; server < config->number_of_servers; server++)
-   {
-      if (config->servers[server].extension && config->servers[server].fd != -1)
-      {
-         if (strlen(config->servers[server].data) > 0)
-         {
-            pgexporter_query_used_disk_space(server, true, &query);
-
-            if (query == NULL)
-            {
-               config->servers[server].extension = false;
-               continue;
-            }
-
-            if (!header)
-            {
-               data = pgexporter_vappend(data, 2,
-                                         "#HELP pgexporter_used_disk_space_data The used disk space for the data directory\n",
-                                         "#TYPE pgexporter_used_disk_space_data gauge\n"
-                                         );
-
-               header = true;
-            }
-
-            data = pgexporter_vappend(data, 5,
-                                      "pgexporter_used_disk_space_data{server=\"",
-                                      &config->servers[server].name[0],
-                                      "\"} ",
-                                      pgexporter_get_column(0, query->tuples),
-                                      "\n"
-                                      );
-
-            pgexporter_free_query(query);
-            query = NULL;
-         }
-      }
-   }
-
-   if (header)
-   {
-      data = pgexporter_append(data, "\n");
-   }
-
-   if (data != NULL)
-   {
-      send_chunk(client_fd, data);
-      metrics_cache_append(data);
-      free(data);
-      data = NULL;
-   }
-
-   header = false;
-
-   /* data/free */
-   for (int server = 0; server < config->number_of_servers; server++)
-   {
-      if (config->servers[server].extension && config->servers[server].fd != -1)
-      {
-         if (strlen(config->servers[server].data) > 0)
-         {
-            pgexporter_query_free_disk_space(server, true, &query);
-
-            if (query == NULL)
-            {
-               config->servers[server].extension = false;
-               continue;
-            }
-
-            if (!header)
-            {
-               data = pgexporter_vappend(data, 2,
-                                         "#HELP pgexporter_free_disk_space_data The free disk space for the data directory\n",
-                                         "#TYPE pgexporter_free_disk_space_data gauge\n"
-                                         );
-
-               header = true;
-            }
-
-            data = pgexporter_vappend(data, 5,
-                                      "pgexporter_free_disk_space_data{server=\"",
-                                      &config->servers[server].name[0],
-                                      "\"} ",
-                                      pgexporter_get_column(0, query->tuples),
-                                      "\n"
-                                      );
-
-            pgexporter_free_query(query);
-            query = NULL;
-         }
-      }
-   }
-
-   if (header)
-   {
-      data = pgexporter_append(data, "\n");
-   }
-
-   if (data != NULL)
-   {
-      send_chunk(client_fd, data);
-      metrics_cache_append(data);
-      free(data);
-      data = NULL;
-   }
-
-   header = false;
-
-   /* data/total */
-   for (int server = 0; server < config->number_of_servers; server++)
-   {
-      if (config->servers[server].extension && config->servers[server].fd != -1)
-      {
-         if (strlen(config->servers[server].data) > 0)
-         {
-            pgexporter_query_total_disk_space(server, true, &query);
-
-            if (query == NULL)
-            {
-               config->servers[server].extension = false;
-               continue;
-            }
-
-            if (!header)
-            {
-               data = pgexporter_vappend(data, 2,
-                                         "#HELP pgexporter_total_disk_space_data The total disk space for the data directory\n",
-                                         "#TYPE pgexporter_total_disk_space_data gauge\n"
-                                         );
-
-               header = true;
-            }
-
-            data = pgexporter_vappend(data, 5,
-                                      "pgexporter_total_disk_space_data{server=\"",
-                                      &config->servers[server].name[0],
-                                      "\"} ",
-                                      pgexporter_get_column(0, query->tuples),
-                                      "\n"
-                                      );
-
-            pgexporter_free_query(query);
-            query = NULL;
-         }
-      }
-   }
-
-   if (header)
-   {
-      data = pgexporter_append(data, "\n");
-   }
-
-   if (data != NULL)
-   {
-      send_chunk(client_fd, data);
-      metrics_cache_append(data);
-      free(data);
-      data = NULL;
-   }
-
-   header = false;
-
-   /* wal/used */
-   for (int server = 0; server < config->number_of_servers; server++)
-   {
-      if (config->servers[server].extension && config->servers[server].fd != -1)
-      {
-         if (strlen(config->servers[server].wal) > 0)
-         {
-            pgexporter_query_used_disk_space(server, false, &query);
-
-            if (query == NULL)
-            {
-               config->servers[server].extension = false;
-               continue;
-            }
-
-            if (!header)
-            {
-               data = pgexporter_vappend(data, 2,
-                                         "#HELP pgexporter_used_disk_space_wal The used disk space for the WAL directory\n",
-                                         "#TYPE pgexporter_used_disk_space_wal gauge\n"
-                                         );
-
-               header = true;
-            }
-
-            data = pgexporter_vappend(data, 5,
-                                      "pgexporter_used_disk_space_wal{server=\"",
-                                      &config->servers[server].name[0],
-                                      "\"} ",
-                                      pgexporter_get_column(0, query->tuples),
-                                      "\n"
-                                      );
-
-            pgexporter_free_query(query);
-            query = NULL;
-         }
-      }
-   }
-
-   if (header)
-   {
-      data = pgexporter_append(data, "\n");
-   }
-
-   if (data != NULL)
-   {
-      send_chunk(client_fd, data);
-      metrics_cache_append(data);
-      free(data);
-      data = NULL;
-   }
-
-   header = false;
-
-   /* wal/free */
-   for (int server = 0; server < config->number_of_servers; server++)
-   {
-      if (config->servers[server].extension && config->servers[server].fd != -1)
-      {
-         if (strlen(config->servers[server].wal) > 0)
-         {
-            pgexporter_query_free_disk_space(server, false, &query);
-
-            if (query == NULL)
-            {
-               config->servers[server].extension = false;
-               continue;
-            }
-
-            if (!header)
-            {
-               data = pgexporter_vappend(data, 2,
-                                         "#HELP pgexporter_free_disk_space_wal The free disk space for the WAL directory\n",
-                                         "#TYPE pgexporter_free_disk_space_wal gauge\n"
-                                         );
-
-               header = true;
-            }
-
-            data = pgexporter_vappend(data, 5,
-                                      "pgexporter_free_disk_space_wal{server=\"",
-                                      &config->servers[server].name[0],
-                                      "\"} ",
-                                      pgexporter_get_column(0, query->tuples),
-                                      "\n"
-                                      );
-
-            pgexporter_free_query(query);
-            query = NULL;
-         }
-      }
-   }
-
-   if (header)
-   {
-      data = pgexporter_append(data, "\n");
-   }
-
-   if (data != NULL)
-   {
-      send_chunk(client_fd, data);
-      metrics_cache_append(data);
-      free(data);
-      data = NULL;
-   }
-
-   header = false;
-
-   /* wal/total */
-   for (int server = 0; server < config->number_of_servers; server++)
-   {
-      if (config->servers[server].extension && config->servers[server].fd != -1)
-      {
-         if (strlen(config->servers[server].wal) > 0)
-         {
-            pgexporter_query_total_disk_space(server, false, &query);
-
-            if (query == NULL)
-            {
-               config->servers[server].extension = false;
-               continue;
-            }
-
-            if (!header)
-            {
-               data = pgexporter_vappend(data, 2,
-                                         "#HELP pgexporter_total_disk_space_wal The total disk space for the WAL directory\n",
-                                         "#TYPE pgexporter_total_disk_space_wal gauge\n"
-                                         );
-
-               header = true;
-            }
-
-            data = pgexporter_vappend(data, 5,
-                                      "pgexporter_total_disk_space_wal{server=\"",
-                                      &config->servers[server].name[0],
-                                      "\"} ",
-                                      pgexporter_get_column(0, query->tuples),
-                                      "\n"
-                                      );
-
-            pgexporter_free_query(query);
-            query = NULL;
-         }
-      }
-   }
-
-   if (header)
-   {
-      data = pgexporter_append(data, "\n");
-   }
-
-   if (data != NULL)
-   {
-      send_chunk(client_fd, data);
-      metrics_cache_append(data);
-      free(data);
-      data = NULL;
-   }
-}
-
-static void
 core_information(int client_fd)
 {
    char* data = NULL;
 
    data = pgexporter_vappend(data, 6,
                              "#HELP pgexporter_version The pgexporter version\n",
-                             "#TYPE pgexporter_version gauge\n",
+                             "#TYPE pgexporter_version counter\n",
                              "pgexporter_version{pgexporter_version=\"",
                              VERSION,
                              "\"} 1\n",
@@ -1199,7 +867,8 @@ extension_information(int client_fd)
 
    config = (struct configuration*)shmem;
 
-   if (!(config->collectors & FLAG_EXTENSION))
+   /* Expose only if default or specified */
+   if (!collector_pass("extension"))
    {
       return;
    }
@@ -1347,528 +1016,6 @@ extension_function(int client_fd, char* function, char* description, char* type)
 }
 
 static void
-database_information(int client_fd)
-{
-   int ret;
-   char* data = NULL;
-   struct query* all = NULL;
-   struct query* query = NULL;
-   struct tuple* current = NULL;
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (!(config->collectors & FLAG_DB))
-   {
-      return;
-   }
-
-   for (int server = 0; server < config->number_of_servers; server++)
-   {
-      if (config->servers[server].fd != -1)
-      {
-         ret = pgexporter_query_database_size(server, &query);
-         if (ret == 0)
-         {
-            all = pgexporter_merge_queries(all, query, SORT_DATA0);
-         }
-         query = NULL;
-      }
-   }
-
-   if (all != NULL)
-   {
-      current = all->tuples;
-      if (current != NULL)
-      {
-         data = pgexporter_vappend(data, 6,
-                                   "#HELP pgexporter_",
-                                   &all->tag[0],
-                                   "_size Size of the database\n",
-                                   "#TYPE pgexporter_",
-                                   &all->tag[0],
-                                   "_size gauge\n"
-                                   );
-
-         while (current != NULL)
-         {
-            data = pgexporter_vappend(data, 9,
-                                      "pgexporter_",
-                                      &all->tag[0],
-                                      "_size{server=\"",
-                                      &config->servers[current->server].name[0],
-                                      "\",database=\"",
-                                      safe_prometheus_key(pgexporter_get_column(0, current)),
-                                      "\"} ",
-                                      get_value(&all->tag[0], pgexporter_get_column(0, current), pgexporter_get_column(1, current)),
-                                      "\n"
-                                      );
-
-            current = current->next;
-         }
-
-         data = pgexporter_append(data, "\n");
-
-         if (data != NULL)
-         {
-            send_chunk(client_fd, data);
-            metrics_cache_append(data);
-            free(data);
-            data = NULL;
-         }
-      }
-   }
-
-   pgexporter_free_query(all);
-}
-
-static void
-replication_information(int client_fd)
-{
-   int ret;
-   char* data = NULL;
-   struct query* all = NULL;
-   struct query* query = NULL;
-   struct tuple* current = NULL;
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (!(config->collectors & FLAG_REPLICATION))
-   {
-      return;
-   }
-
-   for (int server = 0; server < config->number_of_servers; server++)
-   {
-      if (config->servers[server].fd != -1)
-      {
-         ret = pgexporter_query_replication_slot_active(server, &query);
-         if (ret == 0)
-         {
-            all = pgexporter_merge_queries(all, query, SORT_DATA0);
-         }
-         query = NULL;
-      }
-   }
-
-   if (all != NULL)
-   {
-      current = all->tuples;
-      if (current != NULL)
-      {
-         data = pgexporter_vappend(data, 6,
-                                   "#HELP pgexporter_",
-                                   &all->tag[0],
-                                   "_active Display status of replication slots\n",
-                                   "#TYPE pgexporter_",
-                                   &all->tag[0],
-                                   "_active gauge\n"
-                                   );
-
-         while (current != NULL)
-         {
-            data = pgexporter_vappend(data, 9,
-                                      "pgexporter_",
-                                      &all->tag[0],
-                                      "_active{server=\"",
-                                      &config->servers[current->server].name[0],
-                                      "\",slot=\"",
-                                      safe_prometheus_key(pgexporter_get_column(0, current)),
-                                      "\"} ",
-                                      get_value(&all->tag[0], pgexporter_get_column(0, current), pgexporter_get_column(1, current)),
-                                      "\n"
-                                      );
-
-            current = current->next;
-         }
-
-         data = pgexporter_append(data, "\n");
-
-         if (data != NULL)
-         {
-            send_chunk(client_fd, data);
-            metrics_cache_append(data);
-            free(data);
-            data = NULL;
-         }
-      }
-   }
-
-   pgexporter_free_query(all);
-}
-
-static void
-locks_information(int client_fd)
-{
-   int ret;
-   char* data = NULL;
-   struct query* all = NULL;
-   struct query* query = NULL;
-   struct tuple* current = NULL;
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (!(config->collectors & FLAG_LOCKS))
-   {
-      return;
-   }
-
-   for (int server = 0; server < config->number_of_servers; server++)
-   {
-      if (config->servers[server].fd != -1)
-      {
-         ret = pgexporter_query_locks(server, &query);
-         if (ret == 0)
-         {
-            all = pgexporter_merge_queries(all, query, SORT_DATA0);
-         }
-         query = NULL;
-      }
-   }
-
-   if (all != NULL)
-   {
-      current = all->tuples;
-      if (current != NULL)
-      {
-         data = pgexporter_vappend(data, 6,
-                                   "#HELP pgexporter_",
-                                   &all->tag[0],
-                                   "_count Lock count of a database\n",
-                                   "#TYPE pgexporter_",
-                                   &all->tag[0],
-                                   "_count gauge\n"
-                                   );
-
-         while (current != NULL)
-         {
-            data = pgexporter_vappend(data, 11,
-                                      "pgexporter_",
-                                      &all->tag[0],
-                                      "_count{server=\"",
-                                      &config->servers[current->server].name[0],
-                                      "\",database=\"",
-                                      safe_prometheus_key(pgexporter_get_column(0, current)),
-                                      "\",mode=\"",
-                                      safe_prometheus_key(pgexporter_get_column(1, current)),
-                                      "\"} ",
-                                      get_value(&all->tag[0], pgexporter_get_column(1, current), pgexporter_get_column(2, current)),
-                                      "\n"
-                                      );
-
-            current = current->next;
-         }
-
-         data = pgexporter_append(data, "\n");
-
-         if (data != NULL)
-         {
-            send_chunk(client_fd, data);
-            metrics_cache_append(data);
-            free(data);
-            data = NULL;
-         }
-      }
-   }
-
-   pgexporter_free_query(all);
-}
-
-static void
-stat_bgwriter_information(int client_fd)
-{
-   bool first;
-   int ret;
-   char* data = NULL;
-   struct query* all = NULL;
-   struct query* query = NULL;
-   struct tuple* current = NULL;
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (!(config->collectors & FLAG_STAT_BGWRITER))
-   {
-      return;
-   }
-
-   for (int server = 0; server < config->number_of_servers; server++)
-   {
-      if (config->servers[server].fd != -1)
-      {
-         ret = pgexporter_query_stat_bgwriter(server, &query);
-         if (ret == 0)
-         {
-            all = pgexporter_merge_queries(all, query, SORT_NAME);
-         }
-         query = NULL;
-      }
-   }
-
-   first = true;
-
-   if (all != NULL)
-   {
-      current = all->tuples;
-
-      for (int i = 0; i < all->number_of_columns; i++)
-      {
-         if (first)
-         {
-            data = pgexporter_vappend(data, 14,
-                                      "#HELP pgexporter_",
-                                      &all->tag[0],
-                                      "_",
-                                      &all->names[i][0],
-                                      " ",
-                                      &all->tag[0],
-                                      "_",
-                                      &all->names[i][0],
-                                      "\n",
-                                      "#TYPE pgexporter_",
-                                      &all->tag[0],
-                                      "_",
-                                      &all->names[i][0],
-                                      " gauge\n"
-                                      );
-
-            first = false;
-         }
-
-         while (current != NULL)
-         {
-            data = pgexporter_vappend(data, 9,
-                                      "pgexporter_",
-                                      &all->tag[0],
-                                      "_",
-                                      &all->names[i][0],
-                                      "{server=\"",
-                                      &config->servers[current->server].name[0],
-                                      "\"} ",
-                                      get_value(&all->tag[0], pgexporter_get_column(i, current), pgexporter_get_column(i, current)),
-                                      "\n"
-                                      );
-
-            current = current->next;
-         }
-
-         first = true;
-         current = all->tuples;
-      }
-
-      data = pgexporter_append(data, "\n");
-
-      if (data != NULL)
-      {
-         send_chunk(client_fd, data);
-         metrics_cache_append(data);
-         free(data);
-         data = NULL;
-      }
-   }
-
-   pgexporter_free_query(all);
-}
-
-static void
-stat_database_information(int client_fd)
-{
-   bool first;
-   int ret;
-   char* data = NULL;
-   struct query* all = NULL;
-   struct query* query = NULL;
-   struct tuple* current = NULL;
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (!(config->collectors & FLAG_STAT_DB))
-   {
-      return;
-   }
-
-   for (int server = 0; server < config->number_of_servers; server++)
-   {
-      if (config->servers[server].fd != -1)
-      {
-         ret = pgexporter_query_stat_database(server, &query);
-         if (ret == 0)
-         {
-            all = pgexporter_merge_queries(all, query, SORT_DATA0);
-         }
-         query = NULL;
-      }
-   }
-
-   first = true;
-
-   if (all != NULL)
-   {
-      current = all->tuples;
-
-      for (int i = 1; i < all->number_of_columns; i++)
-      {
-         if (first)
-         {
-            data = pgexporter_vappend(data, 14,
-                                      "#HELP pgexporter_",
-                                      &all->tag[0],
-                                      "_",
-                                      &all->names[i][0],
-                                      " ",
-                                      &all->tag[0],
-                                      "_",
-                                      &all->names[i][0],
-                                      "\n",
-                                      "#TYPE pgexporter_",
-                                      &all->tag[0],
-                                      "_",
-                                      &all->names[i][0],
-                                      " gauge\n"
-                                      );
-
-            first = false;
-         }
-
-         while (current != NULL)
-         {
-            data = pgexporter_vappend(data, 11,
-                                      "pgexporter_",
-                                      &all->tag[0],
-                                      "_",
-                                      &all->names[i][0],
-                                      "{server=\"",
-                                      &config->servers[current->server].name[0],
-                                      "\",database=\"",
-                                      safe_prometheus_key(pgexporter_get_column(0, current)),
-                                      "\"} ",
-                                      get_value(&all->tag[0], pgexporter_get_column(i, current), pgexporter_get_column(i, current)),
-                                      "\n"
-                                      );
-
-            current = current->next;
-         }
-
-         first = true;
-         current = all->tuples;
-      }
-
-      data = pgexporter_append(data, "\n");
-
-      if (data != NULL)
-      {
-         send_chunk(client_fd, data);
-         metrics_cache_append(data);
-         free(data);
-         data = NULL;
-      }
-   }
-
-   pgexporter_free_query(all);
-}
-
-static void
-stat_database_conflicts_information(int client_fd)
-{
-   bool first;
-   int ret;
-   char* data = NULL;
-   struct query* all = NULL;
-   struct query* query = NULL;
-   struct tuple* current = NULL;
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (!(config->collectors & FLAG_STAT_CONFLICTS))
-   {
-      return;
-   }
-
-   for (int server = 0; server < config->number_of_servers; server++)
-   {
-      if (config->servers[server].fd != -1)
-      {
-         ret = pgexporter_query_stat_database_conflicts(server, &query);
-         if (ret == 0)
-         {
-            all = pgexporter_merge_queries(all, query, SORT_DATA0);
-         }
-         query = NULL;
-      }
-   }
-
-   first = true;
-
-   if (all != NULL)
-   {
-      current = all->tuples;
-
-      for (int i = 1; i < all->number_of_columns; i++)
-      {
-         if (first)
-         {
-            data = pgexporter_vappend(data, 14,
-                                      "#HELP pgexporter_",
-                                      &all->tag[0],
-                                      "_",
-                                      &all->names[i][0],
-                                      " ",
-                                      &all->tag[0],
-                                      "_",
-                                      &all->names[i][0],
-                                      "\n",
-                                      "#TYPE pgexporter_",
-                                      &all->tag[0],
-                                      "_",
-                                      &all->names[i][0],
-                                      " gauge\n"
-                                      );
-
-            first = false;
-         }
-
-         while (current != NULL)
-         {
-            data = pgexporter_vappend(data, 11,
-                                      "pgexporter_",
-                                      &all->tag[0],
-                                      "_",
-                                      &all->names[i][0],
-                                      "{server=\"",
-                                      &config->servers[current->server].name[0],
-                                      "\",database=\"",
-                                      safe_prometheus_key(pgexporter_get_column(0, current)),
-                                      "\"} ",
-                                      get_value(&all->tag[0], pgexporter_get_column(i, current), pgexporter_get_column(i, current)),
-                                      "\n"
-                                      );
-
-            current = current->next;
-         }
-
-         first = true;
-         current = all->tuples;
-      }
-
-      data = pgexporter_append(data, "\n");
-
-      if (data != NULL)
-      {
-         send_chunk(client_fd, data);
-         metrics_cache_append(data);
-         free(data);
-         data = NULL;
-      }
-   }
-
-   pgexporter_free_query(all);
-}
-
-static void
 settings_information(int client_fd)
 {
    int ret;
@@ -1880,7 +1027,8 @@ settings_information(int client_fd)
 
    config = (struct configuration*)shmem;
 
-   if (!(config->collectors & FLAG_SETTINGS))
+   /* Expose only if default or specified */
+   if (!collector_pass("settings"))
    {
       return;
    }
@@ -1975,9 +1123,16 @@ gauge_counter_information(struct prometheus* prom, int client_fd)
    struct configuration* config;
 
    config = (struct configuration*)shmem;
-   char* names[prom->number_of_columns];
 
+   /* Expose only if default or specified */
+   if (!collector_pass(prom->collector))
+   {
+      return;
+   }
+
+   char* names[prom->number_of_columns];
    number_of_label = 0;
+
    for (int i = 0; i < prom->number_of_columns; i++)
    {
       if (prom->columns[i].type == LABEL_TYPE)
@@ -2106,6 +1261,12 @@ histogram_information(struct prometheus* prom, int client_fd)
    struct configuration* config;
 
    config = (struct configuration*)shmem;
+
+   /* Expose only if default or specified */
+   if (!collector_pass(prom->collector))
+   {
+      return;
+   }
 
    memset(names, 0, sizeof(char*) * 4);
    memset(bounds_arr, 0, sizeof(char*) * MAX_ARR_LENGTH);

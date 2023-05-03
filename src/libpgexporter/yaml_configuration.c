@@ -30,6 +30,7 @@
 #include <pgexporter.h>
 #include <logging.h>
 #include <utils.h>
+#include <yaml_configuration.h>
 
 /* system */
 #include <yaml.h>
@@ -54,11 +55,12 @@ pgexporter_read_metrics_configuration(void* shmem)
    char* yaml_path = NULL;
 
    config = (struct configuration*) shmem;
+   idx_metrics = config->number_of_metrics;
 
    if (pgexporter_is_file(config->metrics_path))
    {
       number_of_metrics = 0;
-      if (pgexporter_read_yaml(config->prometheus, config->metrics_path, &number_of_metrics))
+      if (pgexporter_read_yaml(config->prometheus + idx_metrics, config->metrics_path, &number_of_metrics))
       {
          return 1;
       }
@@ -105,10 +107,28 @@ pgexporter_read_metrics_configuration(void* shmem)
    return 0;
 }
 
-int
+static int
 pgexporter_read_yaml(struct prometheus* prometheus, char* filename, int* number_of_metrics)
 {
    FILE* file;
+
+   file = fopen(filename, "r");
+   if (file == NULL)
+   {
+      pgexporter_log_error("pgexporter: fopen error %s", strerror(errno));
+      return 1;
+   }
+
+   int ret = read_yaml_from_file_pointer(prometheus, number_of_metrics, file);
+
+   fclose(file);
+
+   return ret;
+}
+
+int
+read_yaml_from_file_pointer(struct prometheus* prometheus, int* number_of_metrics, FILE* file)
+{
    yaml_parser_t parser;
    yaml_token_t token;
    char* key = NULL;
@@ -118,12 +138,6 @@ pgexporter_read_yaml(struct prometheus* prometheus, char* filename, int* number_
    int idx_columns = 0;
    int in_columns = 0;
 
-   file = fopen(filename, "r");
-   if (file == NULL)
-   {
-      pgexporter_log_error("pgexporter: fopen error %s", strerror(errno));
-      return 1;
-   }
    if (!yaml_parser_initialize(&parser))
    {
       pgexporter_log_error("pgexporter: yaml_parser_initialize error");
@@ -277,7 +291,6 @@ pgexporter_read_yaml(struct prometheus* prometheus, char* filename, int* number_
    value = NULL;
    yaml_token_delete(&token);
    yaml_parser_delete(&parser);
-   fclose(file);
    return 0;
 
 error:
@@ -287,7 +300,6 @@ error:
    value = NULL;
    yaml_token_delete(&token);
    yaml_parser_delete(&parser);
-   fclose(file);
    return 1;
 }
 
@@ -355,6 +367,11 @@ handle_key_value(struct prometheus* metric, char* key, char* value)
          pgexporter_log_error("pgexporter: unexpected server %s", value);
          return 1;
       }
+   }
+   else if (!strcmp(key, "collector"))
+   {
+      memset(metric->collector, 0, MAX_COLLECTOR_LENGTH);
+      strncpy(metric->collector, value, MAX_COLLECTOR_LENGTH - 1);
    }
    else
    {
