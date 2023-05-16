@@ -100,6 +100,8 @@ extern "C" {
 #define SERVER_QUERY_PRIMARY 1
 #define SERVER_QUERY_REPLICA 2
 
+#define SERVER_UNDERTERMINED_VERSION 0
+
 #define START_STATUS            0
 #define SEQUENCE_STATUS         1
 #define BLOCK_STATUS            2
@@ -198,6 +200,7 @@ struct server
    bool new;                           /**< Is the connection new */
    bool extension;                     /**< Is the pgexporter_ext extension installed */
    int state;                          /**< The state of the server */
+   char version;                       /**< The PostgreSQL version (char for minimum bytes)*/
 } __attribute__ ((aligned (64)));
 
 /** @struct

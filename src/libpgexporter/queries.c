@@ -86,6 +86,7 @@ pgexporter_open_connections(void)
          {
             config->servers[server].new = true;
             pgexporter_server_info(server);
+            pgexporter_server_version(server);
          }
          else
          {
@@ -138,6 +139,31 @@ pgexporter_close_connections(void)
          }
       }
    }
+}
+
+int
+pgexporter_server_version(int server)
+{
+   struct query* q;
+   int ret;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   ret = query_execute(server, "SELECT split_part(split_part(version(), ' ', 2), '.', 1);", "version", 1, NULL, &q);
+
+   if (q)
+   {
+      struct tuple* t = q->tuples;
+      if (t && t->data[0])
+      {
+         config->servers[server].version = atoi(t->data[0]);
+      }
+   }
+
+   pgexporter_free_query(q);
+
+   return ret;
 }
 
 int

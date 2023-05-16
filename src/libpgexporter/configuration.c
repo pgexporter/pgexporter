@@ -728,6 +728,7 @@ pgexporter_read_configuration(void* shm, char* filename)
 
    if (strlen(srv.name) > 0)
    {
+      srv.version = SERVER_UNDERTERMINED_VERSION;
       memcpy(&(config->servers[idx_server - 1]), &srv, sizeof(struct server));
    }
 
