@@ -62,7 +62,7 @@
 #include <sys/types.h>
 
 #include <openssl/crypto.h>
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
 #include <systemd/sd-daemon.h>
 #endif
 
@@ -293,7 +293,7 @@ main(int argc, char** argv)
             if (collector_idx > NUMBER_OF_COLLECTORS)
             {
                warnx("pgexporter: Too many collectors specified.");
-         #ifdef HAVE_LINUX
+         #ifdef HAVE_SYSTEMD
                sd_notify(0, "STATUS=pgexporter: Too many collectors specified.");
          #endif
                exit(1);
@@ -332,7 +332,7 @@ main(int argc, char** argv)
    if (getuid() == 0)
    {
       warnx("pgexporter: Using the root account is not allowed");
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
       sd_notify(0, "STATUS=Using the root account is not allowed");
 #endif
       exit(1);
@@ -342,7 +342,7 @@ main(int argc, char** argv)
    if (pgexporter_create_shared_memory(shmem_size, HUGEPAGE_OFF, &shmem))
    {
       warnx("pgexporter: Error in creating shared memory");
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
       sd_notifyf(0, "STATUS=Error in creating shared memory");
 #endif
       exit(1);
@@ -359,7 +359,7 @@ main(int argc, char** argv)
       if (pgexporter_read_configuration(shmem, configuration_path))
       {
          warnx("pgexporter: Configuration not found: %s", configuration_path);
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
          sd_notifyf(0, "STATUS=Configuration not found: %s", configuration_path);
 #endif
          exit(1);
@@ -370,7 +370,7 @@ main(int argc, char** argv)
       if (pgexporter_read_configuration(shmem, "/etc/pgexporter/pgexporter.conf"))
       {
          warnx("pgexporter: Configuration not found: /etc/pgexporter/pgexporter.conf");
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
          sd_notify(0, "STATUS=Configuration not found: /etc/pgexporter/pgexporter.conf");
 #endif
          exit(1);
@@ -396,7 +396,7 @@ main(int argc, char** argv)
       if (ret == 1)
       {
          warnx("pgexporter: USERS configuration not found: %s", users_path);
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
          sd_notifyf(0, "STATUS=USERS configuration not found: %s", users_path);
 #endif
          exit(1);
@@ -404,7 +404,7 @@ main(int argc, char** argv)
       else if (ret == 2)
       {
          warnx("pgexporter: Invalid master key file");
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
          sd_notify(0, "STATUS=Invalid master key file");
 #endif
          exit(1);
@@ -412,7 +412,7 @@ main(int argc, char** argv)
       else if (ret == 3)
       {
          warnx("pgexporter: USERS: Too many users defined %d (max %d)", config->number_of_users, NUMBER_OF_USERS);
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
          sd_notifyf(0, "STATUS=USERS: Too many users defined %d (max %d)", config->number_of_users, NUMBER_OF_USERS);
 #endif
          exit(1);
@@ -436,7 +436,7 @@ main(int argc, char** argv)
       if (ret == 1)
       {
          warnx("pgexporter: ADMINS configuration not found: %s", admins_path);
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
          sd_notifyf(0, "STATUS=ADMINS configuration not found: %s", admins_path);
 #endif
          exit(1);
@@ -444,7 +444,7 @@ main(int argc, char** argv)
       else if (ret == 2)
       {
          warnx("pgexporter: Invalid master key file");
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
          sd_notify(0, "STATUS=Invalid master key file");
 #endif
          exit(1);
@@ -452,7 +452,7 @@ main(int argc, char** argv)
       else if (ret == 3)
       {
          warnx("pgexporter: ADMINS: Too many admins defined %d (max %d)", config->number_of_admins, NUMBER_OF_ADMINS);
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
          sd_notifyf(0, "STATUS=ADMINS: Too many admins defined %d (max %d)", config->number_of_admins, NUMBER_OF_ADMINS);
 #endif
          exit(1);
@@ -471,7 +471,7 @@ main(int argc, char** argv)
 
    if (pgexporter_init_logging())
    {
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
       sd_notify(0, "STATUS=Failed to init logging");
 #endif
       exit(1);
@@ -479,7 +479,7 @@ main(int argc, char** argv)
 
    if (pgexporter_start_logging())
    {
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
       sd_notify(0, "STATUS=Failed to start logging");
 #endif
       exit(1);
@@ -487,21 +487,21 @@ main(int argc, char** argv)
 
    if (pgexporter_validate_configuration(shmem))
    {
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
       sd_notify(0, "STATUS=Invalid configuration");
 #endif
       exit(1);
    }
    if (pgexporter_validate_users_configuration(shmem))
    {
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
       sd_notify(0, "STATUS=Invalid USERS configuration");
 #endif
       exit(1);
    }
    if (pgexporter_validate_admins_configuration(shmem))
    {
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
       sd_notify(0, "STATUS=Invalid ADMINS configuration");
 #endif
       exit(1);
@@ -516,7 +516,7 @@ main(int argc, char** argv)
    {
       if (pgexporter_read_metrics_configuration(shmem))
       {
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
          sd_notify(0, "STATUS=Invalid metrics yaml");
 #endif
          exit(1);
@@ -528,7 +528,7 @@ main(int argc, char** argv)
       if (config->log_type == PGEXPORTER_LOGGING_TYPE_CONSOLE)
       {
          warnx("pgexporter: Daemon mode can't be used with console logging");
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
          sd_notify(0, "STATUS=Daemon mode can't be used with console logging");
 #endif
          exit(1);
@@ -539,7 +539,7 @@ main(int argc, char** argv)
       if (pid < 0)
       {
          warnx("pgexporter: Daemon mode failed");
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
          sd_notify(0, "STATUS=Daemon mode failed");
 #endif
          exit(1);
@@ -574,7 +574,7 @@ main(int argc, char** argv)
 
    if (pgexporter_init_prometheus_cache(&prometheus_cache_shmem_size, &prometheus_cache_shmem))
    {
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
       sd_notifyf(0, "STATUS=Error in creating and initializing prometheus cache shared memory");
 #endif
       errx(1, "Error in creating and initializing prometheus cache shared memory");
@@ -584,7 +584,7 @@ main(int argc, char** argv)
    if (pgexporter_bind_unix_socket(config->unix_socket_dir, MAIN_UDS, &unix_management_socket))
    {
       pgexporter_log_fatal("pgexporter: Could not bind to %s/%s", config->unix_socket_dir, MAIN_UDS);
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
       sd_notifyf(0, "STATUS=Could not bind to %s/%s", config->unix_socket_dir, MAIN_UDS);
 #endif
       exit(1);
@@ -596,7 +596,7 @@ main(int argc, char** argv)
    {
       pgexporter_log_fatal("pgexporter: No loop implementation (%x) (%x)",
                            pgexporter_libev(config->libev), ev_supported_backends());
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
       sd_notifyf(0, "STATUS=No loop implementation (%x) (%x)", pgexporter_libev(config->libev), ev_supported_backends());
 #endif
       exit(1);
@@ -617,7 +617,7 @@ main(int argc, char** argv)
    if (pgexporter_tls_valid())
    {
       pgexporter_log_fatal("pgexporter: Invalid TLS configuration");
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
       sd_notify(0, "STATUS=Invalid TLS configuration");
 #endif
       exit(1);
@@ -631,7 +631,7 @@ main(int argc, char** argv)
       if (pgexporter_bind(config->host, config->metrics, &metrics_fds, &metrics_fds_length))
       {
          pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->metrics);
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
          sd_notifyf(0, "STATUS=Could not bind to %s:%d", config->host, config->metrics);
 #endif
          exit(1);
@@ -640,7 +640,7 @@ main(int argc, char** argv)
       if (metrics_fds_length > MAX_FDS)
       {
          pgexporter_log_fatal("pgexporter: Too many descriptors %d", metrics_fds_length);
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
          sd_notifyf(0, "STATUS=Too many descriptors %d", metrics_fds_length);
 #endif
          exit(1);
@@ -655,7 +655,7 @@ main(int argc, char** argv)
       if (pgexporter_bind(config->host, config->management, &management_fds, &management_fds_length))
       {
          pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->management);
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
          sd_notifyf(0, "STATUS=Could not bind to %s:%d", config->host, config->management);
 #endif
          exit(1);
@@ -664,7 +664,7 @@ main(int argc, char** argv)
       if (management_fds_length > MAX_FDS)
       {
          pgexporter_log_fatal("pgexporter: Too many descriptors %d", management_fds_length);
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
          sd_notifyf(0, "STATUS=Too many descriptors %d", management_fds_length);
 #endif
          exit(1);
@@ -694,7 +694,7 @@ main(int argc, char** argv)
    pgexporter_log_debug("Known users: %d", config->number_of_users);
    pgexporter_log_debug("Known admins: %d", config->number_of_admins);
 
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
    sd_notifyf(0,
               "READY=1\n"
               "STATUS=Running\n"
@@ -707,7 +707,7 @@ main(int argc, char** argv)
    }
 
    pgexporter_log_info("pgexporter: shutdown");
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
    sd_notify(0, "STOPPING=1");
 #endif
 

@@ -34,6 +34,7 @@ message(STATUS "pgexporter ${VERSION_STRING}")
 
 include(CheckCCompilerFlag)
 include(CheckCSourceCompiles)
+include(CheckIncludeFile)
 include(FindPackageHandleStandardArgs)
 include(GNUInstallDirs)
 
@@ -89,7 +90,7 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   if (SYSTEMD_FOUND)
     message(STATUS "systemd found")
   else ()
-    message(FATAL_ERROR "systemd needed")
+    message(STATUS "systemd not found; building without systemd support")
   endif()
 endif()
 

@@ -14,6 +14,11 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   add_compile_options(-DHAVE_LINUX)
   add_compile_options(-D_POSIX_C_SOURCE=200809L)
 
+  check_include_file("execinfo.h" HAVE_EXECINFO_H)
+  if (HAVE_EXECINFO_H)
+    add_compile_options(-DHAVE_EXECINFO_H)
+  endif()
+
   #
   # Include directories
   #
@@ -21,7 +26,6 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${LIBEV_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIR}
-    ${SYSTEMD_INCLUDE_DIRS}
     ${LIBYAML_INCLUDE_DIRS}
   )
 
@@ -32,7 +36,6 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     ${LIBEV_LIBRARIES}
     ${OPENSSL_CRYPTO_LIBRARY}
     ${OPENSSL_SSL_LIBRARY}
-    ${SYSTEMD_LIBRARIES}
     ${LIBYAML_LIBRARIES}
     ${LIBATOMIC_LIBRARY}
   )
@@ -72,6 +75,13 @@ else()
     add_compile_options(-DHAVE_FREEBSD)
   endif()
 
+endif()
+
+if (SYSTEMD_FOUND)
+  add_compile_options(-DHAVE_SYSTEMD)
+
+  include_directories(${SYSTEMD_INCLUDE_DIRS})
+  link_libraries(${SYSTEMD_LIBRARIES})
 endif()
 
 #

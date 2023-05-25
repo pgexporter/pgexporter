@@ -35,7 +35,6 @@
 #include <dirent.h>
 #include <errno.h>
 #include <ev.h>
-#include <execinfo.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <pwd.h>
@@ -49,6 +48,10 @@
 #include <openssl/pem.h>
 #include <sys/statvfs.h>
 #include <sys/types.h>
+
+#ifdef HAVE_EXECINFO_H
+#include <execinfo.h>
+#endif
 
 #ifndef EVBACKEND_LINUXAIO
 #define EVBACKEND_LINUXAIO 0x00000040U
@@ -1992,7 +1995,7 @@ is_wal_file(char* file)
 int
 pgexporter_backtrace(void)
 {
-#ifdef HAVE_LINUX
+#ifdef HAVE_EXECINFO_H
    void* array[100];
    size_t size;
    char** strings;

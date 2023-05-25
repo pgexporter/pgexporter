@@ -48,7 +48,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
 #include <systemd/sd-daemon.h>
 #endif
 
@@ -1838,7 +1838,7 @@ error:
 static int
 transfer_configuration(struct configuration* config, struct configuration* reload)
 {
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
    sd_notify(0, "RELOADING=1");
 #endif
 
@@ -1925,7 +1925,7 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    }
    config->number_of_metrics = reload->number_of_metrics;
 
-#ifdef HAVE_LINUX
+#ifdef HAVE_SYSTEMD
    sd_notify(0, "READY=1");
 #endif
 
