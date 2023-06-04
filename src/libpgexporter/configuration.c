@@ -29,11 +29,12 @@
 /* pgexporter */
 #include <pgexporter.h>
 #include <configuration.h>
-#include <yaml_configuration.h>
 #include <logging.h>
+#include <query_alts.h>
 #include <security.h>
 #include <shmem.h>
 #include <utils.h>
+#include <yaml_configuration.h>
 
 /* system */
 #include <ctype.h>
@@ -71,7 +72,6 @@ static int transfer_configuration(struct configuration* config, struct configura
 static void copy_server(struct server* dst, struct server* src);
 static void copy_user(struct user* dst, struct user* src);
 static void copy_promethus(struct prometheus* dst, struct prometheus* src);
-static void copy_column(struct column* dst, struct column* src);
 static int restart_int(char* name, int e, int n);
 static int restart_string(char* name, char* e, char* n);
 
@@ -1202,6 +1202,11 @@ pgexporter_reload_configuration(void)
       }
    }
 
+   if (pgexporter_read_internal_yaml_metrics(reload, true))
+   {
+      goto error;
+   }
+
    if (strlen(reload->metrics_path) > 0)
    {
       if (pgexporter_read_metrics_configuration((void*)reload))
@@ -1229,6 +1234,14 @@ pgexporter_reload_configuration(void)
    {
       goto error;
    }
+   else
+   {
+      /* Free Old Query Alts AVL Tree */
+      for (int i = 0; reload != NULL && i < reload->number_of_metrics; i++)
+      {
+         pgexporter_free_query_alts(reload);
+      }
+   }
 
    pgexporter_destroy_shared_memory((void*)reload, reload_size);
 
@@ -1239,6 +1252,11 @@ pgexporter_reload_configuration(void)
 error:
    if (reload != NULL)
    {
+      /* Free Old Query Alts AVL Tree */
+      for (int i = 0; i < reload->number_of_metrics; i++)
+      {
+         pgexporter_free_query_alts(reload);
+      }
       pgexporter_destroy_shared_memory((void*)reload, reload_size);
    }
 
@@ -1955,23 +1973,12 @@ copy_user(struct user* dst, struct user* src)
 static void
 copy_promethus(struct prometheus* dst, struct prometheus* src)
 {
-   memcpy(&dst->query[0], &src->query[0], MAX_QUERY_LENGTH);
-   memcpy(&dst->tag[0], &src->tag[0], MISC_LENGTH);
+   memcpy(dst->tag, src->tag, MISC_LENGTH);
+   memcpy(dst->collector, src->collector, MAX_COLLECTOR_LENGTH);
    dst->sort_type = src->sort_type;
    dst->server_query_type = src->server_query_type;
-   dst->number_of_columns = src->number_of_columns;
-   for (int i = 0; i < src->number_of_columns; i++)
-   {
-      copy_column(&dst->columns[i], &src->columns[i]);
-   }
-}
 
-static void
-copy_column(struct column* dst, struct column* src)
-{
-   dst->type = src->type;
-   memcpy(&dst->name[0], &src->name[0], MISC_LENGTH);
-   memcpy(&dst->description[0], &src->description[0], MISC_LENGTH);
+   pgexporter_copy_query_alts(&dst->root, src->root);
 }
 
 static int

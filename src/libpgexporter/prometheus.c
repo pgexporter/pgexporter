@@ -34,6 +34,7 @@
 #include <network.h>
 #include <prometheus.h>
 #include <queries.h>
+#include <query_alts.h>
 #include <security.h>
 #include <shmem.h>
 #include <utils.h>
@@ -55,6 +56,51 @@
 #define MAX_ARR_LENGTH 256
 #define NUMBER_OF_HISTOGRAM_COLUMNS 4
 
+/**
+ * This is a linked list of queries with the data received from the server
+ * as well as the query sent to the server and other meta data.
+ **/
+typedef struct query_list
+{
+   struct query* query;
+   struct query_list* next;
+   query_alts_t* query_alt;
+   char tag[MISC_LENGTH];
+   int sort_type;
+} query_list_t;
+
+/**
+ * This is one of the nodes of a linked list of a column entry.
+ *
+ * Since columns are the fundamental unit in a metric and since
+ * due to different versions of servers, each query might have
+ * a variable structure, dividing each query into its constituent
+ * columns is needed.
+ *
+ * Then each received tuple can have their individual column values
+ * appended to the suitable linked list of `column_node_t`.
+ **/
+typedef struct column_node
+{
+   char* data;
+   struct tuple* tuple;
+   struct column_node* next;
+} column_node_t;
+
+/**
+ * It stores the metadata of a `column_node_t` linked list.
+ * Meant to be used as part of an array
+ **/
+typedef struct column_store
+{
+   column_node_t* columns;
+   column_node_t* last_column;
+   char tag[MISC_LENGTH];
+   int type;
+   char name[MISC_LENGTH];
+   int sort_type;
+} column_store_t;
+
 static int resolve_page(struct message* msg);
 static int unknown_page(int client_fd);
 static int home_page(int client_fd);
@@ -62,6 +108,8 @@ static int metrics_page(int client_fd);
 static int bad_request(int client_fd);
 
 static bool collector_pass(const char* collector);
+
+static void add_column_to_store(column_store_t* store, int n_store, char* data, int sort_type, struct tuple* current);
 
 static void general_information(int client_fd);
 static void core_information(int client_fd);
@@ -72,11 +120,13 @@ static void version_information(int client_fd);
 static void uptime_information(int client_fd);
 static void primary_information(int client_fd);
 static void settings_information(int client_fd);
+static void custom_metrics(int client_fd); // Handles custom metrics provided in YAML format, both internal and external
 
-static void gauge_counter_information(struct prometheus* metric, int client_fd);
-static void histogram_information(struct prometheus* metric, int cilent_fd);
 static void append_help_info(char** data, char* tag, char* name, char* description);
 static void append_type_info(char** data, char* tag, char* name, int typeId);
+
+static void handle_histogram(column_store_t* store, int* n_store, query_list_t* temp);
+static void handle_gauge_counter(column_store_t* store, int* n_store, query_list_t* temp);
 
 static int send_chunk(int client_fd, char* data);
 static int parse_list(char* list_str, char** strs, int* n_strs);
@@ -359,15 +409,12 @@ metrics_page(int client_fd)
    time_t now;
    char time_buf[32];
    int status;
-   bool is_histogram;
    struct message msg;
-   struct configuration* config;
    struct prometheus_cache* cache;
    signed char cache_is_free;
 
    cache = (struct prometheus_cache*)prometheus_cache_shmem;
 
-   config = (struct configuration*) shmem;
    memset(&msg, 0, sizeof(struct message));
 
 retry_cache_locking:
@@ -442,28 +489,7 @@ retry_cache_locking:
          settings_information(client_fd);
          extension_information(client_fd);
 
-         /* Iterate through the other metrics */
-         for (int i = 0; i < config->number_of_metrics; i++)
-         {
-            is_histogram = false;
-            for (int j = 0; j < config->prometheus[i].number_of_columns; j++)
-            {
-               if (config->prometheus[i].columns[j].type == HISTOGRAM_TYPE)
-               {
-                  is_histogram = true;
-                  break;
-               }
-            }
-
-            if (is_histogram)
-            {
-               histogram_information(&config->prometheus[i], client_fd);
-            }
-            else
-            {
-               gauge_counter_information(&config->prometheus[i], client_fd);
-            }
-         }
+         custom_metrics(client_fd);
 
          pgexporter_close_connections();
 
@@ -1087,6 +1113,8 @@ data:
 
          if (data != NULL)
          {
+            data = pgexporter_append(data, "\n");
+
             send_chunk(client_fd, data);
             metrics_cache_append(data);
             free(data);
@@ -1096,8 +1124,6 @@ data:
          current = current->next;
       }
    }
-
-   data = pgexporter_append(data, "\n");
 
    if (data != NULL)
    {
@@ -1111,280 +1137,361 @@ data:
 }
 
 static void
-gauge_counter_information(struct prometheus* prom, int client_fd)
+custom_metrics(int client_fd)
 {
-   bool first;
-   int ret;
-   int number_of_label;
+
+   struct configuration* config = NULL;
    char* data = NULL;
-   struct query* all = NULL;
-   struct query* query = NULL;
-   struct tuple* current = NULL;
-   struct configuration* config;
 
    config = (struct configuration*)shmem;
 
-   /* Expose only if default or specified */
-   if (!collector_pass(prom->collector))
-   {
-      return;
-   }
+   query_list_t* q_list = NULL;
+   query_list_t* temp = q_list;
 
-   char* names[prom->number_of_columns];
-   number_of_label = 0;
-
-   for (int i = 0; i < prom->number_of_columns; i++)
+   // Iterate through each metric to send its query to PostgreSQL server
+   for (int i = 0; i < config->number_of_metrics; i++)
    {
-      if (prom->columns[i].type == LABEL_TYPE)
+      int err = false;
+      struct prometheus* prom = &config->prometheus[i];
+
+      /* Expose only if default or specified */
+      if (!collector_pass(prom->collector))
       {
-         number_of_label++;
+         continue;
       }
-      names[i] = prom->columns[i].name;
-   }
 
-   for (int server = 0; server < config->number_of_servers; server++)
-   {
-      if (config->servers[server].fd != -1)
+      // Iterate through each server and send appropriate query to PostgreSQL server
+      for (int server = 0; server < config->number_of_servers; server++)
       {
-         if (prom->server_query_type == SERVER_QUERY_PRIMARY && config->servers[server].state != SERVER_PRIMARY)
+         if (config->servers[server].fd == -1)
          {
-            /* skip */
-            continue;
-         }
-         if (prom->server_query_type == SERVER_QUERY_REPLICA && config->servers[server].state != SERVER_REPLICA)
-         {
-            /* skip */
+            /* Skip */
             continue;
          }
 
-         ret = pgexporter_custom_query(server, prom->query, prom->tag, prom->number_of_columns, names, &query);
-         if (ret == 0)
+         if ((prom->server_query_type == SERVER_QUERY_PRIMARY && config->servers[server].state != SERVER_PRIMARY) ||
+             (prom->server_query_type == SERVER_QUERY_REPLICA && config->servers[server].state != SERVER_REPLICA))
          {
-            all = pgexporter_merge_queries(all, query, prom->sort_type);
+            /* Skip */
+            continue;
          }
-         query = NULL;
+
+         // Setting Temp's value
+         query_list_t* next = malloc(sizeof(query_list_t));
+         memset(next, 0, sizeof(query_list_t));
+         if (!err)
+         {
+            if (!q_list)
+            {
+               q_list = next;
+               temp = q_list;
+            }
+            else if (temp->query)
+            {
+               temp->next = next;
+               temp = next;
+            }
+         }
+         else
+         {
+            // Free node with previous data if previous query had an error while executing
+            pgexporter_free_query(temp->query);
+            if (temp)
+            {
+               temp->query_alt = NULL;
+               free(temp);
+            }
+
+            temp = next;
+         }
+
+         query_alts_t* query_alt = pgexporter_get_query_alt(prom->root, server);
+
+         if (!query_alt)
+         {
+            /* Skip */
+            continue;
+         }
+
+         /* Names */
+         char** names = malloc(query_alt->n_columns * sizeof(char*));
+         for (int j = 0; j < query_alt->n_columns; j++)
+         {
+            names[j] = query_alt->columns[j].name;
+         }
+         memcpy(temp->tag, prom->tag, MISC_LENGTH);
+         temp->query_alt = query_alt;
+
+         // Gather all the queries in a linked list, with each query's result (linked list of tuples in it) as a node.
+         if (query_alt->is_histogram)
+         {
+            err = pgexporter_custom_query(server, query_alt->query, prom->tag, -1, NULL, &temp->query);
+            temp->sort_type = prom->sort_type;
+         }
+         else
+         {
+            err = pgexporter_custom_query(server, query_alt->query, prom->tag, query_alt->n_columns, names, &temp->query);
+            temp->sort_type = prom->sort_type;
+         }
+
+         free(names);
+         names = NULL;
       }
    }
 
-   first = true;
-   if (all != NULL)
+   /* Tuples */
+   temp = q_list;
+   column_store_t store[MISC_LENGTH] = {0};
+   int n_store = 0;
+
+   while (temp)
    {
-      current = all->tuples;
-      if (current != NULL)
+      if (temp->query_alt->is_histogram)
       {
-         for (int i = number_of_label; i < all->number_of_columns; i++)
-         {
-            if (first)
-            {
-               append_help_info(&data, all->tag, all->names[i], prom->columns[i].description);
-               append_type_info(&data, all->tag, all->names[i], prom->columns[i].type);
-               first = false;
-            }
-
-            while (current != NULL)
-            {
-               data = pgexporter_vappend(data, 2,
-                                         "pgexporter_",
-                                         all->tag
-                                         );
-
-               if (strlen(all->names[i]) > 0)
-               {
-                  data = pgexporter_vappend(data, 2,
-                                            "_",
-                                            all->names[i]
-                                            );
-               }
-
-               data = pgexporter_vappend(data, 3,
-                                         "{server=\"",
-                                         &config->servers[current->server].name[0],
-                                         "\""
-                                         );
-
-               /* handle label */
-               for (int j = 0; j < number_of_label; j++)
-               {
-                  data = pgexporter_vappend(data, 5,
-                                            ",",
-                                            prom->columns[j].name,
-                                            "=\"",
-                                            safe_prometheus_key(pgexporter_get_column(j, current)),
-                                            "\""
-                                            );
-               }
-
-               data = pgexporter_vappend(data, 3,
-                                         "} ",
-                                         get_value(all->tag, pgexporter_get_column(i, current), pgexporter_get_column(i, current)),
-                                         "\n"
-                                         );
-
-               current = current->next;
-            }
-
-            first = true;
-            current = all->tuples;
-         }
-
-         data = pgexporter_append(data, "\n");
-
-         if (data != NULL)
-         {
-            send_chunk(client_fd, data);
-            metrics_cache_append(data);
-            free(data);
-            data = NULL;
-         }
+         handle_histogram(store, &n_store, temp);
       }
+      else
+      {
+         handle_gauge_counter(store, &n_store, temp);
+      }
+
+      temp = temp->next;
    }
 
-   pgexporter_free_query(all);
+   for (int i = 0; i < n_store; i++)
+   {
+      column_node_t* temp = store[i].columns,
+                   * last = NULL;
+
+      while (temp)
+      {
+         data = pgexporter_append(data, temp->data);
+         last = temp;
+         temp = temp->next;
+
+         // Free it
+         free(last->data);
+         free(last);
+      }
+      data = pgexporter_append(data, "\n");
+   }
+
+   if (data)
+   {
+      send_chunk(client_fd, data);
+      metrics_cache_append(data);
+      free(data);
+      data = NULL;
+   }
+
+   temp = q_list;
+   query_list_t* last = NULL;
+   while (temp)
+   {
+
+      pgexporter_free_query(temp->query);
+      // temp->query_alt // Not freed here, but when program ends
+      last = temp;
+      temp = temp->next;
+      free(last);
+   }
+}
+
+static int
+parse_list(char* list_str, char** strs, int* n_strs)
+{
+   int idx = 0;
+   char* data = NULL;
+   char* p = NULL;
+   int len = strlen(list_str);
+
+   /**
+    * If the `list_str` is `{c1,c2,c3,...,cn}`, and if the `strlen(list_str)`
+    * is `x`, then it takes `x + 1` bytes in memory including the null character.
+    *
+    * `data` will have `list_str` without the first and last bracket (so `data` will
+    * just be `c1,c2,c3,...,cn`) and thus `strlen(data)` will be `x - 2`, and
+    * so will take `x - 1` bytes in memory including the null character.
+    */
+   data = (char*) malloc((len - 1) * sizeof(char));
+   memset(data, 0, (len - 1) * sizeof(char));
+
+   /**
+    * If list_str is `{c1,c2,c3,...,cn}`, then and if `len(list_str)` is `len`
+    * then this starts from `c1`, and goes for `len - 2`, so till `cn`, so the
+    * `data` string becomes `c1,c2,c3,...,cn`
+    */
+   strncpy(data, list_str + 1, len - 2);
+
+   p = strtok(data, ",");
+   while (p)
+   {
+      strs[idx] = NULL;
+      strs[idx] = pgexporter_append(strs[idx], p);
+      idx++;
+      p = strtok(NULL, ",");
+   }
+
+   *n_strs = idx;
+   free(data);
+   return 0;
 }
 
 static void
-histogram_information(struct prometheus* prom, int client_fd)
+add_column_to_store(column_store_t* store, int store_idx, char* data, int sort_type, struct tuple* current)
 {
-   int ret;
-   int n_bounds = 0;
-   int n_buckets = 0;
-   int histogram_idx;
-   char* names[NUMBER_OF_HISTOGRAM_COLUMNS];
-   char* bounds_arr[MAX_ARR_LENGTH];
-   char* buckets_arr[MAX_ARR_LENGTH];
-   char* data = NULL;
-   char* bounds_str = NULL;
-   char* buckets_str = NULL;
-   struct query* all = NULL;
-   struct query* query = NULL;
-   struct tuple* current = NULL;
-   struct configuration* config;
+   column_node_t* new_node = malloc(sizeof(column_node_t));
+   memset(new_node, 0, sizeof(column_node_t));
 
-   config = (struct configuration*)shmem;
+   new_node->data = data;
+   new_node->tuple = current;
 
-   /* Expose only if default or specified */
-   if (!collector_pass(prom->collector))
+   if (!store[store_idx].columns)
    {
+      store[store_idx].columns = new_node;
+      store[store_idx].last_column = new_node;
       return;
    }
 
-   memset(names, 0, sizeof(char*) * 4);
-   memset(bounds_arr, 0, sizeof(char*) * MAX_ARR_LENGTH);
-   memset(buckets_arr, 0, sizeof(char*) * MAX_ARR_LENGTH);
-
-   histogram_idx = 0;
-   for (int i = 0; i < prom->number_of_columns; i++)
+   if (sort_type == SORT_DATA0)
    {
-      if (prom->columns[i].type == HISTOGRAM_TYPE)
+      // SORT_DATA0 means sorting according to the first data (data[0]) in a tuple.
+      // Usually it is the application/database column, so tuples with same such column values
+      // are grouped together.
+      column_node_t* temp = store[store_idx].columns;
+
+      // first node is for help/type info
+      if (!temp->next)
       {
-         histogram_idx = i;
+         temp->next = new_node;
+         store[store_idx].last_column = new_node;
+      }
+      else
+      {
+         while (temp->next)
+         {
+            if (!strcmp(temp->next->tuple->data[0], current->data[0]))
+            {
+               break;
+            }
+            temp = temp->next;
+         }
+
+         if (!temp->next)
+         {
+            temp->next = new_node;
+            store[store_idx].last_column = new_node;
+         }
+         else
+         {
+            new_node->next = temp->next;
+            temp->next = new_node;
+         }
+      }
+
+   }
+   else
+   {
+      // Current can be null for SORT_NAME
+      // Default sort as SORT_NAME
+      store[store_idx].last_column->next = new_node;
+      store[store_idx].last_column = new_node;
+   }
+}
+
+static void
+handle_histogram(column_store_t* store, int* n_store, query_list_t* temp)
+{
+   char* data = NULL;
+   struct configuration* config;
+   int n_bounds = 0;
+   int n_buckets = 0;
+   char* bounds_arr[MAX_ARR_LENGTH] = {0};
+   char* buckets_arr[MAX_ARR_LENGTH] = {0};
+   int idx = 0;
+
+   config = (struct configuration*)shmem;
+
+   int h_idx = 0;
+   for (; h_idx < temp->query_alt->n_columns; h_idx++)
+   {
+      if (temp->query_alt->columns[h_idx].type == HISTOGRAM_TYPE)
+      {
          break;
       }
    }
 
-   /* generate column names X_sum, X_count,X, X_bucket*/
+   struct tuple* tp = temp->query->tuples;
+
+   if (!tp)
+   {
+      return;
+   }
+
+   char* names[4] = {0};
+
+   /* generate column names X_sum, X_count, X, X_bucket*/
    names[0] = pgexporter_vappend(names[0], 2,
-                                 prom->columns[histogram_idx].name,
+                                 temp->query_alt->columns[h_idx].name,
                                  "_sum"
                                  );
    names[1] = pgexporter_vappend(names[1], 2,
-                                 prom->columns[histogram_idx].name,
+                                 temp->query_alt->columns[h_idx].name,
                                  "_count"
                                  );
    names[2] = pgexporter_vappend(names[2], 1,
-                                 prom->columns[histogram_idx].name
+                                 temp->query_alt->columns[h_idx].name
                                  );
    names[3] = pgexporter_vappend(names[3], 2,
-                                 prom->columns[histogram_idx].name,
+                                 temp->query_alt->columns[h_idx].name,
                                  "_bucket"
                                  );
 
-   for (int server = 0; server < config->number_of_servers; server++)
+   for (; idx < *n_store; idx++)
    {
-      if (config->servers[server].fd != -1)
+      if (store[idx].type == HISTOGRAM_TYPE &&
+          store[idx].sort_type == temp->sort_type &&
+          !strcmp(store[idx].tag, temp->tag) &&
+          !strcmp(store[idx].name, temp->query_alt->columns[h_idx].name))
       {
-         if (prom->server_query_type == SERVER_QUERY_PRIMARY && config->servers[server].state != SERVER_PRIMARY)
-         {
-            /* skip */
-            continue;
-         }
-         if (prom->server_query_type == SERVER_QUERY_REPLICA && config->servers[server].state != SERVER_REPLICA)
-         {
-            /* skip */
-            continue;
-         }
-
-         ret = pgexporter_custom_query(server, prom->query, prom->tag, -1, NULL, &query);
-         if (ret == 0)
-         {
-            all = pgexporter_merge_queries(all, query, prom->sort_type);
-         }
-         query = NULL;
+         break;
       }
    }
 
-   if (all != NULL)
+append:
+   if (idx < (*n_store))
    {
-      current = all->tuples;
-      if (current != NULL)
+      struct tuple* current = temp->query->tuples;
+
+      while (current)
       {
-         append_help_info(&data, all->tag, "", prom->columns[histogram_idx].description);
-         append_type_info(&data, all->tag, "", prom->columns[histogram_idx].type);
+         data = NULL;
 
-         while (current != NULL)
+         /* bucket */
+         char* bounds_str = pgexporter_get_column_by_name(names[2], temp->query, current);
+         parse_list(bounds_str, bounds_arr, &n_bounds);
+
+         char* buckets_str = pgexporter_get_column_by_name(names[3], temp->query, current);
+         parse_list(buckets_str, buckets_arr, &n_buckets);
+
+         for (int i = 0; i < n_bounds; i++)
          {
-            /* bucket */
-            bounds_str = pgexporter_get_column_by_name(names[2], all, current);
-            parse_list(bounds_str, bounds_arr, &n_bounds);
-
-            buckets_str = pgexporter_get_column_by_name(names[3], all, current);
-            parse_list(buckets_str, buckets_arr, &n_buckets);
-
-            for (int i = 0; i < n_bounds; i++)
-            {
-               data = pgexporter_vappend(data, 8,
-                                         "pgexporter_",
-                                         prom->tag,
-                                         "_bucket{le=\"",
-                                         bounds_arr[i],
-                                         "\",",
-                                         "server=\"",
-                                         &config->servers[current->server].name[0],
-                                         "\""
-                                         );
-
-               for (int j = 0; j < histogram_idx; j++)
-               {
-                  data = pgexporter_vappend(data, 5,
-                                            ",",
-                                            prom->columns[j].name,
-                                            "=\"",
-                                            safe_prometheus_key(pgexporter_get_column(j, current)),
-                                            "\""
-                                            );
-               }
-
-               data = pgexporter_vappend(data, 3,
-                                         "} ",
-                                         buckets_arr[i],
-                                         "\n"
-                                         );
-            }
-
-            data = pgexporter_vappend(data, 6,
+            data = pgexporter_vappend(data, 8,
                                       "pgexporter_",
-                                      prom->tag,
-                                      "_bucket{le=\"+Inf\",",
+                                      temp->tag,
+                                      "_bucket{le=\"",
+                                      bounds_arr[i],
+                                      "\",",
                                       "server=\"",
                                       &config->servers[current->server].name[0],
                                       "\""
                                       );
 
-            for (int j = 0; j < histogram_idx; j++)
+            for (int j = 0; j < h_idx; j++)
             {
                data = pgexporter_vappend(data, 5,
                                          ",",
-                                         prom->columns[j].name,
+                                         temp->query_alt->columns[j].name,
                                          "=\"",
                                          safe_prometheus_key(pgexporter_get_column(j, current)),
                                          "\""
@@ -1393,94 +1500,245 @@ histogram_information(struct prometheus* prom, int client_fd)
 
             data = pgexporter_vappend(data, 3,
                                       "} ",
-                                      pgexporter_get_column_by_name(names[1], all, current),
+                                      buckets_arr[i],
                                       "\n"
                                       );
+         }
 
-            /* sum */
-            data = pgexporter_vappend(data, 6,
+         data = pgexporter_vappend(data, 6,
+                                   "pgexporter_",
+                                   temp->tag,
+                                   "_bucket{le=\"+Inf\",",
+                                   "server=\"",
+                                   &config->servers[current->server].name[0],
+                                   "\""
+                                   );
+
+         for (int j = 0; j < h_idx; j++)
+         {
+            data = pgexporter_vappend(data, 5,
+                                      ",",
+                                      temp->query_alt->columns[j].name,
+                                      "=\"",
+                                      safe_prometheus_key(pgexporter_get_column(j, current)),
+                                      "\""
+                                      );
+         }
+
+         data = pgexporter_vappend(data, 3,
+                                   "} ",
+                                   pgexporter_get_column_by_name(names[1], temp->query, current),
+                                   "\n"
+                                   );
+
+         /* sum */
+         data = pgexporter_vappend(data, 6,
+                                   "pgexporter_",
+                                   temp->tag,
+                                   "_sum",
+                                   "{server=\"",
+                                   &config->servers[current->server].name[0],
+                                   "\""
+                                   );
+
+         for (int j = 0; j < h_idx; j++)
+         {
+            data = pgexporter_vappend(data, 5,
+                                      ",",
+                                      temp->query_alt->columns[j].name,
+                                      "=\"",
+                                      safe_prometheus_key(pgexporter_get_column(j, current)),
+                                      "\""
+                                      );
+         }
+
+         data = pgexporter_vappend(data, 3,
+                                   "} ",
+                                   pgexporter_get_column_by_name(names[0], temp->query, current),
+                                   "\n"
+                                   );
+
+         /* count */
+         data = pgexporter_vappend(data, 6,
+                                   "pgexporter_",
+                                   temp->tag,
+                                   "_count",
+                                   "{server=\"",
+                                   &config->servers[current->server].name[0],
+                                   "\""
+                                   );
+
+         for (int j = 0; j < h_idx; j++)
+         {
+            data = pgexporter_vappend(data, 5,
+                                      ",",
+                                      temp->query_alt->columns[j].name,
+                                      "=\"",
+                                      safe_prometheus_key(pgexporter_get_column(j, current)),
+                                      "\""
+                                      );
+         }
+
+         data = pgexporter_vappend(data, 3,
+                                   "} ",
+                                   pgexporter_get_column_by_name(names[1], temp->query, current),
+                                   "\n"
+                                   );
+
+         add_column_to_store(store, idx, data, temp->sort_type, current);
+
+         current = current->next;
+      }
+   }
+   else
+   {
+
+      /* New Column */
+      if (!temp->query->tuples)
+      {
+         /* Skip */
+         return;
+      }
+
+      (*n_store)++;
+
+      store[idx].type = HISTOGRAM_TYPE;
+      store[idx].sort_type = temp->sort_type;
+      memcpy(store[idx].tag, temp->tag, MISC_LENGTH);
+      memcpy(store[idx].name, temp->query_alt->columns[h_idx].name, MISC_LENGTH);
+
+      data = NULL;
+      append_help_info(&data, store[idx].tag, "", temp->query_alt->columns[h_idx].description);
+      append_type_info(&data, store[idx].tag, "", temp->query_alt->columns[h_idx].type);
+
+      add_column_to_store(store, idx, data, SORT_NAME, NULL);
+
+      data = NULL;
+
+      // Inserted help and type info above, and then go to append label to insert the rest of the information as usual.
+      // (*n_store)++ ensures this time it fulfills the condition for the if-statement.
+      goto append;
+   }
+
+}
+
+static void
+handle_gauge_counter(column_store_t* store, int* n_store, query_list_t* temp)
+{
+   char* data = NULL;
+   struct configuration* config;
+   config = (struct configuration*)shmem;
+
+   for (int i = 0; i < temp->query_alt->n_columns; i++)
+   {
+      if (temp->query_alt->columns[i].type == LABEL_TYPE)
+      {
+         /* Dealt with later */
+         continue;
+      }
+
+      int idx = 0;
+      for (; idx < (*n_store); idx++)
+      {
+         if (!strcmp(store[idx].tag, temp->tag) &&
+             ((strlen(store[idx].name) == 0 && strlen(temp->query_alt->columns[i].name) == 0) ||
+              !strcmp(store[idx].name, temp->query_alt->columns[i].name)) &&
+             store[idx].type == temp->query_alt->columns[i].type
+             )
+         {
+            break;
+         }
+      }
+
+append:
+      if (idx < (*n_store))
+      {
+         /* Found Match */
+
+         struct tuple* tuple = temp->query->tuples;
+
+         while (tuple)
+         {
+            data = NULL;
+
+            data = pgexporter_vappend(data, 2,
                                       "pgexporter_",
-                                      prom->tag,
-                                      "_sum",
+                                      store[idx].tag
+                                      );
+
+            if (strlen(store[idx].name) > 0)
+            {
+               data = pgexporter_vappend(data, 2,
+                                         "_",
+                                         store[idx].name
+                                         );
+
+            }
+
+            data = pgexporter_vappend(data, 3,
                                       "{server=\"",
-                                      &config->servers[current->server].name[0],
+                                      config->servers[temp->query->tuples->server].name,
                                       "\""
                                       );
 
-            for (int j = 0; j < histogram_idx; j++)
+            /* Labels */
+            for (int j = 0; j < temp->query_alt->n_columns; j++)
             {
+               if (temp->query_alt->columns[j].type != LABEL_TYPE)
+               {
+                  continue;
+               }
+
                data = pgexporter_vappend(data, 5,
                                          ",",
-                                         prom->columns[j].name,
+                                         temp->query_alt->columns[j].name,
                                          "=\"",
-                                         safe_prometheus_key(pgexporter_get_column(j, current)),
+                                         safe_prometheus_key(pgexporter_get_column(j, tuple)),
                                          "\""
                                          );
+
             }
 
             data = pgexporter_vappend(data, 3,
                                       "} ",
-                                      pgexporter_get_column_by_name(names[0], all, current),
+                                      get_value(store[idx].tag, store[idx].name, pgexporter_get_column(i, tuple)),
                                       "\n"
                                       );
 
-            /* count */
-            data = pgexporter_vappend(data, 6,
-                                      "pgexporter_",
-                                      prom->tag,
-                                      "_count",
-                                      "{server=\"",
-                                      &config->servers[current->server].name[0],
-                                      "\""
-                                      );
+            add_column_to_store(store, idx, data, temp->sort_type, tuple);
 
-            for (int j = 0; j < histogram_idx; j++)
-            {
-               data = pgexporter_vappend(data, 5,
-                                         ",",
-                                         prom->columns[j].name,
-                                         "=\"",
-                                         safe_prometheus_key(pgexporter_get_column(j, current)),
-                                         "\""
-                                         );
-            }
-
-            data = pgexporter_vappend(data, 3,
-                                      "} ",
-                                      pgexporter_get_column_by_name(names[1], all, current),
-                                      "\n"
-                                      );
-
-            current = current->next;
+            tuple = tuple->next;
          }
 
       }
-
-      data = pgexporter_append(data, "\n");
-
-      if (data != NULL)
+      else
       {
-         send_chunk(client_fd, data);
-         metrics_cache_append(data);
-         free(data);
+         /* New Column */
+         if (!temp->query->tuples)
+         {
+            /* Skip */
+            continue;
+         }
+
+         (*n_store)++;
+
+         memcpy(store[idx].name, temp->query_alt->columns[i].name, MISC_LENGTH);
+         store[idx].type = temp->query_alt->columns[i].type;
+         memcpy(store[idx].tag, temp->tag, MISC_LENGTH);
+
          data = NULL;
+         append_help_info(&data, store[idx].tag, store[idx].name, temp->query_alt->columns[i].description);
+         append_type_info(&data, store[idx].tag, store[idx].name, temp->query_alt->columns[i].type);
+
+         add_column_to_store(store, idx, data, SORT_NAME, NULL);
+
+         data = NULL;
+
+         // Inserted help and type info above, and then go to append label to insert the rest of the information as usual.
+         // (*n_store)++ ensures this time it fulfills the condition for the if-statement.
+         goto append;
       }
    }
-
-   for (int i = 0; i < n_bounds; i++)
-   {
-      free(bounds_arr[i]);
-   }
-   for (int i = 0; i < n_buckets; i++)
-   {
-      free(buckets_arr[i]);
-   }
-   for (int i = 0; i < NUMBER_OF_HISTOGRAM_COLUMNS; i++)
-   {
-      free(names[i]);
-   }
-
-   pgexporter_free_query(all);
 }
 
 static void
@@ -1584,46 +1842,6 @@ send_chunk(int client_fd, char* data)
    free(m);
 
    return status;
-}
-
-static int
-parse_list(char* list_str, char** strs, int* n_strs)
-{
-   int idx = 0;
-   char* data = NULL;
-   char* p = NULL;
-   int len = strlen(list_str);
-
-   /**
-    * If the `list_str` is `{c1,c2,c3,...,cn}`, and if the `strlen(list_str)`
-    * is `x`, then it takes `x + 1` bytes in memory including the null character.
-    *
-    * `data` will have `list_str` without the first and last bracket (so `data` will
-    * just be `c1,c2,c3,...,cn`) and thus `strlen(data)` will be `x - 2`, and
-    * so will take `x - 1` bytes in memory including the null character.
-    */
-   data = (char*) malloc((len - 1) * sizeof(char));
-   memset(data, 0, (len - 1) * sizeof(char));
-
-   /**
-    * If list_str is `{c1,c2,c3,...,cn}`, then and if `len(list_str)` is `len`
-    * then this starts from `c1`, and goes for `len - 2`, so till `cn`, so the
-    * `data` string becomes `c1,c2,c3,...,cn`
-    */
-   strncpy(data, list_str + 1, len - 2);
-
-   p = strtok(data, ",");
-   while (p)
-   {
-      strs[idx] = NULL;
-      strs[idx] = pgexporter_append(strs[idx], p);
-      idx++;
-      p = strtok(NULL, ",");
-   }
-
-   *n_strs = idx;
-   free(data);
-   return 0;
 }
 
 static char*

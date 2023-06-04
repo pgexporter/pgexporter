@@ -1,289 +1,252 @@
-# This a sample file for PostgreSQL 10
+# This is the default minimum version for queries, unless specified otherwise
+version: 10
+metrics:
 
 # primary_information()
-  -
-    query: SELECT (CASE pg_is_in_recovery() WHEN 'f' THEN 't' ELSE 'f' END);
+  - queries:
+    - query: SELECT (CASE pg_is_in_recovery() WHEN 'f' THEN 't' ELSE 'f' END);
+      columns:
+        - description: Is the PostgreSQL instance the primary
+          type: gauge
     tag: postgresql_primary
-    server: primary
     sort: name
-    columns:
-      -
-        description: Is the PostgreSQL instance the primary
-        type: gauge
-
+    collector: primary
+    server: primary
 
 # database_information()
-  -
-    query: SELECT datname, pg_database_size(datname) FROM pg_database;
+  - queries:
+    - query: SELECT datname, pg_database_size(datname) FROM pg_database;
+      columns:
+        - name: database
+          type: label
+        - description: Size of the database
+          type: gauge
     tag: pg_database_size
     sort: data
-    columns:
-      -
-        name: database
-        type: label
-      -
-        description: Size of the database
-        type: gauge
-
-
-# replication_information()
-  -
-    query: SELECT slot_name,active,temporary FROM pg_replication_slots;
-    tag: pg_replication_slots
-    sort: data
-    columns:
-      -
-        name: slot_name
-        type: label
-      -
-        description: Is the replication active
-        name: active
-        type: gauge
-      -
-        description: Is the replication temporary
-        name: temporary
-        type: gauge
+    collector: db
 
 # locks_information()
-  -
-    query: SELECT pg_database.datname as database, tmp.mode, COALESCE(count, 0) as count
-                        FROM
-                        (
-                         VALUES ('accesssharelock'),
-                                ('rowsharelock'),
-                                ('rowexclusivelock'),
-                                ('shareupdateexclusivelock'),
-                                ('sharelock'),
-                                ('sharerowexclusivelock'),
-                                ('exclusivelock'),
-                                ('accessexclusivelock'),
-                                ('sireadlock')
-                        ) AS tmp(mode) CROSS JOIN pg_database
-                        LEFT JOIN
-                        (SELECT database, lower(mode) AS mode, count(*) AS count
-                         FROM pg_locks WHERE database IS NOT NULL
-                         GROUP BY database, lower(mode)
-                        ) AS tmp2
-                        ON tmp.mode = tmp2.mode and pg_database.oid = tmp2.database ORDER BY 1, 2;
+  - queries:
+    - query: SELECT pg_database.datname as database, tmp.mode, COALESCE(count, 0) as count
+              FROM
+              (
+              VALUES ('accesssharelock'),
+              ('rowsharelock'),
+              ('rowexclusivelock'),
+              ('shareupdateexclusivelock'),
+              ('sharelock'),
+              ('sharerowexclusivelock'),
+              ('exclusivelock'),
+              ('accessexclusivelock'),
+              ('sireadlock')
+              ) AS tmp(mode) CROSS JOIN pg_database
+              LEFT JOIN
+              (SELECT database, lower(mode) AS mode, count(*) AS count
+              FROM pg_locks WHERE database IS NOT NULL
+              GROUP BY database, lower(mode)
+              ) AS tmp2
+              ON tmp.mode = tmp2.mode and pg_database.oid = tmp2.database ORDER BY 1, 2;
+      columns:
+        - name: database
+          type: label
+        - name: mode
+          type: label
+        - description: Lock count of a database
+          type: gauge
     tag: pg_locks_count
     sort: data
-    columns:
-      -
-        name: database
+    collector: locks
+
+# replication_information()
+  - queries:
+    - query: SELECT slot_name,active,temporary FROM pg_replication_slots;
+      columns:
+      - name: slot_name
         type: label
-      -
-        name: mode
-        type: label
-      -
-        description: Lock count of a database
+      - description: Is the replication active
+        name: active
         type: gauge
+      - description: Is the replication temporary
+        name: temporary
+        type: gauge
+    tag: pg_replication_slots
+    sort: data
+    collector: replication
 
 # stat_bgwriter_information()
-  -
-    query: SELECT buffers_alloc, buffers_backend, buffers_backend_fsync,
-                        buffers_checkpoint, buffers_clean, checkpoint_sync_time,
-                        checkpoint_write_time, checkpoints_req, checkpoints_timed,
-                        maxwritten_clean
-                        FROM pg_stat_bgwriter;
+  - queries:
+    - query: SELECT buffers_alloc, buffers_backend, buffers_backend_fsync,
+              buffers_checkpoint, buffers_clean, checkpoint_sync_time,
+              checkpoint_write_time, checkpoints_req, checkpoints_timed,
+              maxwritten_clean
+              FROM pg_stat_bgwriter;
+      columns:
+        - description: pg_stat_bgwriter_buffers_alloc
+          name: buffers_alloc
+          type: gauge
+        - description: pg_stat_bgwriter_buffers_backend
+          name: buffers_backend
+          type: gauge
+        - description: pg_stat_bgwriter_buffers_backend_fsync
+          name: buffers_backend_fsync
+          type: gauge
+        - description: pg_stat_bgwriter_buffers_checkpoint
+          name: buffers_checkpoint
+          type: gauge
+        - description: pg_stat_bgwriter_buffers_clean
+          name: buffers_clean
+          type: gauge
+        - description: pg_stat_bgwriter_checkpoint_sync_time
+          name: checkpoint_sync_time
+          type: counter
+        - description: pg_stat_bgwriter_checkpoint_write_time
+          name: checkpoint_write_time
+          type: counter
+        - description: pg_stat_bgwriter_checkpoints_req
+          name: checkpoints_req
+          type: counter
+        - description: pg_stat_bgwriter_checkpoints_timed
+          name: checkpoints_timed
+          type: counter
+        - description: pg_stat_bgwriter_maxwritten_clean
+          name: maxwritten_clean
+          type: counter
     tag: pg_stat_bgwriter
     sort: name
-    columns:
-      -
-        description: pg_stat_bgwriter_buffers_alloc
-        name: buffers_alloc
-        type: gauge
-      -
-        description: pg_stat_bgwriter_buffers_backend
-        name: buffers_backend
-        type: gauge
-      -
-        description: pg_stat_bgwriter_buffers_backend_fsync
-        name: buffers_backend_fsync
-        type: gauge
-      -
-        description: pg_stat_bgwriter_buffers_checkpoint
-        name: buffers_checkpoint
-        type: gauge
-      -
-        description: pg_stat_bgwriter_buffers_clean
-        name: buffers_clean
-        type: gauge
-      -
-        description: pg_stat_bgwriter_checkpoint_sync_time
-        name: checkpoint_sync_time
-        type: gauge
-      -
-        description: pg_stat_bgwriter_checkpoint_write_time
-        name: checkpoint_write_time
-        type: gauge
-      -
-        description: pg_stat_bgwriter_checkpoints_req
-        name: checkpoints_req
-        type: gauge
-      -
-        description: pg_stat_bgwriter_checkpoints_timed
-        name: checkpoints_timed
-        type: gauge
-      -
-        description: pg_stat_bgwriter_maxwritten_clean
-        name: maxwritten_clean
-        type: gauge
+    collector: stat_bgwriter
 
 # stat_database_information()
-  -
-    query:  SELECT datname, blk_read_time, blk_write_time,
-                        blks_hit, blks_read,
-                        deadlocks, temp_files, temp_bytes,
-                        tup_returned, tup_fetched, tup_inserted,
-                        tup_updated, tup_deleted, xact_commit,
-                        xact_rollback, conflicts, numbackends
-                        FROM pg_stat_database WHERE datname IS NOT NULL ORDER BY datname;
+  - queries:
+    - query: SELECT datname, blk_read_time, blk_write_time,
+              blks_hit, blks_read, checksum_failures
+              deadlocks, temp_files, temp_bytes,
+              tup_returned, tup_fetched, tup_inserted,
+              tup_updated, tup_deleted, xact_commit,
+              xact_rollback, conflicts, numbackends
+              FROM pg_stat_database WHERE datname IS NOT NULL ORDER BY datname;
+      columns:
+        - name: database
+          type: label
+        - name: blk_read_time
+          type: counter
+          description: pg_stat_database_blk_read_time
+        - name: blk_write_time
+          type: counter
+          description: pg_stat_database_blk_write_time
+        - name: blks_hit
+          type: counter
+          description: pg_stat_database_blks_hit
+        - name: blks_read
+          type: counter
+          description: pg_stat_database_blks_read
+        - name: deadlocks
+          type: counter
+          description: pg_stat_database_deadlocks
+        - name: temp_files
+          type: gauge
+          description: pg_stat_database_temp_files
+        - name: temp_bytes
+          type: gauge
+          description: pg_stat_database_temp_bytes
+        - name: tup_returned
+          type: counter
+          description: pg_stat_database_tup_returned
+        - name: tup_fetched
+          type: counter
+          description: pg_stat_database_tup_fetched
+        - name: tup_inserted
+          type: counter
+          description: pg_stat_database_tup_inserted
+        - name: tup_updated
+          type: counter
+          description: pg_stat_database_tup_updated
+        - name: tup_deleted
+          type: counter
+          description: pg_stat_database_tup_deleted
+        - name: xact_commit
+          type: counter
+          description: pg_stat_database_xact_commit
+        - name: xact_rollback
+          type: counter
+          description: pg_stat_database_xact_rollback
+        - name: conflicts
+          type: counter
+          description: pg_stat_database_conflicts
+        - name: numbackends
+          type: gauge
+          description: pg_stat_database_numbackends
     tag: pg_stat_database
     sort: data
-    columns:
-      -
-        name: database
-        type: label
-      -
-        name: blk_read_time
-        type: gauge
-        description: pg_stat_database_blk_read_time
-      -
-        name: blk_write_time
-        type: gauge
-        description: pg_stat_database_blk_write_time
-      -
-        name: blks_hit
-        type: gauge
-        description: pg_stat_database_blks_hit
-      -
-        name: blks_read
-        type: gauge
-        description: pg_stat_database_blks_read
-      -
-        name: deadlocks
-        type: gauge
-        description: pg_stat_database_deadlocks
-      -
-        name: temp_files
-        type: gauge
-        description: pg_stat_database_temp_files
-      -
-        name: temp_bytes
-        type: gauge
-        description: pg_stat_database_temp_bytes
-      -
-        name: tup_returned
-        type: gauge
-        description: pg_stat_database_tup_returned
-      -
-        name: tup_fetched
-        type: gauge
-        description: pg_stat_database_tup_fetched
-      -
-        name: tup_inserted
-        type: gauge
-        description: pg_stat_database_tup_inserted
-      -
-        name: tup_updated
-        type: gauge
-        description: pg_stat_database_tup_updated
-      -
-        name: tup_deleted
-        type: gauge
-        description: pg_stat_database_tup_deleted
-      -
-        name: xact_commit
-        type: gauge
-        description: pg_stat_database_xact_commit
-      -
-        name: xact_rollback
-        type: gauge
-        description: pg_stat_database_xact_rollback
-      -
-        name: conflicts
-        type: gauge
-        description: pg_stat_database_conflicts
-      -
-        name: numbackends
-        type: gauge
-        description: pg_stat_database_numbackends
+    collector: stat_db
 
 # stat_database_conflicts_information()
-  -
-    query: SELECT datname, confl_tablespace, confl_lock,
-                      confl_snapshot, confl_bufferpin, confl_deadlock
-                      FROM pg_stat_database_conflicts WHERE datname IS NOT NULL ORDER BY datname;
+  - queries:
+    - query: SELECT datname, confl_tablespace, confl_lock,
+              confl_snapshot, confl_bufferpin, confl_deadlock
+              FROM pg_stat_database_conflicts WHERE datname IS NOT NULL ORDER BY datname;
+      columns:
+        - name: database
+          type: label
+        - name: confl_tablespace
+          type: counter
+          description: pg_stat_database_conflicts_confl_tablespace
+        - name: confl_lock
+          type: counter
+          description: pg_stat_database_conflicts_confl_lock
+        - name: confl_snapshot
+          type: counter
+          description: pg_stat_database_conflicts_confl_snapshot
+        - name: confl_bufferpin
+          type: counter
+          description: pg_stat_database_conflicts_confl_bufferpin
+        - name: confl_deadlock
+          type: counter
+          description: pg_stat_database_conflicts_confl_dead
     tag: pg_stat_database_conflicts
     sort: data
-    columns:
-      -
-        name: database
-        type: label
-      -
-        name: confl_tablespace
-        type: gauge
-        description: pg_stat_database_conflicts_confl_tablespace
-      -
-        name: confl_lock
-        type: gauge
-        description: pg_stat_database_conflicts_confl_lock
-      -
-        name: confl_snapshot
-        type: gauge
-        description: pg_stat_database_conflicts_confl_snapshot
-      -
-        name: confl_bufferpin
-        type: gauge
-        description: pg_stat_database_conflicts_confl_bufferpin
-      -
-        name: confl_deadlock
-        type: gauge
-        description: pg_stat_database_conflicts_confl_deadlock
-
+    collector: stat_conflicts
 
 # histogram sample
-  -
-    query: WITH
-      metrics AS (
-        SELECT
-          application_name,
-          SUM(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - state_change))::bigint)::float AS process_idle_seconds_sum,
-          COUNT(*) AS process_idle_seconds_count
-        FROM pg_stat_activity
-        WHERE state = 'idle'
-        GROUP BY application_name
-      ),
-      buckets AS (
-        SELECT
-          application_name,
-          le,
-          SUM(
-            CASE WHEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - state_change)) <= le
-              THEN 1
-              ELSE 0
-            END
-          )::bigint AS bucket
-        FROM
-          pg_stat_activity,
-          UNNEST(ARRAY[1, 2, 5, 15, 30, 60, 90, 120, 300]) AS le
-        GROUP BY application_name, le
-        ORDER BY application_name, le
-      )
-      SELECT
-        application_name,
-        process_idle_seconds_sum as seconds_sum,
-        process_idle_seconds_count as seconds_count,
-        ARRAY_AGG(le) AS seconds,
-        ARRAY_AGG(bucket) AS seconds_bucket
-      FROM metrics JOIN buckets USING (application_name)
-      GROUP BY 1, 2, 3;
+  - queries:
+    - query: WITH
+              metrics AS (
+                SELECT
+                    application_name,
+                    SUM(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - state_change))::bigint)::float AS process_idle_seconds_sum,
+                    COUNT(*) AS process_idle_seconds_count
+                FROM pg_stat_activity
+                WHERE state = 'idle'
+                GROUP BY application_name
+              ),
+              buckets AS (
+                SELECT
+                    application_name,
+                    le,
+                    SUM(
+                    CASE WHEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - state_change)) <= le
+                      THEN 1
+                      ELSE 0
+                    END
+                    )::bigint AS bucket
+                FROM
+                    pg_stat_activity,
+                    UNNEST(ARRAY[1, 2, 5, 15, 30, 60, 90, 120, 300]) AS le
+                GROUP BY application_name, le
+                ORDER BY application_name, le
+              )
+              SELECT
+                application_name,
+                process_idle_seconds_sum as seconds_sum,
+                process_idle_seconds_count as seconds_count,
+                ARRAY_AGG(le) AS seconds,
+                ARRAY_AGG(bucket) AS seconds_bucket
+              FROM metrics JOIN buckets USING (application_name)
+              GROUP BY 1, 2, 3;
+      columns:
+        - name: application_name
+          type: label
+        - name: seconds
+          type: histogram
+          description: Histogram of idle processes
     tag: pg_process_idle_seconds
-    columns:
-      -
-        name: application_name
-        type: label
-      -
-        name: seconds
-        type: histogram
-        description: Histogram of idle processes
+    collector: id

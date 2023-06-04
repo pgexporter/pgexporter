@@ -241,6 +241,14 @@ struct query*
 pgexporter_merge_queries(struct query* q1, struct query* q2, int sort);
 
 /**
+ * Free allocated memory for tuples linked list
+ * @param query The query
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_free_tuples(struct tuple** tuples, int n_columns);
+
+/**
  * Free query
  * @param query The query
  * @return 0 upon success, otherwise 1

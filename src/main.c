@@ -35,6 +35,7 @@
 #include <network.h>
 #include <prometheus.h>
 #include <queries.h>
+#include <query_alts.h>
 #include <remote.h>
 #include <security.h>
 #include <shmem.h>
@@ -218,8 +219,6 @@ main(int argc, char** argv)
    char* yaml_path = NULL;
    char* collector = NULL;
    char collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];
-   int collector_idx = 0;
-   int number_of_metrics = 0;
    bool daemon = false;
    pid_t pid, sid;
    struct signal_info signal_watcher[5];
@@ -228,6 +227,7 @@ main(int argc, char** argv)
    struct configuration* config = NULL;
    int ret;
    int c;
+   int collector_idx = 0;
 
    argv_ptr = argv;
 
@@ -379,16 +379,6 @@ main(int argc, char** argv)
    }
    memcpy(&config->configuration_path[0], configuration_path, MIN(strlen(configuration_path), MAX_PATH - 1));
 
-   /* Internal Metrics Collectors YAML File */
-   number_of_metrics = 0;
-   FILE* internal_yaml_ptr = NULL;
-
-   internal_yaml_ptr = fmemopen(INTERNAL_YAML, strlen(INTERNAL_YAML), "r");
-   read_yaml_from_file_pointer(config->prometheus, &number_of_metrics, internal_yaml_ptr);
-   fclose(internal_yaml_ptr);
-
-   config->number_of_metrics = number_of_metrics;
-
    /* Users Configuration File */
    if (users_path != NULL)
    {
@@ -484,6 +474,9 @@ main(int argc, char** argv)
 #endif
       exit(1);
    }
+
+   /* Internal Metrics Collectors YAML File */
+   pgexporter_read_internal_yaml_metrics(config, true);
 
    if (pgexporter_validate_configuration(shmem))
    {
@@ -731,6 +724,9 @@ main(int argc, char** argv)
    remove_lockfile();
 
    pgexporter_stop_logging();
+
+   pgexporter_free_query_alts(config);
+
    pgexporter_destroy_shared_memory(shmem, shmem_size);
    pgexporter_destroy_shared_memory(prometheus_cache_shmem, prometheus_cache_shmem_size);
 

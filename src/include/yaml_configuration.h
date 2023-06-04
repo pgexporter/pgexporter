@@ -46,6 +46,17 @@ int
 pgexporter_read_metrics_configuration(void* shmem);
 
 /**
+ * @brief Read the internal YAML configuration `INTERNAL_YAML` and load the
+ * metrics in the config.
+ *
+ * @param config The configuration where it will be loaded
+ * @param start true if it will reset the `number_of_metrics` in `config` to 0 and start counting from there
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_read_internal_yaml_metrics(struct configuration* config, bool start);
+
+/**
  * Read and load YAML configuration from file pointer.
  * @param prometheus The data structure where the YAML configuration is loaded
  * @param number_of_metrics The number of metrics the configuration has. This value will be set by the function.
@@ -53,7 +64,7 @@ pgexporter_read_metrics_configuration(void* shmem);
  * @return 0 upon success, otherwise 1
  */
 int
-read_yaml_from_file_pointer(struct prometheus* prometheus, int* number_of_metrics, FILE* file);
+pgexporter_read_yaml_from_file_pointer(struct prometheus* prometheus, int* number_of_metrics, FILE* file);
 
 #ifdef __cplusplus
 }

@@ -85,7 +85,7 @@ extern "C" {
 #define HUGEPAGE_TRY 1
 #define HUGEPAGE_ON  2
 
-#define MAX_QUERY_LENGTH      1024
+#define MAX_QUERY_LENGTH      2048
 #define MAX_COLLECTOR_LENGTH  1024
 
 #define LABEL_TYPE      0
@@ -101,17 +101,6 @@ extern "C" {
 #define SERVER_QUERY_REPLICA 2
 
 #define SERVER_UNDERTERMINED_VERSION 0
-
-#define START_STATUS            0
-#define SEQUENCE_STATUS         1
-#define BLOCK_STATUS            2
-#define BLOCK_MAPPING_STATUS    3
-#define COLUMN_SEQUENCE_STATUS  4
-#define COLUMN_BLOCK_STATUS     5
-#define COLUMN_MAPPING_STATUS   6
-#define KEY_STATUS              7
-#define VALUE_STATUS            8
-#define END_STATUS              9
 
 #define UPDATE_PROCESS_TITLE_NEVER   0
 #define UPDATE_PROCESS_TITLE_STRICT  1
@@ -244,18 +233,31 @@ struct column
    char description[MISC_LENGTH];   /*< Description of column */
 } __attribute__ ((aligned (64)));
 
+typedef struct query_alts
+{
+   char version;                                   /*< Minimum required version to run query */
+   char query[MAX_QUERY_LENGTH];                   /*< Query String */
+   struct column columns[MAX_NUMBER_OF_COLUMNS];   /*< Columns of query */
+   int n_columns;                                  /*< No. of columns */
+   bool is_histogram;                              /*< Is the query for a histogram metric */
+
+   /* AVL Tree */
+   unsigned int height;       /*< Node's height, 1 if leaf, 0 if NULL */
+   struct query_alts* left;   /*< Left child node */
+   struct query_alts* right;  /*< Right child node */
+
+} __attribute__ ((aligned (64))) query_alts_t;
+
 /** @struct
  * Defines the Prometheus metrics
  */
 struct prometheus
 {
-   char query[MAX_QUERY_LENGTH];                   /*< The query string of metric */
    char tag[MISC_LENGTH];                          /*< The metric name */
    int sort_type;                                  /*< Sorting type of multi queries 0--SORT_NAME 1--SORT_DATA0 */
    int server_query_type;                          /*< Query type 0--SERVER_QUERY_BOTH 1--SERVER_QUERY_PRIMARY 2--SERVER_QUERY_REPLICA */
-   int number_of_columns;                          /*< The number of columns */
-   struct column columns[MAX_NUMBER_OF_COLUMNS];   /*< Metric columns */
    char collector[MAX_COLLECTOR_LENGTH];           /*< Collector Tag for query */
+   query_alts_t* root;                             /*< Root of the Query Alternative's AVL Tree */
 } __attribute__ ((aligned (64)));
 
 /** @struct

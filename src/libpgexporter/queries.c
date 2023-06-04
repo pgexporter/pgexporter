@@ -491,28 +491,35 @@ pgexporter_merge_queries(struct query* q1, struct query* q2, int sort)
 int
 pgexporter_free_query(struct query* query)
 {
-   struct tuple* current = NULL;
-   struct tuple* next = NULL;
 
    if (query != NULL)
    {
-      current = query->tuples;
-
-      while (current != NULL)
-      {
-         next = current->next;
-
-         for (int i = 0; i < query->number_of_columns; i++)
-         {
-            free(current->data[i]);
-         }
-         free(current->data);
-         free(current);
-
-         current = next;
-      }
-
+      pgexporter_free_tuples(&query->tuples, query->number_of_columns);
       free(query);
+   }
+
+   return 0;
+}
+
+int
+pgexporter_free_tuples(struct tuple** tuples, int n_columns)
+{
+   struct tuple* next = NULL;
+   struct tuple* current = NULL;
+   current = *tuples;
+
+   while (current != NULL)
+   {
+      next = current->next;
+
+      for (int i = 0; i < n_columns; i++)
+      {
+         free(current->data[i]);
+      }
+      free(current->data);
+      free(current);
+
+      current = next;
    }
 
    return 0;
