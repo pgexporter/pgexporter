@@ -11,7 +11,7 @@ metrics:
     tag: postgresql_primary
     sort: name
     collector: primary
-    server: primary
+    server: both
 
 # database_information()
   - queries:
