@@ -694,7 +694,7 @@ parse_queries(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
          /* Keys */
 
          case YAML_SCALAR_EVENT:
-            if (*state_ptr != PARSER_VALUE && *state_ptr != PARSER_MAP_START)
+            if (*state_ptr != PARSER_VALUE && *state_ptr != PARSER_MAP_START && *state_ptr != PARSER_SEQ_END)
             {
                goto error;
             }
@@ -1111,13 +1111,13 @@ semantics_yaml(struct prometheus* prometheus, yaml_config_t* yaml_config)
          query_alts_t* new_query = malloc(sizeof(query_alts_t));
          memset(new_query, 0, sizeof(query_alts_t));
 
-         new_query->n_columns = yaml_config->metrics[i].queries[j].n_columns;
+         new_query->n_columns = MIN(yaml_config->metrics[i].queries[j].n_columns, MAX_NUMBER_OF_COLUMNS);
 
          memcpy(new_query->query, yaml_config->metrics[i].queries[j].query, MIN(MAX_QUERY_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].query)));
          new_query->version = yaml_config->metrics[i].queries[j].version;
 
          // Columns
-         for (int k = 0; k < MIN(yaml_config->metrics[i].queries[j].n_columns, MAX_NUMBER_OF_COLUMNS); k++)
+         for (int k = 0; k < new_query->n_columns; k++)
          {
 
             // Name

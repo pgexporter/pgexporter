@@ -67,6 +67,7 @@ typedef struct query_list
    query_alts_t* query_alt;
    char tag[MISC_LENGTH];
    int sort_type;
+   bool error;
 } query_list_t;
 
 /**
@@ -1151,7 +1152,6 @@ custom_metrics(int client_fd)
    // Iterate through each metric to send its query to PostgreSQL server
    for (int i = 0; i < config->number_of_metrics; i++)
    {
-      int err = false;
       struct prometheus* prom = &config->prometheus[i];
 
       /* Expose only if default or specified */
@@ -1176,41 +1176,27 @@ custom_metrics(int client_fd)
             continue;
          }
 
-         // Setting Temp's value
-         query_list_t* next = malloc(sizeof(query_list_t));
-         memset(next, 0, sizeof(query_list_t));
-         if (!err)
-         {
-            if (!q_list)
-            {
-               q_list = next;
-               temp = q_list;
-            }
-            else if (temp->query)
-            {
-               temp->next = next;
-               temp = next;
-            }
-         }
-         else
-         {
-            // Free node with previous data if previous query had an error while executing
-            pgexporter_free_query(temp->query);
-            if (temp)
-            {
-               temp->query_alt = NULL;
-               free(temp);
-            }
-
-            temp = next;
-         }
-
          query_alts_t* query_alt = pgexporter_get_query_alt(prom->root, server);
 
          if (!query_alt)
          {
             /* Skip */
             continue;
+         }
+
+         // Setting Temp's value
+         query_list_t* next = malloc(sizeof(query_list_t));
+         memset(next, 0, sizeof(query_list_t));
+
+         if (!q_list)
+         {
+            q_list = next;
+            temp = q_list;
+         }
+         else if (temp && temp->query)
+         {
+            temp->next = next;
+            temp = next;
          }
 
          /* Names */
@@ -1225,12 +1211,12 @@ custom_metrics(int client_fd)
          // Gather all the queries in a linked list, with each query's result (linked list of tuples in it) as a node.
          if (query_alt->is_histogram)
          {
-            err = pgexporter_custom_query(server, query_alt->query, prom->tag, -1, NULL, &temp->query);
+            temp->error = pgexporter_custom_query(server, query_alt->query, prom->tag, -1, NULL, &temp->query);
             temp->sort_type = prom->sort_type;
          }
          else
          {
-            err = pgexporter_custom_query(server, query_alt->query, prom->tag, query_alt->n_columns, names, &temp->query);
+            temp->error = pgexporter_custom_query(server, query_alt->query, prom->tag, query_alt->n_columns, names, &temp->query);
             temp->sort_type = prom->sort_type;
          }
 
@@ -1246,15 +1232,17 @@ custom_metrics(int client_fd)
 
    while (temp)
    {
-      if (temp->query_alt->is_histogram)
+      if (temp->error || (temp->query != NULL && temp->query->tuples != NULL))
       {
-         handle_histogram(store, &n_store, temp);
+         if (temp->query_alt->is_histogram)
+         {
+            handle_histogram(store, &n_store, temp);
+         }
+         else
+         {
+            handle_gauge_counter(store, &n_store, temp);
+         }
       }
-      else
-      {
-         handle_gauge_counter(store, &n_store, temp);
-      }
-
       temp = temp->next;
    }
 
@@ -1288,7 +1276,6 @@ custom_metrics(int client_fd)
    query_list_t* last = NULL;
    while (temp)
    {
-
       pgexporter_free_query(temp->query);
       // temp->query_alt // Not freed here, but when program ends
       last = temp;
@@ -1419,6 +1406,11 @@ handle_histogram(column_store_t* store, int* n_store, query_list_t* temp)
       {
          break;
       }
+   }
+
+   if (!temp || !temp->query || !temp->query->tuples)
+   {
+      return;
    }
 
    struct tuple* tp = temp->query->tuples;
@@ -1651,6 +1643,12 @@ handle_gauge_counter(column_store_t* store, int* n_store, query_list_t* temp)
       }
 
 append:
+      if (!temp || !temp->query || !temp->query->tuples)
+      {
+         /* Skip */
+         continue;
+      }
+
       if (idx < (*n_store))
       {
          /* Found Match */
@@ -1714,12 +1712,6 @@ append:
       else
       {
          /* New Column */
-         if (!temp->query->tuples)
-         {
-            /* Skip */
-            continue;
-         }
-
          (*n_store)++;
 
          memcpy(store[idx].name, temp->query_alt->columns[i].name, MISC_LENGTH);
