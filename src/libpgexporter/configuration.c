@@ -163,6 +163,17 @@ pgexporter_read_configuration(void* shm, char* filename)
                memcpy(&section, line + 1, max);
                if (strcmp(section, "pgexporter"))
                {
+
+                  for (int j = 0; j < idx_server - 1; j++)
+                  {
+                     if (!strcmp(srv.name, config->servers[j].name))
+                     {
+                        warnx("Duplicate server name \"%s\"", srv.name);
+                        fclose(file);
+                        exit(1);
+                     }
+                  }
+
                   if (idx_server > 0 && idx_server <= NUMBER_OF_SERVERS)
                   {
                      memcpy(&(config->servers[idx_server - 1]), &srv, sizeof(struct server));
