@@ -163,19 +163,18 @@ pgexporter_read_configuration(void* shm, char* filename)
                memcpy(&section, line + 1, max);
                if (strcmp(section, "pgexporter"))
                {
-
-                  for (int j = 0; j < idx_server - 1; j++)
-                  {
-                     if (!strcmp(srv.name, config->servers[j].name))
-                     {
-                        warnx("Duplicate server name \"%s\"", srv.name);
-                        fclose(file);
-                        exit(1);
-                     }
-                  }
-
                   if (idx_server > 0 && idx_server <= NUMBER_OF_SERVERS)
                   {
+                     for (int j = 0; j < idx_server - 1; j++)
+                     {
+                        if (!strcmp(srv.name, config->servers[j].name))
+                        {
+                           warnx("Duplicate server name \"%s\"", srv.name);
+                           fclose(file);
+                           exit(1);
+                        }
+                     }
+
                      memcpy(&(config->servers[idx_server - 1]), &srv, sizeof(struct server));
                   }
                   else if (idx_server > NUMBER_OF_SERVERS)
@@ -188,6 +187,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                   srv.fd = -1;
                   srv.extension = true;
                   srv.state = SERVER_UNKNOWN;
+                  srv.version = SERVER_UNDERTERMINED_VERSION;
 
                   idx_server++;
                }
@@ -739,7 +739,17 @@ pgexporter_read_configuration(void* shm, char* filename)
 
    if (strlen(srv.name) > 0)
    {
-      srv.version = SERVER_UNDERTERMINED_VERSION;
+
+      for (int j = 0; j < idx_server - 1; j++)
+      {
+         if (!strcmp(srv.name, config->servers[j].name))
+         {
+            warnx("Duplicate server name \"%s\"", srv.name);
+            fclose(file);
+            exit(1);
+         }
+      }
+
       memcpy(&(config->servers[idx_server - 1]), &srv, sizeof(struct server));
    }
 
