@@ -4,7 +4,13 @@ metrics:
 
 # primary_information()
   - queries:
-    - query: SELECT (CASE pg_is_in_recovery() WHEN 'f' THEN 't' ELSE 'f' END);
+    - query: SELECT
+              (
+                CASE pg_is_in_recovery() WHEN 'f'
+                  THEN 't'
+                  ELSE 'f'
+                END
+              );
       columns:
         - description: Is the PostgreSQL instance the primary
           type: gauge
@@ -15,7 +21,10 @@ metrics:
 
 # database_information()
   - queries:
-    - query: SELECT datname, pg_database_size(datname) FROM pg_database;
+    - query: SELECT
+                datname,
+                pg_database_size(datname)
+              FROM pg_database;
       columns:
         - name: database
           type: label
@@ -27,25 +36,35 @@ metrics:
 
 # locks_information()
   - queries:
-    - query: SELECT pg_database.datname as database, tmp.mode, COALESCE(count, 0) as count
-              FROM
-              (
-              VALUES ('accesssharelock'),
-              ('rowsharelock'),
-              ('rowexclusivelock'),
-              ('shareupdateexclusivelock'),
-              ('sharelock'),
-              ('sharerowexclusivelock'),
-              ('exclusivelock'),
-              ('accessexclusivelock'),
-              ('sireadlock')
-              ) AS tmp(mode) CROSS JOIN pg_database
+    - query: SELECT
+                pg_database.datname as database,
+                tmp.mode,
+                COALESCE(count, 0) as count
+              FROM (
+                VALUES
+                  ('accesssharelock'),
+                  ('rowsharelock'),
+                  ('rowexclusivelock'),
+                  ('shareupdateexclusivelock'),
+                  ('sharelock'),
+                  ('sharerowexclusivelock'),
+                  ('exclusivelock'),
+                  ('accessexclusivelock'),
+                  ('sireadlock')
+              ) AS tmp(mode)
+              CROSS JOIN pg_database
               LEFT JOIN
-              (SELECT database, lower(mode) AS mode, count(*) AS count
-              FROM pg_locks WHERE database IS NOT NULL
-              GROUP BY database, lower(mode)
+              (
+                SELECT
+                  database,
+                  lower(mode) AS mode,
+                  count(*) AS count
+                FROM pg_locks
+                WHERE database IS NOT NULL
+                GROUP BY database, lower(mode)
               ) AS tmp2
-              ON tmp.mode = tmp2.mode and pg_database.oid = tmp2.database ORDER BY 1, 2;
+              ON tmp.mode = tmp2.mode AND pg_database.oid = tmp2.database
+              ORDER BY 1, 2;
       columns:
         - name: database
           type: label
@@ -59,9 +78,19 @@ metrics:
 
 # replication_information()
   - queries:
-    - query: SELECT slot_name,active,temporary FROM pg_replication_slots;
+    - query: SELECT
+                slot_name,
+                slot_type,
+                database,
+                active,
+                temporary
+              FROM pg_replication_slots;
       columns:
       - name: slot_name
+        type: label
+      - name: slot_type
+        type: label
+      - name: database
         type: label
       - description: Is the replication active
         name: active
@@ -75,10 +104,17 @@ metrics:
 
 # stat_bgwriter_information()
   - queries:
-    - query: SELECT buffers_alloc, buffers_backend, buffers_backend_fsync,
-              buffers_checkpoint, buffers_clean, checkpoint_sync_time,
-              checkpoint_write_time, checkpoints_req, checkpoints_timed,
-              maxwritten_clean
+    - query: SELECT
+                buffers_alloc
+                buffers_backend
+                buffers_backend_fsync,
+                buffers_checkpoint
+                buffers_clean
+                checkpoint_sync_time,
+                checkpoint_write_time
+                checkpoints_req
+                checkpoints_timed,
+                maxwritten_clean
               FROM pg_stat_bgwriter;
       columns:
         - description: pg_stat_bgwriter_buffers_alloc
@@ -112,18 +148,31 @@ metrics:
           name: maxwritten_clean
           type: counter
     tag: pg_stat_bgwriter
-    sort: name
     collector: stat_bgwriter
 
 # stat_database_information()
   - queries:
-    - query: SELECT datname, blk_read_time, blk_write_time,
-              blks_hit, blks_read, checksum_failures
-              deadlocks, temp_files, temp_bytes,
-              tup_returned, tup_fetched, tup_inserted,
-              tup_updated, tup_deleted, xact_commit,
-              xact_rollback, conflicts, numbackends
-              FROM pg_stat_database WHERE datname IS NOT NULL ORDER BY datname;
+    - query: SELECT
+                datname,
+                blk_read_time,
+                blk_write_time,
+                blks_hit,
+                blks_read,
+                deadlocks,
+                temp_files,
+                temp_bytes,
+                tup_returned,
+                tup_fetched,
+                tup_inserted,
+                tup_updated,
+                tup_deleted,
+                xact_commit,
+                xact_rollback,
+                conflicts,
+                numbackends
+              FROM pg_stat_database
+              WHERE datname IS NOT NULL
+              ORDER BY datname;
       columns:
         - name: database
           type: label
@@ -181,9 +230,15 @@ metrics:
 
 # stat_database_conflicts_information()
   - queries:
-    - query: SELECT datname, confl_tablespace, confl_lock,
-              confl_snapshot, confl_bufferpin, confl_deadlock
-              FROM pg_stat_database_conflicts WHERE datname IS NOT NULL ORDER BY datname;
+    - query: SELECT datname,
+                confl_tablespace,
+                confl_lock,
+                confl_snapshot,
+                confl_bufferpin,
+                confl_deadlock
+              FROM pg_stat_database_conflicts
+              WHERE datname IS NOT NULL
+              ORDER BY datname;
       columns:
         - name: database
           type: label
@@ -201,7 +256,7 @@ metrics:
           description: pg_stat_database_conflicts_confl_bufferpin
         - name: confl_deadlock
           type: counter
-          description: pg_stat_database_conflicts_confl_dead
+          description: pg_stat_database_conflicts_confl_deadlock
     tag: pg_stat_database_conflicts
     sort: data
     collector: stat_conflicts
@@ -211,26 +266,26 @@ metrics:
     - query: WITH
               metrics AS (
                 SELECT
-                    application_name,
-                    SUM(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - state_change))::bigint)::float AS process_idle_seconds_sum,
-                    COUNT(*) AS process_idle_seconds_count
+                  application_name,
+                  SUM(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - state_change))::bigint)::float AS process_idle_seconds_sum,
+                  COUNT(*) AS process_idle_seconds_count
                 FROM pg_stat_activity
                 WHERE state = 'idle'
                 GROUP BY application_name
               ),
               buckets AS (
                 SELECT
-                    application_name,
-                    le,
-                    SUM(
+                  application_name,
+                  le,
+                  SUM(
                     CASE WHEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - state_change)) <= le
                       THEN 1
                       ELSE 0
                     END
-                    )::bigint AS bucket
+                  )::bigint AS bucket
                 FROM
-                    pg_stat_activity,
-                    UNNEST(ARRAY[1, 2, 5, 15, 30, 60, 90, 120, 300]) AS le
+                  pg_stat_activity,
+                  UNNEST(ARRAY[1, 2, 5, 15, 30, 60, 90, 120, 300]) AS le
                 GROUP BY application_name, le
                 ORDER BY application_name, le
               )
@@ -249,4 +304,347 @@ metrics:
           type: histogram
           description: Histogram of idle processes
     tag: pg_process_idle_seconds
-    collector: id
+    collector: idle_procs
+
+# Get number of available extensions for installations.
+  - queries:
+    - query: SELECT COUNT(*) AS extensions
+              FROM pg_available_extensions;
+      columns:
+        - type: gauge
+          description: Number of available extensions for installation.
+    tag: pg_available_extensions
+    collector: available_extensions
+
+# Get number of installed extensions.
+  - queries:
+    - query: SELECT
+                array_agg(extname) AS extensions,
+                count(*)
+              FROM pg_extension;
+      columns:
+        - name: extensions
+          type: label
+        - type: gauge
+          description: Number of installed extensions.
+    tag: pg_installed_extensions
+    collector: installed_extensions
+
+# Get applied settings
+  - queries:
+    - query: SELECT
+                sourcefile,
+                COUNT(*),
+                (
+                  CASE applied WHEN 't'
+                    THEN 'true'
+                    ELSE 'false'
+                  END
+                ) as applied
+              FROM pg_file_settings
+              WHERE applied = 't'
+              GROUP BY sourcefile, applied;
+      columns:
+        - name: sourcefile
+          type: label
+        - type: gauge
+          description: Settings that are applied.
+        - name: applied
+          type: label
+    tag: pg_file_settings
+    sort: data
+    collector: file_settings
+
+# Get indexes for schemas.
+  - queries:
+    - query: SELECT
+                schemaname,
+                tablename,
+                COUNT(*)
+              FROM pg_indexes
+              GROUP BY schemaname,tablename;
+      columns:
+        - name: schemaname
+          type: label
+        - name: tablename
+          type: label
+        - type: gauge
+          description: Indexes for each schemaname for each tablename.
+    tag: pg_indexes
+    sort: data
+    collector: indexes
+
+# Get materialized views
+  - queries:
+    - query: SELECT COUNT(*)
+              FROM pg_matviews
+              WHERE ispopulated = 't'
+              GROUP BY ispopulated;
+      columns:
+        - type: gauge
+          description: Number of applied Materialized views.
+    tag: pg_matviews
+    collector: matviews
+
+# Get number of roles
+  - queries:
+    - query: SELECT COUNT(*)
+              FROM pg_roles;
+      columns:
+        - type: gauge
+          description: Number of roles.
+    tag: pg_role
+    collector: roles
+
+# Get number of rules
+  - queries:
+    - query: SELECT tablename, COUNT(*)
+              FROM pg_rules
+              GROUP BY tablename;
+      columns:
+        - name: tablename
+          type: label
+        - type: gauge
+          description: Number of rules in table.
+    tag: pg_role
+    sort: data
+    collector: roles
+
+# Get user auth data
+  - queries:
+    - query: SELECT (
+                CASE
+                  WHEN rolpassword LIKE 'md5%' THEN 'MD5'
+                  WHEN rolpassword LIKE 'SCRAM-SHA-256$%' THEN 'SCRAM-SHA-256'
+                  ELSE 'UNENCRYPTED'
+                END
+              ) AS encryption_type, COUNT(*)
+              FROM pg_authid
+              WHERE rolname != 'postgres'
+              GROUP BY encryption_type;
+      columns:
+        - name: encryption_type
+          type: label
+        - type: gauge
+          description: Number of users with authentication type.
+    tag: pg_shadow
+    sort: data
+    collector: auth_type
+
+# Get user defined event-triggers
+  - queries:
+    - query: SELECT COUNT(*)
+              FROM pg_event_trigger
+              JOIN pg_authid
+              ON pg_event_trigger.oid = pg_authid.oid
+              WHERE rolname != 'postgres';
+      columns:
+        - type: gauge
+          description: Number of user defined event triggers.
+    tag: pg_usr_evt_trigger
+    collector: usr_evt_trigger
+
+# Get number of database connections
+  - queries:
+    - query: SELECT datname, count(*)
+              FROM pg_stat_activity
+              WHERE datname IS NOT NULL
+              GROUP BY datname;
+      columns:
+        - name: database
+          type: label
+        - type: gauge
+          description: Number of database connections.
+    tag: pg_db_conn
+    sort: data
+    collector: connections
+
+# Get DB connections with SSL
+  - queries:
+    - query: SELECT datname, count(*)
+              FROM pg_stat_ssl
+              JOIN pg_stat_activity
+              ON pg_stat_activity.pid = pg_stat_ssl.pid
+              WHERE ssl = 't' AND datname IS NOT NULL
+              GROUP BY datname;
+      columns:
+        - name: database
+          type: label
+        - type: gauge
+          description: Number of DB connections with SSL.
+    tag: pg_db_conn
+    sort: data
+    collector: connections
+
+# All tables statio
+  - queries:
+    - query: SELECT
+                COUNT(heap_blks_read) AS heap_blks_read,
+                COUNT(heap_blks_hit) AS heap_blks_hit,
+                COUNT(idx_blks_read) as idx_blks_read,
+                COUNT(idx_blks_hit) AS idx_blks_hit,
+                COUNT(toast_blks_read) AS toast_blks_read,
+                COUNT(toast_blks_hit) AS toast_blks_hit,
+                COUNT(tidx_blks_read) AS tidx_blks_read,
+                COUNT(tidx_blks_hit) AS tidx_blks_hit
+              FROM pg_statio_all_tables;
+      columns:
+        - name: heap_blks_read
+          type: counter
+          description: Number of disk blocks read in postgres db.
+        - name: heap_blks_hit
+          type: counter
+          description: Number of buffer hits read in postgres db.
+        - name: idx_blks_read
+          type: counter
+          description: Number of disk blocks reads from all indexes in postgres db.
+        - name: idx_blks_hit
+          type: counter
+          description: Number of buffer hits read from all indexes in postgres db.
+        - name: toast_blks_read
+          type: counter
+          description: Number of disk blocks reads from postgres db's TOAST tables.
+        - name: toast_blks_hit
+          type: counter
+          description: Number of buffer hits read from postgres db's TOAST tables.
+        - name: tidx_blks_read
+          type: counter
+          description: Number of disk blocks reads from postgres db's TOAST table indexes.
+        - name: tidx_blks_hit
+          type: counter
+          description: Number of buffer hits read from postgres db's TOAST table indexes.
+    tag: pg_statio_all_tables
+    collector: statio_all_tables
+
+# All sequences statio
+  - queries:
+    - query: SELECT
+                COUNT(blks_read) AS blks_read,
+                COUNT(blks_hit) AS blks_hit
+              FROM pg_statio_all_sequences;
+      columns:
+        - name: blks_read
+          type: counter
+          description: Number of disk blocks read from sequences in postgres db.
+        - name: blks_hit
+          type: counter
+          description: Number of buffer hits read from sequences in postgres db.
+    tag: pg_statio_all_sequences
+    collector: statio_all_sequences
+
+# Stat user functions
+  - queries:
+    - query: SELECT
+                funcname,
+                rows,
+                self_time,
+                total_time
+              FROM pg_stat_user_functions;
+      columns:
+        - name: funcname
+          type: label
+        - name: calls
+          type: counter
+          description: Number of times function is called.
+        - name: self_time
+          type: counter
+          description: Total time spent in milliseconds on the function itself.
+        - name: total_time
+          type: counter
+          description: Total time spent in milliseconds by the function and any other functions called by it.
+    tag: pg_stat_user_functions
+    sort: data
+    collector: stat_user_functions
+
+# Top 10 most executed SQL query per server
+  - queries:
+    - query: SELECT calls, query
+              FROM pg_stat_statements
+              ORDER BY calls DESC
+              LIMIT 10;
+      columns:
+        - type: counter
+          description: Number of times the SQL query is executed.
+        - name: query
+          type: label
+    tag: pg_stat_statements_calls
+    sort: data
+    collector: stat_statements_calls
+
+# Top 10 most rows affecting SQL queries
+  - queries:
+    - query: SELECT rows, query
+              FROM pg_stat_statements
+              ORDER BY rows DESC
+              LIMIT 10;
+      columns:
+        - type: counter
+          description: Number of rows the SQL query affects.
+        - name: query
+          type: label
+    tag: pg_stat_statements_rows
+    sort: data
+    collector: stat_statements_rows
+
+# Number of streaming WAL connections per application.
+  - queries:
+    - query: SELECT COUNT(*), application_name
+              FROM pg_stat_replication
+              WHERE state = 'streaming'
+              GROUP BY application_name;
+      columns:
+        - type: gauge
+          description: Number of streaming WAL connections per application.
+        - name: application_name
+          type: label
+    tag: pg_stat_replication
+    sort: data
+    collector: stat_replication
+
+  - queries:
+    - query: SELECT
+                archived_count,
+                (EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_archived_time)) * 1000)::bigint AS success_time_elapsed_ms,
+                failed_count,
+                (EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_failed_time)) * 1000)::bigint AS failure_time_elapsed_ms
+              FROM pg_stat_archiver;
+      columns:
+        - type: counter
+          name: archived_count
+          description: Number of successful archived WAL files.
+        - type: counter
+          name: success_time_elapsed_ms
+          description: Milliseconds since successful archived WAL file.
+        - type: counter
+          name: archived_count
+          description: Number of failed archival operation on WAL files.
+        - type: counter
+          name: archived_count
+          description: Milliseconds since last failed archival operation on WAL files.
+    tag: pg_stat_archiver
+    sort: data
+    collector: stat_archiver
+
+  - queries:
+    - query: SELECT
+                SUM(idx_scan) AS idx_scans,
+                SUM(idx_tup_read) AS idx_tup_reads,
+                SUM(idx_tup_fetch) AS idx_tup_fetchs,
+                relname
+              FROM pg_stat_all_indexes
+              GROUP BY relname;
+      columns:
+        - type: counter
+          name: idx_scans
+          description: Number of index scans on the table's indexes.
+        - type: counter
+          name: idx_tup_reads
+          description: Number of index entries returned by scans on the table's indexes.
+        - type: counter
+          name: idx_tup_fetchs
+          description: Number of rows fetched by simple index scans on the table's indexes.
+        - type: label
+          name: relname
+    tag: stat_all_indexes
+    sort: data
+    collector: pg_stat_all_indexes
