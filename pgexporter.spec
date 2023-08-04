@@ -31,6 +31,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__mkdir} -p %{buildroot}%{_docdir}/%{name}/etc
 %{__mkdir} -p %{buildroot}%{_docdir}/%{name}/shell_comp
 %{__mkdir} -p %{buildroot}%{_docdir}/%{name}/tutorial
+%{__mkdir} -p %{buildroot}%{_docdir}/%{name}/yaml
 %{__mkdir} -p %{buildroot}%{_mandir}/man1
 %{__mkdir} -p %{buildroot}%{_mandir}/man5
 %{__mkdir} -p %{buildroot}%{_sysconfdir}/pgexporter
@@ -47,6 +48,13 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/etc/pgexporter.service %{buildroot}%{_docdir}/%{name}/etc/pgexporter.service
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/shell_comp/pgexporter_comp.bash %{buildroot}%{_docdir}/%{name}/shell_comp/pgexporter_comp.bash
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/shell_comp/pgexporter_comp.zsh %{buildroot}%{_docdir}/%{name}/shell_comp/pgexporter_comp.zsh
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-10.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-10.yaml
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-11.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-11.yaml
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-12.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-12.yaml
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-13.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-13.yaml
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-14.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-14.yaml
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-15.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-15.yaml
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-16.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-16.yaml
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/01_install.md %{buildroot}%{_docdir}/%{name}/tutorial/01_install.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/02_custom_metrics.md %{buildroot}%{_docdir}/%{name}/tutorial/02_custom_metrics.md
 
@@ -84,6 +92,13 @@ cd %{buildroot}%{_libdir}/
 %{_docdir}/%{name}/etc/pgexporter.service
 %{_docdir}/%{name}/shell_comp/pgexporter_comp.bash
 %{_docdir}/%{name}/shell_comp/pgexporter_comp.zsh
+%{_docdir}/%{name}/yaml/postgresql-10.yaml
+%{_docdir}/%{name}/yaml/postgresql-11.yaml
+%{_docdir}/%{name}/yaml/postgresql-12.yaml
+%{_docdir}/%{name}/yaml/postgresql-13.yaml
+%{_docdir}/%{name}/yaml/postgresql-14.yaml
+%{_docdir}/%{name}/yaml/postgresql-15.yaml
+%{_docdir}/%{name}/yaml/postgresql-16.yaml
 %{_docdir}/%{name}/tutorial/01_install.md
 %{_docdir}/%{name}/tutorial/02_custom_metrics.md
 %{_mandir}/man1/pgexporter.1*
