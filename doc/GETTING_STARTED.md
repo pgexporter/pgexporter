@@ -209,6 +209,7 @@ There are some short tutorials available to help you better understand and confi
 
 - [Installing pgexporter](https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/01_install.md)
 - [Custom metrics](https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/02_custom_metrics.md)
+- [Grafana Dashboard](https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/03_grafana.md)
 
 ## Closing
 
