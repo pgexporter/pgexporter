@@ -449,37 +449,48 @@ pgexporter_merge_queries(struct query* q1, struct query* q2, int sort)
          last = ct1;
          ct1 = ct1->next;
       }
+
+      last->next = ct2;
    }
    else
    {
-      while (ct1 != NULL)
+
+      if (ct1 != NULL)
       {
-         if (ct2 != NULL && !strcmp(ct1->data[0], ct2->data[0]))
+         while (ct1 != NULL && ct2 != NULL)
          {
-            while (ct1->next != NULL && !strcmp(ct1->next->data[0], ct2->data[0]))
+
+            tmp1 = ct1;
+
+            if (strcmp(tmp1->data[0], ct2->data[0]))
             {
-               ct1 = ct1->next;
+               while (tmp1 != NULL && tmp1->next != NULL && strcmp(tmp1->next->data[0], ct2->data[0]))
+               {
+                  tmp1 = tmp1->next;
+               }
+            }
+            while (tmp1 != NULL && tmp1->next != NULL && !strcmp(tmp1->next->data[0], ct2->data[0]))
+            {
+               tmp1 = tmp1->next;
             }
 
-            tmp1 = ct1->next;
+            if (tmp1 == NULL)
+            {
+               continue;
+            }
+
             tmp2 = ct2->next;
 
-            ct1->next = ct2;
-            ct2->next = tmp1;
+            ct2->next = tmp1->next;
+            tmp1->next = ct2;
             ct2 = tmp2;
          }
-
-         last = ct1;
-         ct1 = ct1->next;
       }
-   }
-
-   while (ct2 != NULL)
-   {
-      last->next = ct2;
-
-      last = last->next;
-      ct2 = ct2->next;
+      else
+      {
+         ct1 = ct2;
+         ct2 = NULL;
+      }
    }
 
    q2->tuples = NULL;
