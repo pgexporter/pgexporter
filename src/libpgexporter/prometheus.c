@@ -1198,6 +1198,12 @@ custom_metrics(int client_fd)
             temp->next = next;
             temp = next;
          }
+         else if (temp && !temp->query)
+         {
+            free(next);
+            next = NULL;
+            memset(temp, 0, sizeof(query_list_t));
+         }
 
          /* Names */
          char** names = malloc(query_alt->n_columns * sizeof(char*));
@@ -1278,10 +1284,14 @@ custom_metrics(int client_fd)
    {
       pgexporter_free_query(temp->query);
       // temp->query_alt // Not freed here, but when program ends
+
       last = temp;
       temp = temp->next;
+      last->next = NULL;
+
       free(last);
    }
+   q_list = NULL;
 }
 
 static int
@@ -1581,6 +1591,16 @@ append:
 
          current = current->next;
       }
+
+      for (int i = 0; i < n_bounds; i++)
+      {
+         free(bounds_arr[i]);
+      }
+
+      for (int i = 0; i < n_buckets; i++)
+      {
+         free(buckets_arr[i]);
+      }
    }
    else
    {
@@ -1611,6 +1631,11 @@ append:
       // (*n_store)++ ensures this time it fulfills the condition for the if-statement.
       goto append;
    }
+
+   free(names[0]);
+   free(names[1]);
+   free(names[2]);
+   free(names[3]);
 
 }
 

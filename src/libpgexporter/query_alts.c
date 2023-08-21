@@ -26,7 +26,9 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <pgexporter.h>
 #include <query_alts.h>
+#include <shmem.h>
 
 // Get height of AVL Tree Node
 static int height(query_alts_t* A);
@@ -49,7 +51,9 @@ pgexporter_copy_query_alts(query_alts_t** dst, query_alts_t* src)
       return;
    }
 
-   *dst = malloc(sizeof(query_alts_t));
+   void* new_query_alt = NULL;
+   pgexporter_create_shared_memory(sizeof(query_alts_t), HUGEPAGE_OFF, &new_query_alt);
+   *dst = (query_alts_t*) new_query_alt;
 
    (*dst)->height = src->height;
    (*dst)->is_histogram = src->is_histogram;
@@ -134,11 +138,11 @@ pgexporter_insert_node_avl (query_alts_t* root, query_alts_t** new_node)
    }
    else if (root->version > (*new_node)->version)
    {
-      root->left = pgexporter_insert_node_avl (root->left, new_node);
+      root->left = pgexporter_insert_node_avl(root->left, new_node);
    }
    else
    {
-      root->right = pgexporter_insert_node_avl (root->right, new_node);
+      root->right = pgexporter_insert_node_avl(root->right, new_node);
    }
 
    root->height = MAX(height(root->left), height(root->right)) + 1;
@@ -232,6 +236,5 @@ pgexporter_free_node_avl(query_alts_t** root)
    pgexporter_free_node_avl(&(*root)->left);
    pgexporter_free_node_avl(&(*root)->right);
 
-   free(*root);
-   (*root) = NULL;
+   pgexporter_destroy_shared_memory(&root, sizeof(query_alts_t*));
 }

@@ -26,7 +26,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "pgexporter.h"
+#include <pgexporter.h>
 
 /**
  * Query Alternatives, or query_alts, are alternatives of the same query with

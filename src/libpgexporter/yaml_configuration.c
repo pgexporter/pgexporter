@@ -31,6 +31,7 @@
 #include <internal.h>
 #include <logging.h>
 #include <query_alts.h>
+#include <shmem.h>
 #include <utils.h>
 #include <yaml_configuration.h>
 
@@ -265,8 +266,6 @@ pgexporter_read_yaml_from_file_pointer(struct prometheus* prometheus, int* numbe
       ret = 1;
       goto end;
    }
-
-   free_yaml_config(&yaml_config);
 
 end:
    free_yaml_config(&yaml_config);
@@ -507,6 +506,7 @@ error:
 static int
 parse_metrics(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, yaml_config_t* yaml_config, yaml_metric_t** metrics, int* n_metrics)
 {
+   yaml_event_delete(event_ptr);
 
    char* buf = NULL;
 
@@ -650,6 +650,7 @@ error:
 static int
 parse_queries(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, yaml_config_t* yaml_config, yaml_query_t** queries, int* n_queries)
 {
+   yaml_event_delete(event_ptr);
 
    char* buf = NULL;
 
@@ -780,6 +781,7 @@ error:
 static int
 parse_columns(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, yaml_query_t* query, yaml_column_t** columns, int* n_columns)
 {
+   yaml_event_delete(event_ptr);
 
    char* buf = NULL;
 
@@ -912,6 +914,8 @@ error:
 static int
 parse_itoc(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, char* dest)
 {
+   yaml_event_delete(event_ptr);
+
    if (parse_value(parser_ptr, event_ptr, state_ptr))
    {
       return 1;
@@ -925,6 +929,8 @@ parse_itoc(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* s
 static int
 parse_int(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, int* dest)
 {
+   yaml_event_delete(event_ptr);
+
    if (parse_value(parser_ptr, event_ptr, state_ptr))
    {
       return 1;
@@ -938,6 +944,8 @@ parse_int(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* st
 static int
 parse_string(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, char** dest)
 {
+   yaml_event_delete(event_ptr);
+
    if (parse_value(parser_ptr, event_ptr, state_ptr))
    {
       return 1;
@@ -951,7 +959,6 @@ parse_string(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t*
 static int
 parse_value(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr)
 {
-
    yaml_event_delete(event_ptr);
 
    if (!yaml_parser_parse(parser_ptr, event_ptr))
@@ -1108,8 +1115,10 @@ semantics_yaml(struct prometheus* prometheus, yaml_config_t* yaml_config)
       for (int j = 0; j < yaml_config->metrics[i].n_queries; j++)
       {
 
-         query_alts_t* new_query = malloc(sizeof(query_alts_t));
-         memset(new_query, 0, sizeof(query_alts_t));
+         query_alts_t* new_query = NULL;
+         void* new_query_shmem = NULL;
+         pgexporter_create_shared_memory(sizeof(query_alts_t), HUGEPAGE_OFF, &new_query_shmem);
+         new_query = (query_alts_t*) new_query_shmem;
 
          new_query->n_columns = MIN(yaml_config->metrics[i].queries[j].n_columns, MAX_NUMBER_OF_COLUMNS);
 
