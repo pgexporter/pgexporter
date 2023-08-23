@@ -102,7 +102,7 @@ typedef struct column_store
    int sort_type;
 } column_store_t;
 
-static int resolve_page(struct message* msg);
+static int resolve_page(message_t* msg);
 static int unknown_page(int client_fd);
 static int home_page(int client_fd);
 static int metrics_page(int client_fd);
@@ -147,13 +147,13 @@ pgexporter_prometheus(int client_fd)
 {
    int status;
    int page;
-   struct message* msg = NULL;
-   struct configuration* config;
+   message_t* msg = NULL;
+   configuration_t* config;
 
    pgexporter_start_logging();
    pgexporter_memory_init();
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    status = pgexporter_read_timeout_message(NULL, client_fd, config->authentication_timeout, &msg);
    if (status != MESSAGE_STATUS_OK)
@@ -201,9 +201,9 @@ void
 pgexporter_prometheus_reset(void)
 {
    signed char cache_is_free;
-   struct prometheus_cache* cache;
+   prometheus_cache_t* cache;
 
-   cache = (struct prometheus_cache*)prometheus_cache_shmem;
+   cache = (prometheus_cache_t*)prometheus_cache_shmem;
 
 retry_cache_locking:
    cache_is_free = STATE_FREE;
@@ -221,7 +221,7 @@ retry_cache_locking:
 }
 
 static int
-resolve_page(struct message* msg)
+resolve_page(message_t* msg)
 {
    char* from = NULL;
    int index;
@@ -261,9 +261,9 @@ unknown_page(int client_fd)
    time_t now;
    char time_buf[32];
    int status;
-   struct message msg;
+   message_t msg;
 
-   memset(&msg, 0, sizeof(struct message));
+   memset(&msg, 0, sizeof(message_t));
    memset(&data, 0, sizeof(data));
 
    now = time(NULL);
@@ -297,12 +297,12 @@ home_page(int client_fd)
    time_t now;
    char time_buf[32];
    int status;
-   struct message msg;
-   struct configuration* config;
+   message_t msg;
+   configuration_t* config;
 
-   config = (struct configuration*) shmem;
+   config = (configuration_t*) shmem;
 
-   memset(&msg, 0, sizeof(struct message));
+   memset(&msg, 0, sizeof(message_t));
    memset(&data, 0, sizeof(data));
 
    now = time(NULL);
@@ -410,13 +410,13 @@ metrics_page(int client_fd)
    time_t now;
    char time_buf[32];
    int status;
-   struct message msg;
-   struct prometheus_cache* cache;
+   message_t msg;
+   prometheus_cache_t* cache;
    signed char cache_is_free;
 
-   cache = (struct prometheus_cache*)prometheus_cache_shmem;
+   cache = (prometheus_cache_t*)prometheus_cache_shmem;
 
-   memset(&msg, 0, sizeof(struct message));
+   memset(&msg, 0, sizeof(message_t));
 
 retry_cache_locking:
    cache_is_free = STATE_FREE;
@@ -537,9 +537,9 @@ bad_request(int client_fd)
    time_t now;
    char time_buf[32];
    int status;
-   struct message msg;
+   message_t msg;
 
-   memset(&msg, 0, sizeof(struct message));
+   memset(&msg, 0, sizeof(message_t));
    memset(&data, 0, sizeof(data));
 
    now = time(NULL);
@@ -569,9 +569,9 @@ bad_request(int client_fd)
 static bool
 collector_pass(const char* collector)
 {
-   struct configuration* config = NULL;
+   configuration_t* config = NULL;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    if (config->number_of_collectors == 0)
    {
@@ -614,9 +614,9 @@ static void
 server_information(int client_fd)
 {
    char* data = NULL;
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    data = pgexporter_vappend(data, 2,
                              "#HELP pgexporter_postgresql_active The state of PostgreSQL\n",
@@ -660,9 +660,9 @@ version_information(int client_fd)
    struct query* all = NULL;
    struct query* query = NULL;
    struct tuple* current = NULL;
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    for (server = 0; server < config->number_of_servers; server++)
    {
@@ -729,9 +729,9 @@ uptime_information(int client_fd)
    struct query* all = NULL;
    struct query* query = NULL;
    struct tuple* current = NULL;
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    for (server = 0; server < config->number_of_servers; server++)
    {
@@ -796,9 +796,9 @@ primary_information(int client_fd)
    struct query* all = NULL;
    struct query* query = NULL;
    struct tuple* current = NULL;
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    for (server = 0; server < config->number_of_servers; server++)
    {
@@ -890,9 +890,9 @@ extension_information(int client_fd)
 {
    struct query* query = NULL;
    struct tuple* tuple = NULL;
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    /* Expose only if default or specified */
    if (!collector_pass("extension"))
@@ -944,9 +944,9 @@ extension_function(int client_fd, char* function, char* description, char* type)
    char* sql = NULL;
    struct query* query = NULL;
    struct tuple* tuple = NULL;
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    for (int server = 0; server < config->number_of_servers; server++)
    {
@@ -1050,9 +1050,9 @@ settings_information(int client_fd)
    struct query* all = NULL;
    struct query* query = NULL;
    struct tuple* current = NULL;
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    /* Expose only if default or specified */
    if (!collector_pass("settings"))
@@ -1141,10 +1141,10 @@ static void
 custom_metrics(int client_fd)
 {
 
-   struct configuration* config = NULL;
+   configuration_t* config = NULL;
    char* data = NULL;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    query_list_t* q_list = NULL;
    query_list_t* temp = q_list;
@@ -1152,7 +1152,7 @@ custom_metrics(int client_fd)
    // Iterate through each metric to send its query to PostgreSQL server
    for (int i = 0; i < config->number_of_metrics; i++)
    {
-      struct prometheus* prom = &config->prometheus[i];
+      prometheus_t* prom = &config->prometheus[i];
 
       /* Expose only if default or specified */
       if (!collector_pass(prom->collector))
@@ -1400,14 +1400,14 @@ static void
 handle_histogram(column_store_t* store, int* n_store, query_list_t* temp)
 {
    char* data = NULL;
-   struct configuration* config;
+   configuration_t* config;
    int n_bounds = 0;
    int n_buckets = 0;
    char* bounds_arr[MAX_ARR_LENGTH] = {0};
    char* buckets_arr[MAX_ARR_LENGTH] = {0};
    int idx = 0;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    int h_idx = 0;
    for (; h_idx < temp->query_alt->n_columns; h_idx++)
@@ -1643,8 +1643,8 @@ static void
 handle_gauge_counter(column_store_t* store, int* n_store, query_list_t* temp)
 {
    char* data = NULL;
-   struct configuration* config;
-   config = (struct configuration*)shmem;
+   configuration_t* config;
+   config = (configuration_t*)shmem;
 
    for (int i = 0; i < temp->query_alt->n_columns; i++)
    {
@@ -1836,9 +1836,9 @@ send_chunk(int client_fd, char* data)
 {
    int status;
    char* m = NULL;
-   struct message msg;
+   message_t msg;
 
-   memset(&msg, 0, sizeof(struct message));
+   memset(&msg, 0, sizeof(message_t));
 
    m = malloc(20);
    memset(m, 0, 20);
@@ -1948,9 +1948,9 @@ safe_prometheus_key(char* key)
 static bool
 is_metrics_cache_configured(void)
 {
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    // cannot have caching if not set metrics!
    if (config->metrics == 0)
@@ -1974,9 +1974,9 @@ is_metrics_cache_valid(void)
 {
    time_t now;
 
-   struct prometheus_cache* cache;
+   prometheus_cache_t* cache;
 
-   cache = (struct prometheus_cache*)prometheus_cache_shmem;
+   cache = (prometheus_cache_t*)prometheus_cache_shmem;
 
    if (cache->valid_until == 0 || strlen(cache->data) == 0)
    {
@@ -1990,16 +1990,16 @@ is_metrics_cache_valid(void)
 int
 pgexporter_init_prometheus_cache(size_t* p_size, void** p_shmem)
 {
-   struct prometheus_cache* cache;
-   struct configuration* config;
+   prometheus_cache_t* cache;
+   configuration_t* config;
    size_t cache_size = 0;
    size_t struct_size = 0;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    // first of all, allocate the overall cache structure
    cache_size = metrics_cache_size_to_alloc();
-   struct_size = sizeof(struct prometheus_cache);
+   struct_size = sizeof(prometheus_cache_t);
 
    if (pgexporter_create_shared_memory(struct_size + cache_size, config->hugepage, (void*) &cache))
    {
@@ -2039,10 +2039,10 @@ error:
 static size_t
 metrics_cache_size_to_alloc(void)
 {
-   struct configuration* config;
+   configuration_t* config;
    size_t cache_size = 0;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    // which size to use ?
    // either the configured (i.e., requested by user) if lower than the max size
@@ -2068,9 +2068,9 @@ metrics_cache_size_to_alloc(void)
 static void
 metrics_cache_invalidate(void)
 {
-   struct prometheus_cache* cache;
+   prometheus_cache_t* cache;
 
-   cache = (struct prometheus_cache*)prometheus_cache_shmem;
+   cache = (prometheus_cache_t*)prometheus_cache_shmem;
 
    memset(cache->data, 0, cache->size);
    cache->valid_until = 0;
@@ -2098,9 +2098,9 @@ metrics_cache_append(char* data)
 {
    int origin_length = 0;
    int append_length = 0;
-   struct prometheus_cache* cache;
+   prometheus_cache_t* cache;
 
-   cache = (struct prometheus_cache*)prometheus_cache_shmem;
+   cache = (prometheus_cache_t*)prometheus_cache_shmem;
 
    if (!is_metrics_cache_configured())
    {
@@ -2140,12 +2140,12 @@ metrics_cache_append(char* data)
 static bool
 metrics_cache_finalize(void)
 {
-   struct configuration* config;
-   struct prometheus_cache* cache;
+   configuration_t* config;
+   prometheus_cache_t* cache;
    time_t now;
 
-   cache = (struct prometheus_cache*)prometheus_cache_shmem;
-   config = (struct configuration*)shmem;
+   cache = (prometheus_cache_t*)prometheus_cache_shmem;
+   config = (configuration_t*)shmem;
 
    if (!is_metrics_cache_configured())
    {

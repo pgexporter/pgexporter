@@ -38,7 +38,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static struct message* message = NULL;
+static message_t* message = NULL;
 static void* data = NULL;
 
 /**
@@ -47,9 +47,9 @@ static void* data = NULL;
 void
 pgexporter_memory_init(void)
 {
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    pgexporter_memory_size(config->buffer_size);
 }
@@ -62,10 +62,10 @@ pgexporter_memory_size(size_t size)
 {
    pgexporter_memory_destroy();
 
-   message = (struct message*)malloc(sizeof(struct message));
+   message = (message_t*)malloc(sizeof(message_t));
    data = malloc(size);
 
-   memset(message, 0, sizeof(struct message));
+   memset(message, 0, sizeof(message_t));
    memset(data, 0, size);
 
    message->kind = 0;
@@ -77,7 +77,7 @@ pgexporter_memory_size(size_t size)
 /**
  *
  */
-struct message*
+message_t*
 pgexporter_memory_message(void)
 {
 #ifdef DEBUG
@@ -101,7 +101,7 @@ pgexporter_memory_free(void)
    assert(data != NULL);
 #endif
 
-   memset(message, 0, sizeof(struct message));
+   memset(message, 0, sizeof(message_t));
    memset(data, 0, length);
 
    message->kind = 0;

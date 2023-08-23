@@ -34,6 +34,7 @@ extern "C" {
 #endif
 
 #include <pgexporter.h>
+#include <message.h>
 
 #include <stdlib.h>
 
@@ -54,7 +55,7 @@ pgexporter_memory_size(size_t size);
  * Get the message structure
  * @return The structure
  */
-struct message*
+message_t*
 pgexporter_memory_message(void);
 
 /**

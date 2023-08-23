@@ -39,7 +39,7 @@
 #include <yaml.h>
 #include <errno.h>
 
-static int pgexporter_read_yaml(struct prometheus* prometheus, char* filename, int* number_of_metrics);
+static int pgexporter_read_yaml(prometheus_t* prometheus, char* filename, int* number_of_metrics);
 
 static int get_yaml_files(char* base, int* number_of_yaml_files, char*** files);
 static bool is_yaml_file(char* filename);
@@ -137,19 +137,19 @@ static void free_yaml_queries(yaml_query_t** queries, size_t n_queries);
 static void free_yaml_columns(yaml_column_t** columns, size_t n_columns);
 
 // Extract the meaning of the `yaml_config` and load the metrics into `prometheus`
-static int semantics_yaml(struct prometheus* prometheus, yaml_config_t* yaml_config);
+static int semantics_yaml(prometheus_t* prometheus, yaml_config_t* yaml_config);
 
 int
 pgexporter_read_metrics_configuration(void* shmem)
 {
-   struct configuration* config;
+   configuration_t* config;
    int idx_metrics = 0;
    int number_of_metrics = 0;
    int number_of_yaml_files = 0;
    char** yaml_files = NULL;
    char* yaml_path = NULL;
 
-   config = (struct configuration*) shmem;
+   config = (configuration_t*) shmem;
    idx_metrics = config->number_of_metrics;
 
    if (pgexporter_is_file(config->metrics_path))
@@ -203,12 +203,13 @@ pgexporter_read_metrics_configuration(void* shmem)
 }
 
 int
-pgexporter_read_internal_yaml_metrics(struct configuration* config, bool start)
+pgexporter_read_internal_yaml_metrics(configuration_t* config, bool start)
 {
    int number_of_metrics = 0;
+   int ret;
    FILE* internal_yaml_ptr = fmemopen(INTERNAL_YAML, strlen(INTERNAL_YAML), "r");
 
-   int ret = pgexporter_read_yaml_from_file_pointer(config->prometheus, &number_of_metrics, internal_yaml_ptr);
+   ret = pgexporter_read_yaml_from_file_pointer(config->prometheus, &number_of_metrics, internal_yaml_ptr);
    fclose(internal_yaml_ptr);
 
    if (ret)
@@ -227,7 +228,7 @@ pgexporter_read_internal_yaml_metrics(struct configuration* config, bool start)
 }
 
 static int
-pgexporter_read_yaml(struct prometheus* prometheus, char* filename, int* number_of_metrics)
+pgexporter_read_yaml(prometheus_t* prometheus, char* filename, int* number_of_metrics)
 {
    FILE* file;
 
@@ -246,7 +247,7 @@ pgexporter_read_yaml(struct prometheus* prometheus, char* filename, int* number_
 }
 
 int
-pgexporter_read_yaml_from_file_pointer(struct prometheus* prometheus, int* number_of_metrics, FILE* file)
+pgexporter_read_yaml_from_file_pointer(prometheus_t* prometheus, int* number_of_metrics, FILE* file)
 {
    int ret = 0;
    yaml_config_t yaml_config;
@@ -289,7 +290,7 @@ get_yaml_files(char* base, int* number_of_yaml_files, char*** files)
 
    for (int i = 0; i < number_of_all_files; i++)
    {
-      if (pgexporter_ends_with(all_files[i], ".yaml"))
+      if (is_yaml_file(all_files[i]))
       {
          nof++;
       }
@@ -325,7 +326,7 @@ error:
 static bool
 is_yaml_file(char* file)
 {
-   if (pgexporter_ends_with(file, ".yaml"))
+   if (pgexporter_ends_with(file, ".yaml") || pgexporter_ends_with(file, ".yml"))
    {
       return true;
    }
@@ -340,6 +341,7 @@ parse_yaml(FILE* file, yaml_config_t* yaml_config)
    /* State enables checking if the token that is parsed shouuld be allowed,
       or the possible options of where to go from here. Basically a DFA. */
    parser_state_t state = PARSER_INIT;
+   char* buf;
 
    if (!file)
    {
@@ -359,8 +361,7 @@ parse_yaml(FILE* file, yaml_config_t* yaml_config)
 
    /* Event based YAML parsing using libyaml as event-based is more suitable for
       complex structures of YAML files such as this case. */
-
-   char* buf = NULL;
+   buf = NULL;
 
    do
    {
@@ -687,7 +688,6 @@ parse_queries(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
 
             *queries = realloc(*queries, (*n_queries + 1) * sizeof(yaml_query_t));
             memset(&(*queries)[*n_queries], 0, sizeof(yaml_query_t));
-            (*queries)[*n_queries].version = yaml_config->default_version;
 
             *state_ptr = PARSER_MAP_START;
             break;
@@ -1068,7 +1068,7 @@ free_yaml_columns(yaml_column_t** columns, size_t n_columns)
 }
 
 static int
-semantics_yaml(struct prometheus* prometheus, yaml_config_t* yaml_config)
+semantics_yaml(prometheus_t* prometheus, yaml_config_t* yaml_config)
 {
 
    for (int i = 0; i < yaml_config->n_metrics; i++)
@@ -1117,6 +1117,7 @@ semantics_yaml(struct prometheus* prometheus, yaml_config_t* yaml_config)
 
          query_alts_t* new_query = NULL;
          void* new_query_shmem = NULL;
+
          pgexporter_create_shared_memory(sizeof(query_alts_t), HUGEPAGE_OFF, &new_query_shmem);
          new_query = (query_alts_t*) new_query_shmem;
 
@@ -1166,6 +1167,11 @@ semantics_yaml(struct prometheus* prometheus, yaml_config_t* yaml_config)
                return 1;
             }
 
+         }
+
+         if (yaml_config->metrics[i].queries[j].version == 0)
+         {
+            new_query->version = yaml_config->default_version;
          }
 
          prometheus[i].root = pgexporter_insert_node_avl(prometheus[i].root, &new_query);

@@ -52,6 +52,7 @@ pgexporter_copy_query_alts(query_alts_t** dst, query_alts_t* src)
    }
 
    void* new_query_alt = NULL;
+
    pgexporter_create_shared_memory(sizeof(query_alts_t), HUGEPAGE_OFF, &new_query_alt);
    *dst = (query_alts_t*) new_query_alt;
 
@@ -61,7 +62,7 @@ pgexporter_copy_query_alts(query_alts_t** dst, query_alts_t* src)
    (*dst)->version = src->version;
 
    memcpy((*dst)->query, src->query, MAX_QUERY_LENGTH);
-   memcpy((*dst)->columns, src->columns, MAX_NUMBER_OF_COLUMNS * sizeof(struct column));
+   memcpy((*dst)->columns, src->columns, MAX_NUMBER_OF_COLUMNS * sizeof(column_t));
 
    pgexporter_copy_query_alts(&(*dst)->left, src->left);
    pgexporter_copy_query_alts(&(*dst)->right, src->right);
@@ -124,7 +125,7 @@ node_left_rotate(query_alts_t* root)
 }
 
 query_alts_t*
-pgexporter_insert_node_avl (query_alts_t* root, query_alts_t** new_node)
+pgexporter_insert_node_avl(query_alts_t* root, query_alts_t** new_node)
 {
    if (!root)
    {
@@ -177,12 +178,12 @@ pgexporter_insert_node_avl (query_alts_t* root, query_alts_t** new_node)
 query_alts_t*
 pgexporter_get_query_alt(query_alts_t* root, int server)
 {
-   struct configuration* config = NULL;
+   configuration_t* config = NULL;
    query_alts_t* temp = root;
    query_alts_t* last = NULL;
    int ver;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
    ver = config->servers[server].version;
 
    // Traversing the AVL tree
@@ -216,7 +217,7 @@ pgexporter_get_query_alt(query_alts_t* root, int server)
 }
 
 void
-pgexporter_free_query_alts(struct configuration* config)
+pgexporter_free_query_alts(configuration_t* config)
 {
    for (int i = 0; i < config->number_of_metrics; i++)
    {

@@ -177,7 +177,7 @@ extern void* prometheus_cache_shmem;
 /** @struct
  * Defines a server
  */
-struct server
+typedef struct
 {
    char name[MISC_LENGTH];             /**< The name of the server */
    char host[MISC_LENGTH];             /**< The host name of the server */
@@ -190,16 +190,16 @@ struct server
    bool extension;                     /**< Is the pgexporter_ext extension installed */
    int state;                          /**< The state of the server */
    char version;                       /**< The PostgreSQL version (char for minimum bytes)*/
-} __attribute__ ((aligned (64)));
+} __attribute__ ((aligned (64))) server_t;
 
 /** @struct
  * Defines a user
  */
-struct user
+typedef struct
 {
    char username[MAX_USERNAME_LENGTH]; /**< The user name */
    char password[MAX_PASSWORD_LENGTH]; /**< The password */
-} __attribute__ ((aligned (64)));
+} __attribute__ ((aligned (64))) user_t;
 
 /**
  * A structure to handle the Prometheus response
@@ -215,29 +215,43 @@ struct user
  * The `size` field stores the size of the allocated
  * `data` payload.
  */
-struct prometheus_cache
+typedef struct
 {
    time_t valid_until;   /**< when the cache will become not valid */
    atomic_schar lock;    /**< lock to protect the cache */
    size_t size;          /**< size of the cache */
    char data[];          /**< the payload */
-} __attribute__ ((aligned (64)));
+} __attribute__ ((aligned (64))) prometheus_cache_t;
 
 /** @struct
  *  Define a column
  */
-struct column
+typedef struct
 {
    int type;                        /*< Metrics type 0--label 1--counter 2--gauge 3--histogram*/
    char name[MISC_LENGTH];          /*< Column name */
    char description[MISC_LENGTH];   /*< Description of column */
-} __attribute__ ((aligned (64)));
+} __attribute__ ((aligned (64))) column_t;
 
+/**
+ * @struct
+ * A node in an AVL tree. This structure holds information about a query
+ * alternative.
+ *
+ * Query Alternatives are alternative versions of queries with a PostgreSQL
+ * version attached that will support the entire query. Ideally it should be the
+ * **minimum** version that supports the entire query, but it can be any version
+ * that supports the entire query.
+ *
+ * A query alternative node with version 'v' is chosen to provide the query if
+ * the requesting server with version 'u' if 'u' >= 'v' and there doesn't exist
+ * another node in the same AVL tree with a version 'w' where 'u' >= 'w'.
+ */
 typedef struct query_alts
 {
    char version;                                   /*< Minimum required version to run query */
    char query[MAX_QUERY_LENGTH];                   /*< Query String */
-   struct column columns[MAX_NUMBER_OF_COLUMNS];   /*< Columns of query */
+   column_t columns[MAX_NUMBER_OF_COLUMNS];   /*< Columns of query */
    int n_columns;                                  /*< No. of columns */
    bool is_histogram;                              /*< Is the query for a histogram metric */
 
@@ -251,19 +265,19 @@ typedef struct query_alts
 /** @struct
  * Defines the Prometheus metrics
  */
-struct prometheus
+typedef struct
 {
    char tag[MISC_LENGTH];                          /*< The metric name */
    int sort_type;                                  /*< Sorting type of multi queries 0--SORT_NAME 1--SORT_DATA0 */
    int server_query_type;                          /*< Query type 0--SERVER_QUERY_BOTH 1--SERVER_QUERY_PRIMARY 2--SERVER_QUERY_REPLICA */
    char collector[MAX_COLLECTOR_LENGTH];           /*< Collector Tag for query */
-   query_alts_t* root;                             /*< Root of the Query Alternative's AVL Tree */
-} __attribute__ ((aligned (64)));
+   query_alts_t* root;                             /*< Root of the Query Alternatives' AVL Tree */
+} __attribute__ ((aligned (64))) prometheus_t;
 
 /** @struct
  * Defines the configuration and state of pgexporter
  */
-struct configuration
+typedef struct
 {
    char configuration_path[MAX_PATH]; /**< The configuration path */
    char users_path[MAX_PATH];         /**< The users path */
@@ -316,11 +330,11 @@ struct configuration
    char metrics_path[MAX_PATH]; /**< The metrics path */
 
    char collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];/**< List of collectors in total */
-   struct server servers[NUMBER_OF_SERVERS];                   /**< The servers */
-   struct user users[NUMBER_OF_USERS];                         /**< The users */
-   struct user admins[NUMBER_OF_ADMINS];                       /**< The admins */
-   struct prometheus prometheus[NUMBER_OF_METRICS];            /**< The Prometheus metrics */
-} __attribute__ ((aligned (64)));
+   server_t servers[NUMBER_OF_SERVERS];                   /**< The servers */
+   user_t users[NUMBER_OF_USERS];                         /**< The users */
+   user_t admins[NUMBER_OF_ADMINS];                       /**< The admins */
+   prometheus_t prometheus[NUMBER_OF_METRICS];            /**< The Prometheus metrics */
+} __attribute__ ((aligned (64))) configuration_t;
 
 #ifdef __cplusplus
 }

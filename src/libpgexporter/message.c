@@ -42,14 +42,14 @@
 #include <openssl/ssl.h>
 #include <sys/time.h>
 
-static int read_message(int socket, bool block, int timeout, struct message** msg);
-static int write_message(int socket, struct message* msg);
+static int read_message(int socket, bool block, int timeout, message_t** msg);
+static int write_message(int socket, message_t* msg);
 
-static int ssl_read_message(SSL* ssl, int timeout, struct message** msg);
-static int ssl_write_message(SSL* ssl, struct message* msg);
+static int ssl_read_message(SSL* ssl, int timeout, message_t** msg);
+static int ssl_write_message(SSL* ssl, message_t* msg);
 
 int
-pgexporter_read_block_message(SSL* ssl, int socket, struct message** msg)
+pgexporter_read_block_message(SSL* ssl, int socket, message_t** msg)
 {
    if (ssl == NULL)
    {
@@ -60,7 +60,7 @@ pgexporter_read_block_message(SSL* ssl, int socket, struct message** msg)
 }
 
 int
-pgexporter_read_timeout_message(SSL* ssl, int socket, int timeout, struct message** msg)
+pgexporter_read_timeout_message(SSL* ssl, int socket, int timeout, message_t** msg)
 {
    if (ssl == NULL)
    {
@@ -71,7 +71,7 @@ pgexporter_read_timeout_message(SSL* ssl, int socket, int timeout, struct messag
 }
 
 int
-pgexporter_write_message(SSL* ssl, int socket, struct message* msg)
+pgexporter_write_message(SSL* ssl, int socket, message_t* msg)
 {
    if (ssl == NULL)
    {
@@ -82,15 +82,15 @@ pgexporter_write_message(SSL* ssl, int socket, struct message* msg)
 }
 
 void
-pgexporter_free_message(struct message* msg)
+pgexporter_free_message(message_t* msg)
 {
    pgexporter_memory_free();
 }
 
-struct message*
-pgexporter_copy_message(struct message* msg)
+message_t*
+pgexporter_copy_message(message_t* msg)
 {
-   struct message* copy = NULL;
+   message_t* copy = NULL;
 
 #ifdef DEBUG
    assert(msg != NULL);
@@ -98,7 +98,7 @@ pgexporter_copy_message(struct message* msg)
    assert(msg->length > 0);
 #endif
 
-   copy = (struct message*)malloc(sizeof(struct message));
+   copy = (message_t*)malloc(sizeof(message_t));
    copy->data = malloc(msg->length);
 
    copy->kind = msg->kind;
@@ -109,7 +109,7 @@ pgexporter_copy_message(struct message* msg)
 }
 
 void
-pgexporter_free_copy_message(struct message* msg)
+pgexporter_free_copy_message(message_t* msg)
 {
    if (msg)
    {
@@ -131,10 +131,10 @@ pgexporter_connection_isvalid(int socket)
    int size = 15;
 
    char valid[size];
-   struct message msg;
-   struct message* reply = NULL;
+   message_t msg;
+   message_t* reply = NULL;
 
-   memset(&msg, 0, sizeof(struct message));
+   memset(&msg, 0, sizeof(message_t));
    memset(&valid, 0, sizeof(valid));
 
    pgexporter_write_byte(&valid, 'Q');
@@ -176,7 +176,7 @@ error:
 }
 
 void
-pgexporter_log_message(struct message* msg)
+pgexporter_log_message(message_t* msg)
 {
    if (msg == NULL)
    {
@@ -196,9 +196,9 @@ int
 pgexporter_write_empty(SSL* ssl, int socket)
 {
    char zero[1];
-   struct message msg;
+   message_t msg;
 
-   memset(&msg, 0, sizeof(struct message));
+   memset(&msg, 0, sizeof(message_t));
    memset(&zero, 0, sizeof(zero));
 
    msg.kind = 0;
@@ -217,9 +217,9 @@ int
 pgexporter_write_notice(SSL* ssl, int socket)
 {
    char notice[1];
-   struct message msg;
+   message_t msg;
 
-   memset(&msg, 0, sizeof(struct message));
+   memset(&msg, 0, sizeof(message_t));
    memset(&notice, 0, sizeof(notice));
 
    notice[0] = 'N';
@@ -240,9 +240,9 @@ int
 pgexporter_write_tls(SSL* ssl, int socket)
 {
    char tls[1];
-   struct message msg;
+   message_t msg;
 
-   memset(&msg, 0, sizeof(struct message));
+   memset(&msg, 0, sizeof(message_t));
    memset(&tls, 0, sizeof(tls));
 
    tls[0] = 'S';
@@ -263,9 +263,9 @@ int
 pgexporter_write_terminate(SSL* ssl, int socket)
 {
    char terminate[5];
-   struct message msg;
+   message_t msg;
 
-   memset(&msg, 0, sizeof(struct message));
+   memset(&msg, 0, sizeof(message_t));
    memset(&terminate, 0, sizeof(terminate));
 
    pgexporter_write_byte(&terminate, 'X');
@@ -288,9 +288,9 @@ pgexporter_write_connection_refused(SSL* ssl, int socket)
 {
    int size = 46;
    char connection_refused[size];
-   struct message msg;
+   message_t msg;
 
-   memset(&msg, 0, sizeof(struct message));
+   memset(&msg, 0, sizeof(message_t));
    memset(&connection_refused, 0, sizeof(connection_refused));
 
    pgexporter_write_byte(&connection_refused, 'E');
@@ -317,9 +317,9 @@ pgexporter_write_connection_refused_old(SSL* ssl, int socket)
 {
    int size = 20;
    char connection_refused[size];
-   struct message msg;
+   message_t msg;
 
-   memset(&msg, 0, sizeof(struct message));
+   memset(&msg, 0, sizeof(message_t));
    memset(&connection_refused, 0, sizeof(connection_refused));
 
    pgexporter_write_byte(&connection_refused, 'E');
@@ -338,14 +338,14 @@ pgexporter_write_connection_refused_old(SSL* ssl, int socket)
 }
 
 int
-pgexporter_create_auth_password_response(char* password, struct message** msg)
+pgexporter_create_auth_password_response(char* password, message_t** msg)
 {
-   struct message* m = NULL;
+   message_t* m = NULL;
    size_t size;
 
    size = 6 + strlen(password);
 
-   m = (struct message*)malloc(sizeof(struct message));
+   m = (message_t*)malloc(sizeof(message_t));
    m->data = malloc(size);
 
    memset(m->data, 0, size);
@@ -363,14 +363,14 @@ pgexporter_create_auth_password_response(char* password, struct message** msg)
 }
 
 int
-pgexporter_create_auth_md5_response(char* md5, struct message** msg)
+pgexporter_create_auth_md5_response(char* md5, message_t** msg)
 {
-   struct message* m = NULL;
+   message_t* m = NULL;
    size_t size;
 
    size = 1 + 4 + strlen(md5) + 1;
 
-   m = (struct message*)malloc(sizeof(struct message));
+   m = (message_t*)malloc(sizeof(message_t));
    m->data = malloc(size);
 
    memset(m->data, 0, size);
@@ -391,9 +391,9 @@ int
 pgexporter_write_auth_scram256(SSL* ssl, int socket)
 {
    char scram[24];
-   struct message msg;
+   message_t msg;
 
-   memset(&msg, 0, sizeof(struct message));
+   memset(&msg, 0, sizeof(message_t));
    memset(&scram, 0, sizeof(scram));
 
    scram[0] = 'R';
@@ -414,14 +414,14 @@ pgexporter_write_auth_scram256(SSL* ssl, int socket)
 }
 
 int
-pgexporter_create_auth_scram256_response(char* nounce, struct message** msg)
+pgexporter_create_auth_scram256_response(char* nounce, message_t** msg)
 {
-   struct message* m = NULL;
+   message_t* m = NULL;
    size_t size;
 
    size = 1 + 4 + 13 + 4 + 9 + strlen(nounce);
 
-   m = (struct message*)malloc(sizeof(struct message));
+   m = (message_t*)malloc(sizeof(message_t));
    m->data = malloc(size);
 
    memset(m->data, 0, size);
@@ -441,14 +441,14 @@ pgexporter_create_auth_scram256_response(char* nounce, struct message** msg)
 }
 
 int
-pgexporter_create_auth_scram256_continue(char* cn, char* sn, char* salt, struct message** msg)
+pgexporter_create_auth_scram256_continue(char* cn, char* sn, char* salt, message_t** msg)
 {
-   struct message* m = NULL;
+   message_t* m = NULL;
    size_t size;
 
    size = 1 + 4 + 4 + 2 + strlen(cn) + strlen(sn) + 3 + strlen(salt) + 7;
 
-   m = (struct message*)malloc(sizeof(struct message));
+   m = (message_t*)malloc(sizeof(message_t));
    m->data = malloc(size);
 
    memset(m->data, 0, size);
@@ -472,14 +472,14 @@ pgexporter_create_auth_scram256_continue(char* cn, char* sn, char* salt, struct 
 }
 
 int
-pgexporter_create_auth_scram256_continue_response(char* wp, char* p, struct message** msg)
+pgexporter_create_auth_scram256_continue_response(char* wp, char* p, message_t** msg)
 {
-   struct message* m = NULL;
+   message_t* m = NULL;
    size_t size;
 
    size = 1 + 4 + strlen(wp) + 3 + strlen(p);
 
-   m = (struct message*)malloc(sizeof(struct message));
+   m = (message_t*)malloc(sizeof(message_t));
    m->data = malloc(size);
 
    memset(m->data, 0, size);
@@ -499,14 +499,14 @@ pgexporter_create_auth_scram256_continue_response(char* wp, char* p, struct mess
 }
 
 int
-pgexporter_create_auth_scram256_final(char* ss, struct message** msg)
+pgexporter_create_auth_scram256_final(char* ss, message_t** msg)
 {
-   struct message* m = NULL;
+   message_t* m = NULL;
    size_t size;
 
    size = 1 + 4 + 4 + 2 + strlen(ss);
 
-   m = (struct message*)malloc(sizeof(struct message));
+   m = (message_t*)malloc(sizeof(message_t));
    m->data = malloc(size);
 
    memset(m->data, 0, size);
@@ -529,9 +529,9 @@ int
 pgexporter_write_auth_success(SSL* ssl, int socket)
 {
    char success[9];
-   struct message msg;
+   message_t msg;
 
-   memset(&msg, 0, sizeof(struct message));
+   memset(&msg, 0, sizeof(message_t));
    memset(&success, 0, sizeof(success));
 
    success[0] = 'R';
@@ -551,14 +551,14 @@ pgexporter_write_auth_success(SSL* ssl, int socket)
 }
 
 int
-pgexporter_create_ssl_message(struct message** msg)
+pgexporter_create_ssl_message(message_t** msg)
 {
-   struct message* m = NULL;
+   message_t* m = NULL;
    size_t size;
 
    size = 8;
 
-   m = (struct message*)malloc(sizeof(struct message));
+   m = (message_t*)malloc(sizeof(message_t));
    m->data = malloc(size);
 
    memset(m->data, 0, size);
@@ -575,9 +575,9 @@ pgexporter_create_ssl_message(struct message** msg)
 }
 
 int
-pgexporter_create_startup_message(char* username, char* database, struct message** msg)
+pgexporter_create_startup_message(char* username, char* database, message_t** msg)
 {
-   struct message* m = NULL;
+   message_t* m = NULL;
    size_t size;
    size_t us;
    size_t ds;
@@ -586,7 +586,7 @@ pgexporter_create_startup_message(char* username, char* database, struct message
    ds = strlen(database);
    size = 4 + 4 + 4 + 1 + us + 1 + 8 + 1 + ds + 1 + 17 + 11 + 1;
 
-   m = (struct message*)malloc(sizeof(struct message));
+   m = (message_t*)malloc(sizeof(message_t));
    m->data = malloc(size);
 
    memset(m->data, 0, size);
@@ -609,12 +609,12 @@ pgexporter_create_startup_message(char* username, char* database, struct message
 }
 
 static int
-read_message(int socket, bool block, int timeout, struct message** msg)
+read_message(int socket, bool block, int timeout, message_t** msg)
 {
    bool keep_read = false;
    ssize_t numbytes;
    struct timeval tv;
-   struct message* m = NULL;
+   message_t* m = NULL;
 
    if (unlikely(timeout > 0))
    {
@@ -695,7 +695,7 @@ read_message(int socket, bool block, int timeout, struct message** msg)
 }
 
 static int
-write_message(int socket, struct message* msg)
+write_message(int socket, message_t* msg)
 {
    bool keep_write = false;
    ssize_t numbytes;
@@ -755,12 +755,12 @@ write_message(int socket, struct message* msg)
 }
 
 static int
-ssl_read_message(SSL* ssl, int timeout, struct message** msg)
+ssl_read_message(SSL* ssl, int timeout, message_t** msg)
 {
    bool keep_read = false;
    ssize_t numbytes;
    time_t start_time;
-   struct message* m = NULL;
+   message_t* m = NULL;
 
    if (unlikely(timeout > 0))
    {
@@ -836,7 +836,7 @@ ssl_read_message(SSL* ssl, int timeout, struct message** msg)
 }
 
 static int
-ssl_write_message(SSL* ssl, struct message* msg)
+ssl_write_message(SSL* ssl, message_t* msg)
 {
    bool keep_write = false;
    ssize_t numbytes;

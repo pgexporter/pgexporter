@@ -54,7 +54,7 @@ pgexporter_read_metrics_configuration(void* shmem);
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_read_internal_yaml_metrics(struct configuration* config, bool start);
+pgexporter_read_internal_yaml_metrics(configuration_t* config, bool start);
 
 /**
  * Read and load YAML configuration from file pointer.
@@ -64,7 +64,7 @@ pgexporter_read_internal_yaml_metrics(struct configuration* config, bool start);
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_read_yaml_from_file_pointer(struct prometheus* prometheus, int* number_of_metrics, FILE* file);
+pgexporter_read_yaml_from_file_pointer(prometheus_t* prometheus, int* number_of_metrics, FILE* file);
 
 #ifdef __cplusplus
 }

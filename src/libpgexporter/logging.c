@@ -72,8 +72,8 @@ static const char* colors[] =
 bool
 log_rotation_enabled(void)
 {
-   struct configuration* config;
-   config = (struct configuration*)shmem;
+   configuration_t* config;
+   config = (configuration_t*)shmem;
 
    // disable log rotation in the case
    // logging is not to a file
@@ -92,8 +92,8 @@ log_rotation_enabled(void)
 void
 log_rotation_disable(void)
 {
-   struct configuration* config;
-   config = (struct configuration*)shmem;
+   configuration_t* config;
+   config = (configuration_t*)shmem;
 
    config->log_rotation_age = PGEXPORTER_LOGGING_ROTATION_DISABLED;
    config->log_rotation_size = PGEXPORTER_LOGGING_ROTATION_DISABLED;
@@ -104,9 +104,9 @@ bool
 log_rotation_required(void)
 {
    struct stat log_stat;
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    if (!log_rotation_enabled())
    {
@@ -134,10 +134,10 @@ log_rotation_required(void)
 bool
 log_rotation_set_next_rotation_age(void)
 {
-   struct configuration* config;
+   configuration_t* config;
    time_t now;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    if (config->log_type == PGEXPORTER_LOGGING_TYPE_FILE && config->log_rotation_age > 0)
    {
@@ -164,9 +164,9 @@ log_rotation_set_next_rotation_age(void)
 int
 pgexporter_init_logging(void)
 {
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    if (config->log_type == PGEXPORTER_LOGGING_TYPE_FILE)
    {
@@ -190,9 +190,9 @@ pgexporter_init_logging(void)
 int
 pgexporter_start_logging(void)
 {
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    if (config->log_type == PGEXPORTER_LOGGING_TYPE_FILE && !log_file)
    {
@@ -216,11 +216,11 @@ pgexporter_start_logging(void)
 int
 log_file_open(void)
 {
-   struct configuration* config;
+   configuration_t* config;
    time_t htime;
    struct tm* tm;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    if (config->log_type == PGEXPORTER_LOGGING_TYPE_FILE)
    {
@@ -276,9 +276,9 @@ log_file_rotate(void)
 int
 pgexporter_stop_logging(void)
 {
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    if (config->log_type == PGEXPORTER_LOGGING_TYPE_FILE)
    {
@@ -303,9 +303,9 @@ void
 pgexporter_log_line(int level, char* file, int line, char* fmt, ...)
 {
    signed char isfree;
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    if (config == NULL)
    {
@@ -410,9 +410,9 @@ void
 pgexporter_log_mem(void* data, size_t size)
 {
    signed char isfree;
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    if (config == NULL)
    {

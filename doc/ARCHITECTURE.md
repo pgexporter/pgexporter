@@ -12,14 +12,14 @@ The main process is defined in [main.c](../src/main.c).
 A memory segment ([shmem.h](../src/include/shmem.h)) is shared among all processes which contains the `pgexporter`
 state containing the configuration and the list of servers.
 
-The configuration of `pgexporter` (`struct configuration`) and the configuration of the servers (`struct server`)
+The configuration of `pgexporter` (`configuration_t`) and the configuration of the servers (`server_t`)
 is initialized in this shared memory segment. These structs are all defined in [pgexporter.h](../src/include/pgexporter.h).
 
 The shared memory segment is created using the `mmap()` call.
 
 ## Network and messages
 
-All communication is abstracted using the `struct message` data type defined in [messge.h](../src/include/message.h).
+All communication is abstracted using the `message_t` data type defined in [messge.h](../src/include/message.h).
 
 Reading and writing messages are handled in the [message.h](../src/include/message.h) ([message.c](../src/libpgexporter/message.c))
 files.

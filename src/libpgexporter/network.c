@@ -140,9 +140,9 @@ pgexporter_bind_unix_socket(const char* directory, const char* file, int* fd)
    char buf[107];
    struct stat st = {0};
    struct sockaddr_un addr;
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    if ((*fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
    {
@@ -230,9 +230,9 @@ pgexporter_connect(const char* hostname, int port, int* fd)
    int rv;
    char sport[5];
    int error = 0;
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    memset(&sport, 0, sizeof(sport));
    sprintf(&sport[0], "%d", port);
@@ -506,11 +506,11 @@ error:
 int
 pgexporter_tcp_nodelay(int fd)
 {
-   struct configuration* config;
+   configuration_t* config;
    int yes = 1;
    socklen_t optlen = sizeof(int);
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    if (config->nodelay)
    {
@@ -528,10 +528,10 @@ pgexporter_tcp_nodelay(int fd)
 int
 pgexporter_socket_buffers(int fd)
 {
-   struct configuration* config;
+   configuration_t* config;
    socklen_t optlen = sizeof(int);
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &config->buffer_size, optlen) == -1)
    {
@@ -563,9 +563,9 @@ bind_host(const char* hostname, int port, int** fds, int* length)
    int yes = 1;
    int rv;
    char* sport;
-   struct configuration* config;
+   configuration_t* config;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    index = 0;
    size = 0;

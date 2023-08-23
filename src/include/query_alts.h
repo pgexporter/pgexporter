@@ -33,8 +33,8 @@
  * different minimum requirements of PostgreSQL version for them to work.
  *
  * eg. A query_alt may ask both column A and B from a server with version X,
- * just A if server has version Y, given X > Y and column B is not supporter
- * by version Y.
+ * just A if server has version Y (given column B is not supporter
+ * by version Y).
  *
  * This allows sending that query to the server that has the highest support.
  *
@@ -43,7 +43,7 @@
  */
 
 /**
- * @brief Get the query alternative provided the server version
+ * @brief Get the query alternative for a given server version
  *
  * @param root Root of the AVL tree
  * @param server Server's major version
@@ -73,7 +73,7 @@ void pgexporter_copy_query_alts(query_alts_t** dst, query_alts_t* src);
  *
  * @param config The config whose `query_alts` need to be freed
  */
-void pgexporter_free_query_alts(struct configuration* config);
+void pgexporter_free_query_alts(configuration_t* config);
 
 /**
  * @brief Free allocated memory for an AVL Tree Node for Query Alternatives given its root

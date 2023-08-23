@@ -53,15 +53,15 @@ pgexporter_remote_management(int client_fd, char* address)
    int auth_status;
    signed char type;
    SSL* client_ssl = NULL;
-   struct message* msg = NULL;
-   struct configuration* config;
+   message_t* msg = NULL;
+   configuration_t* config;
 
    pgexporter_start_logging();
    pgexporter_memory_init();
 
    exit_code = 0;
 
-   config = (struct configuration*)shmem;
+   config = (configuration_t*)shmem;
 
    pgexporter_log_debug("pgexporter_remote_management: connect %d", client_fd);
 
