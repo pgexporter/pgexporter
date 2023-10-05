@@ -347,9 +347,9 @@ extern "C" {
         "          type: label\n" \
         "        - type: gauge\n" \
         "          description: Number of rules in table.\n" \
-        "    tag: pg_role\n" \
+        "    tag: pg_rule\n" \
         "    sort: data\n" \
-        "    collector: roles\n" \
+        "    collector: rules\n" \
         "\n" \
         "# Get user auth data\n" \
         "  - queries:\n" \
@@ -592,8 +592,8 @@ extern "C" {
         "              FROM pg_stat_wal_receiver;\n" \
         "      version: 11\n" \
         "      columns:\n" \
-        "        - type: label\n" \
-        "          description: sender\n" \
+        "        - name: sender\n" \
+        "          type: label\n" \
         "        - type: counter\n" \
         "          description: Time since last message received from WAL sender\n" \
         "    tag: pg_wal_last_received\n" \

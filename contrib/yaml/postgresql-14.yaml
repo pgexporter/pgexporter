@@ -346,9 +346,9 @@ metrics:
           type: label
         - type: gauge
           description: Number of rules in table.
-    tag: pg_role
+    tag: pg_rule
     sort: data
-    collector: roles
+    collector: rules
 
 # Get user auth data
   - queries:
@@ -616,8 +616,8 @@ metrics:
               FROM pg_stat_wal_receiver;
       version: 11
       columns:
-        - type: label
-          description: sender
+        - name: sender
+          type: label
         - type: counter
           description: Time since last message received from WAL sender
     tag: pg_wal_last_received
