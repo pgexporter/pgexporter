@@ -406,9 +406,9 @@ metrics:
           type: label
         - type: gauge
           description: Number of rules in table.
-    tag: pg_role
+    tag: pg_rule
     sort: data
-    collector: roles
+    collector: rules
 
 # Get user auth data
   - queries:
