@@ -58,13 +58,14 @@ pgexporter_read_internal_yaml_metrics(configuration_t* config, bool start);
 
 /**
  * Read and load YAML configuration from file pointer.
- * @param prometheus The data structure where the YAML configuration is loaded
+ * @param prometheus The array of data structures where the YAML configuration is loaded
+ * @param prometheus_idx The index of the data structure in the array
  * @param number_of_metrics The number of metrics the configuration has. This value will be set by the function.
  * @param file File pointer
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_read_yaml_from_file_pointer(prometheus_t* prometheus, int* number_of_metrics, FILE* file);
+pgexporter_read_yaml_from_file_pointer(prometheus_t* prometheus, int prometheus_idx, int* number_of_metrics, FILE* file);
 
 #ifdef __cplusplus
 }
