@@ -39,7 +39,7 @@
 #include <yaml.h>
 #include <errno.h>
 
-static int pgexporter_read_yaml(prometheus_t* prometheus, char* filename, int* number_of_metrics);
+static int pgexporter_read_yaml(prometheus_t* prometheus, int prometheus_idx, char* filename, int* number_of_metrics);
 
 static int get_yaml_files(char* base, int* number_of_yaml_files, char*** files);
 static bool is_yaml_file(char* filename);
@@ -137,7 +137,7 @@ static void free_yaml_queries(yaml_query_t** queries, size_t n_queries);
 static void free_yaml_columns(yaml_column_t** columns, size_t n_columns);
 
 // Extract the meaning of the `yaml_config` and load the metrics into `prometheus`
-static int semantics_yaml(prometheus_t* prometheus, yaml_config_t* yaml_config);
+static int semantics_yaml(prometheus_t* prometheus, int prometheus_idx, yaml_config_t* yaml_config);
 
 int
 pgexporter_read_metrics_configuration(void* shmem)
@@ -155,7 +155,7 @@ pgexporter_read_metrics_configuration(void* shmem)
    if (pgexporter_is_file(config->metrics_path))
    {
       number_of_metrics = 0;
-      if (pgexporter_read_yaml(config->prometheus + idx_metrics, config->metrics_path, &number_of_metrics))
+      if (pgexporter_read_yaml(config->prometheus, idx_metrics, config->metrics_path, &number_of_metrics))
       {
          return 1;
       }
@@ -174,7 +174,7 @@ pgexporter_read_metrics_configuration(void* shmem)
                                         yaml_files[i]
                                         );
 
-         if (pgexporter_read_yaml(config->prometheus + idx_metrics, yaml_path, &number_of_metrics))
+         if (pgexporter_read_yaml(config->prometheus, idx_metrics, yaml_path, &number_of_metrics))
          {
             free(yaml_path);
             yaml_path = NULL;
@@ -209,7 +209,7 @@ pgexporter_read_internal_yaml_metrics(configuration_t* config, bool start)
    int ret;
    FILE* internal_yaml_ptr = fmemopen(INTERNAL_YAML, strlen(INTERNAL_YAML), "r");
 
-   ret = pgexporter_read_yaml_from_file_pointer(config->prometheus, &number_of_metrics, internal_yaml_ptr);
+   ret = pgexporter_read_yaml_from_file_pointer(config->prometheus, 0, &number_of_metrics, internal_yaml_ptr);
    fclose(internal_yaml_ptr);
 
    if (ret)
@@ -228,7 +228,7 @@ pgexporter_read_internal_yaml_metrics(configuration_t* config, bool start)
 }
 
 static int
-pgexporter_read_yaml(prometheus_t* prometheus, char* filename, int* number_of_metrics)
+pgexporter_read_yaml(prometheus_t* prometheus, int prometheus_idx, char* filename, int* number_of_metrics)
 {
    FILE* file;
 
@@ -239,7 +239,7 @@ pgexporter_read_yaml(prometheus_t* prometheus, char* filename, int* number_of_me
       return 1;
    }
 
-   int ret = pgexporter_read_yaml_from_file_pointer(prometheus, number_of_metrics, file);
+   int ret = pgexporter_read_yaml_from_file_pointer(prometheus, prometheus_idx, number_of_metrics, file);
 
    fclose(file);
 
@@ -247,7 +247,7 @@ pgexporter_read_yaml(prometheus_t* prometheus, char* filename, int* number_of_me
 }
 
 int
-pgexporter_read_yaml_from_file_pointer(prometheus_t* prometheus, int* number_of_metrics, FILE* file)
+pgexporter_read_yaml_from_file_pointer(prometheus_t* prometheus, int prometheus_idx, int* number_of_metrics, FILE* file)
 {
    int ret = 0;
    yaml_config_t yaml_config;
@@ -262,7 +262,7 @@ pgexporter_read_yaml_from_file_pointer(prometheus_t* prometheus, int* number_of_
 
    *number_of_metrics += yaml_config.n_metrics;
 
-   if (semantics_yaml(prometheus, &yaml_config))
+   if (semantics_yaml(prometheus, prometheus_idx, &yaml_config))
    {
       ret = 1;
       goto end;
@@ -1068,23 +1068,30 @@ free_yaml_columns(yaml_column_t** columns, size_t n_columns)
 }
 
 static int
-semantics_yaml(prometheus_t* prometheus, yaml_config_t* yaml_config)
+semantics_yaml(prometheus_t* prometheus, int prometheus_idx, yaml_config_t* yaml_config)
 {
+   prometheus_t* prom = NULL;
 
    for (int i = 0; i < yaml_config->n_metrics; i++)
    {
+      if (prometheus_idx + i >= NUMBER_OF_METRICS)
+      {
+         pgexporter_log_error("The number of metrics exceed the maximum limit of %d.", NUMBER_OF_METRICS);
+         return 1;
+      }
 
-      memcpy(prometheus[i].tag, yaml_config->metrics[i].tag, MIN(MISC_LENGTH - 1, strlen(yaml_config->metrics[i].tag)));
-      memcpy(prometheus[i].collector, yaml_config->metrics[i].collector, MIN(MAX_COLLECTOR_LENGTH - 1, strlen(yaml_config->metrics[i].collector)));
+      prom = &prometheus[prometheus_idx + i];
+      memcpy(prom->tag, yaml_config->metrics[i].tag, MIN(MISC_LENGTH - 1, strlen(yaml_config->metrics[i].tag)));
+      memcpy(prom->collector, yaml_config->metrics[i].collector, MIN(MAX_COLLECTOR_LENGTH - 1, strlen(yaml_config->metrics[i].collector)));
 
       // Sort Type
       if (!yaml_config->metrics[i].sort || !strcmp(yaml_config->metrics[i].sort, "name"))
       {
-         prometheus[i].sort_type = SORT_NAME;
+         prom->sort_type = SORT_NAME;
       }
       else if (!strcmp(yaml_config->metrics[i].sort, "data"))
       {
-         prometheus[i].sort_type = SORT_DATA0;
+         prom->sort_type = SORT_DATA0;
       }
       else
       {
@@ -1095,15 +1102,15 @@ semantics_yaml(prometheus_t* prometheus, yaml_config_t* yaml_config)
       // Server Query Type
       if (!yaml_config->metrics[i].server || !strcmp(yaml_config->metrics[i].server, "both"))
       {
-         prometheus[i].server_query_type = SERVER_QUERY_BOTH;
+         prom->server_query_type = SERVER_QUERY_BOTH;
       }
       else if (!strcmp(yaml_config->metrics[i].server, "primary"))
       {
-         prometheus[i].server_query_type = SERVER_QUERY_PRIMARY;
+         prom->server_query_type = SERVER_QUERY_PRIMARY;
       }
       else if (!strcmp(yaml_config->metrics[i].server, "replica"))
       {
-         prometheus[i].server_query_type = SERVER_QUERY_REPLICA;
+         prom->server_query_type = SERVER_QUERY_REPLICA;
       }
       else
       {
@@ -1174,7 +1181,7 @@ semantics_yaml(prometheus_t* prometheus, yaml_config_t* yaml_config)
             new_query->version = yaml_config->default_version;
          }
 
-         prometheus[i].root = pgexporter_insert_node_avl(prometheus[i].root, &new_query);
+         prom->root = pgexporter_insert_node_avl(prom->root, &new_query);
       }
    }
 

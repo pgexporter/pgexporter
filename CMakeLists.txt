@@ -5,6 +5,10 @@ set(VERSION_MINOR "4")
 set(VERSION_PATCH "0")
 set(VERSION_STRING ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
+if (CMAKE_BUILD_TYPE MATCHES Debug)
+  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+endif()
+
 #
 # Avoid source tree pollution
 #
