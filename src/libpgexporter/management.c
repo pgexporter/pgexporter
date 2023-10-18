@@ -421,6 +421,15 @@ pgexporter_management_read_isalive(SSL* ssl, int socket, int* status)
 
    *status = pgexporter_read_int32(&buf);
 
+   if (status)
+   {
+      printf("pgexporter is running.\n");
+   }
+   else
+   {
+      printf("pgexporter is not running.\n");
+   }
+
    return 0;
 
 error:
