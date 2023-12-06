@@ -133,7 +133,9 @@ static int send_chunk(int client_fd, char* data);
 static int parse_list(char* list_str, char** strs, int* n_strs);
 
 static char* get_value(char* tag, char* name, char* val);
+static int safe_prometheus_key_additional_length(char* key);
 static char* safe_prometheus_key(char* key);
+static void safe_prometheus_key_free(char* key);
 
 static bool is_metrics_cache_configured(void);
 static bool is_metrics_cache_valid(void);
@@ -657,6 +659,7 @@ version_information(int client_fd)
    int ret;
    int server;
    char* data = NULL;
+   char* safe_key = NULL;
    struct query* all = NULL;
    struct query* query = NULL;
    struct tuple* current = NULL;
@@ -691,15 +694,16 @@ version_information(int client_fd)
 
          while (current != NULL)
          {
-
+            safe_key = safe_prometheus_key(pgexporter_get_column(0, current));
             data = pgexporter_vappend(data, 6,
                                       "pgexporter_postgresql_version{server=\"",
                                       &config->servers[server].name[0],
                                       "\",version=\"",
-                                      safe_prometheus_key(pgexporter_get_column(0, current)),
+                                      safe_key,
                                       "\"} ",
                                       "1\n"
                                       );
+            safe_prometheus_key_free(safe_key);
 
             server++;
             current = current->next;
@@ -726,6 +730,7 @@ uptime_information(int client_fd)
    int ret;
    int server;
    char* data = NULL;
+   char* safe_key = NULL;
    struct query* all = NULL;
    struct query* query = NULL;
    struct tuple* current = NULL;
@@ -760,13 +765,15 @@ uptime_information(int client_fd)
 
          while (current != NULL)
          {
+            safe_key = safe_prometheus_key(pgexporter_get_column(0, current));
             data = pgexporter_vappend(data, 5,
                                       "pgexporter_postgresql_uptime{server=\"",
                                       &config->servers[server].name[0],
                                       "\"} ",
-                                      safe_prometheus_key(pgexporter_get_column(0, current)),
+                                      safe_key,
                                       "\n"
                                       );
+            safe_prometheus_key_free(safe_key);
 
             server++;
             current = current->next;
@@ -1047,6 +1054,7 @@ settings_information(int client_fd)
 {
    int ret;
    char* data = NULL;
+   char* safe_key = NULL;
    struct query* all = NULL;
    struct query* query = NULL;
    struct tuple* current = NULL;
@@ -1078,33 +1086,37 @@ settings_information(int client_fd)
       current = all->tuples;
       while (current != NULL)
       {
+         safe_key = safe_prometheus_key(pgexporter_get_column(0, current));
          data = pgexporter_vappend(data, 12,
                                    "#HELP pgexporter_",
                                    &all->tag[0],
                                    "_",
-                                   safe_prometheus_key(pgexporter_get_column(0, current)),
+                                   safe_key,
                                    " ",
-                                   safe_prometheus_key(pgexporter_get_column(2, current)),
+                                   pgexporter_get_column(2, current),
                                    "\n",
                                    "#TYPE pgexporter_",
                                    &all->tag[0],
                                    "_",
-                                   safe_prometheus_key(pgexporter_get_column(0, current)),
+                                   safe_key,
                                    " gauge\n"
                                    );
+         safe_prometheus_key_free(safe_key);
 
 data:
+         safe_key = safe_prometheus_key(pgexporter_get_column(0, current));
          data = pgexporter_vappend(data, 9,
                                    "pgexporter_",
                                    &all->tag[0],
                                    "_",
-                                   safe_prometheus_key(pgexporter_get_column(0, current)),
+                                   safe_key,
                                    "{server=\"",
                                    &config->servers[current->server].name[0],
                                    "\"} ",
                                    get_value(&all->tag[0], pgexporter_get_column(0, current), pgexporter_get_column(1, current)),
                                    "\n"
                                    );
+         safe_prometheus_key_free(safe_key);
 
          if (current->next != NULL && !strcmp(pgexporter_get_column(0, current), pgexporter_get_column(0, current->next)))
          {
@@ -1400,6 +1412,7 @@ static void
 handle_histogram(column_store_t* store, int* n_store, query_list_t* temp)
 {
    char* data = NULL;
+   char* safe_key = NULL;
    configuration_t* config;
    int n_bounds = 0;
    int n_buckets = 0;
@@ -1491,13 +1504,15 @@ append:
 
             for (int j = 0; j < h_idx; j++)
             {
+               safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
                data = pgexporter_vappend(data, 5,
                                          ",",
                                          temp->query_alt->columns[j].name,
                                          "=\"",
-                                         safe_prometheus_key(pgexporter_get_column(j, current)),
+                                         safe_key,
                                          "\""
                                          );
+               safe_prometheus_key_free(safe_key);
             }
 
             data = pgexporter_vappend(data, 3,
@@ -1518,13 +1533,15 @@ append:
 
          for (int j = 0; j < h_idx; j++)
          {
+            safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
             data = pgexporter_vappend(data, 5,
                                       ",",
                                       temp->query_alt->columns[j].name,
                                       "=\"",
-                                      safe_prometheus_key(pgexporter_get_column(j, current)),
+                                      safe_key,
                                       "\""
                                       );
+            safe_prometheus_key_free(safe_key);
          }
 
          data = pgexporter_vappend(data, 3,
@@ -1545,13 +1562,15 @@ append:
 
          for (int j = 0; j < h_idx; j++)
          {
+            safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
             data = pgexporter_vappend(data, 5,
                                       ",",
                                       temp->query_alt->columns[j].name,
                                       "=\"",
-                                      safe_prometheus_key(pgexporter_get_column(j, current)),
+                                      safe_key,
                                       "\""
                                       );
+            safe_prometheus_key_free(safe_key);
          }
 
          data = pgexporter_vappend(data, 3,
@@ -1572,13 +1591,15 @@ append:
 
          for (int j = 0; j < h_idx; j++)
          {
+            safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
             data = pgexporter_vappend(data, 5,
                                       ",",
                                       temp->query_alt->columns[j].name,
                                       "=\"",
-                                      safe_prometheus_key(pgexporter_get_column(j, current)),
+                                      safe_key,
                                       "\""
                                       );
+            safe_prometheus_key_free(safe_key);
          }
 
          data = pgexporter_vappend(data, 3,
@@ -1643,6 +1664,7 @@ static void
 handle_gauge_counter(column_store_t* store, int* n_store, query_list_t* temp)
 {
    char* data = NULL;
+   char* safe_key = NULL;
    configuration_t* config;
    config = (configuration_t*)shmem;
 
@@ -1712,13 +1734,15 @@ append:
                   continue;
                }
 
+               safe_key = safe_prometheus_key(pgexporter_get_column(j, tuple));
                data = pgexporter_vappend(data, 5,
                                          ",",
                                          temp->query_alt->columns[j].name,
                                          "=\"",
-                                         safe_prometheus_key(pgexporter_get_column(j, tuple)),
+                                         safe_key,
                                          "\""
                                          );
+               safe_prometheus_key_free(safe_key);
 
             }
 
@@ -1909,32 +1933,75 @@ get_value(char* tag, char* name, char* val)
    return "1";
 }
 
+static int
+safe_prometheus_key_additional_length(char* key)
+{
+   int count = 0;
+   int i = 0;
+
+   while (key[i] != '\0')
+   {
+      if (key[i] == '"' || key[i] == '\\')
+      {
+         count++;
+      }
+      i++;
+   }
+
+   pgexporter_log_trace("key(%s): %d", key, count);
+   return count;
+}
+
 static char*
 safe_prometheus_key(char* key)
 {
    int i = 0;
+   int j = 0;
+   char* escaped = NULL;
 
-   if (key == NULL)
+   if (key == NULL || strlen(key) == 0)
    {
       return "";
    }
 
+   escaped = (char*) malloc(strlen(key) + safe_prometheus_key_additional_length(key) + 1);
    while (key[i] != '\0')
    {
       if (key[i] == '.')
       {
          if (i == strlen(key) - 1)
          {
-            key[i] = '\0';
+            escaped[j] = '\0';
          }
          else
          {
-            key[i] = '_';
+            escaped[j] = '_';
          }
       }
+      else
+      {
+         if (key[i] == '"' || key[i] == '\\')
+         {
+            escaped[j] = '\\';
+            j++;
+         }
+         escaped[j] = key[i];
+      }
+
       i++;
+      j++;
    }
-   return key;
+   escaped[j] = '\0';
+   return escaped;
+}
+
+static void
+safe_prometheus_key_free(char* key)
+{
+   if (key != NULL && strlen(key) > 0)
+   {
+      free(key);
+   }
 }
 
 /**
