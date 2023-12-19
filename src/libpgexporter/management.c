@@ -146,6 +146,7 @@ pgexporter_management_read_payload(int socket, signed char id, int* payload_i1, 
       case MANAGEMENT_STOP:
       case MANAGEMENT_STATUS:
       case MANAGEMENT_DETAILS:
+      case MANAGEMENT_ISALIVE:
       case MANAGEMENT_RESET:
       case MANAGEMENT_RELOAD:
          break;
@@ -394,8 +395,6 @@ pgexporter_management_isalive(SSL* ssl, int socket)
 {
    if (write_header(ssl, socket, MANAGEMENT_ISALIVE))
    {
-      pgexporter_log_warn("pgexporter_management_isalive: write: %d", socket);
-      errno = 0;
       goto error;
    }
 
