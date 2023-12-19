@@ -63,7 +63,7 @@ static int find_action(int argc, char** argv, int* place);
 static int stop(SSL* ssl, int socket);
 static int status(SSL* ssl, int socket);
 static int details(SSL* ssl, int socket);
-static int isalive(SSL* ssl, int socket);
+static int isalive(SSL* ssl, int socket, bool verbose);
 static int reset(SSL* ssl, int socket);
 static int reload(SSL* ssl, int socket);
 
@@ -326,7 +326,17 @@ main(int argc, char** argv)
             /* Remote connection */
             if (pgexporter_connect(host, atoi(port), &socket))
             {
-               warnx("pgexporter-cli: No route to host: %s:%s", host, port);
+               do_free = false;
+               if (action == ACTION_ISALIVE)
+               {
+                  /* No warning this time, we're checking. */
+                  goto is_alive;
+               }
+               else
+               {
+                  warnx("pgexporter-cli: No route to host: %s:%s", host, port);
+               }
+
                goto done;
             }
 
@@ -401,7 +411,8 @@ password:
       }
       else if (action == ACTION_ISALIVE)
       {
-         exit_code = isalive(s_ssl, socket);
+is_alive:
+         exit_code = isalive(s_ssl, socket, verbose);
       }
       else if (action == ACTION_RESET)
       {
@@ -434,6 +445,10 @@ done:
    {
       usage();
       exit_code = 1;
+   }
+   else if (action == ACTION_ISALIVE)
+   {
+      exit_code = 0;
    }
 
    if (configuration_path != NULL)
@@ -555,28 +570,36 @@ details(SSL* ssl, int socket)
 }
 
 static int
-isalive(SSL* ssl, int socket)
+isalive(SSL* ssl, int socket, bool verbose)
 {
-   int status = -1;
+   int ret_code = 1, status = -1;
 
-   if (pgexporter_management_isalive(ssl, socket) == 0)
+   ret_code = pgexporter_management_isalive(ssl, socket);
+   if (ret_code != 0)
    {
-      if (pgexporter_management_read_isalive(ssl, socket, &status))
-      {
-         return 1;
-      }
-
-      if (status != 1 && status != 2)
-      {
-         return 1;
-      }
-   }
-   else
-   {
-      return 1;
+      goto done;
    }
 
-   return 0;
+   ret_code = pgexporter_management_read_isalive(ssl, socket, &status);
+   if (ret_code != 0)
+   {
+      goto done;
+   }
+
+done:
+   if (verbose)
+   {
+      if (ret_code == 0 && status == 1)
+      {
+         printf("pgexporter is running.\n");
+      }
+      else
+      {
+         printf("pgexporter is not running.\n");
+      }
+   }
+
+   return ret_code;
 }
 
 static int
