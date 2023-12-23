@@ -116,8 +116,14 @@ pgexporter_memory_free(void)
 void
 pgexporter_memory_destroy(void)
 {
-   free(data);
-   free(message);
+   if (data != NULL)
+   {
+      free(data);
+   }
+   if (message != NULL)
+   {
+      free(message);
+   }
 
    data = NULL;
    message = NULL;

@@ -319,7 +319,6 @@ pgexporter_management_write_status(int socket)
 {
    configuration_t* config;
 
-   pgexporter_start_logging();
    pgexporter_memory_init();
 
    config = (configuration_t*)shmem;
@@ -347,7 +346,6 @@ pgexporter_management_write_status(int socket)
    pgexporter_close_connections();
 
    pgexporter_memory_destroy();
-   pgexporter_stop_logging();
 
    return 0;
 
@@ -412,14 +410,14 @@ pgexporter_management_read_isalive(SSL* ssl, int socket, int* status)
 
    memset(&buf, 0, sizeof(buf));
 
-   if (read_complete(ssl, socket, &buf[0], sizeof(buf)))
+   if (read_complete(ssl, socket, buf, sizeof(buf)))
    {
       pgexporter_log_warn("pgexporter_management_read_isalive: read: %d %s", socket, strerror(errno));
       errno = 0;
       goto error;
    }
 
-   *status = pgexporter_read_int32(&buf);
+   *status = pgexporter_read_int32(buf);
 
    if (status)
    {
@@ -446,7 +444,7 @@ pgexporter_management_write_isalive(int socket)
 
    pgexporter_write_int32(buf, 1);
 
-   if (write_complete(NULL, socket, &buf, sizeof(buf)))
+   if (write_complete(NULL, socket, buf, sizeof(buf)))
    {
       pgexporter_log_warn("pgexporter_management_write_isalive: write: %d %s", socket, strerror(errno));
       errno = 0;
@@ -501,14 +499,14 @@ read_int32(char* prefix, int socket, int* i)
 
    *i = 0;
 
-   if (read_complete(NULL, socket, &buf4[0], sizeof(buf4)))
+   if (read_complete(NULL, socket, buf4, sizeof(buf4)))
    {
       pgexporter_log_warn("%s: read: %d %s", prefix, socket, strerror(errno));
       errno = 0;
       goto error;
    }
 
-   *i = pgexporter_read_int32(&buf4);
+   *i = pgexporter_read_int32(buf4);
 
    return 0;
 
@@ -526,14 +524,14 @@ read_string(char* prefix, int socket, char** str)
 
    *str = NULL;
 
-   if (read_complete(NULL, socket, &buf4[0], sizeof(buf4)))
+   if (read_complete(NULL, socket, buf4, sizeof(buf4)))
    {
       pgexporter_log_warn("%s: read: %d %s", prefix, socket, strerror(errno));
       errno = 0;
       goto error;
    }
 
-   size = pgexporter_read_int32(&buf4);
+   size = pgexporter_read_int32(buf4);
    if (size > 0)
    {
       s = malloc(size + 1);
@@ -561,8 +559,8 @@ write_int32(char* prefix, int socket, int i)
 {
    char buf4[4] = {0};
 
-   pgexporter_write_int32(&buf4, i);
-   if (write_complete(NULL, socket, &buf4, sizeof(buf4)))
+   pgexporter_write_int32(buf4, i);
+   if (write_complete(NULL, socket, buf4, sizeof(buf4)))
    {
       pgexporter_log_warn("%s: write: %d %s", prefix, socket, strerror(errno));
       errno = 0;
@@ -581,8 +579,8 @@ write_string(char* prefix, int socket, char* str)
 {
    char buf4[4] = {0};
 
-   pgexporter_write_int32(&buf4, str != NULL ? strlen(str) : 0);
-   if (write_complete(NULL, socket, &buf4, sizeof(buf4)))
+   pgexporter_write_int32(buf4, str != NULL ? strlen(str) : 0);
+   if (write_complete(NULL, socket, buf4, sizeof(buf4)))
    {
       pgexporter_log_warn("%s: write: %d %s", prefix, socket, strerror(errno));
       errno = 0;
@@ -821,7 +819,7 @@ write_header(SSL* ssl, int socket, signed char type)
 {
    char header[MANAGEMENT_HEADER_SIZE];
 
-   pgexporter_write_byte(&(header), type);
+   pgexporter_write_byte(header, type);
 
-   return write_complete(ssl, socket, &(header), MANAGEMENT_HEADER_SIZE);
+   return write_complete(ssl, socket, header, MANAGEMENT_HEADER_SIZE);
 }
