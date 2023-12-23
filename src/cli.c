@@ -173,6 +173,7 @@ main(int argc, char** argv)
             username = optarg;
             break;
          case 'P':
+            do_free = false;
             password = optarg;
             break;
          case 'L':
@@ -195,13 +196,13 @@ main(int argc, char** argv)
 
    if (getuid() == 0)
    {
-      warnx("pgexporter-cli: Using the root account is not allowed");
+      warnx("Using the root account is not allowed");
       exit(1);
    }
 
    if (configuration_path != NULL && (host != NULL || port != NULL))
    {
-      warnx("pgexporter-cli: Use either -c or -h/-p to define endpoint");
+      warnx("Use either -c or -h/-p to define endpoint");
       exit(1);
    }
 
@@ -214,7 +215,7 @@ main(int argc, char** argv)
    size = sizeof(configuration_t);
    if (pgexporter_create_shared_memory(size, HUGEPAGE_OFF, &shmem))
    {
-      warnx("pgexporter-cli: Error creating shared memory");
+      warnx("Error creating shared memory");
       exit(1);
    }
    pgexporter_init_configuration(shmem);
@@ -224,7 +225,7 @@ main(int argc, char** argv)
       ret = pgexporter_read_configuration(shmem, configuration_path);
       if (ret)
       {
-         warnx("pgexporter-cli: Configuration not found: %s", configuration_path);
+         warnx("Configuration not found: %s", configuration_path);
          exit(1);
       }
 
@@ -251,7 +252,7 @@ main(int argc, char** argv)
       {
          if (host == NULL || port == NULL)
          {
-            warnx("pgexporter-cli: Host and port must be specified");
+            warnx("Host and port must be specified");
             exit(1);
          }
       }
@@ -334,7 +335,7 @@ main(int argc, char** argv)
                }
                else
                {
-                  warnx("pgexporter-cli: No route to host: %s:%s", host, port);
+                  warnx("No route to host: %s:%s", host, port);
                }
 
                goto done;
@@ -391,7 +392,7 @@ password:
             /* Authenticate */
             if (pgexporter_remote_management_scram_sha256(username, password, socket, &s_ssl) != AUTH_SUCCESS)
             {
-               warnx("pgexporter-cli: Bad credentials for %s", username);
+               warnx("Bad credentials for %s", username);
                goto done;
             }
          }

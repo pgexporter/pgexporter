@@ -284,7 +284,11 @@ pgexporter_stop_logging(void)
    {
       if (log_file != NULL)
       {
-         return fclose(log_file);
+         int ret = fclose(log_file);
+         if(ret == 0) {
+            log_file = NULL;
+         }
+         return ret;
       }
       else
       {
