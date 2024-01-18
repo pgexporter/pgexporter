@@ -148,14 +148,14 @@ extern "C" {
         "# stat_bgwriter_information()\n" \
         "  - queries:\n" \
         "    - query: SELECT\n" \
-        "                buffers_alloc\n" \
-        "                buffers_backend\n" \
+        "                buffers_alloc,\n" \
+        "                buffers_backend,\n" \
         "                buffers_backend_fsync,\n" \
-        "                buffers_checkpoint\n" \
-        "                buffers_clean\n" \
+        "                buffers_checkpoint,\n" \
+        "                buffers_clean,\n" \
         "                checkpoint_sync_time,\n" \
-        "                checkpoint_write_time\n" \
-        "                checkpoints_req\n" \
+        "                checkpoint_write_time,\n" \
+        "                checkpoints_req,\n" \
         "                checkpoints_timed,\n" \
         "                maxwritten_clean\n" \
         "              FROM pg_stat_bgwriter;\n" \
