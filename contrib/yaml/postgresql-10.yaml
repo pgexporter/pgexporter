@@ -536,7 +536,7 @@ metrics:
   - queries:
     - query: SELECT
                 funcname,
-                rows,
+                calls,
                 self_time,
                 total_time
               FROM pg_stat_user_functions;
