@@ -4,7 +4,7 @@ The customized metrics yaml configuration is loaded from the the path specified 
 
 The `metrics_path` can either be a single yaml files or the directory of multiple yaml files.
 
-Each yaml is sequcence of queries. Every query can include four parts. See a [sample_metrics](../contrib/yaml/postgresql-10.yaml) for running basic metrics.
+Each yaml is sequcence of queries. Every query can include four parts. See a [sample_metrics](../contrib/yaml/postgresql-12.yaml) for running basic metrics.
 
 ## metrics yaml
 | Property | Default | Required | Description |
