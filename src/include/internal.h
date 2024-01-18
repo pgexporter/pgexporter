@@ -483,7 +483,7 @@ extern "C" {
         "  - queries:\n" \
         "    - query: SELECT\n" \
         "                funcname,\n" \
-        "                rows,\n" \
+        "                calls,\n" \
         "                self_time,\n" \
         "                total_time\n" \
         "              FROM pg_stat_user_functions;\n" \
