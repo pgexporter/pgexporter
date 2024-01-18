@@ -113,14 +113,14 @@ metrics:
 # stat_bgwriter_information()
   - queries:
     - query: SELECT
-                buffers_alloc
-                buffers_backend
+                buffers_alloc,
+                buffers_backend,
                 buffers_backend_fsync,
-                buffers_checkpoint
-                buffers_clean
+                buffers_checkpoint,
+                buffers_clean,
                 checkpoint_sync_time,
-                checkpoint_write_time
-                checkpoints_req
+                checkpoint_write_time,
+                checkpoints_req,
                 checkpoints_timed,
                 maxwritten_clean
               FROM pg_stat_bgwriter;
