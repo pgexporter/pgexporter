@@ -44,7 +44,7 @@ extern "C" {
 #include <sys/types.h>
 #include <openssl/ssl.h>
 
-#define VERSION "0.4.1"
+#define VERSION "0.4.2"
 
 #define PGEXPORTER_HOMEPAGE "https://pgexporter.github.io/"
 #define PGEXPORTER_ISSUES "https://github.com/pgexporter/pgexporter/issues"
