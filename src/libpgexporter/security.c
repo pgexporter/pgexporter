@@ -64,8 +64,8 @@
 #define SECURITY_SCRAM256 10
 #define SECURITY_ALL      99
 
-#define NUMBER_OF_SECURITY_MESSAGES   5
-#define SECURITY_BUFFER_SIZE        512
+#define NUMBER_OF_SECURITY_MESSAGES    5
+#define SECURITY_BUFFER_SIZE        1024
 
 static signed char has_security;
 static ssize_t security_lengths[NUMBER_OF_SECURITY_MESSAGES];
@@ -1182,6 +1182,7 @@ server_password(char* username, char* password, int server_fd)
    status = pgexporter_read_block_message(NULL, server_fd, &auth_msg);
    if (auth_msg->length > SECURITY_BUFFER_SIZE)
    {
+      pgexporter_log_message(auth_msg);
       pgexporter_log_error("Security message too large: %ld", auth_msg->length);
       goto error;
    }
@@ -1193,6 +1194,7 @@ server_password(char* username, char* password, int server_fd)
    {
       if (auth_msg->length > SECURITY_BUFFER_SIZE)
       {
+         pgexporter_log_message(auth_msg);
          pgexporter_log_error("Security message too large: %ld", auth_msg->length);
          goto error;
       }
@@ -1295,6 +1297,7 @@ server_md5(char* username, char* password, int server_fd)
    status = pgexporter_read_block_message(NULL, server_fd, &auth_msg);
    if (auth_msg->length > SECURITY_BUFFER_SIZE)
    {
+      pgexporter_log_message(auth_msg);
       pgexporter_log_error("Security message too large: %ld", auth_msg->length);
       goto error;
    }
@@ -1306,6 +1309,7 @@ server_md5(char* username, char* password, int server_fd)
    {
       if (auth_msg->length > SECURITY_BUFFER_SIZE)
       {
+         pgexporter_log_message(auth_msg);
          pgexporter_log_error("Security message too large: %ld", auth_msg->length);
          goto error;
       }
@@ -1420,6 +1424,7 @@ server_scram256(char* username, char* password, int server_fd)
    status = pgexporter_read_block_message(NULL, server_fd, &msg);
    if (msg->length > SECURITY_BUFFER_SIZE)
    {
+      pgexporter_log_message(msg);
       pgexporter_log_error("Security message too large: %ld", msg->length);
       goto error;
    }
@@ -1484,6 +1489,7 @@ server_scram256(char* username, char* password, int server_fd)
    status = pgexporter_read_block_message(NULL, server_fd, &msg);
    if (msg->length > SECURITY_BUFFER_SIZE)
    {
+      pgexporter_log_message(msg);
       pgexporter_log_error("Security message too large: %ld", msg->length);
       goto error;
    }
