@@ -4,7 +4,7 @@ This tutorial will show you how to encapsulate Prometheus standard API and use t
 
 ## Preface
 
-This tutorial assumes that you have an installation of PostgreSQL 10+ and pgexporter.
+This tutorial assumes that you have an installation of PostgreSQL 12+ and pgexporter.
 
 See [Install pgexporter](https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/01_install.md)
 for more detail.
