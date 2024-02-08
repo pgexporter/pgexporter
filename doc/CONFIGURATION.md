@@ -61,9 +61,9 @@ See a [sample](./etc/pgexporter.conf) configuration for running `pgexporter` on 
 | user | | String | Yes | The user name |
 | data_dir | | String | No | The location of the data directory |
 | wal_dir | | String | No | The location of the WAL directory |
-| tls_cert_file | | String | No | Certificate file for TLS. This file must be owned by either the user running pgmoneta or root. |
-| tls_key_file | | String | No | Private key file for TLS. This file must be owned by either the user running pgmoneta or root. Additionally permissions must be at least `0640` when owned by root or `0600` otherwise. |
-| tls_ca_file | | String | No | Certificate Authority (CA) file for TLS. This file must be owned by either the user running pgmoneta or root.  |
+| tls_cert_file | | String | No | Certificate file for TLS. This file must be owned by either the user running pgexporter or root. |
+| tls_key_file | | String | No | Private key file for TLS. This file must be owned by either the user running pgexporter or root. Additionally permissions must be at least `0640` when owned by root or `0600` otherwise. |
+| tls_ca_file | | String | No | Certificate Authority (CA) file for TLS. This file must be owned by either the user running pgexporter or root.  |
 
 Note, that PostgreSQL 12+ is required.
 

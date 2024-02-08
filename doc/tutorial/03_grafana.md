@@ -12,7 +12,7 @@ for more detail.
 ## Prometheus Configuration
 
 ### Installation
-First of all, you should install Prometheus in your pgmoneta server. Download one of the binaries from the [Prometheus Downloads](https://prometheus.io/download/), say `prometheus-2.45.0.linux-amd64.tar.gz` (may be different for you, but the following instructions are based off of this).
+First of all, you should install Prometheus in your pgexporter server. Download one of the binaries from the [Prometheus Downloads](https://prometheus.io/download/), say `prometheus-2.45.0.linux-amd64.tar.gz` (may be different for you, but the following instructions are based off of this).
 
 Unzip the tarball:
 ```sh
@@ -37,7 +37,7 @@ prometheus, version 2.45.0 (branch: HEAD, revision: 8ef767e396bf8445f009f945b016
 ```
 
 ### Configuration
-After you successfully installed Prometheus, you should replace `prometheus.yml` with the content below to configure how to query your pgmoneta metrics (assuming `pgexporter` runs on port `5002` on `localhost`):
+After you successfully installed Prometheus, you should replace `prometheus.yml` with the content below to configure how to query your pgexporter metrics (assuming `pgexporter` runs on port `5002` on `localhost`):
 ```yml
 scrape_configs:
   - job_name: 'pgexporter'
@@ -53,7 +53,7 @@ $ prometheus
 (assuming there is a valid `./prometheus.yaml`).
 
 
-Then the Prometheus service will query your pgmoneta metrics every 15 seconds and package them as time-series data. You can query your pgmoneta metrics and watch their changes as time passed in Prometheus web page (default port is `9090`).
+Then the Prometheus service will query your pgexporter metrics every 15 seconds and package them as time-series data. You can query your pgexporter metrics and watch their changes as time passed in Prometheus web page (default port is `9090`).
 
 ![image](../images/prometheus_metrics.png)
 
@@ -62,7 +62,7 @@ Then the Prometheus service will query your pgmoneta metrics every 15 seconds an
 Although Prometheus provides capacity of querying and monitoring metrics, we can not customize graphs for each metric and provide a unified view. As a result, we use Grafana to help us manage all graphs together.
 
 ### Installation
-First of all, we should install Grafana in the computer you need to monitor pgmoneta metrics. Installation instructions for your preferred operating system is provided in the official [Grafana Installation page](https://grafana.com/docs/grafana/latest/setup-grafana/installation/):
+First of all, we should install Grafana in the computer you need to monitor pgexporter metrics. Installation instructions for your preferred operating system is provided in the official [Grafana Installation page](https://grafana.com/docs/grafana/latest/setup-grafana/installation/):
 
 For example, on Fedora it is:
 ```sh
@@ -106,7 +106,7 @@ Set the new password.
 ![image](../images/grafana_home.png)
 
 
-Then you can create Prometheus data source of pgmoneta. Click Menu -> Connections -> Data Sources -> "Add data source" -> Prometheus.
+Then you can create Prometheus data source of pgexporter. Click Menu -> Connections -> Data Sources -> "Add data source" -> Prometheus.
 
 ![image](../images/grafana_menu.png)
 ![image](../images/grafana_add_data_source.png)
