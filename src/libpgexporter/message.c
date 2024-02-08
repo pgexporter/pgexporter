@@ -125,7 +125,7 @@ pgexporter_free_copy_message(message_t* msg)
 }
 
 bool
-pgexporter_connection_isvalid(int socket)
+pgexporter_connection_isvalid(SSL* ssl, int socket)
 {
    int status;
    int size = 15;
@@ -145,13 +145,27 @@ pgexporter_connection_isvalid(int socket)
    msg.length = size;
    msg.data = &valid;
 
-   status = write_message(socket, &msg);
+   if (ssl != NULL)
+   {
+      status = ssl_write_message(ssl, &msg);
+   }
+   else
+   {
+      status = write_message(socket, &msg);
+   }
    if (status != MESSAGE_STATUS_OK)
    {
       goto error;
    }
 
-   status = read_message(socket, true, 0, &reply);
+   if (ssl != NULL)
+   {
+      status = ssl_read_message(ssl, 0, &reply);
+   }
+   else
+   {
+      status = read_message(socket, true, 0, &reply);
+   }
    if (status != MESSAGE_STATUS_OK)
    {
       goto error;
@@ -761,6 +775,7 @@ ssl_read_message(SSL* ssl, int timeout, message_t** msg)
    ssize_t numbytes;
    time_t start_time;
    message_t* m = NULL;
+   unsigned long err;
 
    if (unlikely(timeout > 0))
    {
@@ -783,8 +798,6 @@ ssl_read_message(SSL* ssl, int timeout, message_t** msg)
       }
       else
       {
-         int err;
-
          pgexporter_memory_free();
 
          err = SSL_get_error(ssl, numbytes);
@@ -818,12 +831,16 @@ ssl_read_message(SSL* ssl, int timeout, message_t** msg)
                keep_read = true;
                break;
             case SSL_ERROR_SYSCALL:
+               err = ERR_get_error();
                pgexporter_log_error("SSL_ERROR_SYSCALL: %s (%d)", strerror(errno), SSL_get_fd(ssl));
+               pgexporter_log_error("Reason: %s", ERR_reason_error_string(err));
                errno = 0;
                keep_read = false;
                break;
             case SSL_ERROR_SSL:
+               err = ERR_get_error();
                pgexporter_log_error("SSL_ERROR_SSL: %s (%d)", strerror(errno), SSL_get_fd(ssl));
+               pgexporter_log_error("Reason: %s", ERR_reason_error_string(err));
                keep_read = false;
                break;
          }
@@ -843,6 +860,7 @@ ssl_write_message(SSL* ssl, message_t* msg)
    int offset;
    ssize_t totalbytes;
    ssize_t remaining;
+   int err;
 
 #ifdef DEBUG
    assert(msg != NULL);
@@ -878,7 +896,7 @@ ssl_write_message(SSL* ssl, message_t* msg)
       }
       else
       {
-         int err = SSL_get_error(ssl, numbytes);
+         err = SSL_get_error(ssl, numbytes);
 
          switch (err)
          {
@@ -901,12 +919,16 @@ ssl_write_message(SSL* ssl, message_t* msg)
                keep_write = true;
                break;
             case SSL_ERROR_SYSCALL:
+               err = ERR_get_error();
                pgexporter_log_error("SSL_ERROR_SYSCALL: %s (%d)", strerror(errno), SSL_get_fd(ssl));
+               pgexporter_log_error("Reason: %s", ERR_reason_error_string(err));
                errno = 0;
                keep_write = false;
                break;
             case SSL_ERROR_SSL:
+               err = ERR_get_error();
                pgexporter_log_error("SSL_ERROR_SSL: %s (%d)", strerror(errno), SSL_get_fd(ssl));
+               pgexporter_log_error("Reason: %s", ERR_reason_error_string(err));
                errno = 0;
                keep_write = false;
                break;

@@ -59,7 +59,7 @@ pgexporter_open_connections(void)
    {
       if (config->servers[server].fd != -1)
       {
-         if (!pgexporter_connection_isvalid(config->servers[server].fd))
+         if (!pgexporter_connection_isvalid(config->servers[server].ssl, config->servers[server].fd))
          {
             pgexporter_disconnect(config->servers[server].fd);
             config->servers[server].fd = -1;
@@ -81,6 +81,7 @@ pgexporter_open_connections(void)
 
          ret = pgexporter_server_authenticate(server, "postgres",
                                               &config->users[user].username[0], &config->users[user].password[0],
+                                              &config->servers[server].ssl,
                                               &config->servers[server].fd);
          if (ret == AUTH_SUCCESS)
          {
@@ -131,8 +132,16 @@ pgexporter_close_connections(void)
 
          if (nuke)
          {
-            pgexporter_write_terminate(NULL, config->servers[server].fd);
-            pgexporter_disconnect(config->servers[server].fd);
+            pgexporter_write_terminate(config->servers[server].ssl, config->servers[server].fd);
+            if (config->servers[server].ssl != NULL)
+            {
+               pgexporter_close_ssl(config->servers[server].ssl);
+            }
+            else
+            {
+               pgexporter_disconnect(config->servers[server].fd);
+            }
+            config->servers[server].ssl = NULL;
             config->servers[server].fd = -1;
             config->servers[server].new = false;
             config->servers[server].state = SERVER_UNKNOWN;
@@ -623,7 +632,7 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
    qmsg.length = size;
    qmsg.data = content;
 
-   status = pgexporter_write_message(NULL, config->servers[server].fd, &qmsg);
+   status = pgexporter_write_message(config->servers[server].ssl, config->servers[server].fd, &qmsg);
    if (status != MESSAGE_STATUS_OK)
    {
       goto error;
@@ -632,7 +641,7 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
    cont = true;
    while (cont)
    {
-      status = pgexporter_read_block_message(NULL, config->servers[server].fd, &msg);
+      status = pgexporter_read_block_message(config->servers[server].ssl, config->servers[server].fd, &msg);
 
       if (status == MESSAGE_STATUS_OK)
       {

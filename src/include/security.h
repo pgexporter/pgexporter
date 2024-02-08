@@ -45,11 +45,12 @@ extern "C" {
  * @param database The database
  * @param username The username
  * @param password The password
+ * @param ssl The resulting SSL structure
  * @param fd The resulting socket
  * @return AUTH_SUCCESS, AUTH_BAD_PASSWORD or AUTH_ERROR
  */
 int
-pgexporter_server_authenticate(int server, char* database, char* username, char* password, int* fd);
+pgexporter_server_authenticate(int server, char* database, char* username, char* password, SSL** ssl, int* fd);
 
 /**
  * Authenticate a remote management user
@@ -108,6 +109,13 @@ pgexporter_decrypt(char* ciphertext, int ciphertext_length, char* password, char
  */
 int
 pgexporter_tls_valid(void);
+
+/**
+ * Close a SSL structure
+ * @param ssl The SSL structure
+ */
+void
+pgexporter_close_ssl(SSL* ssl);
 
 #ifdef __cplusplus
 }

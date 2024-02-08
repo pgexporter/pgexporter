@@ -110,11 +110,12 @@ pgexporter_free_copy_message(message_t* msg);
 
 /**
  * Is the connection valid
+ * @param ssl The SSL struct
  * @param socket The socket descriptor
  * @return true upon success, otherwise false
  */
 bool
-pgexporter_connection_isvalid(int socket);
+pgexporter_connection_isvalid(SSL* ssl, int socket);
 
 /**
  * Log a message

@@ -46,6 +46,7 @@ int
 pgexporter_server_info(int srv)
 {
    int status;
+   SSL* ssl;
    int socket;
    size_t size = 40;
    char is_recovery[size];
@@ -55,6 +56,7 @@ pgexporter_server_info(int srv)
    configuration_t* config;
 
    config = (configuration_t*)shmem;
+   ssl = config->servers[srv].ssl;
    socket = config->servers[srv].fd;
 
    memset(&qmsg, 0, sizeof(message_t));
@@ -68,13 +70,13 @@ pgexporter_server_info(int srv)
    qmsg.length = size;
    qmsg.data = &is_recovery;
 
-   status = pgexporter_write_message(NULL, socket, &qmsg);
+   status = pgexporter_write_message(ssl, socket, &qmsg);
    if (status != MESSAGE_STATUS_OK)
    {
       goto error;
    }
 
-   status = pgexporter_read_block_message(NULL, socket, &tmsg);
+   status = pgexporter_read_block_message(ssl, socket, &tmsg);
    if (status != MESSAGE_STATUS_OK)
    {
       goto error;

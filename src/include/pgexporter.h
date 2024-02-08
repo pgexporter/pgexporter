@@ -185,11 +185,15 @@ typedef struct
    char username[MAX_USERNAME_LENGTH]; /**< The user name */
    char data[MISC_LENGTH];             /**< The data directory */
    char wal[MISC_LENGTH];              /**< The WAL directory */
+   SSL* ssl;                           /**< The SSL structure */
    int fd;                             /**< The socket descriptor */
    bool new;                           /**< Is the connection new */
    bool extension;                     /**< Is the pgexporter_ext extension installed */
    int state;                          /**< The state of the server */
    char version;                       /**< The PostgreSQL version (char for minimum bytes)*/
+   char tls_cert_file[MISC_LENGTH];    /**< TLS certificate path */
+   char tls_key_file[MISC_LENGTH];     /**< TLS key path */
+   char tls_ca_file[MISC_LENGTH];      /**< TLS CA certificate path */
 } __attribute__ ((aligned (64))) server_t;
 
 /** @struct
