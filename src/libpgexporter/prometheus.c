@@ -1867,7 +1867,7 @@ send_chunk(int client_fd, char* data)
    m = malloc(20);
    memset(m, 0, 20);
 
-   sprintf(m, "%lX\r\n", strlen(data));
+   sprintf(m, "%zX\r\n", strlen(data));
 
    m = pgexporter_vappend(m, 2,
                           data,
