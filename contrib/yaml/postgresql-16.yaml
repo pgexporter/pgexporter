@@ -542,6 +542,42 @@ metrics:
     sort: data
     collector: stat_archiver
 
+  - queries:
+    - query: SELECT
+                datname,
+                age(datfrozenxid) as age
+              FROM pg_database;
+      version: 10
+      columns:
+        - type: label
+          name: datname
+          description: Database name.
+        - type: counter
+          name: age
+          description: Age since last vaccum.
+    tag: pg_db_vacuum
+    sort: data
+    collector: db_vacuum
+
+  - queries:
+    - query: SELECT
+                c.oid::regclass as table_name,
+                greatest(age(c.relfrozenxid),age(t.relfrozenxid)) as age
+              FROM pg_class c
+              LEFT JOIN pg_class t ON c.reltoastrelid = t.oid
+              WHERE c.relkind IN ('r', 'm');
+      version: 10
+      columns:
+        - type: label
+          name: datname
+          description: View name.
+        - type: counter
+          name: age
+          description: Age since last vaccum.
+    tag: pg_view_vacuum
+    sort: data
+    collector: db_vacuum
+
 #
 # PostgreSQL 11
 #

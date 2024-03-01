@@ -34,6 +34,7 @@ extern "C" {
 #endif
 
 #define INTERNAL_YAML "" \
+        "# This is the default minimum version for queries, unless specified otherwise\n" \
         "version: 16\n" \
         "metrics:\n" \
         "\n" \
@@ -576,6 +577,42 @@ extern "C" {
         "    tag: pg_stat_archiver\n" \
         "    sort: data\n" \
         "    collector: stat_archiver\n" \
+        "\n" \
+        "  - queries:\n" \
+        "    - query: SELECT\n" \
+        "                datname,\n" \
+        "                age(datfrozenxid) as age\n" \
+        "              FROM pg_database;\n" \
+        "      version: 10\n" \
+        "      columns:\n" \
+        "        - type: label\n" \
+        "          name: datname\n" \
+        "          description: Database name.\n" \
+        "        - type: counter\n" \
+        "          name: age\n" \
+        "          description: Age since last vaccum.\n" \
+        "    tag: pg_db_vacuum\n" \
+        "    sort: data\n" \
+        "    collector: db_vacuum\n" \
+        "\n" \
+        "  - queries:\n" \
+        "    - query: SELECT\n" \
+        "                c.oid::regclass as table_name,\n" \
+        "                greatest(age(c.relfrozenxid),age(t.relfrozenxid)) as age\n" \
+        "              FROM pg_class c\n" \
+        "              LEFT JOIN pg_class t ON c.reltoastrelid = t.oid\n" \
+        "              WHERE c.relkind IN ('r', 'm');\n" \
+        "      version: 10\n" \
+        "      columns:\n" \
+        "        - type: label\n" \
+        "          name: datname\n" \
+        "          description: View name.\n" \
+        "        - type: counter\n" \
+        "          name: age\n" \
+        "          description: Age since last vaccum.\n" \
+        "    tag: pg_view_vacuum\n" \
+        "    sort: data\n" \
+        "    collector: db_vacuum\n" \
         "\n" \
         "#\n" \
         "# PostgreSQL 11\n" \
