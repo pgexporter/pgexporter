@@ -1136,7 +1136,7 @@ pgexporter_server_authenticate(int server, char* database, char* username, char*
       }
       while (connect != 1);
    }
-   
+
    ret = pgexporter_create_startup_message(username, database, &startup_msg);
    if (ret != MESSAGE_STATUS_OK)
    {
