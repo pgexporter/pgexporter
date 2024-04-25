@@ -118,6 +118,9 @@ main(int argc, char** argv)
    int option_index = 0;
    int32_t action = ACTION_UNKNOWN;
 
+   // Disable stdout buffering (i.e. write to stdout immediatelly).
+   setbuf(stdout, NULL);
+
    while (1)
    {
       static struct option long_options[] =

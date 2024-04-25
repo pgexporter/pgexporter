@@ -134,6 +134,9 @@ main(int argc, char** argv)
    char un[MAX_USERNAME_LENGTH];
    configuration_t* config = NULL;
 
+   // Disable stdout buffering (i.e. write to stdout immediatelly).
+   setbuf(stdout, NULL);
+
    while (1)
    {
       static struct option long_options[] =
