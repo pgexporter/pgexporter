@@ -1,8 +1,8 @@
-# Custom metrics for pgexporter
+## Custom metrics for pgexporter
 
 This tutorial will show how to set custom metrics for pgexporter.
 
-## Preface
+### Preface
 
 This tutorial assumes that you have an installation of PostgreSQL 12+ and pgexporter.
 
@@ -10,10 +10,10 @@ For RPM based distributions such as Fedora and RHEL you can add the
 [PostgreSQL YUM repository](https://yum.postgresql.org/) and do the install via
 
 ```
-dnf install -y postgresql10 postgresql10-server pgexporter
+dnf install -y postgresql12 postgresql12-server pgexporter
 ```
 
-## Change pgexporter configuration
+### Change pgexporter configuration
 
 Change `pgexporter.conf` to add
 
@@ -26,7 +26,7 @@ or run the command with `-Y` options.
 (`pgexporter` user)
 
 
-## Get Prometheus metrics
+### Get Prometheus metrics
 
 You can now access the metrics via
 
@@ -34,7 +34,7 @@ You can now access the metrics via
 http://localhost:5002/metrics
 ```
 
-## YAML Structure
+### YAML Structure
 
 The [YAML Example Directory](../../contrib/yaml) has a lot of example YAML files
 that can be used. Here's an example of a general structure:

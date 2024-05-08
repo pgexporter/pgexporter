@@ -36,6 +36,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 message(STATUS "pgexporter ${VERSION_STRING}")
 
+set(generation TRUE)
+
 include(CheckCCompilerFlag)
 include(CheckCSourceCompiles)
 include(CheckIncludeFile)
@@ -80,6 +82,22 @@ if (RST2MAN_FOUND)
   message(STATUS "rst2man found")
 else ()
   message(FATAL_ERROR "rst2man needed")
+endif()
+
+find_package(Pandoc)
+if (PANDOC_FOUND)
+  message(STATUS "pandoc found")
+else ()
+  set(generation FALSE)
+  message(STATUS "pandoc needed. The generation process will be skipped.")
+endif()
+
+find_package(Pdflatex)
+if (PDFLATEX_FOUND)
+  message(STATUS "pdflatex found")
+else ()
+  set(generation FALSE)
+  message(STATUS "pdflatex needed. The generation process will be skipped.")
 endif()
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")

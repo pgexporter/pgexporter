@@ -1,10 +1,10 @@
-# Install pgexporter
+## Install pgexporter
 
 This tutorial will show you how to do a simple installation of pgexporter.
 
 At the end of this tutorial you will have Prometheus metrics from a PostgreSQL cluster.
 
-## Preface
+### Preface
 
 This tutorial assumes that you have an installation of PostgreSQL 12+ and pgexporter.
 
@@ -12,19 +12,19 @@ For RPM based distributions such as Fedora and RHEL you can add the
 [PostgreSQL YUM repository](https://yum.postgresql.org/) and do the install via
 
 ```
-dnf install -y postgresql10 postgresql10-server pgexporter
+dnf install -y postgresql12 postgresql12-server pgexporter
 ```
 
-## Initialize cluster
+### Initialize cluster
 
 ```
-export PATH=/usr/pgsql-10/bin:$PATH
+export PATH=/usr/pgsql-12/bin:$PATH
 initdb /tmp/pgsql
 ```
 
 (`postgres` user)
 
-## Remove default access
+### Remove default access
 
 Remove
 
@@ -39,7 +39,7 @@ from `/tmp/pgsql/pg_hba.conf`
 
 (`postgres` user)
 
-## Add access for users and a database
+### Add access for users and a database
 
 Add
 
@@ -55,7 +55,7 @@ to setup the correct authentication type.
 
 (`postgres` user)
 
-## Start PostgreSQL
+### Start PostgreSQL
 
 ```
 pg_ctl  -D /tmp/pgsql/ start
@@ -63,7 +63,7 @@ pg_ctl  -D /tmp/pgsql/ start
 
 (`postgres` user)
 
-## Add users and a database
+### Add users and a database
 
 ```
 createuser -P pgexporter
@@ -73,7 +73,7 @@ with `pgexporter` as the password.
 
 (`postgres` user)
 
-## Verify access
+### Verify access
 
 For the user (standard) (using `pgexporter`)
 
@@ -84,7 +84,7 @@ psql -h localhost -p 5432 -U pgexporter postgres
 
 (`postgres` user)
 
-## Add pgexporter user
+### Add pgexporter user
 
 ```
 sudo su -
@@ -95,7 +95,7 @@ exit
 
 (`postgres` user)
 
-## Create pgexporter configuration
+### Create pgexporter configuration
 
 Switch to the pgexporter user
 
@@ -137,7 +137,7 @@ and press `Ctrl-D`
 
 (`postgres` user)
 
-## Start pgexporter
+### Start pgexporter
 
 ```
 pgexporter -c pgexporter.conf -u pgexporter_users.conf
@@ -145,7 +145,7 @@ pgexporter -c pgexporter.conf -u pgexporter_users.conf
 
 (`pgexporter` user)
 
-## Metrics Collectors
+### Metrics Collectors
 
 |Name|Metrics Collector|
 |---|---|
@@ -178,7 +178,7 @@ pgexporter -c pgexporter.conf -u pgexporter_users.conf -C db,locks,replication
 
 By default all metrics are enabled. But, if `-C` or `--collectors` is specified, then all of the default metrics collectors except `general` are turned off and the user has to specify which they want to enable.
 
-## View metrics
+### View metrics
 
 In another terminal
 
@@ -188,12 +188,12 @@ curl http://localhost:5002/metrics
 
 (`pgexporter` user)
 
-## Shell completion
+### Shell completion
 
 There is a minimal shell completion support for `pgexporter-cli` and `pgexporter-admin`. If you are running such commands from a Bash or Zsh, you can take some advantage of command completion.
 
 
-### Installing command completions in Bash
+#### Installing command completions in Bash
 
 There is a completion script into `contrib/shell_comp/pgexporter_comp.bash` that can be used
 to help you complete the command line while you are typing.
@@ -207,7 +207,7 @@ source contrib/shell_comp/pgexporter_comp.bash
 
 At this point, the completions should be active, so you can type the name of one the commands between `pgexporter-cli` and `pgexporter-admin` and hit `<TAB>` to help the command line completion.
 
-### Installing the command completions on Zsh
+#### Installing the command completions on Zsh
 
 In order to enable completion into `zsh` you first need to have `compinit` loaded;
 ensure your `.zshrc` file contains the following lines:

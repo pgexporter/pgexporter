@@ -1,17 +1,17 @@
-# Use of Transport Level Security (TLS)
+## Use of Transport Level Security (TLS)
 
 This tutorial is about using Transport Level Security (TLS) in PostgreSQL, and how it affects pgexporter.
 
 **Note, that this tutorial is an example on how to setup a PostgreSQL TLS environment for development use only !**
 
-## Preface
+### Preface
 
 This tutorial assumes that you have an installation of PostgreSQL 12+, OpenSSL and pgexporter.
 
 See [Install pgexporter](https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/01_install.md)
 for more detail.
 
-## PostgreSQL
+### PostgreSQL
 
 Generate the server key
 
@@ -68,7 +68,7 @@ hostssl    all           all           0.0.0.0/0          scram-sha-256
 
 In this scenario there are no changes to the `pgexporter.conf` configuration file.
 
-## Using client certificate
+### Using client certificate
 
 Create the client key
 ```
@@ -125,7 +125,7 @@ tls_ca_file=/path/to/home/.postgresql/ca.crt
 ```
 
 
-## More information
+### More information
 
 * [Secure TCP/IP Connections with SSL](https://www.postgresql.org/docs/12/ssl-tcp.html)
 * [The pg_hba.conf File](https://www.postgresql.org/docs/12/auth-pg-hba-conf.html)

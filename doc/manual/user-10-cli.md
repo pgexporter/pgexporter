@@ -1,6 +1,8 @@
-# pgexporter-cli user guide
+\newpage
 
-```
+# Command line interface
+
+``` sh
 pgexporter-cli [ -c CONFIG_FILE ] [ COMMAND ]
 
 -c, --config CONFIG_FILE Set the path to the pgexporter.conf file
@@ -66,3 +68,9 @@ Command
 ```
 pgexporter-cli reset
 ```
+
+## Shell completions
+
+There is a minimal shell completion support for `pgexporter-cli`.
+
+Please refer to the [Install pgexporter][t_install] tutorial for detailed information about how to enable and use shell completions.
