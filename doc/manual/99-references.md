@@ -1,6 +1,7 @@
 <!-- Reference links -->
 
   [pgexporter]: https://github.com/pgexporter/pgexporter
+  [pgexporter_ext]: https://github.com/pgexporter/pgexporter_ext
   [postgresql]: https://www.postgresql.org
   [metrics]: https://pgexporter.github.io/metrics.html
   [fedora]: https://getfedora.org/
