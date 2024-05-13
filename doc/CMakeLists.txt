@@ -50,7 +50,7 @@ add_custom_command(
 #
 install(FILES etc/pgexporter.conf DESTINATION share/doc/pgexporter/etc)
 
-install(DIRECTORY . DESTINATION share/doc/pgexporter FILES_MATCHING PATTERN "*.md" PATTERN "etc" EXCLUDE PATTERN "man" EXCLUDE)
+install(DIRECTORY . DESTINATION share/doc/pgexporter FILES_MATCHING PATTERN "*.md" PATTERN "etc" EXCLUDE PATTERN "man" EXCLUDE PATTERN "manual" EXCLUDE)
 
 install(FILES ${PGEXPORTER_DST_FILE} DESTINATION share/man/man1)
 install(FILES ${PGEXPORTER_CLI_DST_FILE} DESTINATION share/man/man1)
@@ -110,4 +110,10 @@ if(generation)
     all_docs ALL
     DEPENDS copy_images ${MANUAL_OUTPUT_DIR}/pgexporter-user-guide.pdf ${MANUAL_OUTPUT_DIR}/pgexporter-user-guide.html ${MANUAL_OUTPUT_DIR}/pgexporter-dev-guide.pdf ${MANUAL_OUTPUT_DIR}/pgexporter-dev-guide.html
   )
+
+  install(FILES ${MANUAL_OUTPUT_DIR}/pgexporter-user-guide.pdf DESTINATION share/doc/pgexporter/manual)
+  install(FILES ${MANUAL_OUTPUT_DIR}/pgexporter-user-guide.html DESTINATION share/doc/pgexporter/manual)
+  install(FILES ${MANUAL_OUTPUT_DIR}/pgexporter-dev-guide.pdf DESTINATION share/doc/pgexporter/manual)
+  install(FILES ${MANUAL_OUTPUT_DIR}/pgexporter-dev-guide.html DESTINATION share/doc/pgexporter/manual)
+
 endif()
