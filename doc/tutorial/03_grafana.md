@@ -90,15 +90,19 @@ Verify the status is "active (running)".
 
 #### Configuration
 You can now browse Grafana web page with default port `3000`, default user `admin` and default password `admin`.
-![image](../images/grafana_login.png)
-Set the new password.
-![image](../images/grafana_home.png)
 
+![image](../images/grafana_login.png)
+
+Set the new password.
+
+![image](../images/grafana_home.png)
 
 Then you can create Prometheus data source of pgexporter. Click Menu -> Connections -> Data Sources -> "Add data source" -> Prometheus.
 
 ![image](../images/grafana_menu.png)
+
 ![image](../images/grafana_add_data_source.png)
+
 ![image](../images/grafana_add_data_source_prometheus.png)
 
 Then configure the data source and then "Save & test":
@@ -106,8 +110,9 @@ Then configure the data source and then "Save & test":
 ![image](../images/grafana_add_prometheus.png)
 
 Then you can explore dashboards with queries in "Expore" (Home -> Explore):
+
 ![image](../images/grafana_add_dashboard.png)
 
 Then "Run Query":
-![image](../images/grafana_graph.png)
 
+![image](../images/grafana_graph.png)
