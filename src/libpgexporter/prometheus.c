@@ -203,8 +203,10 @@ void
 pgexporter_prometheus_reset(void)
 {
    signed char cache_is_free;
+   configuration_t* config;
    prometheus_cache_t* cache;
 
+   config = (configuration_t*)shmem;
    cache = (prometheus_cache_t*)prometheus_cache_shmem;
 
 retry_cache_locking:
@@ -213,12 +215,43 @@ retry_cache_locking:
    {
       metrics_cache_invalidate();
 
+      atomic_store(&config->logging_info, 0);
+      atomic_store(&config->logging_warn, 0);
+      atomic_store(&config->logging_error, 0);
+      atomic_store(&config->logging_fatal, 0);
+
       atomic_store(&cache->lock, STATE_FREE);
    }
    else
    {
       /* Sleep for 1ms */
       SLEEP_AND_GOTO(1000000L, retry_cache_locking);
+   }
+}
+
+void
+pgexporter_prometheus_logging(int type)
+{
+   configuration_t* config;
+
+   config = (configuration_t*)shmem;
+
+   switch (type)
+   {
+      case PGEXPORTER_LOGGING_LEVEL_INFO:
+         atomic_fetch_add(&config->logging_info, 1);
+         break;
+      case PGEXPORTER_LOGGING_LEVEL_WARN:
+         atomic_fetch_add(&config->logging_warn, 1);
+         break;
+      case PGEXPORTER_LOGGING_LEVEL_ERROR:
+         atomic_fetch_add(&config->logging_error, 1);
+         break;
+      case PGEXPORTER_LOGGING_LEVEL_FATAL:
+         atomic_fetch_add(&config->logging_fatal, 1);
+         break;
+      default:
+         break;
    }
 }
 
@@ -349,6 +382,13 @@ home_page(int client_fd)
                              "  <p>\n",
                              "  Support for\n",
                              "  <ul>\n"
+                             );
+
+   data = pgexporter_vappend(data, 4,
+                             "  <li>pgexporter_logging_info</li>\n"
+                             "  <li>pgexporter_logging_warn</li>\n"
+                             "  <li>pgexporter_logging_error</li>\n"
+                             "  <li>pgexporter_logging_fatal</li>\n"
                              );
 
    if (config->number_of_metrics == 0)
@@ -595,6 +635,9 @@ static void
 general_information(int client_fd)
 {
    char* data = NULL;
+   configuration_t* config;
+
+   config = (configuration_t*)shmem;
 
    data = pgexporter_vappend(data, 4,
                              "#HELP pgexporter_state The state of pgexporter\n",
@@ -602,6 +645,27 @@ general_information(int client_fd)
                              "pgexporter_state 1\n",
                              "\n"
                              );
+
+   data = pgexporter_append(data, "#HELP pgexporter_logging_info The number of INFO logging statements\n");
+   data = pgexporter_append(data, "#TYPE pgexporter_logging_info gauge\n");
+   data = pgexporter_append(data, "pgexporter_logging_info ");
+   data = pgexporter_append_ulong(data, atomic_load(&config->logging_info));
+   data = pgexporter_append(data, "\n\n");
+   data = pgexporter_append(data, "#HELP pgexporter_logging_warn The number of WARN logging statements\n");
+   data = pgexporter_append(data, "#TYPE pgexporter_logging_warn gauge\n");
+   data = pgexporter_append(data, "pgexporter_logging_warn ");
+   data = pgexporter_append_ulong(data, atomic_load(&config->logging_warn));
+   data = pgexporter_append(data, "\n\n");
+   data = pgexporter_append(data, "#HELP pgexporter_logging_error The number of ERROR logging statements\n");
+   data = pgexporter_append(data, "#TYPE pgexporter_logging_error gauge\n");
+   data = pgexporter_append(data, "pgexporter_logging_error ");
+   data = pgexporter_append_ulong(data, atomic_load(&config->logging_error));
+   data = pgexporter_append(data, "\n\n");
+   data = pgexporter_append(data, "#HELP pgexporter_logging_fatal The number of FATAL logging statements\n");
+   data = pgexporter_append(data, "#TYPE pgexporter_logging_fatal gauge\n");
+   data = pgexporter_append(data, "pgexporter_logging_fatal ");
+   data = pgexporter_append_ulong(data, atomic_load(&config->logging_fatal));
+   data = pgexporter_append(data, "\n\n");
 
    if (data != NULL)
    {

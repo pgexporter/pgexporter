@@ -333,6 +333,11 @@ typedef struct
 
    char metrics_path[MAX_PATH]; /**< The metrics path */
 
+   atomic_ulong logging_info;  /**< Logging: INFO */
+   atomic_ulong logging_warn;  /**< Logging: WARN */
+   atomic_ulong logging_error; /**< Logging: ERROR */
+   atomic_ulong logging_fatal; /**< Logging: FATAL */
+
    char collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];/**< List of collectors in total */
    server_t servers[NUMBER_OF_SERVERS];                   /**< The servers */
    user_t users[NUMBER_OF_USERS];                         /**< The users */

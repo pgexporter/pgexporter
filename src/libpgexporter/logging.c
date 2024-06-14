@@ -29,6 +29,7 @@
 /* pgexporter */
 #include <pgexporter.h>
 #include <logging.h>
+#include <prometheus.h>
 
 /* system */
 #include <errno.h>
@@ -318,6 +319,24 @@ pgexporter_log_line(int level, char* file, int line, char* fmt, ...)
 
    if (level >= config->log_level)
    {
+      switch (level)
+      {
+         case PGEXPORTER_LOGGING_LEVEL_INFO:
+            pgexporter_prometheus_logging(PGEXPORTER_LOGGING_LEVEL_INFO);
+            break;
+         case PGEXPORTER_LOGGING_LEVEL_WARN:
+            pgexporter_prometheus_logging(PGEXPORTER_LOGGING_LEVEL_WARN);
+            break;
+         case PGEXPORTER_LOGGING_LEVEL_ERROR:
+            pgexporter_prometheus_logging(PGEXPORTER_LOGGING_LEVEL_ERROR);
+            break;
+         case PGEXPORTER_LOGGING_LEVEL_FATAL:
+            pgexporter_prometheus_logging(PGEXPORTER_LOGGING_LEVEL_FATAL);
+            break;
+         default:
+            break;
+      }
+
 retry:
       isfree = STATE_FREE;
 

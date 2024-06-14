@@ -71,6 +71,13 @@ void
 pgexporter_prometheus_reset(void);
 
 /**
+ * Add a logging count
+ * @param logging The logging type
+ */
+void
+pgexporter_prometheus_logging(int logging);
+
+/**
  * Allocates, for the first time, the Prometheus cache.
  *
  * The cache structure, as well as its dynamically sized payload,

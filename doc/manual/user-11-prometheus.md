@@ -4,6 +4,10 @@
 
 [**pgexporter**][pgexporter] has the following [Prometheus][prometheus] built-in metrics.
 
+* `pgexporter_logging_info`
+* `pgexporter_logging_warn`
+* `pgexporter_logging_error`
+* `pgexporter_logging_fatal`
 * `postgresql_primary`
 * `pg_database_size`
 * `pg_locks_count`

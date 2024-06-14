@@ -109,6 +109,11 @@ pgexporter_init_configuration(void* shm)
    config->log_mode = PGEXPORTER_LOGGING_MODE_APPEND;
    atomic_init(&config->log_lock, STATE_FREE);
 
+   atomic_init(&config->logging_info, 0);
+   atomic_init(&config->logging_warn, 0);
+   atomic_init(&config->logging_error, 0);
+   atomic_init(&config->logging_fatal, 0);
+
    for (int i = 0; i < NUMBER_OF_METRICS; i++)
    {
       config->prometheus[i].sort_type = SORT_NAME;
