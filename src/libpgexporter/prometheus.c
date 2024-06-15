@@ -329,16 +329,13 @@ static int
 home_page(int client_fd)
 {
    char* data = NULL;
+   int status;
    time_t now;
    char time_buf[32];
-   int status;
    message_t msg;
    configuration_t* config;
 
    config = (configuration_t*) shmem;
-
-   memset(&msg, 0, sizeof(message_t));
-   memset(&data, 0, sizeof(data));
 
    now = time(NULL);
 
@@ -363,7 +360,7 @@ home_page(int client_fd)
    status = pgexporter_write_message(NULL, client_fd, &msg);
    if (status != MESSAGE_STATUS_OK)
    {
-      goto done;
+      goto error;
    }
 
    free(data);
@@ -384,12 +381,20 @@ home_page(int client_fd)
                              "  <ul>\n"
                              );
 
+   send_chunk(client_fd, data);
+   free(data);
+   data = NULL;
+
    data = pgexporter_vappend(data, 4,
-                             "  <li>pgexporter_logging_info</li>\n"
-                             "  <li>pgexporter_logging_warn</li>\n"
-                             "  <li>pgexporter_logging_error</li>\n"
+                             "  <li>pgexporter_logging_info</li>\n",
+                             "  <li>pgexporter_logging_warn</li>\n",
+                             "  <li>pgexporter_logging_error</li>\n",
                              "  <li>pgexporter_logging_fatal</li>\n"
                              );
+
+   send_chunk(client_fd, data);
+   free(data);
+   data = NULL;
 
    if (config->number_of_metrics == 0)
    {
@@ -415,6 +420,10 @@ home_page(int client_fd)
       }
    }
 
+   send_chunk(client_fd, data);
+   free(data);
+   data = NULL;
+
    data = pgexporter_vappend(data, 5,
                              "  </ul>\n",
                              "  <p>\n",
@@ -423,26 +432,20 @@ home_page(int client_fd)
                              "</html>\n"
                              );
 
+   /* Footer */
+   data = pgexporter_append(data, "\r\n\r\n");
+
    send_chunk(client_fd, data);
    free(data);
    data = NULL;
 
-   /* Footer */
-   data = pgexporter_append(data, "0\r\n\r\n");
+   return 0;
 
-   msg.kind = 0;
-   msg.length = strlen(data);
-   msg.data = data;
+error:
 
-   status = pgexporter_write_message(NULL, client_fd, &msg);
+   free(data);
 
-done:
-   if (data != NULL)
-   {
-      free(data);
-   }
-
-   return status;
+   return 1;
 }
 
 static int
