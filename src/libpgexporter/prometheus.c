@@ -452,18 +452,24 @@ static int
 metrics_page(int client_fd)
 {
    char* data = NULL;
+   time_t start_time;
+   int dt;
    time_t now;
    char time_buf[32];
    int status;
    message_t msg;
    prometheus_cache_t* cache;
    signed char cache_is_free;
+   configuration_t* config;
 
+   config = (configuration_t*)shmem;
    cache = (prometheus_cache_t*)prometheus_cache_shmem;
 
    memset(&msg, 0, sizeof(message_t));
 
-retry_cache_locking:
+   start_time = time(NULL);
+
+ retry_cache_locking:
    cache_is_free = STATE_FREE;
    if (atomic_compare_exchange_strong(&cache->lock, &cache_is_free, STATE_IN_USE))
    {
@@ -560,8 +566,14 @@ retry_cache_locking:
    }
    else
    {
-      /* Sleep for 1ms */
-      SLEEP_AND_GOTO(1000000L, retry_cache_locking);
+      dt = (int)difftime(time(NULL), start_time);
+      if (dt >= (config->blocking_timeout > 0 ? config->blocking_timeout : 30))
+      {
+         goto error;
+      }
+      
+      /* Sleep for 10ms */
+      SLEEP_AND_GOTO(10000000L, retry_cache_locking);
    }
 
    free(data);
