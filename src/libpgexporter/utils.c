@@ -978,6 +978,47 @@ pgexporter_append_bool(char* orig, bool b)
    return orig;
 }
 
+
+char*
+pgexporter_append_char(char* orig, char c)
+{
+   char str[2];
+
+   memset(&str[0], 0, sizeof(str));
+   snprintf(&str[0], 2, "%c", c);
+   orig = pgexporter_append(orig, str);
+
+   return orig;
+}
+
+char*
+pgexporter_indent(char* str, char* tag, int indent)
+{
+   for (int i = 0; i < indent; i++)
+   {
+      str = pgexporter_append(str, " ");
+   }
+   if (tag != NULL)
+   {
+      str = pgexporter_append(str, tag);
+   }
+   return str;
+}
+
+bool
+pgexporter_compare_string(const char* str1, const char* str2)
+{
+   if (str1 == NULL && str2 == NULL)
+   {
+      return true;
+   }
+   if ((str1 == NULL && str2 != NULL) || (str1 != NULL && str2 == NULL))
+   {
+      return false;
+   }
+   return strcmp(str1, str2) == 0;
+}
+
 unsigned long
 pgexporter_directory_size(char* directory)
 {

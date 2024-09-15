@@ -336,6 +336,35 @@ pgexporter_append_ulong(char* orig, unsigned long l);
 char*
 pgexporter_append_bool(char* orig, bool b);
 
+
+/**
+ * Append a char
+ * @param orig The original string
+ * @param s The string
+ * @return The resulting string
+ */
+char*
+pgexporter_append_char(char* orig, char c);
+
+/**
+ * Indent a string
+ * @param str The string
+ * @param tag [Optional] The tag, which will be applied after indentation if not NULL
+ * @param indent The indent
+ * @return The indented string
+ */
+char*
+pgexporter_indent(char* str, char* tag, int indent);
+
+/**
+ * Compare two strings
+ * @param str1 The first string
+ * @param str2 The second string
+ * @return true if the strings are the same, otherwise false
+ */
+bool
+pgexporter_compare_string(const char* str1, const char* str2);
+
 /**
  * Calculate the directory size
  * @param directory The directory

@@ -106,6 +106,14 @@ void
 pgexporter_log_mem(void* data, size_t size);
 
 /**
+ * Is the logging level enabled
+ * @param level The level
+ * @return True if enabled, otherwise false
+ */
+bool
+pgexporter_log_is_enabled(int level);
+
+/**
  * Utility function to understand if log rotation
  * is enabled or not.
  * @return true if the rotation is enabled.

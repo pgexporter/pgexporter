@@ -514,3 +514,18 @@ retry:
         SLEEP_AND_GOTO(1000000L,retry)
    }
 }
+
+bool
+pgexporter_log_is_enabled(int level)
+{
+   configuration_t* config;
+
+   config = (configuration_t*)shmem;
+
+   if (level >= config->log_level)
+   {
+      return true;
+   }
+
+   return false;
+}

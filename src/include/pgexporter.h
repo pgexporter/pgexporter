@@ -107,6 +107,11 @@ extern "C" {
 #define UPDATE_PROCESS_TITLE_MINIMAL 2
 #define UPDATE_PROCESS_TITLE_VERBOSE 3
 
+#define INDENT_PER_LEVEL      2
+#define FORMAT_JSON           0
+#define FORMAT_TEXT           1
+#define BULLET_POINT          "- "
+
 #define likely(x)    __builtin_expect (!!(x), 1)
 #define unlikely(x)  __builtin_expect (!!(x), 0)
 
