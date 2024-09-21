@@ -114,6 +114,9 @@ pgexporter_value_create(enum value_type type, uintptr_t data, struct value** val
       case ValueString:
          val->to_string = string_to_string_cb;
          break;
+      case ValueBASE64:
+         val->to_string = string_to_string_cb;
+         break;
       case ValueJSON:
          val->to_string = json_to_string_cb;
          break;
@@ -131,16 +134,13 @@ pgexporter_value_create(enum value_type type, uintptr_t data, struct value** val
    {
       case ValueString:
       {
-         char* orig = NULL;
-         char* str = NULL;
-
-         orig = (char*) data;
-         if (orig != NULL)
-         {
-            str = pgexporter_append(str, orig);
-         }
-
-         val->data = (uintptr_t) str;
+         val->data = (uintptr_t)pgexporter_append(NULL, (char*)data);
+         val->destroy_data = free_destroy_cb;
+         break;
+      }
+      case ValueBASE64:
+      {
+         val->data = (uintptr_t)pgexporter_append(NULL, (char*)data);
          val->destroy_data = free_destroy_cb;
          break;
       }

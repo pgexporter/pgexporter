@@ -564,6 +564,7 @@ type_allowed(enum value_type type)
       case ValueUInt64:
       case ValueBool:
       case ValueString:
+      case ValueBASE64:
       case ValueFloat:
       case ValueDouble:
       case ValueJSON:
