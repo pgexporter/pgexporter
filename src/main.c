@@ -116,9 +116,9 @@ start_mgt(void)
 static void
 shutdown_mgt(void)
 {
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    ev_io_stop(main_loop, (struct ev_io*)&io_mgt);
    pgexporter_disconnect(unix_management_socket);
@@ -224,7 +224,7 @@ main(int argc, char** argv)
    struct signal_info signal_watcher[5];
    size_t shmem_size;
    size_t prometheus_cache_shmem_size = 0;
-   configuration_t* config = NULL;
+   struct configuration* config = NULL;
    int ret;
    int c;
    int collector_idx = 0;
@@ -338,7 +338,7 @@ main(int argc, char** argv)
       exit(1);
    }
 
-   shmem_size = sizeof(configuration_t);
+   shmem_size = sizeof(struct configuration);
    if (pgexporter_create_shared_memory(shmem_size, HUGEPAGE_OFF, &shmem))
    {
       warnx("pgexporter: Error in creating shared memory");
@@ -349,7 +349,7 @@ main(int argc, char** argv)
    }
 
    pgexporter_init_configuration(shmem);
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
    memcpy(config->collectors, collectors, (NUMBER_OF_COLLECTORS * MAX_COLLECTOR_LENGTH) * sizeof(char));
    config->number_of_collectors = collector_idx;
 
@@ -500,7 +500,7 @@ main(int argc, char** argv)
       exit(1);
    }
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
    if (yaml_path != NULL)
    {
       memcpy(config->metrics_path, yaml_path, MIN(strlen(yaml_path), MAX_PATH - 1));
@@ -747,7 +747,7 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    signed char id;
    int payload_i1;
    int payload_i2;
-   configuration_t* config;
+   struct configuration* config;
 
    if (EV_ERROR & revents)
    {
@@ -755,7 +755,7 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
       return;
    }
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    client_addr_length = sizeof(client_addr);
    client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
@@ -843,7 +843,7 @@ accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    struct sockaddr_in6 client_addr;
    socklen_t client_addr_length;
    int client_fd;
-   configuration_t* config;
+   struct configuration* config;
 
    if (EV_ERROR & revents)
    {
@@ -852,7 +852,7 @@ accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
       return;
    }
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    client_addr_length = sizeof(client_addr);
    client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
@@ -913,7 +913,7 @@ accept_management_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    socklen_t client_addr_length;
    int client_fd;
    char address[INET6_ADDRSTRLEN];
-   configuration_t* config;
+   struct configuration* config;
 
    if (EV_ERROR & revents)
    {
@@ -924,7 +924,7 @@ accept_management_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
    memset(&address, 0, sizeof(address));
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    client_addr_length = sizeof(client_addr);
    client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
@@ -1034,9 +1034,9 @@ reload_configuration(void)
 {
    int old_metrics;
    int old_management;
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    old_metrics = config->metrics;
    old_management = config->management;
@@ -1115,9 +1115,9 @@ create_pidfile(void)
    pid_t pid;
    int r;
    int fd;
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    if (strlen(config->pidfile) > 0)
    {
@@ -1152,9 +1152,9 @@ error:
 static void
 remove_pidfile(void)
 {
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    if (strlen(config->pidfile) > 0)
    {
@@ -1205,9 +1205,9 @@ remove_lockfile(void)
 static void
 shutdown_ports(void)
 {
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    if (config->metrics > 0)
    {

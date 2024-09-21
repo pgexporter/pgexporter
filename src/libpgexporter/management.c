@@ -166,14 +166,14 @@ int
 pgexporter_management_transfer_connection(int server)
 {
    int fd;
-   configuration_t* config;
    struct cmsghdr* cmptr = NULL;
    struct iovec iov[1];
    struct msghdr msg;
    char buf2[2];
    char buf4[4];
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    if (pgexporter_connect_unix_socket(config->unix_socket_dir, MAIN_UDS, &fd))
    {
@@ -317,11 +317,11 @@ error:
 int
 pgexporter_management_write_status(int socket)
 {
-   configuration_t* config;
+   struct configuration* config;
 
    pgexporter_memory_init();
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    pgexporter_open_connections();
 

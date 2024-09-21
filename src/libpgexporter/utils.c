@@ -72,7 +72,7 @@ static int string_compare(const void* a, const void* b);
 static bool is_wal_file(char* file);
 
 int32_t
-pgexporter_get_request(message_t* msg)
+pgexporter_get_request(struct message* msg)
 {
    if (msg == NULL || msg->data == NULL || msg->length < 8)
    {
@@ -83,7 +83,7 @@ pgexporter_get_request(message_t* msg)
 }
 
 int
-pgexporter_extract_username_database(message_t* msg, char** username, char** database, char** appname)
+pgexporter_extract_username_database(struct message* msg, char** username, char** database, char** appname)
 {
    int start, end;
    int counter = 0;
@@ -178,12 +178,12 @@ pgexporter_extract_username_database(message_t* msg, char** username, char** dat
 }
 
 int
-pgexporter_extract_message(char type, message_t* msg, message_t** extracted)
+pgexporter_extract_message(char type, struct message* msg, struct message** extracted)
 {
    int offset;
    int m_length;
    void* data = NULL;
-   message_t* result = NULL;
+   struct message* result = NULL;
 
    offset = 0;
    *extracted = NULL;
@@ -196,7 +196,7 @@ pgexporter_extract_message(char type, message_t* msg, message_t** extracted)
       {
          m_length = pgexporter_read_int32(msg->data + offset + 1);
 
-         result = (message_t*)malloc(sizeof(message_t));
+         result = (struct message*)malloc(sizeof(struct message));
          data = (void*)malloc(1 + m_length);
 
          memcpy(data, msg->data + offset, 1 + m_length);
@@ -246,19 +246,19 @@ pgexporter_has_message(char type, void* data, size_t data_size)
 }
 
 size_t
-pgexporter_extract_message_offset(size_t offset, void* data, message_t** extracted)
+pgexporter_extract_message_offset(size_t offset, void* data, struct message** extracted)
 {
    char type;
    int m_length;
    void* m_data;
-   message_t* result = NULL;
+   struct message* result = NULL;
 
    *extracted = NULL;
 
    type = (char)pgexporter_read_byte(data + offset);
    m_length = pgexporter_read_int32(data + offset + 1);
 
-   result = (message_t*)malloc(sizeof(message_t));
+   result = (struct message*)malloc(sizeof(struct message));
    m_data = malloc(1 + m_length);
 
    memcpy(m_data, data + offset, 1 + m_length);
@@ -274,12 +274,12 @@ pgexporter_extract_message_offset(size_t offset, void* data, message_t** extract
 }
 
 int
-pgexporter_extract_message_from_data(char type, void* data, size_t data_size, message_t** extracted)
+pgexporter_extract_message_from_data(char type, void* data, size_t data_size, struct message** extracted)
 {
    int offset;
    void* m_data = NULL;
    int m_length;
-   message_t* result = NULL;
+   struct message* result = NULL;
 
    offset = 0;
    *extracted = NULL;
@@ -292,7 +292,7 @@ pgexporter_extract_message_from_data(char type, void* data, size_t data_size, me
       {
          m_length = pgexporter_read_int32(data + offset + 1);
 
-         result = (message_t*)malloc(sizeof(message_t));
+         result = (struct message*)malloc(sizeof(struct message));
          m_data = (void*)malloc(1 + m_length);
 
          memcpy(m_data, data + offset, 1 + m_length);
@@ -767,9 +767,9 @@ pgexporter_set_proc_title(int argc, char** argv, char* s1, char* s2)
    size_t size;
    char** env = environ;
    int es = 0;
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    // sanity check: if the user does not want to
    // update the process title, do nothing

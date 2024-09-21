@@ -42,18 +42,18 @@
 
 static int query_execute(int server, char* qs, char* tag, int columns, char* names[], struct query** query);
 static void* data_append(void* orig, size_t orig_size, void* n, size_t n_size);
-static int create_D_tuple(int server, int number_of_columns, message_t* msg, struct tuple** tuple);
-static int get_number_of_columns(message_t* msg);
-static int get_column_name(message_t* msg, int index, char** name);
+static int create_D_tuple(int server, int number_of_columns, struct message* msg, struct tuple** tuple);
+static int get_number_of_columns(struct message* msg);
+static int get_column_name(struct message* msg, int index, char** name);
 
 void
 pgexporter_open_connections(void)
 {
    int ret;
    int user;
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    for (int server = 0; server < config->number_of_servers; server++)
    {
@@ -102,9 +102,9 @@ pgexporter_close_connections(void)
 {
    int ret;
    bool nuke;
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    for (int server = 0; server < config->number_of_servers; server++)
    {
@@ -155,9 +155,9 @@ pgexporter_server_version(int server)
 {
    struct query* q;
    int ret;
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    ret = query_execute(server, "SELECT split_part(split_part(version(), ' ', 2), '.', 1);", "version", 1, NULL, &q);
 
@@ -201,9 +201,9 @@ pgexporter_query_used_disk_space(int server, bool data, struct query** query)
 {
    char* d = NULL;
    int ret;
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    d = pgexporter_append(d, "SELECT * FROM pgexporter_used_space(\'");
    if (data)
@@ -228,9 +228,9 @@ pgexporter_query_free_disk_space(int server, bool data, struct query** query)
 {
    char* d = NULL;
    int ret;
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    d = pgexporter_append(d, "SELECT * FROM pgexporter_free_space(\'");
    if (data)
@@ -255,9 +255,9 @@ pgexporter_query_total_disk_space(int server, bool data, struct query** query)
 {
    char* d = NULL;
    int ret;
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    d = pgexporter_append(d, "SELECT * FROM pgexporter_total_space(\'");
    if (data)
@@ -602,23 +602,23 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
    bool cont;
    int cols;
    char* name = NULL;
-   message_t qmsg = {0};
-   message_t* tmsg = NULL;
+   struct message qmsg = {0};
+   struct message* tmsg = NULL;
    size_t size = 0;
    char* content = NULL;
-   message_t* msg = NULL;
+   struct message* msg = NULL;
    struct query* q = NULL;
    struct tuple* current = NULL;
    void* data = NULL;
    size_t data_size = 0;
    size_t offset = 0;
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    *query = NULL;
 
-   memset(&qmsg, 0, sizeof(message_t));
+   memset(&qmsg, 0, sizeof(struct message));
 
    size = 1 + 4 + strlen(qs) + 1;
    content = (char*)malloc(size);
@@ -767,7 +767,7 @@ data_append(void* orig, size_t orig_size, void* n, size_t n_size)
 }
 
 static int
-create_D_tuple(int server, int number_of_columns, message_t* msg, struct tuple** tuple)
+create_D_tuple(int server, int number_of_columns, struct message* msg, struct tuple** tuple)
 {
    int offset;
    int length;
@@ -806,7 +806,7 @@ create_D_tuple(int server, int number_of_columns, message_t* msg, struct tuple**
 }
 
 static int
-get_number_of_columns(message_t* msg)
+get_number_of_columns(struct message* msg)
 {
    if (msg->kind == 'T')
    {
@@ -817,7 +817,7 @@ get_number_of_columns(message_t* msg)
 }
 
 static int
-get_column_name(message_t* msg, int index, char** name)
+get_column_name(struct message* msg, int index, char** name)
 {
    int current = 0;
    int offset;

@@ -132,7 +132,7 @@ main(int argc, char** argv)
    int position;
    int32_t action = ACTION_UNKNOWN;
    char un[MAX_USERNAME_LENGTH];
-   configuration_t* config = NULL;
+   struct configuration* config = NULL;
 
    // Disable stdout buffering (i.e. write to stdout immediatelly).
    setbuf(stdout, NULL);
@@ -215,7 +215,7 @@ main(int argc, char** argv)
       exit(1);
    }
 
-   size = sizeof(configuration_t);
+   size = sizeof(struct configuration);
    if (pgexporter_create_shared_memory(size, HUGEPAGE_OFF, &shmem))
    {
       warnx("Error creating shared memory");
@@ -234,7 +234,7 @@ main(int argc, char** argv)
 
       if (logfile)
       {
-         config = (configuration_t*)shmem;
+         config = (struct configuration*)shmem;
 
          config->log_type = PGEXPORTER_LOGGING_TYPE_FILE;
          memset(&config->log_path[0], 0, MISC_LENGTH);
@@ -246,7 +246,7 @@ main(int argc, char** argv)
          exit(1);
       }
 
-      config = (configuration_t*)shmem;
+      config = (struct configuration*)shmem;
    }
    else
    {
@@ -265,7 +265,7 @@ main(int argc, char** argv)
 
          if (logfile)
          {
-            config = (configuration_t*)shmem;
+            config = (struct configuration*)shmem;
 
             config->log_type = PGEXPORTER_LOGGING_TYPE_FILE;
             memset(&config->log_path[0], 0, MISC_LENGTH);
@@ -277,7 +277,7 @@ main(int argc, char** argv)
             exit(1);
          }
 
-         config = (configuration_t*)shmem;
+         config = (struct configuration*)shmem;
       }
    }
 

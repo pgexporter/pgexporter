@@ -44,16 +44,16 @@ extern "C" {
 #define MESSAGE_STATUS_OK    1
 #define MESSAGE_STATUS_ERROR 2
 
-/** @struct
+/** @struct message
  * Defines a message
  */
-typedef struct
+struct message
 {
    signed char kind;  /**< The kind of the message */
    ssize_t length;    /**< The length of the message */
    size_t max_length; /**< The maximum size of the message */
    void* data;        /**< The message data */
-} __attribute__ ((aligned (64))) message_t;
+} __attribute__ ((aligned (64)));
 
 /**
  * Read a message in blocking mode
@@ -63,7 +63,7 @@ typedef struct
  * @return One of MESSAGE_STATUS_ZERO, MESSAGE_STATUS_OK or MESSAGE_STATUS_ERROR
  */
 int
-pgexporter_read_block_message(SSL* ssl, int socket, message_t** msg);
+pgexporter_read_block_message(SSL* ssl, int socket, struct message** msg);
 
 /**
  * Read a message with a timeout
@@ -74,7 +74,7 @@ pgexporter_read_block_message(SSL* ssl, int socket, message_t** msg);
  * @return One of MESSAGE_STATUS_ZERO, MESSAGE_STATUS_OK or MESSAGE_STATUS_ERROR
  */
 int
-pgexporter_read_timeout_message(SSL* ssl, int socket, int timeout, message_t** msg);
+pgexporter_read_timeout_message(SSL* ssl, int socket, int timeout, struct message** msg);
 
 /**
  * Write a message using a socket
@@ -84,29 +84,29 @@ pgexporter_read_timeout_message(SSL* ssl, int socket, int timeout, message_t** m
  * @return One of MESSAGE_STATUS_ZERO, MESSAGE_STATUS_OK or MESSAGE_STATUS_ERROR
  */
 int
-pgexporter_write_message(SSL* ssl, int socket, message_t* msg);
+pgexporter_write_message(SSL* ssl, int socket, struct message* msg);
 
 /**
  * Free a message
  * @param msg The resulting message
  */
 void
-pgexporter_free_message(message_t* msg);
+pgexporter_free_message(struct message* msg);
 
 /**
  * Copy a message
  * @param msg The resulting message
  * @return The copy
  */
-message_t*
-pgexporter_copy_message(message_t* msg);
+struct message*
+pgexporter_copy_message(struct message* msg);
 
 /**
  * Free a copy message
  * @param msg The resulting message
  */
 void
-pgexporter_free_copy_message(message_t* msg);
+pgexporter_free_copy_message(struct message* msg);
 
 /**
  * Is the connection valid
@@ -122,7 +122,7 @@ pgexporter_connection_isvalid(SSL* ssl, int socket);
  * @param msg The message
  */
 void
-pgexporter_log_message(message_t* msg);
+pgexporter_log_message(struct message* msg);
 
 /**
  * Write a notice message
@@ -185,7 +185,7 @@ pgexporter_write_tls(SSL* ssl, int socket);
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_create_auth_password_response(char* password, message_t** msg);
+pgexporter_create_auth_password_response(char* password, struct message** msg);
 
 /**
  * Create an auth MD5 response message
@@ -194,7 +194,7 @@ pgexporter_create_auth_password_response(char* password, message_t** msg);
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_create_auth_md5_response(char* md5, message_t** msg);
+pgexporter_create_auth_md5_response(char* md5, struct message** msg);
 
 /**
  * Write an auth SCRAM-SHA-256 message
@@ -212,7 +212,7 @@ pgexporter_write_auth_scram256(SSL* ssl, int socket);
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_create_auth_scram256_response(char* nounce, message_t** msg);
+pgexporter_create_auth_scram256_response(char* nounce, struct message** msg);
 
 /**
  * Create an auth SCRAM-SHA-256/Continue message
@@ -223,7 +223,7 @@ pgexporter_create_auth_scram256_response(char* nounce, message_t** msg);
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_create_auth_scram256_continue(char* cn, char* sn, char* salt, message_t** msg);
+pgexporter_create_auth_scram256_continue(char* cn, char* sn, char* salt, struct message** msg);
 
 /**
  * Create an auth SCRAM-SHA-256/Continue response message
@@ -233,7 +233,7 @@ pgexporter_create_auth_scram256_continue(char* cn, char* sn, char* salt, message
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_create_auth_scram256_continue_response(char* wp, char* p, message_t** msg);
+pgexporter_create_auth_scram256_continue_response(char* wp, char* p, struct message** msg);
 
 /**
  * Create an auth SCRAM-SHA-256/Final message
@@ -242,7 +242,7 @@ pgexporter_create_auth_scram256_continue_response(char* wp, char* p, message_t**
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_create_auth_scram256_final(char* ss, message_t** msg);
+pgexporter_create_auth_scram256_final(char* ss, struct message** msg);
 
 /**
  * Write an auth success message
@@ -259,7 +259,7 @@ pgexporter_write_auth_success(SSL* ssl, int socket);
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_create_ssl_message(message_t** msg);
+pgexporter_create_ssl_message(struct message** msg);
 
 /**
  * Create a startup message
@@ -269,7 +269,7 @@ pgexporter_create_ssl_message(message_t** msg);
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_create_startup_message(char* username, char* database, message_t** msg);
+pgexporter_create_startup_message(char* username, char* database, struct message** msg);
 
 #ifdef __cplusplus
 }

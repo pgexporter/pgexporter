@@ -51,15 +51,15 @@ pgexporter_server_info(int srv)
    size_t size = 40;
    char is_recovery[size];
    signed char state;
-   message_t qmsg;
-   message_t* tmsg = NULL;
-   configuration_t* config;
+   struct message qmsg;
+   struct message* tmsg = NULL;
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
    ssl = config->servers[srv].ssl;
    socket = config->servers[srv].fd;
 
-   memset(&qmsg, 0, sizeof(message_t));
+   memset(&qmsg, 0, sizeof(struct message));
    memset(&is_recovery, 0, size);
 
    pgexporter_write_byte(&is_recovery, 'Q');

@@ -68,10 +68,10 @@ static int as_logging_rotation_age(char* str, int* age);
 static int as_seconds(char* str, int* age, int default_age);
 static int as_bytes(char* str, int* bytes, int default_bytes);
 
-static int transfer_configuration(configuration_t* config, configuration_t* reload);
-static void copy_server(server_t* dst, server_t* src);
-static void copy_user(user_t* dst, user_t* src);
-static void copy_promethus(prometheus_t* dst, prometheus_t* src);
+static int transfer_configuration(struct configuration* config, struct configuration* reload);
+static void copy_server(struct server* dst, struct server* src);
+static void copy_user(struct user* dst, struct user* src);
+static void copy_promethus(struct prometheus* dst, struct prometheus* src);
 static int restart_int(char* name, int e, int n);
 static int restart_string(char* name, char* e, char* n);
 
@@ -83,9 +83,9 @@ static bool is_empty_string(char* s);
 int
 pgexporter_init_configuration(void* shm)
 {
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shm;
+   config = (struct configuration*)shm;
 
    config->metrics = -1;
    config->cache = true;
@@ -136,9 +136,9 @@ pgexporter_read_configuration(void* shm, char* filename)
    char* value = NULL;
    char* ptr = NULL;
    size_t max;
-   configuration_t* config;
    int idx_server = 0;
-   server_t srv;
+   struct server srv;
+   struct configuration* config;
 
    file = fopen(filename, "r");
 
@@ -148,7 +148,7 @@ pgexporter_read_configuration(void* shm, char* filename)
    }
 
    memset(&section, 0, LINE_LENGTH);
-   config = (configuration_t*)shm;
+   config = (struct configuration*)shm;
 
    while (fgets(line, sizeof(line), file))
    {
@@ -180,14 +180,14 @@ pgexporter_read_configuration(void* shm, char* filename)
                         }
                      }
 
-                     memcpy(&(config->servers[idx_server - 1]), &srv, sizeof(server_t));
+                     memcpy(&(config->servers[idx_server - 1]), &srv, sizeof(struct server));
                   }
                   else if (idx_server > NUMBER_OF_SERVERS)
                   {
                      warnx("Maximum number of servers exceeded");
                   }
 
-                  memset(&srv, 0, sizeof(server_t));
+                  memset(&srv, 0, sizeof(struct server));
                   memcpy(&srv.name, &section, strlen(section));
                   srv.fd = -1;
                   srv.extension = true;
@@ -804,7 +804,7 @@ pgexporter_read_configuration(void* shm, char* filename)
          }
       }
 
-      memcpy(&(config->servers[idx_server - 1]), &srv, sizeof(server_t));
+      memcpy(&(config->servers[idx_server - 1]), &srv, sizeof(struct server));
    }
 
    config->number_of_servers = idx_server;
@@ -820,9 +820,9 @@ int
 pgexporter_validate_configuration(void* shm)
 {
    struct stat st;
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shm;
+   config = (struct configuration*)shm;
 
    if (strlen(config->host) == 0)
    {
@@ -914,7 +914,7 @@ pgexporter_read_users_configuration(void* shm, char* filename)
    char* decoded = NULL;
    size_t decoded_length = 0;
    char* ptr = NULL;
-   configuration_t* config;
+   struct configuration* config;
 
    file = fopen(filename, "r");
 
@@ -929,7 +929,7 @@ pgexporter_read_users_configuration(void* shm, char* filename)
    }
 
    index = 0;
-   config = (configuration_t*)shm;
+   config = (struct configuration*)shm;
 
    while (fgets(line, sizeof(line), file))
    {
@@ -1044,9 +1044,9 @@ above:
 int
 pgexporter_validate_users_configuration(void* shm)
 {
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shm;
+   config = (struct configuration*)shm;
 
    if (config->number_of_users <= 0)
    {
@@ -1091,7 +1091,7 @@ pgexporter_read_admins_configuration(void* shm, char* filename)
    char* decoded = NULL;
    size_t decoded_length = 0;
    char* ptr = NULL;
-   configuration_t* config;
+   struct configuration* config;
 
    file = fopen(filename, "r");
 
@@ -1106,7 +1106,7 @@ pgexporter_read_admins_configuration(void* shm, char* filename)
    }
 
    index = 0;
-   config = (configuration_t*)shm;
+   config = (struct configuration*)shm;
 
    while (fgets(line, sizeof(line), file))
    {
@@ -1221,9 +1221,9 @@ above:
 int
 pgexporter_validate_admins_configuration(void* shm)
 {
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shm;
+   config = (struct configuration*)shm;
 
    if (config->management > 0 && config->number_of_admins == 0)
    {
@@ -1241,16 +1241,16 @@ int
 pgexporter_reload_configuration(void)
 {
    size_t reload_size;
-   configuration_t* reload = NULL;
-   configuration_t* config;
+   struct configuration* reload = NULL;
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    pgexporter_log_trace("Configuration: %s", config->configuration_path);
    pgexporter_log_trace("Users: %s", config->users_path);
    pgexporter_log_trace("Admins: %s", config->admins_path);
 
-   reload_size = sizeof(configuration_t);
+   reload_size = sizeof(struct configuration);
 
    if (pgexporter_create_shared_memory(reload_size, HUGEPAGE_OFF, (void**)&reload))
    {
@@ -1929,7 +1929,7 @@ error:
 }
 
 static int
-transfer_configuration(configuration_t* config, configuration_t* reload)
+transfer_configuration(struct configuration* config, struct configuration* reload)
 {
 #ifdef HAVE_SYSTEMD
    sd_notify(0, "RELOADING=1");
@@ -1989,21 +1989,21 @@ transfer_configuration(configuration_t* config, configuration_t* reload)
    /* unix_socket_dir */
    restart_string("unix_socket_dir", config->unix_socket_dir, reload->unix_socket_dir);
 
-   memset(&config->servers[0], 0, sizeof(server_t) * NUMBER_OF_SERVERS);
+   memset(&config->servers[0], 0, sizeof(struct server) * NUMBER_OF_SERVERS);
    for (int i = 0; i < reload->number_of_servers; i++)
    {
       copy_server(&config->servers[i], &reload->servers[i]);
    }
    config->number_of_servers = reload->number_of_servers;
 
-   memset(&config->users[0], 0, sizeof(user_t) * NUMBER_OF_USERS);
+   memset(&config->users[0], 0, sizeof(struct user) * NUMBER_OF_USERS);
    for (int i = 0; i < reload->number_of_users; i++)
    {
       copy_user(&config->users[i], &reload->users[i]);
    }
    config->number_of_users = reload->number_of_users;
 
-   memset(&config->admins[0], 0, sizeof(user_t) * NUMBER_OF_ADMINS);
+   memset(&config->admins[0], 0, sizeof(struct user) * NUMBER_OF_ADMINS);
    for (int i = 0; i < reload->number_of_admins; i++)
    {
       copy_user(&config->admins[i], &reload->admins[i]);
@@ -2026,7 +2026,7 @@ transfer_configuration(configuration_t* config, configuration_t* reload)
 }
 
 static void
-copy_server(server_t* dst, server_t* src)
+copy_server(struct server* dst, struct server* src)
 {
    memcpy(&dst->name[0], &src->name[0], MISC_LENGTH);
    memcpy(&dst->host[0], &src->host[0], MISC_LENGTH);
@@ -2039,14 +2039,14 @@ copy_server(server_t* dst, server_t* src)
 }
 
 static void
-copy_user(user_t* dst, user_t* src)
+copy_user(struct user* dst, struct user* src)
 {
    memcpy(&dst->username[0], &src->username[0], MAX_USERNAME_LENGTH);
    memcpy(&dst->password[0], &src->password[0], MAX_PASSWORD_LENGTH);
 }
 
 static void
-copy_promethus(prometheus_t* dst, prometheus_t* src)
+copy_promethus(struct prometheus* dst, struct prometheus* src)
 {
    memcpy(dst->tag, src->tag, MISC_LENGTH);
    memcpy(dst->collector, src->collector, MAX_COLLECTOR_LENGTH);

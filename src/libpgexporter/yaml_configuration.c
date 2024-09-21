@@ -39,7 +39,7 @@
 #include <yaml.h>
 #include <errno.h>
 
-static int pgexporter_read_yaml(prometheus_t* prometheus, int prometheus_idx, char* filename, int* number_of_metrics);
+static int pgexporter_read_yaml(struct prometheus* prometheus, int prometheus_idx, char* filename, int* number_of_metrics);
 
 static int get_yaml_files(char* base, int* number_of_yaml_files, char*** files);
 static bool is_yaml_file(char* filename);
@@ -137,19 +137,19 @@ static void free_yaml_queries(yaml_query_t** queries, size_t n_queries);
 static void free_yaml_columns(yaml_column_t** columns, size_t n_columns);
 
 // Extract the meaning of the `yaml_config` and load the metrics into `prometheus`
-static int semantics_yaml(prometheus_t* prometheus, int prometheus_idx, yaml_config_t* yaml_config);
+static int semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t* yaml_config);
 
 int
 pgexporter_read_metrics_configuration(void* shmem)
 {
-   configuration_t* config;
+   struct configuration* config;
    int idx_metrics = 0;
    int number_of_metrics = 0;
    int number_of_yaml_files = 0;
    char** yaml_files = NULL;
    char* yaml_path = NULL;
 
-   config = (configuration_t*) shmem;
+   config = (struct configuration*) shmem;
    idx_metrics = config->number_of_metrics;
 
    if (pgexporter_is_file(config->metrics_path))
@@ -203,7 +203,7 @@ pgexporter_read_metrics_configuration(void* shmem)
 }
 
 int
-pgexporter_read_internal_yaml_metrics(configuration_t* config, bool start)
+pgexporter_read_internal_yaml_metrics(struct configuration* config, bool start)
 {
    int number_of_metrics = 0;
    int ret;
@@ -228,7 +228,7 @@ pgexporter_read_internal_yaml_metrics(configuration_t* config, bool start)
 }
 
 static int
-pgexporter_read_yaml(prometheus_t* prometheus, int prometheus_idx, char* filename, int* number_of_metrics)
+pgexporter_read_yaml(struct prometheus* prometheus, int prometheus_idx, char* filename, int* number_of_metrics)
 {
    FILE* file;
 
@@ -247,7 +247,7 @@ pgexporter_read_yaml(prometheus_t* prometheus, int prometheus_idx, char* filenam
 }
 
 int
-pgexporter_read_yaml_from_file_pointer(prometheus_t* prometheus, int prometheus_idx, int* number_of_metrics, FILE* file)
+pgexporter_read_yaml_from_file_pointer(struct prometheus* prometheus, int prometheus_idx, int* number_of_metrics, FILE* file)
 {
    int ret = 0;
    yaml_config_t yaml_config;
@@ -1068,9 +1068,9 @@ free_yaml_columns(yaml_column_t** columns, size_t n_columns)
 }
 
 static int
-semantics_yaml(prometheus_t* prometheus, int prometheus_idx, yaml_config_t* yaml_config)
+semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t* yaml_config)
 {
-   prometheus_t* prom = NULL;
+   struct prometheus* prom = NULL;
 
    for (int i = 0; i < yaml_config->n_metrics; i++)
    {
@@ -1122,11 +1122,11 @@ semantics_yaml(prometheus_t* prometheus, int prometheus_idx, yaml_config_t* yaml
       for (int j = 0; j < yaml_config->metrics[i].n_queries; j++)
       {
 
-         query_alts_t* new_query = NULL;
+         struct query_alts* new_query = NULL;
          void* new_query_shmem = NULL;
 
-         pgexporter_create_shared_memory(sizeof(query_alts_t), HUGEPAGE_OFF, &new_query_shmem);
-         new_query = (query_alts_t*) new_query_shmem;
+         pgexporter_create_shared_memory(sizeof(struct query_alts), HUGEPAGE_OFF, &new_query_shmem);
+         new_query = (struct query_alts*) new_query_shmem;
 
          new_query->n_columns = MIN(yaml_config->metrics[i].queries[j].n_columns, MAX_NUMBER_OF_COLUMNS);
 

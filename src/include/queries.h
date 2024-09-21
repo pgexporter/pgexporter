@@ -38,20 +38,26 @@ extern "C" {
 #include <stdbool.h>
 #include <stdlib.h>
 
+/** @struct tuple
+ * Defines a tuple
+ */
 struct tuple
 {
-   int server;                                     /**< The server */
-   char** data;                                    /**< The data */
-   struct tuple* next;
+   int server;                    /**< The server */
+   char** data;                   /**< The data */
+   struct tuple* next;            /**< The next tuple */
 } __attribute__ ((aligned (64)));
 
+/** @struct query
+ * Defines a query
+ */
 struct query
 {
    char tag[MISC_LENGTH];                          /**< The tag */
    char names[MAX_NUMBER_OF_COLUMNS][MISC_LENGTH]; /**< The column names */
    int number_of_columns;                          /**< The number of columns */
 
-   struct tuple* tuples;
+   struct tuple* tuples;                           /**< The tuples */
 } __attribute__ ((aligned (64)));
 
 /**

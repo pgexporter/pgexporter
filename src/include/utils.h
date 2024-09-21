@@ -38,7 +38,7 @@ extern "C" {
 
 #include <stdlib.h>
 
-/** @struct
+/** @struct signal_info
  * Defines the signal structure
  */
 struct signal_info
@@ -53,7 +53,7 @@ struct signal_info
  * @return The identifier
  */
 int32_t
-pgexporter_get_request(message_t* msg);
+pgexporter_get_request(struct message* msg);
 
 /**
  * Extract the user name and database from a message
@@ -64,7 +64,7 @@ pgexporter_get_request(message_t* msg);
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_extract_username_database(message_t* msg, char** username, char** database, char** appname);
+pgexporter_extract_username_database(struct message* msg, char** username, char** database, char** appname);
 
 /**
  * Extract a message from a message
@@ -74,7 +74,7 @@ pgexporter_extract_username_database(message_t* msg, char** username, char** dat
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_extract_message(char type, message_t* msg, message_t** extracted);
+pgexporter_extract_message(char type, struct message* msg, struct message** extracted);
 
 /**
  * Extract a message based on an offset
@@ -84,7 +84,7 @@ pgexporter_extract_message(char type, message_t* msg, message_t** extracted);
  * @return The next offset
  */
 size_t
-pgexporter_extract_message_offset(size_t offset, void* data, message_t** extracted);
+pgexporter_extract_message_offset(size_t offset, void* data, struct message** extracted);
 
 /**
  * Extract a message based on a type
@@ -95,7 +95,7 @@ pgexporter_extract_message_offset(size_t offset, void* data, message_t** extract
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_extract_message_from_data(char type, void* data, size_t data_size, message_t** extracted);
+pgexporter_extract_message_from_data(char type, void* data, size_t data_size, struct message** extracted);
 
 /**
  * Has a message

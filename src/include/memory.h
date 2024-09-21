@@ -55,7 +55,7 @@ pgexporter_memory_size(size_t size);
  * Get the message structure
  * @return The structure
  */
-message_t*
+struct message*
 pgexporter_memory_message(void);
 
 /**

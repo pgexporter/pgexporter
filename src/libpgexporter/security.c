@@ -71,7 +71,7 @@ static signed char has_security;
 static ssize_t security_lengths[NUMBER_OF_SECURITY_MESSAGES];
 static char security_messages[NUMBER_OF_SECURITY_MESSAGES][SECURITY_BUFFER_SIZE];
 
-static int get_auth_type(message_t* msg, int* auth_type);
+static int get_auth_type(struct message* msg, int* auth_type);
 static int get_salt(void* data, char** salt);
 static int generate_md5(char* str, int length, char** md5);
 
@@ -116,9 +116,9 @@ int
 pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl)
 {
    int status = MESSAGE_STATUS_ERROR;
-   configuration_t* config;
-   message_t* msg = NULL;
-   message_t* request_msg = NULL;
+   struct configuration* config;
+   struct message* msg = NULL;
+   struct message* request_msg = NULL;
    int32_t request;
    char* username = NULL;
    char* database = NULL;
@@ -126,7 +126,7 @@ pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl
    char* password = NULL;
    SSL* c_ssl = NULL;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    *client_ssl = NULL;
 
@@ -324,13 +324,13 @@ pgexporter_remote_management_scram_sha256(char* username, char* password, int se
    size_t server_signature_received_length;
    unsigned char* server_signature_calc = NULL;
    size_t server_signature_calc_length;
-   message_t* sslrequest_msg = NULL;
-   message_t* startup_msg = NULL;
-   message_t* sasl_response = NULL;
-   message_t* sasl_continue = NULL;
-   message_t* sasl_continue_response = NULL;
-   message_t* sasl_final = NULL;
-   message_t* msg = NULL;
+   struct message* sslrequest_msg = NULL;
+   struct message* startup_msg = NULL;
+   struct message* sasl_response = NULL;
+   struct message* sasl_continue = NULL;
+   struct message* sasl_continue_response = NULL;
+   struct message* sasl_final = NULL;
+   struct message* msg = NULL;
 
    pgexporter_memory_size(DEFAULT_BUFFER_SIZE);
 
@@ -659,7 +659,7 @@ error:
 }
 
 static int
-get_auth_type(message_t* msg, int* auth_type)
+get_auth_type(struct message* msg, int* auth_type)
 {
    int32_t length;
    int32_t type = -1;
@@ -819,14 +819,14 @@ client_scram256(SSL* c_ssl, int client_fd, char* username, char* password, int s
    size_t server_signature_calc_length = 0;
    char* base64_server_signature_calc = NULL;
    size_t base64_server_signature_calc_length;
-   configuration_t* config;
-   message_t* msg = NULL;
-   message_t* sasl_continue = NULL;
-   message_t* sasl_final = NULL;
+   struct configuration* config;
+   struct message* msg = NULL;
+   struct message* sasl_continue = NULL;
+   struct message* sasl_final = NULL;
 
    pgexporter_log_debug("client_scram256 %d %d", client_fd, slot);
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    status = pgexporter_write_auth_scram256(c_ssl, client_fd);
    if (status != MESSAGE_STATUS_OK)
@@ -1024,17 +1024,17 @@ pgexporter_server_authenticate(int server, char* database, char* username, char*
    int status = AUTH_ERROR;
    int connect;
    SSL* c_ssl = NULL;
-   message_t* ssl_msg = NULL;
-   message_t* startup_msg = NULL;
-   message_t* msg = NULL;
-   configuration_t* config;
+   struct message* ssl_msg = NULL;
+   struct message* startup_msg = NULL;
+   struct message* msg = NULL;
+   struct configuration* config;
 
    *ssl = NULL;
    *fd = -1;
 
    auth_type = SECURITY_INVALID;
    server_fd = -1;
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    for (int i = 0; i < NUMBER_OF_SECURITY_MESSAGES; i++)
    {
@@ -1271,8 +1271,8 @@ server_password(char* username, char* password, SSL* ssl, int server_fd)
    int status = MESSAGE_STATUS_ERROR;
    int auth_index = 1;
    int auth_response = -1;
-   message_t* auth_msg = NULL;
-   message_t* password_msg = NULL;
+   struct message* auth_msg = NULL;
+   struct message* password_msg = NULL;
 
    pgexporter_log_trace("server_password");
 
@@ -1357,8 +1357,8 @@ server_md5(char* username, char* password, SSL* ssl, int server_fd)
    char* md5 = NULL;
    char md5str[36];
    char* salt = NULL;
-   message_t* auth_msg = NULL;
-   message_t* md5_msg = NULL;
+   struct message* auth_msg = NULL;
+   struct message* md5_msg = NULL;
 
    pgexporter_log_trace("server_md5");
 
@@ -1503,11 +1503,11 @@ server_scram256(char* username, char* password, SSL* ssl, int server_fd)
    size_t server_signature_received_length;
    unsigned char* server_signature_calc = NULL;
    size_t server_signature_calc_length;
-   message_t* sasl_response = NULL;
-   message_t* sasl_continue = NULL;
-   message_t* sasl_continue_response = NULL;
-   message_t* sasl_final = NULL;
-   message_t* msg = NULL;
+   struct message* sasl_response = NULL;
+   struct message* sasl_continue = NULL;
+   struct message* sasl_continue_response = NULL;
+   struct message* sasl_final = NULL;
+   struct message* msg = NULL;
 
    pgexporter_log_trace("server_scram256");
 
@@ -1707,9 +1707,9 @@ error:
 static char*
 get_admin_password(char* username)
 {
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    for (int i = 0; i < config->number_of_admins; i++)
    {
@@ -1844,10 +1844,10 @@ pgexporter_decrypt(char* ciphertext, int ciphertext_length, char* password, char
 int
 pgexporter_tls_valid(void)
 {
-   configuration_t* config;
+   struct configuration* config;
    struct stat st = {0};
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    if (config->tls)
    {
@@ -2905,9 +2905,9 @@ create_ssl_server(SSL_CTX* ctx, int socket, SSL** ssl)
 {
    SSL* s = NULL;
    STACK_OF(X509_NAME) * root_cert_list = NULL;
-   configuration_t* config;
+   struct configuration* config;
 
-   config = (configuration_t*)shmem;
+   config = (struct configuration*)shmem;
 
    if (strlen(config->tls_cert_file) == 0)
    {
