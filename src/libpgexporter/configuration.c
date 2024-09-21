@@ -912,7 +912,7 @@ pgexporter_read_users_configuration(void* shm, char* filename)
    char* username = NULL;
    char* password = NULL;
    char* decoded = NULL;
-   int decoded_length = 0;
+   size_t decoded_length = 0;
    char* ptr = NULL;
    configuration_t* config;
 
@@ -1089,7 +1089,7 @@ pgexporter_read_admins_configuration(void* shm, char* filename)
    char* username = NULL;
    char* password = NULL;
    char* decoded = NULL;
-   int decoded_length = 0;
+   size_t decoded_length = 0;
    char* ptr = NULL;
    configuration_t* config;
 
