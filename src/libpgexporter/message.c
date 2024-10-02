@@ -820,13 +820,9 @@ ssl_read_message(SSL* ssl, int timeout, struct message** msg)
             case SSL_ERROR_WANT_ACCEPT:
             case SSL_ERROR_WANT_X509_LOOKUP:
 #ifndef HAVE_OPENBSD
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
             case SSL_ERROR_WANT_ASYNC:
             case SSL_ERROR_WANT_ASYNC_JOB:
-#if (OPENSSL_VERSION_NUMBER >= 0x10101000L)
             case SSL_ERROR_WANT_CLIENT_HELLO_CB:
-#endif
-#endif
 #endif
                keep_read = true;
                break;
@@ -907,13 +903,9 @@ ssl_write_message(SSL* ssl, struct message* msg)
             case SSL_ERROR_WANT_ACCEPT:
             case SSL_ERROR_WANT_X509_LOOKUP:
 #ifndef HAVE_OPENBSD
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
             case SSL_ERROR_WANT_ASYNC:
             case SSL_ERROR_WANT_ASYNC_JOB:
-#if (OPENSSL_VERSION_NUMBER >= 0x10101000L)
             case SSL_ERROR_WANT_CLIENT_HELLO_CB:
-#endif
-#endif
 #endif
                errno = 0;
                keep_write = true;

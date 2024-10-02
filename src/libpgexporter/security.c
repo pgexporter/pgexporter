@@ -411,13 +411,9 @@ pgexporter_remote_management_scram_sha256(char* username, char* password, int se
                            case SSL_ERROR_WANT_ACCEPT:
                            case SSL_ERROR_WANT_X509_LOOKUP:
 #ifndef HAVE_OPENBSD
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
                            case SSL_ERROR_WANT_ASYNC:
                            case SSL_ERROR_WANT_ASYNC_JOB:
-#if (OPENSSL_VERSION_NUMBER >= 0x10101000L)
                            case SSL_ERROR_WANT_CLIENT_HELLO_CB:
-#endif
-#endif
 #endif
                               break;
                            case SSL_ERROR_SYSCALL:
@@ -1111,13 +1107,9 @@ pgexporter_server_authenticate(int server, char* database, char* username, char*
                case SSL_ERROR_WANT_ACCEPT:
                case SSL_ERROR_WANT_X509_LOOKUP:
 #ifndef HAVE_OPENBSD
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
                case SSL_ERROR_WANT_ASYNC:
                case SSL_ERROR_WANT_ASYNC_JOB:
-#if (OPENSSL_VERSION_NUMBER >= 0x10101000L)
                case SSL_ERROR_WANT_CLIENT_HELLO_CB:
-#endif
-#endif
 #endif
                   break;
                case SSL_ERROR_SYSCALL:
@@ -1956,11 +1948,6 @@ error:
 static int
 derive_key_iv(char* password, unsigned char* key, unsigned char* iv)
 {
-
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-   OpenSSL_add_all_algorithms();
-#endif
-
    if (!EVP_BytesToKey(EVP_aes_256_cbc(), EVP_sha1(), NULL,
                        (unsigned char*) password, strlen(password), 1,
                        key, iv))
@@ -2220,14 +2207,7 @@ client_proof(char* password, char* salt, int salt_length, int iterations,
    unsigned char* c_s = NULL;
    unsigned int length;
    unsigned char* r = NULL;
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
    HMAC_CTX* ctx = HMAC_CTX_new();
-#else
-   HMAC_CTX hctx;
-   HMAC_CTX* ctx = &hctx;
-
-   HMAC_CTX_init(ctx);
-#endif
 
    if (salted_password(password, salt, salt_length, iterations, &s_p, &s_p_length))
    {
@@ -2295,11 +2275,7 @@ client_proof(char* password, char* salt, int salt_length, int iterations,
    *result = r;
    *result_length = size;
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
    HMAC_CTX_free(ctx);
-#else
-   HMAC_CTX_cleanup(ctx);
-#endif
 
    free(s_p);
    free(c_k);
@@ -2315,11 +2291,7 @@ error:
 
    if (ctx != NULL)
    {
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
       HMAC_CTX_free(ctx);
-#else
-      HMAC_CTX_cleanup(ctx);
-#endif
    }
 
    free(s_p);
@@ -2340,14 +2312,7 @@ salted_password(char* password, char* salt, int salt_length, int iterations, uns
    unsigned char Ui_prev[size];
    unsigned int Ui_length;
    unsigned char* r = NULL;
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
    HMAC_CTX* ctx = HMAC_CTX_new();
-#else
-   HMAC_CTX hctx;
-   HMAC_CTX* ctx = &hctx;
-
-   HMAC_CTX_init(ctx);
-#endif
 
    if (ctx == NULL)
    {
@@ -2392,12 +2357,10 @@ salted_password(char* password, char* salt, int salt_length, int iterations, uns
 
    for (int i = 2; i <= iterations; i++)
    {
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
       if (HMAC_CTX_reset(ctx) != 1)
       {
          goto error;
       }
-#endif
 
       if (HMAC_Init_ex(ctx, password, password_length, EVP_sha256(), NULL) != 1)
       {
@@ -2424,11 +2387,7 @@ salted_password(char* password, char* salt, int salt_length, int iterations, uns
    *result = r;
    *result_length = size;
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
    HMAC_CTX_free(ctx);
-#else
-   HMAC_CTX_cleanup(ctx);
-#endif
 
    return 0;
 
@@ -2436,11 +2395,7 @@ error:
 
    if (ctx != NULL)
    {
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
       HMAC_CTX_free(ctx);
-#else
-      HMAC_CTX_cleanup(ctx);
-#endif
    }
 
    *result = NULL;
@@ -2455,14 +2410,7 @@ salted_password_key(unsigned char* salted_password, int salted_password_length, 
    size_t size = 32;
    unsigned char* r = NULL;
    unsigned int length;
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
    HMAC_CTX* ctx = HMAC_CTX_new();
-#else
-   HMAC_CTX hctx;
-   HMAC_CTX* ctx = &hctx;
-
-   HMAC_CTX_init(ctx);
-#endif
 
    if (ctx == NULL)
    {
@@ -2491,11 +2439,7 @@ salted_password_key(unsigned char* salted_password, int salted_password_length, 
    *result = r;
    *result_length = size;
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
    HMAC_CTX_free(ctx);
-#else
-   HMAC_CTX_cleanup(ctx);
-#endif
 
    return 0;
 
@@ -2503,11 +2447,7 @@ error:
 
    if (ctx != NULL)
    {
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
       HMAC_CTX_free(ctx);
-#else
-      HMAC_CTX_cleanup(ctx);
-#endif
    }
 
    *result = NULL;
@@ -2522,13 +2462,7 @@ stored_key(unsigned char* client_key, int client_key_length, unsigned char** res
    size_t size = 32;
    unsigned char* r = NULL;
    unsigned int length;
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
-#else
-   EVP_MD_CTX* ctx = EVP_MD_CTX_create();
-
-   EVP_MD_CTX_init(ctx);
-#endif
 
    if (ctx == NULL)
    {
@@ -2557,11 +2491,7 @@ stored_key(unsigned char* client_key, int client_key_length, unsigned char** res
    *result = r;
    *result_length = size;
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
    EVP_MD_CTX_free(ctx);
-#else
-   EVP_MD_CTX_destroy(ctx);
-#endif
 
    return 0;
 
@@ -2569,11 +2499,7 @@ error:
 
    if (ctx != NULL)
    {
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
       EVP_MD_CTX_free(ctx);
-#else
-      EVP_MD_CTX_destroy(ctx);
-#endif
    }
 
    *result = NULL;
@@ -2637,14 +2563,7 @@ server_signature(char* password, char* salt, int salt_length, int iterations,
    int s_k_length;
    unsigned int length;
    bool do_free = true;
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
    HMAC_CTX* ctx = HMAC_CTX_new();
-#else
-   HMAC_CTX hctx;
-   HMAC_CTX* ctx = &hctx;
-
-   HMAC_CTX_init(ctx);
-#endif
 
    if (ctx == NULL)
    {
@@ -2712,11 +2631,7 @@ server_signature(char* password, char* salt, int salt_length, int iterations,
    *result = r;
    *result_length = length;
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
    HMAC_CTX_free(ctx);
-#else
-   HMAC_CTX_cleanup(ctx);
-#endif
 
    free(s_p);
    if (do_free)
@@ -2733,11 +2648,7 @@ error:
 
    if (ctx != NULL)
    {
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
       HMAC_CTX_free(ctx);
-#else
-      HMAC_CTX_cleanup(ctx);
-#endif
    }
 
    free(s_p);
@@ -2754,20 +2665,6 @@ create_ssl_ctx(bool client, SSL_CTX** ctx)
 {
    SSL_CTX* c = NULL;
 
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-   OpenSSL_add_all_algorithms();
-#endif
-
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-   if (client)
-   {
-      c = SSL_CTX_new(TLSv1_2_client_method());
-   }
-   else
-   {
-      c = SSL_CTX_new(TLSv1_2_server_method());
-   }
-#else
    if (client)
    {
       c = SSL_CTX_new(TLS_client_method());
@@ -2776,23 +2673,16 @@ create_ssl_ctx(bool client, SSL_CTX** ctx)
    {
       c = SSL_CTX_new(TLS_server_method());
    }
-#endif
 
    if (c == NULL)
    {
       goto error;
    }
 
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-   SSL_CTX_set_options(c, SSL_OP_NO_SSLv3);
-   SSL_CTX_set_options(c, SSL_OP_NO_TLSv1);
-   SSL_CTX_set_options(c, SSL_OP_NO_TLSv1_1);
-#else
    if (SSL_CTX_set_min_proto_version(c, TLS1_2_VERSION) == 0)
    {
       goto error;
    }
-#endif
 
    SSL_CTX_set_mode(c, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
    SSL_CTX_set_options(c, SSL_OP_NO_TICKET);
