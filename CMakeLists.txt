@@ -84,6 +84,13 @@ else ()
   message(FATAL_ERROR "rst2man needed")
 endif()
 
+find_package(THREAD)
+if (THREAD_FOUND)
+  message(STATUS "pthread found")
+else ()
+  message(FATAL_ERROR "pthread needed")
+endif()
+
 find_package(Pandoc)
 if (PANDOC_FOUND)
   message(STATUS "pandoc found")
