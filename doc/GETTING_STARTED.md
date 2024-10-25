@@ -78,7 +78,7 @@ a master key, and the `pgexporter` password
 
 ```
 pgexporter-admin master-key
-pgexporter-admin -f pgexporter_users.conf add-user
+pgexporter-admin -f pgexporter_users.conf user add
 ```
 
 We are now ready to run `pgexporter`.
@@ -174,10 +174,11 @@ Options:
 
 Commands:
   master-key              Create or update the master key
-  add-user                Add a user
-  update-user             Update a user
-  remove-user             Remove a user
-  list-users              List all users
+  user <subcommand>       Manage a specific user, where <subcommand> can be
+                          - add  to add a new user
+                          - del  to remove an existing user
+                          - edit to change the password for an existing user
+                          - ls   to list all available users
 ```
 
 In order to set the master key for all users you can use
@@ -191,7 +192,7 @@ The master key must be at least 8 characters.
 Then use the other commands to add, update, remove or list the current user names, f.ex.
 
 ```
-pgexporter-admin -f pgexporter_users.conf add-user
+pgexporter-admin -f pgexporter_users.conf user add
 ```
 
 ## Next Steps

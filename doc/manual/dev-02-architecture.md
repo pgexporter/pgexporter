@@ -92,7 +92,7 @@ However, some configuration settings requires a full restart of [**pgexporter**]
 * `unix_socket_dir`
 * `pidfile`
 
-The configuration can also be reloaded using `pgexporter-cli -c pgexporter.conf reload`. The command is only supported
+The configuration can also be reloaded using `pgexporter-cli -c pgexporter.conf conf reload`. The command is only supported
 over the local interface, and hence doesn't work remotely.
 
 ## Prometheus

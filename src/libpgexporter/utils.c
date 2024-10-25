@@ -33,6 +33,7 @@
 
 /* system */
 #include <dirent.h>
+#include <err.h>
 #include <errno.h>
 #include <ev.h>
 #include <fcntl.h>
@@ -319,6 +320,12 @@ pgexporter_read_byte(void* data)
    return (signed char) *((char*)data);
 }
 
+uint8_t
+pgexporter_read_uint8(void* data)
+{
+   return (uint8_t) *((char*)data);
+}
+
 int16_t
 pgexporter_read_int16(void* data)
 {
@@ -343,6 +350,22 @@ pgexporter_read_int32(void* data)
                  (((uint32_t) bytes[1] << 16)) |
                  (((uint32_t) bytes[2] << 8)) |
                  (((uint32_t) bytes[3]));
+
+   return res;
+}
+
+uint32_t
+pgexporter_read_uint32(void* data)
+{
+   uint8_t bytes[] = {*((uint8_t*)data),
+                      *((uint8_t*)(data + 1)),
+                      *((uint8_t*)(data + 2)),
+                      *((uint8_t*)(data + 3))};
+
+   uint32_t res = (uint32_t)(((uint32_t)bytes[0] << 24)) |
+                  (((uint32_t)bytes[1] << 16)) |
+                  (((uint32_t)bytes[2] << 8)) |
+                  (((uint32_t)bytes[3]));
 
    return res;
 }
@@ -378,6 +401,12 @@ pgexporter_write_byte(void* data, signed char b)
 }
 
 void
+pgexporter_write_uint8(void* data, uint8_t b)
+{
+   *((uint8_t*)(data)) = b;
+}
+
+void
 pgexporter_write_int32(void* data, int32_t i)
 {
    char* ptr = (char*)&i;
@@ -389,6 +418,20 @@ pgexporter_write_int32(void* data, int32_t i)
    *((char*)(data + 1)) = *ptr;
    ptr++;
    *((char*)(data)) = *ptr;
+}
+
+void
+pgexporter_write_uint32(void* data, uint32_t i)
+{
+   uint8_t* ptr = (uint8_t*)&i;
+
+   *((uint8_t*)(data + 3)) = *ptr;
+   ptr++;
+   *((uint8_t*)(data + 2)) = *ptr;
+   ptr++;
+   *((uint8_t*)(data + 1)) = *ptr;
+   ptr++;
+   *((uint8_t*)(data)) = *ptr;
 }
 
 void
@@ -1327,6 +1370,34 @@ error:
    return 1;
 }
 
+char*
+pgexporter_get_timestamp_string(time_t start_time, time_t end_time, int32_t* seconds)
+{
+   int32_t total_seconds;
+   int hours;
+   int minutes;
+   int sec;
+   char elapsed[128];
+   char* result = NULL;
+
+   *seconds = 0;
+
+   total_seconds = (int32_t)difftime(end_time, start_time);
+
+   *seconds = total_seconds;
+
+   hours = total_seconds / 3600;
+   minutes = (total_seconds % 3600) / 60;
+   sec = total_seconds % 60;
+
+   memset(&elapsed[0], 0, sizeof(elapsed));
+   sprintf(&elapsed[0], "%02i:%02i:%02i", hours, minutes, sec);
+
+   result = pgexporter_append(result, &elapsed[0]);
+
+   return result;
+}
+
 int
 pgexporter_delete_file(char* file)
 {
@@ -2071,6 +2142,157 @@ pgexporter_escape_string(char* str)
    translated_ec_string[idx] = '\0'; // terminator
 
    return translated_ec_string;
+}
+
+/* Parser for pgexporter-cli amd pgexporter-admin commands */
+bool
+parse_command(int argc,
+              char** argv,
+              int offset,
+              struct pgexporter_parsed_command* parsed,
+              const struct pgexporter_command command_table[],
+              size_t command_count)
+{
+   char* command = NULL;
+   char* subcommand = NULL;
+   bool command_match = false;
+   int default_command_match = -1;
+   int arg_count = -1;
+   int command_index = -1;
+   int j;
+
+   /* Parse command, and exit if there is no match */
+   if (offset < argc)
+   {
+      command = argv[offset++];
+   }
+   else
+   {
+      warnx("A command is required\n");
+      return false;
+   }
+
+   if (offset < argc)
+   {
+      subcommand = argv[offset];
+   }
+
+   for (size_t i = 0; i < command_count; i++)
+   {
+      if (strncmp(command, command_table[i].command, MISC_LENGTH) == 0)
+      {
+         command_match = true;
+         if (subcommand && strncmp(subcommand, command_table[i].subcommand, MISC_LENGTH) == 0)
+         {
+            offset++;
+            command_index = i;
+            break;
+         }
+         else if (EMPTY_STR(command_table[i].subcommand))
+         {
+            /* Default command does not require a subcommand, might be followed by an argument */
+            default_command_match = i;
+         }
+      }
+   }
+
+   if (command_match == false)
+   {
+      warnx("Unknown command '%s'\n", command);
+      return false;
+   }
+
+   if (command_index == -1 && default_command_match >= 0)
+   {
+      command_index = default_command_match;
+      subcommand = "";
+   }
+   else if (command_index == -1)  /* Command was matched, but subcommand was not */
+   {
+      if (subcommand)
+      {
+         warnx("Unknown subcommand '%s' for command '%s'\n", subcommand, command);
+      }
+      else  /* User did not type a subcommand */
+      {
+         warnx("Command '%s' requires a subcommand\n", command);
+      }
+      return false;
+   }
+
+   parsed->cmd = &command_table[command_index];
+
+   /* Iterate until find an accepted_arg_count that is equal or greater than the typed command arg_count */
+   arg_count = argc - offset;
+   for (j = 0; j < MISC_LENGTH; j++)
+   {
+      if (parsed->cmd->accepted_argument_count[j] >= arg_count)
+      {
+         break;
+      }
+   }
+   if (arg_count < parsed->cmd->accepted_argument_count[0])
+   {
+      warnx("Too few arguments provided for command '%s%s%s'\n", command,
+            (command && !EMPTY_STR(subcommand)) ? " " : "", subcommand);
+      return false;
+   }
+   if (j == MISC_LENGTH || arg_count > parsed->cmd->accepted_argument_count[j])
+   {
+      warnx("Too many arguments provided for command '%s%s%s'\n", command,
+            (command && !EMPTY_STR(subcommand)) ? " " : "", subcommand);
+      return false;
+   }
+
+   /* Copy argv + offset pointers into parsed->args */
+   for (int i = 0; i < arg_count; i++)
+   {
+      parsed->args[i] = argv[i + offset];
+   }
+   parsed->args[0] = parsed->args[0] ? parsed->args[0] : (char*) parsed->cmd->default_argument;
+
+   /* Warn the user if there is enough information about deprecation */
+   if (parsed->cmd->deprecated
+       && pgexporter_version_ge(parsed->cmd->deprecated_since_major,
+                                parsed->cmd->deprecated_since_minor, 0))
+   {
+      warnx("command <%s> has been deprecated by <%s> since version %d.%d",
+            parsed->cmd->command,
+            parsed->cmd->deprecated_by,
+            parsed->cmd->deprecated_since_major,
+            parsed->cmd->deprecated_since_minor);
+   }
+
+   return true;
+}
+
+unsigned int
+pgexporter_version_as_number(unsigned int major, unsigned int minor, unsigned int patch)
+{
+   return (patch % 100)
+          + (minor % 100) * 100
+          + (major % 100) * 10000;
+}
+
+unsigned int
+pgexporter_version_number(void)
+{
+   return pgexporter_version_as_number(PGEXPORTER_MAJOR_VERSION,
+                                       PGEXPORTER_MINOR_VERSION,
+                                       PGEXPORTER_PATCH_VERSION);
+}
+
+bool
+pgexporter_version_ge(unsigned int major, unsigned int minor, unsigned int patch)
+{
+   if (pgexporter_version_number() >= pgexporter_version_as_number(major, minor, patch))
+   {
+      return true;
+   }
+   else
+   {
+      return false;
+   }
 }
 
 static int

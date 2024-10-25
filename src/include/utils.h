@@ -47,6 +47,83 @@ struct signal_info
    int slot;                /**< The slot */
 };
 
+/** @struct pgexporter_command
+ * Defines pgexporter commands.
+ * The necessary fields are marked with an ">".
+ *
+ * Fields:
+ * > command: The primary name of the command.
+ * > subcommand: The subcommand name. If there is no subcommand, it should be filled with an empty literal string.
+ * > accepted_argument_count: An array defining all the number of arguments this command accepts.
+ *    Each entry represents a valid count of arguments, allowing the command to support overloads.
+ * - default_argument: A default value for the command argument, used when no explicit argument is provided.
+ * - log_message: A template string for logging command execution, which can include placeholders for dynamic values.
+ * > action: A value indicating the specific action.
+ * - mode: A value specifying the mode of operation or context in which the command applies.
+ * > deprecated: A flag indicating whether this command is deprecated.
+ * - deprecated_by: A string naming the command that replaces the deprecated command.
+ *
+ * This struct is key to extending and maintaining the command processing functionality in pgexporter,
+ * allowing for clear definition and handling of all supported commands.
+ */
+struct pgexporter_command
+{
+   const char* command;                            /**< The command */
+   const char* subcommand;                         /**< The subcommand if there is one */
+   const int accepted_argument_count[MISC_LENGTH]; /**< The argument count */
+
+   const int action;                               /**< The specific action */
+   const char* default_argument;                   /**< The default argument */
+   const char* log_message;                        /**< The log message used */
+
+   /* Deprecation information */
+   bool deprecated;                                /**< Is the command deprecated */
+   unsigned int deprecated_since_major;            /**< Deprecated since major version */
+   unsigned int deprecated_since_minor;            /**< Deprecated since minor version */
+   const char* deprecated_by;                      /**< Deprecated by this command */
+};
+
+/** @struct pgexporter_parsed_command
+ * Holds parsed command data.
+ *
+ * Fields:
+ * - cmd: A pointer to the command struct that was parsed.
+ * - args: An array of pointers to the parsed arguments of the command (points to argv).
+ */
+struct pgexporter_parsed_command
+{
+   const struct pgexporter_command* cmd; /**< The command */
+   char* args[MISC_LENGTH];            /**< The arguments */
+};
+
+/**
+ * Utility function to parse the command line
+ * and search for a command.
+ *
+ * The function tries to be smart, in helping to find out
+ * a command with the possible subcommand.
+ *
+ * @param argc the command line counter
+ * @param argv the command line as provided to the application
+ * @param offset the position at which the next token out of `argv`
+ * has to be read. This is usually the `optind` set by getopt_long().
+ * @param parsed an `struct pgexporter_parsed_command` to hold the parsed
+ * data. It is modified inside the function to be accessed outside.
+ * @param command_table array containing one `struct pgexporter_command` for
+ * every possible command.
+ * @param command_count number of commands in `command_table`.
+ * @return true if the parsing of the command line was succesful, false
+ * otherwise
+ *
+ */
+bool
+parse_command(int argc,
+              char** argv,
+              int offset,
+              struct pgexporter_parsed_command* parsed,
+              const struct pgexporter_command command_table[],
+              size_t command_count);
+
 /**
  * Get the request identifier
  * @param msg The message
@@ -116,6 +193,14 @@ signed char
 pgexporter_read_byte(void* data);
 
 /**
+ * Read an uint8
+ * @param data Pointer to the data
+ * @return The uint8
+ */
+uint8_t
+pgexporter_read_uint8(void* data);
+
+/**
  * Read an int16
  * @param data Pointer to the data
  * @return The int16
@@ -130,6 +215,14 @@ pgexporter_read_int16(void* data);
  */
 int32_t
 pgexporter_read_int32(void* data);
+
+/**
+ * Read an uint32
+ * @param data Pointer to the data
+ * @return The uint32
+ */
+uint32_t
+pgexporter_read_uint32(void* data);
 
 /**
  * Read an int64
@@ -148,12 +241,28 @@ void
 pgexporter_write_byte(void* data, signed char b);
 
 /**
+ * Write a uint8
+ * @param data Pointer to the data
+ * @param b The uint8
+ */
+void
+pgexporter_write_uint8(void* data, uint8_t b);
+
+/**
  * Write an int32
  * @param data Pointer to the data
  * @param i The int32
  */
 void
 pgexporter_write_int32(void* data, int32_t i);
+
+/**
+ * Write an uint32
+ * @param data Pointer to the data
+ * @param i The uint32
+ */
+void
+pgexporter_write_uint32(void* data, uint32_t i);
 
 /**
  * Write an int64
@@ -402,6 +511,16 @@ int
 pgexporter_get_files(char* base, int* number_of_files, char*** files);
 
 /**
+ * Get the timestramp difference as a string
+ * @param start_time The start time
+ * @param end_time The end time
+ * @param seconds The number of seconds
+ * @return The timestamp string
+ */
+char*
+pgexporter_get_timestamp_string(time_t start_time, time_t end_time, int32_t* seconds);
+
+/**
  * Remove a file
  * @param file The file
  * @return The result
@@ -599,6 +718,43 @@ pgexporter_read_wal(char* directory, char** wal);
  */
 char*
 pgexporter_escape_string(char* str);
+
+/**
+ * Provide the application version number as a unique value composed of the three
+ * specified parts. For example, when invoked with (1,5,0) it returns 10500.
+ * Every part of the number must be between 0 and 99, and the function
+ * applies a restriction on the values. For example passing 1 or 101 as one of the part
+ * will produce the same result.
+ *
+ * @param major the major version number
+ * @param minor the minor version number
+ * @param patch the patch level
+ * @returns a number made by (patch + minor * 100 + major * 10000 )
+ */
+unsigned int
+pgexporter_version_as_number(unsigned int major, unsigned int minor, unsigned int patch);
+
+/**
+ * Provides the current version number of the application.
+ * It relies on `pgexporter_version_as_number` and invokes it with the
+ * predefined constants.
+ *
+ * @returns the current version number
+ */
+unsigned int
+pgexporter_version_number(void);
+
+/**
+ * Checks if the currently running version number is
+ * greater or equal than the specied one.
+ *
+ * @param major the major version number
+ * @param minor the minor version number
+ * @param patch the patch level
+ * @returns true if the current version is greater or equal to the specified one
+ */
+bool
+pgexporter_version_ge(unsigned int major, unsigned int minor, unsigned int patch);
 
 #ifdef DEBUG
 

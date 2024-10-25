@@ -118,18 +118,19 @@ Options:
   -?, --help               Display help
 
 Commands:
-  is-alive                 Is pgexporter alive
-  stop                     Stop pgexporter
-  status                   Status of pgexporter
-  details                  Detailed status of pgexporter
-  reload                   Reload the configuration
-  reset                    Reset the Prometheus statistics
+  ping                     Check if pgexporter is alive
+  shutdown                 Shutdown pgexporter
+  status [details]         Status of pgexporter, with optional details
+  conf <action>            Manage the configuration, with one of subcommands:
+                           - 'reload' to reload the configuration
+  clear <what>             Clear data, with:
+                           - 'prometheus' to reset the Prometheus statistics
 ```
 
-To stop pgexporter you would use
+To shutdown pgexporter you would use
 
 ```
-pgexporter-cli -c pgexporter.conf stop
+pgexporter-cli -c pgexporter.conf shutdown
 ```
 
 Check the outcome of the operations by verifying the exit code, like
@@ -168,10 +169,11 @@ Options:
 
 Commands:
   master-key              Create or update the master key
-  add-user                Add a user
-  update-user             Update a user
-  remove-user             Remove a user
-  list-users              List all users
+  user <subcommand>       Manage a specific user, where <subcommand> can be
+                          - add  to add a new user
+                          - del  to remove an existing user
+                          - edit to change the password for an existing user
+                          - ls   to list all available users
 ```
 
 In order to set the master key for all users you can use

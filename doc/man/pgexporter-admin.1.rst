@@ -48,16 +48,16 @@ COMMANDS
 master-key
   Create or update the master key. The master key will be created in the pgexporter user home directory under ~/.pgexporter
 
-add-user
+user add
   Add a user
 
-update-user
-  Update a user
+user edit
+  Edit a user
 
-remove-user
-  Remove a user
+user user del
+  Delete a user
 
-list-users
+user ls
   List all users
 
 REPORTING BUGS

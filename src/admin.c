@@ -28,9 +28,9 @@
 
 /* pgexporter */
 #include <pgexporter.h>
-#include <aes.h>
 #include <logging.h>
 #include <security.h>
+#include <aes.h>
 #include <utils.h>
 
 /* system */
@@ -58,7 +58,7 @@
 static char CHARS[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
                        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
                        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-                       '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '=', '+', '[', '{', ']', '}', '\\', '|', ';', ':',
+                       '!', '@', '$', '%', '^', '&', '*', '(', ')', '-', '_', '=', '+', '[', '{', ']', '}', '\\', '|', ':',
                        '\'', '\"', ',', '<', '.', '>', '/', '?'};
 
 static int master_key(char* password, bool generate_pwd, int pwd_length);
@@ -68,6 +68,50 @@ static int update_user(char* users_path, char* username, char* password, bool ge
 static int remove_user(char* users_path, char* username);
 static int list_users(char* users_path);
 static char* generate_password(int pwd_length);
+
+const struct pgexporter_command command_table[] =
+{
+   {
+      .command = "master-key",
+      .subcommand = "",
+      .accepted_argument_count = {0},
+      .deprecated = false,
+      .action = ACTION_MASTER_KEY,
+      .log_message = "<master-key>",
+   },
+   {
+      .command = "user",
+      .subcommand = "add",
+      .accepted_argument_count = {0},
+      .deprecated = false,
+      .action = ACTION_ADD_USER,
+      .log_message = "<user add> [%s]",
+   },
+   {
+      .command = "user",
+      .subcommand = "edit",
+      .accepted_argument_count = {0},
+      .deprecated = false,
+      .action = ACTION_UPDATE_USER,
+      .log_message = "<user edit> [%s]",
+   },
+   {
+      .command = "user",
+      .subcommand = "del",
+      .accepted_argument_count = {0},
+      .deprecated = false,
+      .action = ACTION_REMOVE_USER,
+      .log_message = "<user del> [%s]",
+   },
+   {
+      .command = "user",
+      .subcommand = "ls",
+      .accepted_argument_count = {0},
+      .deprecated = false,
+      .action = ACTION_LIST_USERS,
+      .log_message = "<user ls>",
+   },
+};
 
 static void
 version(void)
@@ -97,10 +141,11 @@ usage(void)
    printf("\n");
    printf("Commands:\n");
    printf("  master-key              Create or update the master key\n");
-   printf("  add-user                Add a user\n");
-   printf("  update-user             Update a user\n");
-   printf("  remove-user             Remove a user\n");
-   printf("  list-users              List all users\n");
+   printf("  user <subcommand>       Manage a specific user, where <subcommand> can be\n");
+   printf("                          - add  to add a new user\n");
+   printf("                          - del  to remove an existing user\n");
+   printf("                          - edit to change the password for an existing user\n");
+   printf("                          - ls   to list all available users\n");
    printf("\n");
    printf("pgexporter: %s\n", PGEXPORTER_HOMEPAGE);
    printf("Report bugs: %s\n", PGEXPORTER_ISSUES);
@@ -109,7 +154,6 @@ usage(void)
 int
 main(int argc, char** argv)
 {
-   int exit_code = 0;
    int c;
    char* username = NULL;
    char* password = NULL;
@@ -117,7 +161,8 @@ main(int argc, char** argv)
    bool generate_pwd = false;
    int pwd_length = DEFAULT_PASSWORD_LENGTH;
    int option_index = 0;
-   int32_t action = ACTION_UNKNOWN;
+   size_t command_count = sizeof(command_table) / sizeof(struct pgexporter_command);
+   struct pgexporter_parsed_command parsed = {.cmd = NULL, .args = {0}};
 
    // Disable stdout buffering (i.e. write to stdout immediatelly).
    setbuf(stdout, NULL);
@@ -132,8 +177,7 @@ main(int argc, char** argv)
          {"generate", no_argument, 0, 'g'},
          {"length", required_argument, 0, 'l'},
          {"version", no_argument, 0, 'V'},
-         {"help", no_argument, 0, '?'},
-         {0, 0, 0, 0}
+         {"help", no_argument, 0, '?'}
       };
 
       c = getopt_long(argc, argv, "gV?f:U:P:l:",
@@ -175,114 +219,67 @@ main(int argc, char** argv)
 
    if (getuid() == 0)
    {
-      warnx("pgexporter: Using the root account is not allowed");
-      exit(1);
+      errx(1, "pgexporter: Using the root account is not allowed");
    }
 
-   if (argc > 0)
-   {
-      if (!strcmp("master-key", argv[argc - 1]))
-      {
-         action = ACTION_MASTER_KEY;
-      }
-      else if (!strcmp("add-user", argv[argc - 1]))
-      {
-         action = ACTION_ADD_USER;
-      }
-      else if (!strcmp("update-user", argv[argc - 1]))
-      {
-         action = ACTION_UPDATE_USER;
-      }
-      else if (!strcmp("remove-user", argv[argc - 1]))
-      {
-         action = ACTION_REMOVE_USER;
-      }
-      else if (!strcmp("list-users", argv[argc - 1]))
-      {
-         action = ACTION_LIST_USERS;
-      }
-
-      if (action == ACTION_MASTER_KEY)
-      {
-         if (master_key(password, generate_pwd, pwd_length))
-         {
-            warnx("Error for master key");
-            exit_code = 1;
-         }
-      }
-      else if (action == ACTION_ADD_USER)
-      {
-         if (file_path != NULL)
-         {
-            if (add_user(file_path, username, password, generate_pwd, pwd_length))
-            {
-               warnx("Error for add-user");
-               exit_code = 1;
-            }
-         }
-         else
-         {
-            warnx("Missing file argument");
-            exit_code = 1;
-         }
-      }
-      else if (action == ACTION_UPDATE_USER)
-      {
-         if (file_path != NULL)
-         {
-            if (update_user(file_path, username, password, generate_pwd, pwd_length))
-            {
-               warnx("Error for update-user");
-               exit_code = 1;
-            }
-         }
-         else
-         {
-            warnx("Missing file argument");
-            exit_code = 1;
-         }
-      }
-      else if (action == ACTION_REMOVE_USER)
-      {
-         if (file_path != NULL)
-         {
-            if (remove_user(file_path, username))
-            {
-               warnx("Error for remove-user");
-               exit_code = 1;
-            }
-         }
-         else
-         {
-            warnx("Missing file argument");
-            exit_code = 1;
-         }
-      }
-      else if (action == ACTION_LIST_USERS)
-      {
-         if (file_path != NULL)
-         {
-            if (list_users(file_path))
-            {
-               warnx("Error for list-users");
-               exit_code = 1;
-            }
-         }
-         else
-         {
-            warnx("Missing file argument");
-            exit_code = 1;
-         }
-      }
-   }
-
-   if (action == ACTION_UNKNOWN)
+   if (!parse_command(argc, argv, optind, &parsed, command_table, command_count))
    {
       usage();
-      exit_code = 1;
+      goto error;
    }
 
-   return exit_code;
+   if (parsed.cmd->action == ACTION_MASTER_KEY)
+   {
+      if (master_key(password, generate_pwd, pwd_length))
+      {
+         errx(1, "Cannot generate master key");
+      }
+   }
+   else
+   {
+      if (file_path == NULL)
+      {
+         errx(1, "Missing file argument");
+      }
+
+      if (parsed.cmd->action == ACTION_ADD_USER)
+      {
+         if (add_user(file_path, username, password, generate_pwd, pwd_length))
+         {
+            errx(1, "Error for <user add>");
+         }
+      }
+      else if (parsed.cmd->action == ACTION_UPDATE_USER)
+      {
+         if (update_user(file_path, username, password, generate_pwd, pwd_length))
+         {
+            errx(1, "Error for <user edit>");
+         }
+      }
+      else if (parsed.cmd->action == ACTION_REMOVE_USER)
+      {
+
+         if (remove_user(file_path, username))
+         {
+            errx(1, "Error for <user del>");
+         }
+      }
+      else if (parsed.cmd->action == ACTION_LIST_USERS)
+      {
+
+         if (list_users(file_path))
+         {
+            errx(1, "Error for <user ls>");
+         }
+
+      }
+   }
+
+   exit(0);
+
+error:
+
+   exit(1);
 }
 
 static int
@@ -446,16 +443,18 @@ is_valid_key(char* key)
 
    if (strlen(key) < 8)
    {
+      warnx("Master key must be at least 8 characters long");
       return false;
    }
 
-   for (int i = 0; i < strlen(key); i++)
+   for (size_t i = 0; i < strlen(key); i++)
    {
       c = *(key + i);
 
       /* Only support ASCII for now */
       if ((unsigned char)c & 0x80)
       {
+         warnx("Master key cannot contain non-ASCII characters");
          return false;
       }
    }
@@ -467,7 +466,8 @@ static int
 add_user(char* users_path, char* username, char* password, bool generate_pwd, int pwd_length)
 {
    FILE* users_file = NULL;
-   char line[2 * MISC_LENGTH];
+   char line[MISC_LENGTH];
+   char* entry = NULL;
    char* master_key = NULL;
    char* ptr = NULL;
    char* encrypted = NULL;
@@ -525,7 +525,7 @@ username:
       ptr = strtok(line, ":");
       if (!strcmp(username, ptr))
       {
-         printf("Existing user: %s\n", username);
+         warnx("Existing user: %s", username);
          goto error;
       }
 
@@ -534,7 +534,7 @@ username:
 
    if (number_of_users > NUMBER_OF_USERS)
    {
-      printf("Too many users\n");
+      warnx("Too many users");
       goto error;
    }
 
@@ -563,7 +563,7 @@ password:
       printf("\n");
    }
 
-   for (int i = 0; i < strlen(password); i++)
+   for (size_t i = 0; i < strlen(password); i++)
    {
       if ((unsigned char)(*(password + i)) & 0x80)
       {
@@ -593,10 +593,14 @@ password:
    pgexporter_encrypt(password, master_key, &encrypted, &encrypted_length, ENCRYPTION_AES_256_CBC);
    pgexporter_base64_encode(encrypted, encrypted_length, &encoded, &encoded_length);
 
-   snprintf(line, sizeof(line), "%s:%s\n", username, encoded);
+   entry = pgexporter_append(entry, username);
+   entry = pgexporter_append(entry, ":");
+   entry = pgexporter_append(entry, encoded);
+   entry = pgexporter_append(entry, "\n");
 
-   fputs(line, users_file);
+   fputs(entry, users_file);
 
+   free(entry);
    free(master_key);
    free(encrypted);
    free(encoded);
@@ -612,6 +616,7 @@ password:
 
 error:
 
+   free(entry);
    free(master_key);
    free(encrypted);
    free(encoded);
@@ -635,8 +640,9 @@ update_user(char* users_path, char* username, char* password, bool generate_pwd,
    FILE* users_file = NULL;
    FILE* users_file_tmp = NULL;
    char tmpfilename[MISC_LENGTH];
-   char line[2 * MISC_LENGTH];
-   char line_copy[2 * MISC_LENGTH];
+   char line[MISC_LENGTH];
+   char line_copy[MISC_LENGTH];
+   char* entry = NULL;
    char* master_key = NULL;
    char* ptr = NULL;
    char* encrypted = NULL;
@@ -666,7 +672,7 @@ update_user(char* users_path, char* username, char* password, bool generate_pwd,
    users_file = fopen(users_path, "r");
    if (!users_file)
    {
-      warnx("%s not found", users_path);
+      warnx("%s not found\n", users_path);
       goto error;
    }
 
@@ -732,7 +738,7 @@ password:
             printf("\n");
          }
 
-         for (int i = 0; i < strlen(password); i++)
+         for (size_t i = 0; i < strlen(password); i++)
          {
             if ((unsigned char)(*(password + i)) & 0x80)
             {
@@ -763,9 +769,14 @@ password:
          pgexporter_base64_encode(encrypted, encrypted_length, &encoded, &encoded_length);
 
          memset(&line, 0, sizeof(line));
-         snprintf(line, sizeof(line), "%s:%s\n", username, encoded);
+         entry = NULL;
+         entry = pgexporter_append(entry, username);
+         entry = pgexporter_append(entry, ":");
+         entry = pgexporter_append(entry, encoded);
+         entry = pgexporter_append(entry, "\n");
 
-         fputs(line, users_file_tmp);
+         fputs(entry, users_file_tmp);
+         free(entry);
 
          found = true;
       }
@@ -972,7 +983,7 @@ generate_password(int pwd_length)
 
    srand((unsigned)time(&t));
 
-   for (int i = 0; i < s; i++)
+   for (size_t i = 0; i < s; i++)
    {
       *((char*)(pwd + i)) = CHARS[rand() % sizeof(CHARS)];
    }

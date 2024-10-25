@@ -218,7 +218,7 @@ You have to choose a password for the master key and it must be at least 8 chara
 then create vault
 
 ``` sh
-pgexporter-admin -f pgexporter_users.conf -U pgexporter -P secretpassword add-user
+pgexporter-admin -f pgexporter_users.conf -U pgexporter -P secretpassword user add
 ``` 
 
 Input the replication user and its password to grant [**pgexporter**](https://github.com/pgexporter/pgexporter) access to the database. Ensure that the information is correct.
@@ -254,10 +254,10 @@ Next we create a section called `[primary]` which has the information about our 
 pgexporter -c pgexporter.conf -u pgexporter_users.conf
 ```
 
-#### Stop pgexporter
+#### Shutdown pgexporter
 
 ``` sh
-pgexporter-cli -c pgexporter.conf stop
+pgexporter-cli -c pgexporter.conf shutdown
 ```
 
 ## Basic git guide

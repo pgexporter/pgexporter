@@ -34,149 +34,221 @@ extern "C" {
 #endif
 
 #include <pgexporter.h>
+#include <json.h>
 
 #include <stdbool.h>
 #include <stdlib.h>
 
 #include <openssl/ssl.h>
 
+/**
+ * Management header
+ */
+#define MANAGEMENT_COMPRESSION_NONE     0
+#define MANAGEMENT_COMPRESSION_GZIP     1
+#define MANAGEMENT_COMPRESSION_ZSTD     2
+#define MANAGEMENT_COMPRESSION_LZ4      3
+#define MANAGEMENT_COMPRESSION_BZIP2    4
+
+#define MANAGEMENT_ENCRYPTION_NONE      0
+#define MANAGEMENT_ENCRYPTION_AES256    1
+#define MANAGEMENT_ENCRYPTION_AES192    2
+#define MANAGEMENT_ENCRYPTION_AES128    3
+
+/**
+ * Management commands
+ */
 #define MANAGEMENT_TRANSFER_CONNECTION 1
-#define MANAGEMENT_STOP                2
+#define MANAGEMENT_SHUTDOWN            2
 #define MANAGEMENT_STATUS              3
-#define MANAGEMENT_DETAILS             4
-#define MANAGEMENT_ISALIVE             5
+#define MANAGEMENT_STATUS_DETAILS      4
+#define MANAGEMENT_PING                5
 #define MANAGEMENT_RESET               6
 #define MANAGEMENT_RELOAD              7
 
 /**
- * Read the management header
- * @param socket The socket descriptor
- * @param id The resulting management identifier
- * @return 0 upon success, otherwise 1
+ * Management categories
  */
-int
-pgexporter_management_read_header(int socket, signed char* id);
+#define MANAGEMENT_CATEGORY_HEADER   "Header"
+#define MANAGEMENT_CATEGORY_REQUEST  "Request"
+#define MANAGEMENT_CATEGORY_RESPONSE "Response"
+#define MANAGEMENT_CATEGORY_OUTCOME  "Outcome"
 
 /**
- * Read the management payload
- * @param socket The socket descriptor
- * @param id The management identifier
- * @param payload_i1 The resulting integer payload
- * @param payload_i2 The resulting integer payload
- * @return 0 upon success, otherwise 1
+ * Management arguments
  */
-int
-pgexporter_management_read_payload(int socket, signed char id, int* payload_i1, int* payload_i2);
+#define MANAGEMENT_ARGUMENT_ACTIVE                "Active"
+#define MANAGEMENT_ARGUMENT_CLIENT_VERSION        "ClientVersion"
+#define MANAGEMENT_ARGUMENT_COMMAND               "Command"
+#define MANAGEMENT_ARGUMENT_COMPRESSION           "Compression"
+#define MANAGEMENT_ARGUMENT_ENCRYPTION            "Encryption"
+#define MANAGEMENT_ARGUMENT_ERROR                 "Error"
+#define MANAGEMENT_ARGUMENT_MAJOR_VERSION         "MajorVersion"
+#define MANAGEMENT_ARGUMENT_MINOR_VERSION         "MinorVersion"
+#define MANAGEMENT_ARGUMENT_NUMBER_OF_SERVERS     "NumberOfServers"
+#define MANAGEMENT_ARGUMENT_OUTPUT                "Output"
+#define MANAGEMENT_ARGUMENT_RESTART               "Restart"
+#define MANAGEMENT_ARGUMENT_SERVER                "Server"
+#define MANAGEMENT_ARGUMENT_SERVERS               "Servers"
+#define MANAGEMENT_ARGUMENT_SERVER_VERSION        "ServerVersion"
+#define MANAGEMENT_ARGUMENT_STATUS                "Status"
+#define MANAGEMENT_ARGUMENT_TIME                  "Time"
+#define MANAGEMENT_ARGUMENT_TIMESTAMP             "Timestamp"
 
 /**
- * Management operation: Transfer a connection
- * @param slot The slot
- * @return 0 upon success, otherwise 1
+ * Management error
  */
-int
-pgexporter_management_transfer_connection(int server);
+#define MANAGEMENT_ERROR_BAD_PAYLOAD     1
+#define MANAGEMENT_ERROR_UNKNOWN_COMMAND 2
+#define MANAGEMENT_ERROR_ALLOCATION      3
+
+#define MANAGEMENT_ERROR_METRICS_NOFORK   100
+#define MANAGEMENT_ERROR_METRICS_NETWORK  101
+
+#define MANAGEMENT_ERROR_STATUS_NOFORK   700
+#define MANAGEMENT_ERROR_STATUS_NETWORK  701
+
+#define MANAGEMENT_ERROR_STATUS_DETAILS_NOFORK  800
+#define MANAGEMENT_ERROR_STATUS_DETAILS_NETWORK 801
 
 /**
- * Management operation: Stop
+ * Output formats
+ */
+#define MANAGEMENT_OUTPUT_FORMAT_TEXT 0
+#define MANAGEMENT_OUTPUT_FORMAT_JSON 1
+#define MANAGEMENT_OUTPUT_FORMAT_RAW  2
+
+/**
+ * Management operation: Shutdown
  * @param ssl The SSL connection
  * @param socket The socket descriptor
+ * @param compression The compress method for wire protocol
+ * @param encryption The encrypt method for wire protocol
+ * @param output_format The output format
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_management_stop(SSL* ssl, int socket);
+pgexporter_management_request_shutdown(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format);
 
 /**
  * Management operation: Status
  * @param ssl The SSL connection
  * @param socket The socket descriptor
+ * @param compression The compress method for wire protocol
+ * @param encryption The encrypt method for wire protocol
+ * @param output_format The output format
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_management_status(SSL* ssl, int socket);
-
-/**
- * Management: Read status
- * @param socket The socket
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_management_read_status(SSL* ssl, int socket);
-
-/**
- * Management: Write status
- * @param socket The socket
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_management_write_status(int socket);
+pgexporter_management_request_status(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format);
 
 /**
  * Management operation: Details
  * @param ssl The SSL connection
  * @param socket The socket
+ * @param compression The compress method for wire protocol
+ * @param encryption The encrypt method for wire protocol
+ * @param output_format The output format
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_management_details(SSL* ssl, int socket);
+pgexporter_management_request_details(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format);
 
 /**
- * Management: Read details
+ * Management operation: Ping
  * @param socket The socket
+ * @param compression The compress method for wire protocol
+ * @param encryption The encrypt method for wire protocol
+ * @param output_format The output format
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_management_read_details(SSL* ssl, int socket);
-
-/**
- * Management: Write details
- * @param socket The socket
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_management_write_details(int socket);
-
-/**
- * Management operation: isalive
- * @param socket The socket
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_management_isalive(SSL* ssl, int socket);
-
-/**
- * Management: Read isalive
- * @param socket The socket
- * @param status The resulting status
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_management_read_isalive(SSL* ssl, int socket, int* status);
-
-/**
- * Management: Write isalive
- * @param socket The socket
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_management_write_isalive(int socket);
+pgexporter_management_request_ping(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format);
 
 /**
  * Management operation: Reset
  * @param ssl The SSL connection
  * @param socket The socket
+ * @param compression The compress method for wire protocol
+ * @param encryption The encrypt method for wire protocol
+ * @param output_format The output format
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_management_reset(SSL* ssl, int socket);
+pgexporter_management_request_reset(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format);
 
 /**
  * Management operation: Reload
  * @param ssl The SSL connection
  * @param socket The socket
+ * @param compression The compress method for wire protocol
+ * @param encryption The encrypt method for wire protocol
+ * @param output_format The output format
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_management_reload(SSL* ssl, int socket);
+pgexporter_management_request_reload(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format);
+
+/**
+ * Create an ok response
+ * @param ssl The SSL connection
+ * @param socket The socket descriptor
+ * @param start_time The start time
+ * @param end_time The end time
+ * @param compression The compress method for wire protocol
+ * @param encryption The encrypt method for wire protocol
+ * @param payload The full payload
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_management_response_ok(SSL* ssl, int socket, time_t start_time, time_t end_time, uint8_t compression, uint8_t encryption, struct json* payload);
+
+/**
+ * Create an error response
+ * @param ssl The SSL connection
+ * @param socket The socket descriptor
+ * @param server The server
+ * @param error The error code
+ * @param compression The compress method for wire protocol
+ * @param encryption The encrypt method for wire protocol
+ * @param payload The full payload
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_management_response_error(SSL* ssl, int socket, char* server, int32_t error, uint8_t compression, uint8_t encryption, struct json* payload);
+
+/**
+ * Create a response
+ * @param json The JSON structure
+ * @param server The server
+ * @param response The response
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_management_create_response(struct json* json, int server, struct json** response);
+
+/**
+ * Read the management JSON
+ * @param ssl The SSL connection
+ * @param socket The socket descriptor
+ * @param compression The pointer to an integer that will store the compress method
+ * @param json The JSON structure
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_management_read_json(SSL* ssl, int socket, uint8_t* compression, uint8_t* encryption, struct json** json);
+
+/**
+ * Write the management JSON
+ * @param ssl The SSL connection
+ * @param socket The socket descriptor
+ * @param compression The compress method for wire protocol
+ * @param encryption The encrypt method for wire protocol
+ * @param json The JSON structure
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_management_write_json(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, struct json* json);
 
 #ifdef __cplusplus
 }

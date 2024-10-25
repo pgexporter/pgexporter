@@ -69,7 +69,7 @@ static int as_logging_rotation_age(char* str, int* age);
 static int as_seconds(char* str, int* age, int default_age);
 static int as_bytes(char* str, int* bytes, int default_bytes);
 
-static int transfer_configuration(struct configuration* config, struct configuration* reload);
+static bool transfer_configuration(struct configuration* config, struct configuration* reload);
 static void copy_server(struct server* dst, struct server* src);
 static void copy_user(struct user* dst, struct user* src);
 static void copy_promethus(struct prometheus* dst, struct prometheus* src);
@@ -1220,13 +1220,15 @@ pgexporter_validate_admins_configuration(void* shm)
 }
 
 int
-pgexporter_reload_configuration(void)
+pgexporter_reload_configuration(bool* r)
 {
    size_t reload_size;
    struct configuration* reload = NULL;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
+
+   *r = false;
 
    pgexporter_log_trace("Configuration: %s", config->configuration_path);
    pgexporter_log_trace("Users: %s", config->users_path);
@@ -1287,17 +1289,12 @@ pgexporter_reload_configuration(void)
       goto error;
    }
 
-   if (transfer_configuration(config, reload))
+   *r = transfer_configuration(config, reload);
+
+   /* Free Old Query Alts AVL Tree */
+   for (int i = 0; reload != NULL && i < reload->number_of_metrics; i++)
    {
-      goto error;
-   }
-   else
-   {
-      /* Free Old Query Alts AVL Tree */
-      for (int i = 0; reload != NULL && i < reload->number_of_metrics; i++)
-      {
-         pgexporter_free_query_alts(reload);
-      }
+      pgexporter_free_query_alts(reload);
    }
 
    pgexporter_destroy_shared_memory((void*)reload, reload_size);
@@ -1307,15 +1304,14 @@ pgexporter_reload_configuration(void)
    return 0;
 
 error:
-   if (reload != NULL)
+
+   /* Free Old Query Alts AVL Tree */
+   for (int i = 0; reload != NULL && i < reload->number_of_metrics; i++)
    {
-      /* Free Old Query Alts AVL Tree */
-      for (int i = 0; i < reload->number_of_metrics; i++)
-      {
-         pgexporter_free_query_alts(reload);
-      }
-      pgexporter_destroy_shared_memory((void*)reload, reload_size);
+      pgexporter_free_query_alts(reload);
    }
+
+   pgexporter_destroy_shared_memory((void*)reload, reload_size);
 
    pgexporter_log_debug("Reload: Failure");
 
@@ -1910,9 +1906,11 @@ error:
    }
 }
 
-static int
+static bool
 transfer_configuration(struct configuration* config, struct configuration* reload)
 {
+   bool changed = false;
+
 #ifdef HAVE_SYSTEMD
    sd_notify(0, "RELOADING=1");
 #endif
@@ -1920,12 +1918,18 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    memcpy(config->host, reload->host, MISC_LENGTH);
    config->metrics = reload->metrics;
    config->metrics_cache_max_age = reload->metrics_cache_max_age;
-   restart_int("metrics_cache_max_size", config->metrics_cache_max_size, reload->metrics_cache_max_size);
+   if (restart_int("metrics_cache_max_size", config->metrics_cache_max_size, reload->metrics_cache_max_size))
+   {
+      changed = true;
+   }
    config->management = reload->management;
    config->cache = reload->cache;
 
    /* log_type */
-   restart_int("log_type", config->log_type, reload->log_type);
+   if (restart_int("log_type", config->log_type, reload->log_type))
+   {
+      changed = true;
+   }
    config->log_level = reload->log_level;
    // if the log main parameters have changed, we need
    // to restart the logging system
@@ -1953,7 +1957,10 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    config->blocking_timeout = reload->blocking_timeout;
    config->authentication_timeout = reload->authentication_timeout;
    /* pidfile */
-   restart_string("pidfile", config->pidfile, reload->pidfile);
+   if (restart_string("pidfile", config->pidfile, reload->pidfile))
+   {
+      changed = true;
+   }
 
    /* libev */
    restart_string("libev", config->libev, reload->libev);
@@ -1962,13 +1969,22 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    config->non_blocking = reload->non_blocking;
    config->backlog = reload->backlog;
    /* hugepage */
-   restart_int("hugepage", config->hugepage, reload->hugepage);
+   if (restart_int("hugepage", config->hugepage, reload->hugepage))
+   {
+      changed = true;
+   }
 
    /* update_process_title */
-   restart_int("update_process_title", config->update_process_title, reload->update_process_title);
+   if (restart_int("update_process_title", config->update_process_title, reload->update_process_title))
+   {
+      changed = true;
+   }
 
    /* unix_socket_dir */
-   restart_string("unix_socket_dir", config->unix_socket_dir, reload->unix_socket_dir);
+   if (restart_string("unix_socket_dir", config->unix_socket_dir, reload->unix_socket_dir))
+   {
+      changed = true;
+   }
 
    memset(&config->servers[0], 0, sizeof(struct server) * NUMBER_OF_SERVERS);
    for (int i = 0; i < reload->number_of_servers; i++)
@@ -2003,7 +2019,7 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    sd_notify(0, "READY=1");
 #endif
 
-   return 0;
+   return changed;
 }
 
 static void

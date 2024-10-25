@@ -28,8 +28,8 @@
 
 /* pgexporter */
 #include <pgexporter.h>
+#include <connection.h>
 #include <logging.h>
-#include <management.h>
 #include <message.h>
 #include <network.h>
 #include <queries.h>
@@ -116,7 +116,7 @@ pgexporter_close_connections(void)
          {
             if (config->servers[server].new)
             {
-               ret = pgexporter_management_transfer_connection(server);
+               ret = pgexporter_transfer_connection_write(server);
 
                if (ret == 0)
                {
@@ -153,13 +153,15 @@ pgexporter_close_connections(void)
 int
 pgexporter_server_version(int server)
 {
-   struct query* q;
+   struct query* q = NULL;
    int ret;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
 
-   ret = query_execute(server, "SELECT split_part(split_part(version(), ' ', 2), '.', 1);", "version", 1, NULL, &q);
+   ret = query_execute(server, "SELECT split_part(split_part(version(), ' ', 2), '.', 1) AS major, "
+                       "split_part(split_part(version(), ' ', 2), '.', 2) AS minor;", "pg_version",
+                       2, NULL, &q);
 
    if (q)
    {
@@ -167,6 +169,11 @@ pgexporter_server_version(int server)
       if (t && t->data[0])
       {
          config->servers[server].version = atoi(t->data[0]);
+      }
+
+      if (t && t->data[1])
+      {
+         config->servers[server].minor_version = atoi(t->data[1]);
       }
    }
 
@@ -280,8 +287,9 @@ pgexporter_query_total_disk_space(int server, bool data, struct query** query)
 int
 pgexporter_query_version(int server, struct query** query)
 {
-   return query_execute(server, "SELECT version();",
-                        "pg_version", 1, NULL, query);
+   return query_execute(server, "SELECT split_part(split_part(version(), ' ', 2), '.', 1) AS major, "
+                        "split_part(split_part(version(), ' ', 2), '.', 2) AS minor;", "pg_version",
+                        2, NULL, query);
 }
 
 int

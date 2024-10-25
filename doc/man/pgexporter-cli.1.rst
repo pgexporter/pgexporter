@@ -51,23 +51,23 @@ OPTIONS
 COMMANDS
 ========
 
-is-alive
+ping
   Is pgexporter alive
 
-stop
-  Stop pgexporter
+shutdown
+  Shutdown pgexporter
 
 status
   Status of pgexporter
 
-details
+status details
   Detailed status of pgexporter
 
-reload
+conf reload
   Reload the configuration
 
-reset
-  Reset the Prometheus statistics
+clear prometheus
+  Clear the Prometheus statistics
 
 REPORTING BUGS
 ==============

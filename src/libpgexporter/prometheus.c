@@ -103,6 +103,7 @@ typedef struct column_store
 } column_store_t;
 
 static int resolve_page(struct message* msg);
+static int badrequest_page(int client_fd);
 static int unknown_page(int client_fd);
 static int home_page(int client_fd);
 static int metrics_page(int client_fd);
@@ -158,6 +159,7 @@ pgexporter_prometheus(int client_fd)
    config = (struct configuration*)shmem;
 
    status = pgexporter_read_timeout_message(NULL, client_fd, config->authentication_timeout, &msg);
+
    if (status != MESSAGE_STATUS_OK)
    {
       goto error;
@@ -190,6 +192,8 @@ pgexporter_prometheus(int client_fd)
    exit(0);
 
 error:
+
+   badrequest_page(client_fd);
 
    pgexporter_disconnect(client_fd);
 
@@ -287,6 +291,42 @@ resolve_page(struct message* msg)
    }
 
    return PAGE_UNKNOWN;
+}
+
+static int
+badrequest_page(int client_fd)
+{
+   char* data = NULL;
+   time_t now;
+   char time_buf[32];
+   int status;
+   struct message msg;
+
+   memset(&msg, 0, sizeof(struct message));
+   memset(&data, 0, sizeof(data));
+
+   now = time(NULL);
+
+   memset(&time_buf, 0, sizeof(time_buf));
+   ctime_r(&now, &time_buf[0]);
+   time_buf[strlen(time_buf) - 1] = 0;
+
+   data = pgexporter_vappend(data, 4,
+                             "HTTP/1.1 400 Bad Request\r\n",
+                             "Date: ",
+                             &time_buf[0],
+                             "\r\n"
+                             );
+
+   msg.kind = 0;
+   msg.length = strlen(data);
+   msg.data = data;
+
+   status = pgexporter_write_message(NULL, client_fd, &msg);
+
+   free(data);
+
+   return status;
 }
 
 static int
@@ -738,7 +778,8 @@ version_information(int client_fd)
    int ret;
    int server;
    char* data = NULL;
-   char* safe_key = NULL;
+   char* safe_key1 = NULL;
+   char* safe_key2 = NULL;
    struct query* all = NULL;
    struct query* query = NULL;
    struct tuple* current = NULL;
@@ -773,16 +814,20 @@ version_information(int client_fd)
 
          while (current != NULL)
          {
-            safe_key = safe_prometheus_key(pgexporter_get_column(0, current));
-            data = pgexporter_vappend(data, 6,
+            safe_key1 = safe_prometheus_key(pgexporter_get_column(0, current));
+            safe_key2 = safe_prometheus_key(pgexporter_get_column(1, current));
+            data = pgexporter_vappend(data, 8,
                                       "pgexporter_postgresql_version{server=\"",
                                       &config->servers[server].name[0],
                                       "\",version=\"",
-                                      safe_key,
+                                      safe_key1,
+                                      "\",minor_version=\"",
+                                      safe_key2,
                                       "\"} ",
                                       "1\n"
                                       );
-            safe_prometheus_key_free(safe_key);
+            safe_prometheus_key_free(safe_key1);
+            safe_prometheus_key_free(safe_key2);
 
             server++;
             current = current->next;
@@ -992,33 +1037,32 @@ extension_information(int client_fd)
       {
          pgexporter_query_get_functions(server, &query);
 
-         if (query == NULL)
+         if (query != NULL)
+         {
+            tuple = query->tuples;
+
+            while (tuple != NULL)
+            {
+               if (!strcmp(tuple->data[1], "f") || !strcmp(tuple->data[1], "false"))
+               {
+                  if (strcmp(tuple->data[0], "pgexporter_get_functions"))
+                  {
+                     extension_function(client_fd, tuple->data[0], tuple->data[2], tuple->data[3]);
+                  }
+               }
+
+               tuple = tuple->next;
+            }
+
+            pgexporter_free_query(query);
+            query = NULL;
+         }
+         else
          {
             config->servers[server].extension = false;
             continue;
          }
       }
-   }
-
-   if (query != NULL)
-   {
-      tuple = query->tuples;
-
-      while (tuple != NULL)
-      {
-         if (!strcmp(tuple->data[1], "f") || !strcmp(tuple->data[1], "false"))
-         {
-            if (strcmp(tuple->data[0], "pgexporter_get_functions"))
-            {
-               extension_function(client_fd, tuple->data[0], tuple->data[2], tuple->data[3]);
-            }
-         }
-
-         tuple = tuple->next;
-      }
-
-      pgexporter_free_query(query);
-      query = NULL;
    }
 }
 

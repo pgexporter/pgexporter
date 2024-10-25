@@ -29,16 +29,21 @@
 /* pgexporter */
 #include <pgexporter.h>
 #include <configuration.h>
+#include <connection.h>
 #include <internal.h>
+#include <json.h>
 #include <logging.h>
 #include <management.h>
+#include <memory.h>
 #include <network.h>
 #include <prometheus.h>
 #include <queries.h>
 #include <query_alts.h>
 #include <remote.h>
 #include <security.h>
+#include <server.h>
 #include <shmem.h>
+#include <status.h>
 #include <utils.h>
 #include <yaml_configuration.h>
 
@@ -70,13 +75,14 @@
 #define MAX_FDS 64
 
 static void accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
+static void accept_transfer_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
 static void accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
 static void accept_management_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
 static void shutdown_cb(struct ev_loop* loop, ev_signal* w, int revents);
 static void reload_cb(struct ev_loop* loop, ev_signal* w, int revents);
 static void coredump_cb(struct ev_loop* loop, ev_signal* w, int revents);
 static bool accept_fatal(int error);
-static void reload_configuration(void);
+static bool reload_configuration(void);
 static int  create_pidfile(void);
 static void remove_pidfile(void);
 static int  create_lockfile(void);
@@ -96,12 +102,14 @@ static char** argv_ptr;
 static struct ev_loop* main_loop = NULL;
 static struct accept_io io_mgt;
 static int unix_management_socket = -1;
+static int unix_transfer_socket = -1;
 static struct accept_io io_metrics[MAX_FDS];
 static int* metrics_fds = NULL;
 static int metrics_fds_length = -1;
 static struct accept_io io_management[MAX_FDS];
 static int* management_fds = NULL;
 static int management_fds_length = -1;
+static struct accept_io io_transfer;
 
 static void
 start_mgt(void)
@@ -124,6 +132,30 @@ shutdown_mgt(void)
    pgexporter_disconnect(unix_management_socket);
    errno = 0;
    pgexporter_remove_unix_socket(config->unix_socket_dir, MAIN_UDS);
+   errno = 0;
+}
+
+static void
+start_transfer(void)
+{
+   memset(&io_transfer, 0, sizeof(struct accept_io));
+   ev_io_init((struct ev_io*)&io_transfer, accept_transfer_cb, unix_transfer_socket, EV_READ);
+   io_transfer.socket = unix_transfer_socket;
+   io_transfer.argv = argv_ptr;
+   ev_io_start(main_loop, (struct ev_io*)&io_transfer);
+}
+
+static void
+shutdown_transfer(void)
+{
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   ev_io_stop(main_loop, (struct ev_io*)&io_transfer);
+   pgexporter_disconnect(unix_transfer_socket);
+   errno = 0;
+   pgexporter_remove_unix_socket(config->unix_socket_dir, TRANSFER_UDS);
    errno = 0;
 }
 
@@ -337,6 +369,8 @@ main(int argc, char** argv)
 #endif
       exit(1);
    }
+
+   pgexporter_memory_init();
 
    shmem_size = sizeof(struct configuration);
    if (pgexporter_create_shared_memory(shmem_size, HUGEPAGE_OFF, &shmem))
@@ -573,12 +607,22 @@ main(int argc, char** argv)
       errx(1, "Error in creating and initializing prometheus cache shared memory");
    }
 
-   /* Bind Unix Domain Socket */
+   /* Bind Unix Domain Socket: Main */
    if (pgexporter_bind_unix_socket(config->unix_socket_dir, MAIN_UDS, &unix_management_socket))
    {
       pgexporter_log_fatal("pgexporter: Could not bind to %s/%s", config->unix_socket_dir, MAIN_UDS);
 #ifdef HAVE_SYSTEMD
       sd_notifyf(0, "STATUS=Could not bind to %s/%s", config->unix_socket_dir, MAIN_UDS);
+#endif
+      exit(1);
+   }
+
+   /* Bind Unix Domain Socket: Transfer */
+   if (pgexporter_bind_unix_socket(config->unix_socket_dir, TRANSFER_UDS, &unix_transfer_socket))
+   {
+      pgexporter_log_fatal("pgexporter: Could not bind to %s/%s", config->unix_socket_dir, TRANSFER_UDS);
+#ifdef HAVE_SYSTEMD
+      sd_notifyf(0, "STATUS=Could not bind to %s/%s", config->unix_socket_dir, TRANSFER_UDS);
 #endif
       exit(1);
    }
@@ -616,6 +660,7 @@ main(int argc, char** argv)
       exit(1);
    }
 
+   start_transfer();
    start_mgt();
 
    if (config->metrics > 0)
@@ -668,6 +713,7 @@ main(int argc, char** argv)
 
    pgexporter_log_info("pgexporter: started on %s", config->host);
    pgexporter_log_debug("Management: %d", unix_management_socket);
+   pgexporter_log_debug("Transfer: %d", unix_transfer_socket);
    for (int i = 0; i < metrics_fds_length; i++)
    {
       pgexporter_log_debug("Metrics: %d", *(metrics_fds + i));
@@ -694,6 +740,14 @@ main(int argc, char** argv)
               "MAINPID=%lu", (unsigned long)getpid());
 #endif
 
+   pgexporter_open_connections();
+   for (int i = 0; i < config->number_of_servers; i++)
+   {
+      pgexporter_log_trace("Server: %s/%d.%d -> %s", config->servers[i].name,
+                           config->servers[i].version, config->servers[i].minor_version,
+                           config->servers[i].fd != -1 ? "true" : "false");
+   }
+
    while (keep_running)
    {
       ev_loop(main_loop, 0);
@@ -709,6 +763,7 @@ main(int argc, char** argv)
    shutdown_management();
    shutdown_metrics();
    shutdown_mgt();
+   shutdown_transfer();
 
    for (int i = 0; i < 5; i++)
    {
@@ -730,6 +785,8 @@ main(int argc, char** argv)
    pgexporter_destroy_shared_memory(shmem, shmem_size);
    pgexporter_destroy_shared_memory(prometheus_cache_shmem, prometheus_cache_shmem_size);
 
+   pgexporter_memory_destroy();
+
    if (daemon || stop)
    {
       kill(0, SIGTERM);
@@ -744,10 +801,18 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    struct sockaddr_in6 client_addr;
    socklen_t client_addr_length;
    int client_fd;
-   signed char id;
-   int payload_i1;
-   int payload_i2;
+   int32_t id;
+   char* server = NULL;
+   pid_t pid;
+   char* str = NULL;
+   time_t start_time;
+   time_t end_time;
+   struct accept_io* ai;
+   struct json* payload = NULL;
+   struct json* header = NULL;
    struct configuration* config;
+   uint8_t compression = MANAGEMENT_COMPRESSION_NONE;
+   uint8_t encryption = MANAGEMENT_ENCRYPTION_NONE;
 
    if (EV_ERROR & revents)
    {
@@ -756,6 +821,9 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    }
 
    config = (struct configuration*)shmem;
+   ai = (struct accept_io*)watcher;
+
+   errno = 0;
 
    client_addr_length = sizeof(client_addr);
    client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
@@ -769,7 +837,7 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
          if (pgexporter_bind_unix_socket(config->unix_socket_dir, MAIN_UDS, &unix_management_socket))
          {
-            pgexporter_log_fatal("pgexporter: Could not bind to %s", config->unix_socket_dir);
+            pgexporter_log_fatal("Could not bind to %s", config->unix_socket_dir);
             exit(1);
          }
 
@@ -785,54 +853,198 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
       return;
    }
 
-   /* Process internal management request -- f.ex. returning a file descriptor to the pool */
-   if (pgexporter_management_read_header(client_fd, &id))
+   /* Process internal management request */
+   if (pgexporter_management_read_json(NULL, client_fd, &compression, &encryption, &payload))
    {
-      goto disconnect;
-   }
-   if (pgexporter_management_read_payload(client_fd, id, &payload_i1, &payload_i2))
-   {
-      goto disconnect;
+      pgexporter_management_response_error(NULL, client_fd, NULL, MANAGEMENT_ERROR_BAD_PAYLOAD, compression, encryption, NULL);
+      pgexporter_log_error("Management: Bad payload (%d)", MANAGEMENT_ERROR_BAD_PAYLOAD);
+      goto error;
    }
 
-   switch (id)
+   header = (struct json*)pgexporter_json_get(payload, MANAGEMENT_CATEGORY_HEADER);
+   id = (int32_t)pgexporter_json_get(header, MANAGEMENT_ARGUMENT_COMMAND);
+
+   str = pgexporter_json_to_string(payload, FORMAT_JSON, NULL, 0);
+   pgexporter_log_debug("Management %d: %s", id, str);
+
+   if (id == MANAGEMENT_SHUTDOWN)
    {
-      case MANAGEMENT_TRANSFER_CONNECTION:
-         pgexporter_log_debug("pgexporter: Management transfer connection: Server %d FD %d", payload_i1, payload_i2);
-         config->servers[payload_i1].fd = payload_i2;
-         break;
-      case MANAGEMENT_STOP:
-         pgexporter_log_debug("pgexporter: Management stop");
-         ev_break(loop, EVBREAK_ALL);
-         keep_running = 0;
-         stop = 1;
-         break;
-      case MANAGEMENT_STATUS:
-         pgexporter_log_debug("pgexporter: Management status");
-         pgexporter_management_write_status(client_fd);
-         break;
-      case MANAGEMENT_DETAILS:
-         pgexporter_log_debug("pgexporter: Management details");
-         pgexporter_management_write_details(client_fd);
-         break;
-      case MANAGEMENT_ISALIVE:
-         pgexporter_log_debug("pgexporter: Management isalive");
-         pgexporter_management_write_isalive(client_fd);
-         break;
-      case MANAGEMENT_RESET:
-         pgexporter_log_debug("pgexporter: Management reset");
-         pgexporter_prometheus_reset();
-         break;
-      case MANAGEMENT_RELOAD:
-         pgexporter_log_debug("pgexporter: Management reload");
-         reload_configuration();
-         break;
-      default:
-         pgexporter_log_debug("pgexporter: Unknown management id: %d", id);
-         break;
+      start_time = time(NULL);
+
+      end_time = time(NULL);
+
+      pgexporter_management_response_ok(NULL, client_fd, start_time, end_time, compression, encryption, payload);
+
+      ev_break(loop, EVBREAK_ALL);
+      keep_running = 0;
+      stop = 1;
+   }
+   else if (id == MANAGEMENT_PING)
+   {
+      struct json* response = NULL;
+
+      start_time = time(NULL);
+
+      pgexporter_management_create_response(payload, -1, &response);
+
+      end_time = time(NULL);
+
+      pgexporter_management_response_ok(NULL, client_fd, start_time, end_time, compression, encryption, payload);
+   }
+   else if (id == MANAGEMENT_RESET)
+   {
+      start_time = time(NULL);
+
+      pgexporter_prometheus_reset();
+
+      end_time = time(NULL);
+
+      pgexporter_management_response_ok(NULL, client_fd, start_time, end_time, compression, encryption, payload);
+   }
+   else if (id == MANAGEMENT_RELOAD)
+   {
+      bool restart = false;
+      struct json* response = NULL;
+
+      start_time = time(NULL);
+
+      restart = reload_configuration();
+
+      pgexporter_management_create_response(payload, -1, &response);
+
+      pgexporter_json_put(response, MANAGEMENT_ARGUMENT_RESTART, (uintptr_t)restart, ValueBool);
+
+      end_time = time(NULL);
+
+      pgexporter_management_response_ok(NULL, client_fd, start_time, end_time, compression, encryption, payload);
+   }
+   else if (id == MANAGEMENT_STATUS)
+   {
+      pid = fork();
+      if (pid == -1)
+      {
+         pgexporter_management_response_error(NULL, client_fd, server, MANAGEMENT_ERROR_STATUS_NOFORK, compression, encryption, payload);
+         pgexporter_log_error("Status: No fork %s (%d)", server, MANAGEMENT_ERROR_STATUS_NOFORK);
+         goto error;
+      }
+      else if (pid == 0)
+      {
+         struct json* pyl = NULL;
+
+         shutdown_ports();
+
+         pgexporter_json_clone(payload, &pyl);
+
+         pgexporter_set_proc_title(1, ai->argv, "status", NULL);
+         pgexporter_status(NULL, client_fd, compression, encryption, pyl);
+      }
+   }
+   else if (id == MANAGEMENT_STATUS_DETAILS)
+   {
+      pid = fork();
+      if (pid == -1)
+      {
+         pgexporter_management_response_error(NULL, client_fd, server, MANAGEMENT_ERROR_STATUS_DETAILS_NOFORK, compression, encryption, payload);
+         pgexporter_log_error("Details: No fork %s (%d)", server, MANAGEMENT_ERROR_STATUS_DETAILS_NOFORK);
+         goto error;
+      }
+      else if (pid == 0)
+      {
+         struct json* pyl = NULL;
+
+         shutdown_ports();
+
+         pgexporter_json_clone(payload, &pyl);
+
+         pgexporter_set_proc_title(1, ai->argv, "details", NULL);
+         pgexporter_status_details(NULL, client_fd, compression, encryption, pyl);
+      }
+   }
+   else
+   {
+      pgexporter_management_response_error(NULL, client_fd, NULL, MANAGEMENT_ERROR_UNKNOWN_COMMAND, compression, encryption, payload);
+      pgexporter_log_error("Unknown: %s (%d)", pgexporter_json_to_string(payload, FORMAT_JSON, NULL, 0), MANAGEMENT_ERROR_UNKNOWN_COMMAND);
+      goto error;
    }
 
-disconnect:
+   free(str);
+   pgexporter_json_destroy(payload);
+
+   pgexporter_disconnect(client_fd);
+
+   return;
+
+error:
+
+   free(str);
+   pgexporter_json_destroy(payload);
+
+   pgexporter_disconnect(client_fd);
+}
+
+static void
+accept_transfer_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
+{
+   struct sockaddr_in6 client_addr;
+   socklen_t client_addr_length;
+   int client_fd;
+   int srv = -1;
+   int fd = -1;
+   struct configuration* config;
+
+   if (EV_ERROR & revents)
+   {
+      pgexporter_log_trace("accept_mgt_cb: got invalid event: %s", strerror(errno));
+      return;
+   }
+
+   config = (struct configuration*)shmem;
+
+   errno = 0;
+
+   client_addr_length = sizeof(client_addr);
+   client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
+   if (client_fd == -1)
+   {
+      if (accept_fatal(errno) && keep_running)
+      {
+         pgexporter_log_warn("Restarting transfer due to: %s (%d)", strerror(errno), watcher->fd);
+
+         shutdown_mgt();
+
+         if (pgexporter_bind_unix_socket(config->unix_socket_dir, TRANSFER_UDS, &unix_transfer_socket))
+         {
+            pgexporter_log_fatal("pgexporter: Could not bind to %s", config->unix_socket_dir);
+            exit(1);
+         }
+
+         start_mgt();
+
+         pgexporter_log_debug("Transfer: %d", unix_transfer_socket);
+      }
+      else
+      {
+         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fd);
+      }
+      errno = 0;
+      return;
+   }
+
+   /* Process internal transfer request */
+   if (pgexporter_transfer_connection_read(client_fd, &srv, &fd))
+   {
+      pgexporter_log_error("Transfer: Bad payload (%d)", MANAGEMENT_ERROR_BAD_PAYLOAD);
+      goto error;
+   }
+
+   pgexporter_log_debug("pgexporter: Transfer connection: Server %d FD %d", srv, fd);
+   config->servers[srv].fd = fd;
+
+   pgexporter_disconnect(client_fd);
+
+   return;
+
+ error:
 
    pgexporter_disconnect(client_fd);
 }
@@ -843,6 +1055,8 @@ accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    struct sockaddr_in6 client_addr;
    socklen_t client_addr_length;
    int client_fd;
+   pid_t pid;
+   struct accept_io* ai;
    struct configuration* config;
 
    if (EV_ERROR & revents)
@@ -853,6 +1067,9 @@ accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    }
 
    config = (struct configuration*)shmem;
+   ai = (struct accept_io*)watcher;
+
+   errno = 0;
 
    client_addr_length = sizeof(client_addr);
    client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
@@ -870,13 +1087,13 @@ accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
          if (pgexporter_bind(config->host, config->metrics, &metrics_fds, &metrics_fds_length))
          {
-            pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->metrics);
+            pgexporter_log_fatal("Could not bind to %s:%d", config->host, config->metrics);
             exit(1);
          }
 
          if (metrics_fds_length > MAX_FDS)
          {
-            pgexporter_log_fatal("pgexporter: Too many descriptors %d", metrics_fds_length);
+            pgexporter_log_fatal("Too many descriptors %d", metrics_fds_length);
             exit(1);
          }
 
@@ -895,13 +1112,28 @@ accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
       return;
    }
 
-   if (!fork())
+   pid = fork();
+   if (pid == -1)
+   {
+      pgexporter_log_error("Metrics: No fork (%d)", MANAGEMENT_ERROR_METRICS_NOFORK);
+      goto error;
+   }
+   else if (pid == 0)
    {
       ev_loop_fork(loop);
+
       /* We are leaving the socket descriptor valid such that the client won't reuse it */
       shutdown_ports();
+
+      pgexporter_set_proc_title(1, ai->argv, "metrics", NULL);
       pgexporter_prometheus(client_fd);
    }
+
+   pgexporter_disconnect(client_fd);
+
+   return;
+
+error:
 
    pgexporter_disconnect(client_fd);
 }
@@ -925,6 +1157,8 @@ accept_management_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    memset(&address, 0, sizeof(address));
 
    config = (struct configuration*)shmem;
+
+   errno = 0;
 
    client_addr_length = sizeof(client_addr);
    client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
@@ -1029,19 +1263,22 @@ accept_fatal(int error)
    return true;
 }
 
-static void
+static bool
 reload_configuration(void)
 {
+   bool restart = false;
    int old_metrics;
    int old_management;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
 
+   errno = 0;
+
    old_metrics = config->metrics;
    old_management = config->management;
 
-   pgexporter_reload_configuration();
+   pgexporter_reload_configuration(&restart);
 
    if (old_metrics != config->metrics)
    {
@@ -1106,6 +1343,8 @@ reload_configuration(void)
          }
       }
    }
+
+   return restart;
 }
 
 static int

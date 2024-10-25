@@ -108,7 +108,7 @@ Add the master key and create vault
 
 ```
 pgexporter-admin master-key
-pgexporter-admin -f pgexporter_users.conf -U pgexporter -P pgexporter add-user
+pgexporter-admin -f pgexporter_users.conf -U pgexporter -P pgexporter user add
 ```
 
 You have to choose a password for the master key - remember it !

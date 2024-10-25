@@ -34,7 +34,6 @@ extern "C" {
 #endif
 
 #include <pgexporter.h>
-#include <message.h>
 
 #include <stdlib.h>
 

@@ -28,12 +28,18 @@
 
 /* pgexporter */
 #include <pgexporter.h>
+#include <aes.h>
+#include <bzip2_compression.h>
+#include <gzip_compression.h>
+#include <json.h>
 #include <logging.h>
-#include <network.h>
+#include <lz4_compression.h>
 #include <management.h>
 #include <memory.h>
+#include <network.h>
 #include <queries.h>
 #include <utils.h>
+#include <zstandard_compression.h>
 
 /* system */
 #include <stdio.h>
@@ -49,204 +55,261 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
-#define MANAGEMENT_HEADER_SIZE 1
+static int create_header(int32_t command, uint8_t compression, uint8_t encryption, int32_t output_format, struct json** json);
+static int create_request(struct json* json, struct json** request);
+static int create_outcome_success(struct json* json, time_t start_time, time_t end_time, struct json** outcome);
+static int create_outcome_failure(struct json* json, int32_t error, struct json** outcome);
 
-static int read_int32(char* prefix, int socket, int* i);
-static int read_string(char* prefix, int socket, char** str);
-static int write_int32(char* prefix, int socket, int i);
-static int write_string(char* prefix, int socket, char* str);
+static int read_uint8(char* prefix, SSL* ssl, int socket, uint8_t* i);
+static int read_string(char* prefix, SSL* ssl, int socket, char** str);
 static int read_complete(SSL* ssl, int socket, void* buf, size_t size);
+static int write_uint8(char* prefix, SSL* ssl, int socket, uint8_t i);
+static int write_string(char* prefix, SSL* ssl, int socket, char* str);
 static int write_complete(SSL* ssl, int socket, void* buf, size_t size);
 static int write_socket(int socket, void* buf, size_t size);
 static int write_ssl(SSL* ssl, void* buf, size_t size);
-static int write_header(SSL* ssl, int fd, signed char type);
 
 int
-pgexporter_management_read_header(int socket, signed char* id)
+pgexporter_management_request_shutdown(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format)
 {
-   char header[MANAGEMENT_HEADER_SIZE];
+   struct json* j = NULL;
+   struct json* request = NULL;
 
-   if (read_complete(NULL, socket, &header[0], sizeof(header)))
+   if (create_header(MANAGEMENT_SHUTDOWN, compression, encryption, output_format, &j))
    {
-      errno = 0;
       goto error;
    }
 
-   *id = pgexporter_read_byte(&(header));
-
-   return 0;
-
-error:
-
-   *id = -1;
-
-   return 1;
-}
-
-int
-pgexporter_management_read_payload(int socket, signed char id, int* payload_i1, int* payload_i2)
-{
-   int nr;
-   char buf2[2];
-   char buf4[4];
-   struct cmsghdr* cmptr = NULL;
-   struct iovec iov[1];
-   struct msghdr msg;
-
-   *payload_i1 = -1;
-   *payload_i2 = -1;
-
-   switch (id)
+   if (create_request(j, &request))
    {
-      case MANAGEMENT_TRANSFER_CONNECTION:
-
-         memset(&buf4[0], 0, sizeof(buf4));
-         if (read_complete(NULL, socket, &buf4, sizeof(buf4)))
-         {
-            pgexporter_log_warn("pgexporter_management_read_status: read: %d %s", socket, strerror(errno));
-            errno = 0;
-            goto error;
-         }
-
-         *payload_i1 = pgexporter_read_int32(&buf4);
-
-         memset(&buf2[0], 0, sizeof(buf2));
-
-         iov[0].iov_base = &buf2[0];
-         iov[0].iov_len = sizeof(buf2);
-
-         cmptr = malloc(CMSG_SPACE(sizeof(int)));
-         memset(cmptr, 0, CMSG_SPACE(sizeof(int)));
-         cmptr->cmsg_len = CMSG_LEN(sizeof(int));
-         cmptr->cmsg_level = SOL_SOCKET;
-         cmptr->cmsg_type = SCM_RIGHTS;
-
-         msg.msg_name = NULL;
-         msg.msg_namelen = 0;
-         msg.msg_iov = iov;
-         msg.msg_iovlen = 1;
-         msg.msg_control = cmptr;
-         msg.msg_controllen = CMSG_SPACE(sizeof(int));
-         msg.msg_flags = 0;
-
-         if ((nr = recvmsg(socket, &msg, 0)) < 0)
-         {
-            goto error;
-         }
-         else if (nr == 0)
-         {
-            goto error;
-         }
-
-         *payload_i1 = pgexporter_read_int32(&buf4);
-         *payload_i2 = *(int*)CMSG_DATA(cmptr);
-
-         free(cmptr);
-         break;
-      case MANAGEMENT_STOP:
-      case MANAGEMENT_STATUS:
-      case MANAGEMENT_DETAILS:
-      case MANAGEMENT_ISALIVE:
-      case MANAGEMENT_RESET:
-      case MANAGEMENT_RELOAD:
-         break;
-      default:
-         goto error;
-         break;
+      goto error;
    }
 
+   if (pgexporter_management_write_json(ssl, socket, compression, encryption, j))
+   {
+      goto error;
+   }
+
+   pgexporter_json_destroy(j);
+
    return 0;
 
 error:
+
+   pgexporter_json_destroy(j);
 
    return 1;
 }
 
 int
-pgexporter_management_transfer_connection(int server)
+pgexporter_management_request_status(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format)
 {
-   int fd;
-   struct cmsghdr* cmptr = NULL;
-   struct iovec iov[1];
-   struct msghdr msg;
-   char buf2[2];
-   char buf4[4];
+   struct json* j = NULL;
+   struct json* request = NULL;
+
+   if (create_header(MANAGEMENT_STATUS, compression, encryption, output_format, &j))
+   {
+      goto error;
+   }
+
+   if (create_request(j, &request))
+   {
+      goto error;
+   }
+
+   if (pgexporter_management_write_json(ssl, socket, compression, encryption, j))
+   {
+      goto error;
+   }
+
+   pgexporter_json_destroy(j);
+
+   return 0;
+
+error:
+
+   pgexporter_json_destroy(j);
+
+   return 1;
+}
+
+int
+pgexporter_management_request_details(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format)
+{
+   struct json* j = NULL;
+   struct json* request = NULL;
+
+   if (create_header(MANAGEMENT_STATUS_DETAILS, compression, encryption, output_format, &j))
+   {
+      goto error;
+   }
+
+   if (create_request(j, &request))
+   {
+      goto error;
+   }
+
+   if (pgexporter_management_write_json(ssl, socket, compression, encryption, j))
+   {
+      goto error;
+   }
+
+   pgexporter_json_destroy(j);
+
+   return 0;
+
+error:
+
+   pgexporter_json_destroy(j);
+
+   return 1;
+}
+
+int
+pgexporter_management_request_ping(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format)
+{
+   struct json* j = NULL;
+   struct json* request = NULL;
+
+   if (create_header(MANAGEMENT_PING, compression, encryption, output_format, &j))
+   {
+      goto error;
+   }
+
+   if (create_request(j, &request))
+   {
+      goto error;
+   }
+
+   if (pgexporter_management_write_json(ssl, socket, compression, encryption, j))
+   {
+      goto error;
+   }
+
+   pgexporter_json_destroy(j);
+
+   return 0;
+
+error:
+
+   pgexporter_json_destroy(j);
+
+   return 1;
+}
+
+int
+pgexporter_management_request_reset(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format)
+{
+   struct json* j = NULL;
+   struct json* request = NULL;
+
+   if (create_header(MANAGEMENT_RESET, compression, encryption, output_format, &j))
+   {
+      goto error;
+   }
+
+   if (create_request(j, &request))
+   {
+      goto error;
+   }
+
+   if (pgexporter_management_write_json(ssl, socket, compression, encryption, j))
+   {
+      goto error;
+   }
+
+   pgexporter_json_destroy(j);
+
+   return 0;
+
+error:
+
+   pgexporter_json_destroy(j);
+
+   return 1;
+}
+
+int
+pgexporter_management_request_reload(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format)
+{
+   struct json* j = NULL;
+   struct json* request = NULL;
+
+   if (create_header(MANAGEMENT_RELOAD, compression, encryption, output_format, &j))
+   {
+      goto error;
+   }
+
+   if (create_request(j, &request))
+   {
+      goto error;
+   }
+
+   if (pgexporter_management_write_json(ssl, socket, compression, encryption, j))
+   {
+      goto error;
+   }
+
+   pgexporter_json_destroy(j);
+
+   return 0;
+
+error:
+
+   pgexporter_json_destroy(j);
+
+   return 1;
+}
+
+int
+pgexporter_management_create_response(struct json* json, int server, struct json** response)
+{
+   struct json* r = NULL;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
 
-   if (pgexporter_connect_unix_socket(config->unix_socket_dir, MAIN_UDS, &fd))
-   {
-      pgexporter_log_warn("pgexporter_management_transfer_connection: connect: %d", fd);
-      errno = 0;
-      goto error;
-   }
+   *response = NULL;
 
-   if (write_header(NULL, fd, MANAGEMENT_TRANSFER_CONNECTION))
-   {
-      pgexporter_log_warn("pgexporter_management_transfer_connection: write: %d", fd);
-      errno = 0;
-      goto error;
-   }
-
-   memset(&buf4[0], 0, sizeof(buf4));
-   pgexporter_write_int32(&buf4, server);
-
-   if (write_complete(NULL, fd, &buf4, sizeof(buf4)))
-   {
-      pgexporter_log_warn("pgexporter_management_transfer_connection: write: %d %s", fd, strerror(errno));
-      errno = 0;
-      goto error;
-   }
-
-   /* Write file descriptor */
-   memset(&buf2[0], 0, sizeof(buf2));
-
-   iov[0].iov_base = &buf2[0];
-   iov[0].iov_len = sizeof(buf2);
-
-   cmptr = malloc(CMSG_SPACE(sizeof(int)));
-   memset(cmptr, 0, CMSG_SPACE(sizeof(int)));
-   cmptr->cmsg_level = SOL_SOCKET;
-   cmptr->cmsg_type = SCM_RIGHTS;
-   cmptr->cmsg_len = CMSG_LEN(sizeof(int));
-
-   msg.msg_name = NULL;
-   msg.msg_namelen = 0;
-   msg.msg_iov = iov;
-   msg.msg_iovlen = 1;
-   msg.msg_control = cmptr;
-   msg.msg_controllen = CMSG_SPACE(sizeof(int));
-   msg.msg_flags = 0;
-   *(int*)CMSG_DATA(cmptr) = config->servers[server].fd;
-
-   if (sendmsg(fd, &msg, 0) != 2)
+   if (pgexporter_json_create(&r))
    {
       goto error;
    }
 
-   free(cmptr);
-   pgexporter_disconnect(fd);
+   pgexporter_json_put(json, MANAGEMENT_CATEGORY_RESPONSE, (uintptr_t)r, ValueJSON);
+
+   if (server >= 0)
+   {
+      pgexporter_json_put(r, MANAGEMENT_ARGUMENT_MAJOR_VERSION, (uintptr_t)config->servers[server].version, ValueInt32);
+      pgexporter_json_put(r, MANAGEMENT_ARGUMENT_MINOR_VERSION, (uintptr_t)config->servers[server].minor_version, ValueInt32);
+      pgexporter_json_put(r, MANAGEMENT_ARGUMENT_SERVER, (uintptr_t)config->servers[server].name, ValueString);
+   }
+
+   pgexporter_json_put(r, MANAGEMENT_ARGUMENT_SERVER_VERSION, (uintptr_t)VERSION, ValueString);
+
+   *response = r;
 
    return 0;
 
 error:
-   if (cmptr)
-   {
-      free(cmptr);
-   }
-   pgexporter_disconnect(fd);
+
+   pgexporter_json_destroy(r);
 
    return 1;
 }
 
 int
-pgexporter_management_stop(SSL* ssl, int socket)
+pgexporter_management_response_ok(SSL* ssl, int socket, time_t start_time, time_t end_time, uint8_t compression, uint8_t encryption, struct json* payload)
 {
-   if (write_header(ssl, socket, MANAGEMENT_STOP))
+   struct json* outcome = NULL;
+
+   if (create_outcome_success(payload, start_time, end_time, &outcome))
    {
-      pgexporter_log_warn("pgexporter_management_stop: write: %d", socket);
-      errno = 0;
+      goto error;
+   }
+
+   if (pgexporter_management_write_json(ssl, socket, compression, encryption, payload))
+   {
       goto error;
    }
 
@@ -258,255 +321,579 @@ error:
 }
 
 int
-pgexporter_management_status(SSL* ssl, int socket)
+pgexporter_management_response_error(SSL* ssl, int socket, char* server, int32_t error, uint8_t compression, uint8_t encryption, struct json* payload)
 {
-   if (write_header(ssl, socket, MANAGEMENT_STATUS))
-   {
-      pgexporter_log_warn("pgexporter_management_status: write: %d", socket);
-      errno = 0;
-      goto error;
-   }
-
-   return 0;
-
-error:
-
-   return 1;
-}
-
-int
-pgexporter_management_read_status(SSL* ssl, int socket)
-{
-   char* name = NULL;
-   int servers;
-   int active;
-
-   if (read_int32("pgexporter_management_read_status", socket, &servers))
-   {
-      goto error;
-   }
-
-   printf("Number of servers: %d\n", servers);
-
-   for (int i = 0; i < servers; i++)
-   {
-      if (read_string("pgexporter_management_read_status", socket, &name))
-      {
-         goto error;
-      }
-
-      if (read_int32("pgexporter_management_read_status", socket, &active))
-      {
-         goto error;
-      }
-
-      printf("Server           : %s\n", &name[0]);
-      printf("  Active         : %s\n", active == 1 ? "Yes" : "No");
-
-      free(name);
-      name = NULL;
-   }
-
-   return 0;
-
-error:
-
-   return 1;
-}
-
-int
-pgexporter_management_write_status(int socket)
-{
+   int srv = -1;
+   struct json* response = NULL;
+   struct json* outcome = NULL;
    struct configuration* config;
-
-   pgexporter_memory_init();
 
    config = (struct configuration*)shmem;
 
-   pgexporter_open_connections();
-
-   if (write_int32("pgexporter_management_write_status", socket, config->number_of_servers))
+   if (create_outcome_failure(payload, error, &outcome))
    {
       goto error;
    }
 
-   for (int i = 0; i < config->number_of_servers; i++)
+   if (server != NULL && strlen(server) > 0)
    {
-      if (write_string("pgexporter_management_write_status", socket, config->servers[i].name))
+      if (pgexporter_json_get(payload, MANAGEMENT_CATEGORY_RESPONSE) != 0)
       {
+         response = (struct json*)pgexporter_json_get(payload, MANAGEMENT_CATEGORY_RESPONSE);
+      }
+      else
+      {
+         for (int i = 0; i < config->number_of_servers; i++)
+         {
+            if (!strcmp(server, config->servers[i].name))
+            {
+               srv = i;
+            }
+         }
+
+         if (pgexporter_management_create_response(payload, srv, &response))
+         {
+            goto error;
+         }
+
+         pgexporter_json_put(response, MANAGEMENT_ARGUMENT_SERVER, (uintptr_t)server, ValueString);
+      }
+   }
+
+   if (pgexporter_management_write_json(ssl, socket, compression, encryption, payload))
+   {
+      goto error;
+   }
+
+   return 0;
+
+error:
+
+   return 1;
+}
+
+int
+pgexporter_management_read_json(SSL* ssl, int socket, uint8_t* compression, uint8_t* encryption, struct json** json)
+{
+   uint8_t compress_method = MANAGEMENT_COMPRESSION_NONE;
+   uint8_t encrypt_method = MANAGEMENT_ENCRYPTION_NONE;
+   char* s = NULL;
+   struct json* r = NULL;
+
+   unsigned char* transfer_buffer = NULL;
+   unsigned char* decoded_buffer = NULL;
+   unsigned char* decrypted_buffer = NULL;
+   char* decompressed = NULL;
+   size_t transfer_size = 0;
+   size_t decoded_size = 0;
+   size_t decrypted_size = 0;
+
+   if (read_uint8("pgexporter-cli", ssl, socket, &compress_method))
+   {
+      goto error;
+   }
+
+   if (compression != NULL)
+   {
+      *compression = compress_method;
+   }
+
+   if (read_uint8("pgexporter-cli", ssl, socket, &encrypt_method))
+   {
+      goto error;
+   }
+
+   if (encryption != NULL)
+   {
+      *encryption = encrypt_method;
+   }
+
+   if (read_string("pgexporter-cli", ssl, socket, &s))
+   {
+      goto error;
+   }
+
+   if (compress_method || encrypt_method)
+   {
+      // First, perform decode
+      if (pgexporter_base64_decode(s, strlen(s), (void**)&decoded_buffer, &decoded_size) != 0)
+      {
+         pgexporter_log_error("pgexporter_management_read_json: Decoding failedg");
+         goto error;
+      }
+      free(s);
+      s = NULL;
+      transfer_buffer = decoded_buffer;
+      transfer_size = decoded_size;
+      decoded_buffer = NULL;
+
+      // Second, perform dencrypt
+      switch (encrypt_method)
+      {
+         case MANAGEMENT_ENCRYPTION_AES256:
+            if (pgexporter_decrypt_buffer(transfer_buffer, transfer_size, &decrypted_buffer, &decrypted_size, MANAGEMENT_ENCRYPTION_AES256))
+            {
+               pgexporter_log_error("pgexporter_management_read_json: Failed to aes256 dencrypt the string");
+               goto error;
+            }
+            free(transfer_buffer);
+            transfer_buffer = decrypted_buffer;
+            transfer_size = decrypted_size;
+            decrypted_buffer = NULL;
+
+            break;
+         case MANAGEMENT_ENCRYPTION_AES192:
+            if (pgexporter_decrypt_buffer(transfer_buffer, transfer_size, &decrypted_buffer, &decrypted_size, MANAGEMENT_ENCRYPTION_AES192))
+            {
+               pgexporter_log_error("pgexporter_management_read_json: Failed to aes192 dencrypt the string");
+               goto error;
+            }
+            free(transfer_buffer);
+            transfer_buffer = decrypted_buffer;
+            transfer_size = decrypted_size;
+            decrypted_buffer = NULL;
+
+            break;
+         case MANAGEMENT_ENCRYPTION_AES128:
+            if (pgexporter_decrypt_buffer(transfer_buffer, transfer_size, &decrypted_buffer, &decrypted_size, MANAGEMENT_ENCRYPTION_AES128))
+            {
+               pgexporter_log_error("pgexporter_management_read_json: Failed to aes128 dencrypt the string");
+               goto error;
+            }
+            free(transfer_buffer);
+            transfer_buffer = decrypted_buffer;
+            transfer_size = decrypted_size;
+            decrypted_buffer = NULL;
+
+            break;
+         default:
+            break;
+      }
+
+      // Third, perform decompress
+      switch (compress_method)
+      {
+         case MANAGEMENT_COMPRESSION_GZIP:
+            if (pgexporter_gunzip_string(transfer_buffer, transfer_size, &decompressed))
+            {
+               pgexporter_log_error("pgexporter_management_read_json: GZIP decompress failed");
+               goto error;
+            }
+            free(transfer_buffer);
+            transfer_buffer = NULL;
+            s = decompressed;
+            decompressed = NULL;
+            break;
+         case MANAGEMENT_COMPRESSION_ZSTD:
+            if (pgexporter_zstdd_string(transfer_buffer, transfer_size, &decompressed))
+            {
+               pgexporter_log_error("pgexporter_management_read_json: ZSTD decompress failed");
+               goto error;
+            }
+            free(transfer_buffer);
+            transfer_buffer = NULL;
+            s = decompressed;
+            decompressed = NULL;
+            break;
+         case MANAGEMENT_COMPRESSION_LZ4:
+            if (pgexporter_lz4d_string(transfer_buffer, transfer_size, &decompressed))
+            {
+               pgexporter_log_error("pgexporter_management_read_json: LZ4 decompress failed");
+               goto error;
+            }
+            free(transfer_buffer);
+            transfer_buffer = NULL;
+            s = decompressed;
+            decompressed = NULL;
+            break;
+         case MANAGEMENT_COMPRESSION_BZIP2:
+            if (pgexporter_bunzip2_string(transfer_buffer, transfer_size, &decompressed))
+            {
+               pgexporter_log_error("pgexporter_management_read_json: bzip2 decompress failed");
+               goto error;
+            }
+            free(transfer_buffer);
+            transfer_buffer = NULL;
+            s = decompressed;
+            decompressed = NULL;
+            break;
+         default:
+            s = (char*) transfer_buffer;
+            transfer_buffer = NULL;
+            break;
+      }
+   }
+
+   if (pgexporter_json_parse_string(s, &r))
+   {
+      goto error;
+   }
+
+   *json = r;
+
+   free(s);
+
+   return 0;
+
+error:
+
+   pgexporter_json_destroy(r);
+
+   if (s != NULL)
+   {
+      free(s);
+   }
+   if (transfer_buffer != NULL)
+   {
+      free(transfer_buffer);
+   }
+   if (decoded_buffer != NULL)
+   {
+      free(decoded_buffer);
+   }
+   if (decrypted_buffer != NULL)
+   {
+      free(decrypted_buffer);
+   }
+   if (decompressed != NULL)
+   {
+      free(decompressed);
+   }
+
+   return 1;
+}
+
+int
+pgexporter_management_write_json(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, struct json* json)
+{
+   char* s = NULL;
+
+   unsigned char* transfer_buffer = NULL;
+   unsigned char* compressed_buffer = NULL;
+   unsigned char* encrypted_buffer = NULL;
+   char* encoded = NULL;
+   size_t transfer_size = 0;
+   size_t compressed_size = 0;
+   size_t encrypted_size = 0;
+   size_t encoded_size = 0;
+
+   s = pgexporter_json_to_string(json, FORMAT_JSON_COMPACT, NULL, 0);
+
+   if (write_uint8("pgexporter-cli", ssl, socket, compression))
+   {
+      goto error;
+   }
+
+   if (write_uint8("pgexporter-cli", ssl, socket, encryption))
+   {
+      goto error;
+   }
+
+   if (compression || encryption)
+   {
+      // First, perform compress
+      switch (compression)
+      {
+         case MANAGEMENT_COMPRESSION_GZIP:
+            if (pgexporter_gzip_string(s, &compressed_buffer, &compressed_size))
+            {
+               pgexporter_log_error("pgexporter_management_write_json: Failed to gzip the string");
+               goto error;
+            }
+            transfer_buffer = compressed_buffer;
+            transfer_size = compressed_size;
+
+            free(s);
+            compressed_buffer = NULL;
+            s = NULL;
+            break;
+         case MANAGEMENT_COMPRESSION_ZSTD:
+            if (pgexporter_zstdc_string(s, &compressed_buffer, &compressed_size))
+            {
+               pgexporter_log_error("pgexporter_management_write_json: Failed to zstd the string");
+               goto error;
+            }
+            transfer_buffer = compressed_buffer;
+            transfer_size = compressed_size;
+
+            free(s);
+            compressed_buffer = NULL;
+            s = NULL;
+            break;
+         case MANAGEMENT_COMPRESSION_LZ4:
+            if (pgexporter_lz4c_string(s, &compressed_buffer, &compressed_size))
+            {
+               pgexporter_log_error("pgexporter_management_write_json: Failed to lz4 the string");
+               goto error;
+            }
+            transfer_buffer = compressed_buffer;
+            transfer_size = compressed_size;
+
+            free(s);
+            compressed_buffer = NULL;
+            s = NULL;
+            break;
+         case MANAGEMENT_COMPRESSION_BZIP2:
+            if (pgexporter_bzip2_string(s, &compressed_buffer, &compressed_size))
+            {
+               pgexporter_log_error("pgexporter_management_write_json: Failed to bzip2 the string");
+               goto error;
+            }
+            transfer_buffer = compressed_buffer;
+            transfer_size = compressed_size;
+
+            free(s);
+            compressed_buffer = NULL;
+            s = NULL;
+            break;
+         default:
+            transfer_buffer = (unsigned char*)s;
+            transfer_size = strlen(s);
+            s = NULL;
+            break;
+      }
+
+      // Second, perform encrypt
+      switch (encryption)
+      {
+         case MANAGEMENT_ENCRYPTION_AES256:
+            if (pgexporter_encrypt_buffer(transfer_buffer, transfer_size, &encrypted_buffer, &encrypted_size, MANAGEMENT_ENCRYPTION_AES256))
+            {
+               pgexporter_log_error("pgexporter_management_write_json: Failed to aes256 encrypt the string");
+               goto error;
+            }
+            free(transfer_buffer);
+            transfer_buffer = encrypted_buffer;
+            transfer_size = encrypted_size;
+            encrypted_buffer = NULL;
+
+            break;
+         case MANAGEMENT_ENCRYPTION_AES192:
+            if (pgexporter_encrypt_buffer(transfer_buffer, transfer_size, &encrypted_buffer, &encrypted_size, MANAGEMENT_ENCRYPTION_AES192))
+            {
+               pgexporter_log_error("pgexporter_management_write_json: Failed to aes192 encrypt the string");
+               goto error;
+            }
+            free(transfer_buffer);
+            transfer_buffer = encrypted_buffer;
+            transfer_size = encrypted_size;
+            encrypted_buffer = NULL;
+
+            break;
+         case MANAGEMENT_ENCRYPTION_AES128:
+            if (pgexporter_encrypt_buffer(transfer_buffer, transfer_size, &encrypted_buffer, &encrypted_size, MANAGEMENT_ENCRYPTION_AES128))
+            {
+               pgexporter_log_error("pgexporter_management_write_json: Failed to aes128 encrypt the string");
+               goto error;
+            }
+            free(transfer_buffer);
+            transfer_buffer = encrypted_buffer;
+            transfer_size = encrypted_size;
+            encrypted_buffer = NULL;
+
+            break;
+         default:
+            break;
+      }
+
+      // Third, perform base64 encode
+      if (pgexporter_base64_encode(transfer_buffer, transfer_size, &encoded, &encoded_size) != 0)
+      {
+         pgexporter_log_error("pgexporter_management_write_json: Encoding failed");
          goto error;
       }
 
-      if (write_int32("pgexporter_management_write_status", socket, config->servers[i].fd != -1 ? 1 : 0))
-      {
-         goto error;
-      }
+      free(transfer_buffer);
+      s = encoded;
+      encoded = NULL;
    }
 
-   pgexporter_close_connections();
-
-   pgexporter_memory_destroy();
-
-   return 0;
-
-error:
-
-   pgexporter_close_connections();
-
-   pgexporter_memory_destroy();
-   pgexporter_stop_logging();
-
-   return 1;
-}
-
-int
-pgexporter_management_details(SSL* ssl, int socket)
-{
-   if (write_header(ssl, socket, MANAGEMENT_DETAILS))
-   {
-      pgexporter_log_warn("pgexporter_management_details: write: %d", socket);
-      errno = 0;
-      goto error;
-   }
-
-   return 0;
-
-error:
-
-   return 1;
-}
-
-int
-pgexporter_management_read_details(SSL* ssl, int socket)
-{
-   return pgexporter_management_read_status(ssl, socket);
-}
-
-int
-pgexporter_management_write_details(int socket)
-{
-   return pgexporter_management_write_status(socket);
-}
-
-int
-pgexporter_management_isalive(SSL* ssl, int socket)
-{
-   if (write_header(ssl, socket, MANAGEMENT_ISALIVE))
+   if (write_string("pgexporter-cli", ssl, socket, s))
    {
       goto error;
    }
 
-   return 0;
-
-error:
-
-   return 1;
-}
-
-int
-pgexporter_management_read_isalive(SSL* ssl, int socket, int* status)
-{
-   char buf[4];
-
-   memset(&buf, 0, sizeof(buf));
-
-   if (read_complete(ssl, socket, buf, sizeof(buf)))
-   {
-      pgexporter_log_warn("pgexporter_management_read_isalive: read: %d %s", socket, strerror(errno));
-      errno = 0;
-      goto error;
-   }
-
-   *status = pgexporter_read_int32(buf);
-
-   if (status)
-   {
-      printf("pgexporter is running.\n");
-   }
-   else
-   {
-      printf("pgexporter is not running.\n");
-   }
+   free(s);
 
    return 0;
 
 error:
-
-   return 1;
-}
-
-int
-pgexporter_management_write_isalive(int socket)
-{
-   char buf[4];
-
-   memset(&buf, 0, sizeof(buf));
-
-   pgexporter_write_int32(buf, 1);
-
-   if (write_complete(NULL, socket, buf, sizeof(buf)))
+   if (s != NULL)
    {
-      pgexporter_log_warn("pgexporter_management_write_isalive: write: %d %s", socket, strerror(errno));
-      errno = 0;
-      goto error;
+      free(s);
    }
-
-   return 0;
-
-error:
-
-   return 1;
-}
-
-int
-pgexporter_management_reset(SSL* ssl, int socket)
-{
-   if (write_header(ssl, socket, MANAGEMENT_RESET))
+   if (transfer_buffer != NULL)
    {
-      pgexporter_log_warn("pgexporter_management_reset: write: %d", socket);
-      errno = 0;
-      goto error;
+      free(transfer_buffer);
    }
-
-   return 0;
-
-error:
-
-   return 1;
-}
-
-int
-pgexporter_management_reload(SSL* ssl, int socket)
-{
-   if (write_header(ssl, socket, MANAGEMENT_RELOAD))
+   if (compressed_buffer != NULL)
    {
-      pgexporter_log_warn("pgexporter_management_reload: write: %d", socket);
-      errno = 0;
-      goto error;
+      free(compressed_buffer);
    }
-
-   return 0;
-
-error:
+   if (encrypted_buffer != NULL)
+   {
+      free(encrypted_buffer);
+   }
+   if (encoded != NULL)
+   {
+      free(encoded);
+   }
 
    return 1;
 }
 
 static int
-read_int32(char* prefix, int socket, int* i)
+create_header(int32_t command, uint8_t compression, uint8_t encryption, int32_t output_format, struct json** json)
 {
-   char buf4[4] = {0};
+   time_t t;
+   char timestamp[128];
+   struct tm* time_info;
+   struct json* j = NULL;
+   struct json* header = NULL;
+
+   *json = NULL;
+
+   if (pgexporter_json_create(&j))
+   {
+      goto error;
+   }
+
+   if (pgexporter_json_create(&header))
+   {
+      goto error;
+   }
+
+   time(&t);
+   time_info = localtime(&t);
+   strftime(&timestamp[0], sizeof(timestamp), "%Y%m%d%H%M%S", time_info);
+
+   pgexporter_json_put(header, MANAGEMENT_ARGUMENT_COMMAND, (uintptr_t)command, ValueInt32);
+   pgexporter_json_put(header, MANAGEMENT_ARGUMENT_CLIENT_VERSION, (uintptr_t)VERSION, ValueString);
+   pgexporter_json_put(header, MANAGEMENT_ARGUMENT_OUTPUT, (uintptr_t)output_format, ValueUInt8);
+   pgexporter_json_put(header, MANAGEMENT_ARGUMENT_TIMESTAMP, (uintptr_t)timestamp, ValueString);
+   pgexporter_json_put(header, MANAGEMENT_ARGUMENT_COMPRESSION, (uintptr_t)compression, ValueUInt8);
+   pgexporter_json_put(header, MANAGEMENT_ARGUMENT_ENCRYPTION, (uintptr_t)encryption, ValueUInt8);
+
+   pgexporter_json_put(j, MANAGEMENT_CATEGORY_HEADER, (uintptr_t)header, ValueJSON);
+
+   *json = j;
+
+   return 0;
+
+error:
+
+   pgexporter_json_destroy(header);
+   pgexporter_json_destroy(j);
+
+   *json = NULL;
+
+   return 1;
+}
+
+static int
+create_request(struct json* json, struct json** request)
+{
+   struct json* r = NULL;
+
+   *request = NULL;
+
+   if (pgexporter_json_create(&r))
+   {
+      goto error;
+   }
+
+   pgexporter_json_put(json, MANAGEMENT_CATEGORY_REQUEST, (uintptr_t)r, ValueJSON);
+
+   *request = r;
+
+   return 0;
+
+error:
+
+   pgexporter_json_destroy(r);
+
+   return 1;
+}
+
+static int
+create_outcome_success(struct json* json, time_t start_time, time_t end_time, struct json** outcome)
+{
+   int32_t total_seconds = 0;
+   char* elapsed = NULL;
+   struct json* r = NULL;
+
+   *outcome = NULL;
+
+   if (pgexporter_json_create(&r))
+   {
+      goto error;
+   }
+
+   elapsed = pgexporter_get_timestamp_string(start_time, end_time, &total_seconds);
+
+   pgexporter_json_put(r, MANAGEMENT_ARGUMENT_STATUS, (uintptr_t)true, ValueBool);
+   pgexporter_json_put(r, MANAGEMENT_ARGUMENT_TIME, (uintptr_t)elapsed, ValueString);
+
+   pgexporter_json_put(json, MANAGEMENT_CATEGORY_OUTCOME, (uintptr_t)r, ValueJSON);
+
+   *outcome = r;
+
+   free(elapsed);
+
+   return 0;
+
+error:
+
+   free(elapsed);
+
+   pgexporter_json_destroy(r);
+
+   return 1;
+}
+
+static int
+create_outcome_failure(struct json* json, int32_t error, struct json** outcome)
+{
+   struct json* r = NULL;
+
+   *outcome = NULL;
+
+   if (pgexporter_json_create(&r))
+   {
+      goto error;
+   }
+
+   pgexporter_json_put(r, MANAGEMENT_ARGUMENT_STATUS, (uintptr_t)false, ValueBool);
+   pgexporter_json_put(r, MANAGEMENT_ARGUMENT_ERROR, (uintptr_t)error, ValueInt32);
+
+   pgexporter_json_put(json, MANAGEMENT_CATEGORY_OUTCOME, (uintptr_t)r, ValueJSON);
+
+   *outcome = r;
+
+   return 0;
+
+error:
+
+   pgexporter_json_destroy(r);
+
+   return 1;
+}
+
+static int
+read_uint8(char* prefix, SSL* ssl, int socket, uint8_t* i)
+{
+   char buf1[1] = {0};
 
    *i = 0;
 
-   if (read_complete(NULL, socket, buf4, sizeof(buf4)))
+   if (read_complete(ssl, socket, &buf1[0], sizeof(buf1)))
    {
-      pgexporter_log_warn("%s: read: %d %s", prefix, socket, strerror(errno));
+      pgexporter_log_warn("%s: read_byte: %p %d %s", prefix, ssl, socket, strerror(errno));
       errno = 0;
       goto error;
    }
 
-   *i = pgexporter_read_int32(buf4);
+   *i = pgexporter_read_uint8(&buf1);
 
    return 0;
 
@@ -516,30 +903,36 @@ error:
 }
 
 static int
-read_string(char* prefix, int socket, char** str)
+read_string(char* prefix, SSL* ssl, int socket, char** str)
 {
    char* s = NULL;
    char buf4[4] = {0};
-   int size;
+   uint32_t size;
 
    *str = NULL;
 
-   if (read_complete(NULL, socket, buf4, sizeof(buf4)))
+   if (read_complete(ssl, socket, &buf4[0], sizeof(buf4)))
    {
-      pgexporter_log_warn("%s: read: %d %s", prefix, socket, strerror(errno));
+      pgexporter_log_warn("%s: read_string: %p %d %s", prefix, ssl, socket, strerror(errno));
       errno = 0;
       goto error;
    }
 
-   size = pgexporter_read_int32(buf4);
+   size = pgexporter_read_uint32(&buf4);
    if (size > 0)
    {
       s = malloc(size + 1);
+
+      if (s == NULL)
+      {
+         goto error;
+      }
+
       memset(s, 0, size + 1);
 
-      if (read_complete(NULL, socket, s, size))
+      if (read_complete(ssl, socket, s, size))
       {
-         pgexporter_log_warn("%s: read: %d %s", prefix, socket, strerror(errno));
+         pgexporter_log_warn("%s: read_string: %p %d %s", prefix, ssl, socket, strerror(errno));
          errno = 0;
          goto error;
       }
@@ -551,55 +944,7 @@ read_string(char* prefix, int socket, char** str)
 
 error:
 
-   return 1;
-}
-
-static int
-write_int32(char* prefix, int socket, int i)
-{
-   char buf4[4] = {0};
-
-   pgexporter_write_int32(buf4, i);
-   if (write_complete(NULL, socket, buf4, sizeof(buf4)))
-   {
-      pgexporter_log_warn("%s: write: %d %s", prefix, socket, strerror(errno));
-      errno = 0;
-      goto error;
-   }
-
-   return 0;
-
-error:
-
-   return 1;
-}
-
-static int
-write_string(char* prefix, int socket, char* str)
-{
-   char buf4[4] = {0};
-
-   pgexporter_write_int32(buf4, str != NULL ? strlen(str) : 0);
-   if (write_complete(NULL, socket, buf4, sizeof(buf4)))
-   {
-      pgexporter_log_warn("%s: write: %d %s", prefix, socket, strerror(errno));
-      errno = 0;
-      goto error;
-   }
-
-   if (str != NULL)
-   {
-      if (write_complete(NULL, socket, str, strlen(str)))
-      {
-         pgexporter_log_warn("%s: write: %d %s", prefix, socket, strerror(errno));
-         errno = 0;
-         goto error;
-      }
-   }
-
-   return 0;
-
-error:
+   free(s);
 
    return 1;
 }
@@ -617,6 +962,7 @@ read_complete(SSL* ssl, int socket, void* buf, size_t size)
    retries = 0;
 
 read:
+
    if (ssl == NULL)
    {
       r = read(socket, buf + offset, needs);
@@ -636,7 +982,7 @@ read:
 
       goto error;
    }
-   else if (r < needs)
+   else if (r < (ssize_t)needs)
    {
       /* Sleep for 10ms */
       SLEEP(10000000L);
@@ -651,6 +997,56 @@ read:
       else
       {
          errno = EINVAL;
+         goto error;
+      }
+   }
+
+   return 0;
+
+error:
+
+   return 1;
+}
+
+static int
+write_uint8(char* prefix, SSL* ssl, int socket, uint8_t i)
+{
+   char buf1[1] = {0};
+
+   pgexporter_write_uint8(&buf1, i);
+   if (write_complete(ssl, socket, &buf1, sizeof(buf1)))
+   {
+      pgexporter_log_warn("%s: write_string: %p %d %s", prefix, ssl, socket, strerror(errno));
+      errno = 0;
+      goto error;
+   }
+
+   return 0;
+
+error:
+
+   return 1;
+}
+
+static int
+write_string(char* prefix, SSL* ssl, int socket, char* str)
+{
+   char buf4[4] = {0};
+
+   pgexporter_write_uint32(&buf4, str != NULL ? strlen(str) : 0);
+   if (write_complete(ssl, socket, &buf4, sizeof(buf4)))
+   {
+      pgexporter_log_warn("%s: write_string: %p %d %s", prefix, ssl, socket, strerror(errno));
+      errno = 0;
+      goto error;
+   }
+
+   if (str != NULL)
+   {
+      if (write_complete(ssl, socket, str, strlen(str)))
+      {
+         pgexporter_log_warn("%s: write_string: %p %d %s", prefix, ssl, socket, strerror(errno));
+         errno = 0;
          goto error;
       }
    }
@@ -691,7 +1087,7 @@ write_socket(int socket, void* buf, size_t size)
    {
       numbytes = write(socket, buf + offset, remaining);
 
-      if (likely(numbytes == size))
+      if (likely(numbytes == (ssize_t)size))
       {
          return 0;
       }
@@ -701,7 +1097,7 @@ write_socket(int socket, void* buf, size_t size)
          totalbytes += numbytes;
          remaining -= numbytes;
 
-         if (totalbytes == size)
+         if (totalbytes == (ssize_t)size)
          {
             return 0;
          }
@@ -747,7 +1143,7 @@ write_ssl(SSL* ssl, void* buf, size_t size)
    {
       numbytes = SSL_write(ssl, buf + offset, remaining);
 
-      if (likely(numbytes == size))
+      if (likely(numbytes == (ssize_t)size))
       {
          return 0;
       }
@@ -757,7 +1153,7 @@ write_ssl(SSL* ssl, void* buf, size_t size)
          totalbytes += numbytes;
          remaining -= numbytes;
 
-         if (totalbytes == size)
+         if (totalbytes == (ssize_t)size)
          {
             return 0;
          }
@@ -808,14 +1204,4 @@ write_ssl(SSL* ssl, void* buf, size_t size)
    while (keep_write);
 
    return 1;
-}
-
-static int
-write_header(SSL* ssl, int socket, signed char type)
-{
-   char header[MANAGEMENT_HEADER_SIZE];
-
-   pgexporter_write_byte(header, type);
-
-   return write_complete(ssl, socket, header, MANAGEMENT_HEADER_SIZE);
 }

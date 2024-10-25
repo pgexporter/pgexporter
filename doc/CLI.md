@@ -14,22 +14,22 @@ pgexporter-cli [ -c CONFIG_FILE ] [ COMMAND ]
 -?, --help               Display help
 ```
 
-## is-alive
+## ping
 Is pgexporter alive
 
 Command
 
 ```
-pgexporter-cli is-alive
+pgexporter-cli ping
 ```
 
-## stop
-Stop pgexporter
+## shutdown
+Shutdown pgexporter
 
 Command
 
 ```
-pgexporter-cli stop
+pgexporter-cli shutdown
 ```
 
 ## status
@@ -41,28 +41,29 @@ Command
 pgexporter-cli status
 ```
 
-## details
+## status details
 Detailed status of pgexporter
 
 Command
 
 ```
-pgexporter-cli details
+pgexporter-cli status details
 ```
 
-## reload
+## conf reload
 Reload the configuration
 
 Command
 
 ```
-pgexporter-cli reload
+pgexporter-cli conf reload
 ```
 
-## reset
-Reset the Prometheus statistics
+## clear prometheus
+Clear the Prometheus statistics
+
 Command
 
 ```
-pgexporter-cli reset
+pgexporter-cli clear prometheus
 ```

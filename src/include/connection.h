@@ -26,81 +26,39 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PGEXPORTER_CONFIGURATION_H
-#define PGEXPORTER_CONFIGURATION_H
+#ifndef PGEXPORTER_CONNECTION_H
+#define PGEXPORTER_CONNECTION_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include <pgexporter.h>
+#include <json.h>
+
+#include <stdbool.h>
 #include <stdlib.h>
 
-/**
- * Initialize the configuration structure
- * @param shmem The shared memory segment
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_init_configuration(void* shmem);
+#include <openssl/ssl.h>
+
 
 /**
- * Read the configuration from a file
- * @param shmem The shared memory segment
- * @param filename The file name
+ * Transfer a connection
+ * @param slot The slot
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_read_configuration(void* shmem, char* filename);
+pgexporter_transfer_connection_write(int server);
 
 /**
- * Validate the configuration
- * @param shmem The shared memory segment
+ * Read the connection
+ * @param client_fd The client descriptor
+ * @param server The server
+ * @param fd The file descriptor
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_validate_configuration(void* shmem);
-
-/**
- * Read the USERS configuration from a file
- * @param shmem The shared memory segment
- * @param filename The file name
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_read_users_configuration(void* shmem, char* filename);
-
-/**
- * Validate the USERS configuration from a file
- * @param shmem The shared memory segment
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_validate_users_configuration(void* shmem);
-
-/**
- * Read the ADMINS configuration from a file
- * @param shmem The shared memory segment
- * @param filename The file name
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_read_admins_configuration(void* shmem, char* filename);
-
-/**
- * Validate the ADMINS configuration from a file
- * @param shmem The shared memory segment
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_validate_admins_configuration(void* shmem);
-
-/**
- * Reload the configuration
- * @param reload Should the server be reloaded
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_reload_configuration(bool* reload);
+pgexporter_transfer_connection_read(int client_fd, int* server, int* fd);
 
 #ifdef __cplusplus
 }

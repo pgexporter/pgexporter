@@ -49,7 +49,8 @@ extern "C" {
 #define PGEXPORTER_HOMEPAGE "https://pgexporter.github.io/"
 #define PGEXPORTER_ISSUES "https://github.com/pgexporter/pgexporter/issues"
 
-#define MAIN_UDS ".s.pgexporter"
+#define MAIN_UDS     ".s.pgexporter"
+#define TRANSFER_UDS ".s.pgexporter.tu"
 
 #define MAX_NUMBER_OF_COLUMNS 32
 
@@ -109,6 +110,15 @@ extern "C" {
 #define ENCRYPTION_AES_192_CTR  5
 #define ENCRYPTION_AES_128_CTR  6
 
+#define COMPRESSION_NONE         0
+#define COMPRESSION_CLIENT_GZIP  1
+#define COMPRESSION_CLIENT_ZSTD  2
+#define COMPRESSION_CLIENT_LZ4   3
+#define COMPRESSION_CLIENT_BZIP2 4
+#define COMPRESSION_SERVER_GZIP  5
+#define COMPRESSION_SERVER_ZSTD  6
+#define COMPRESSION_SERVER_LZ4   7
+
 #define UPDATE_PROCESS_TITLE_NEVER   0
 #define UPDATE_PROCESS_TITLE_STRICT  1
 #define UPDATE_PROCESS_TITLE_MINIMAL 2
@@ -122,6 +132,8 @@ extern "C" {
 
 #define likely(x)    __builtin_expect (!!(x), 1)
 #define unlikely(x)  __builtin_expect (!!(x), 0)
+
+#define EMPTY_STR(_s) (_s[0] == 0)
 
 #define MAX(a, b)               \
         ({ __typeof__ (a) _a = (a);  \
@@ -203,7 +215,8 @@ struct server
    bool new;                           /**< Is the connection new */
    bool extension;                     /**< Is the pgexporter_ext extension installed */
    int state;                          /**< The state of the server */
-   char version;                       /**< The PostgreSQL version (char for minimum bytes)*/
+   int version;                        /**< The major version of the server*/
+   int minor_version;                  /**< The minor version of the server*/
    char tls_cert_file[MISC_LENGTH];    /**< TLS certificate path */
    char tls_key_file[MISC_LENGTH];     /**< TLS key path */
    char tls_ca_file[MISC_LENGTH];      /**< TLS CA certificate path */

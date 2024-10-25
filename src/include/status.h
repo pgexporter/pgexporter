@@ -26,91 +26,41 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* pgexporter */
-#include <pgexporter.h>
-#include <memory.h>
-#include <message.h>
+#ifndef PGEXPORTER_STATUS_H
+#define PGEXPORTER_STATUS_H
 
-/* system */
-#ifdef DEBUG
-#include <assert.h>
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+#include <json.h>
+
 #include <stdlib.h>
-#include <string.h>
 
-static struct message* message = NULL;
-static void* data = NULL;
-
+/**
+ * Create an status
+ * @param ssl The SSL connection
+ * @param client_fd The client
+ * @param compression The compress method for wire protocol
+ * @param encryption The encrypt method for wire protocol
+ * @param payload The payload
+ */
 void
-pgexporter_memory_init(void)
-{
-   if (message == NULL)
-   {
-      message = (struct message*)malloc(sizeof(struct message));
+pgexporter_status(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryption, struct json* payload);
 
-      if (message == NULL)
-      {
-         goto error;
-      }
-
-      data = malloc(DEFAULT_BUFFER_SIZE);
-
-      if (data == NULL)
-      {
-         goto error;
-      }
-   }
-
-#ifdef DEBUG
-   assert(message != NULL);
-   assert(data != NULL);
-#endif
-
-   pgexporter_memory_free();
-
-   return;
-
-error:
-
-#ifdef DEBUG
-   assert(message != NULL);
-   assert(data != NULL);
-#endif
-}
-
-struct message*
-pgexporter_memory_message(void)
-{
-#ifdef DEBUG
-   assert(message != NULL);
-   assert(data != NULL);
-#endif
-
-   return message;
-}
-
+/**
+ * Create an status details
+ * @param ssl The SSL connection
+ * @param client_fd The client
+ * @param compression The compress method for wire protocol
+ * @param encryption The encrypt method for wire protocol
+ * @param payload The payload
+ */
 void
-pgexporter_memory_free(void)
-{
-#ifdef DEBUG
-   assert(message != NULL);
-   assert(data != NULL);
+pgexporter_status_details(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryption, struct json* payload);
+
+#ifdef __cplusplus
+}
 #endif
 
-   memset(message, 0, sizeof(struct message));
-   memset(data, 0, DEFAULT_BUFFER_SIZE);
-
-   message->kind = 0;
-   message->length = 0;
-   message->data = data;
-}
-
-void
-pgexporter_memory_destroy(void)
-{
-   free(data);
-   free(message);
-
-   data = NULL;
-   message = NULL;
-}
+#endif

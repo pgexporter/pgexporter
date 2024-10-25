@@ -48,12 +48,12 @@ void
 pgexporter_remote_management(int client_fd, char* address)
 {
    int server_fd = -1;
-   int status;
    int exit_code;
    int auth_status;
-   signed char type;
+   uint8_t compression;
+   uint8_t encryption;
    SSL* client_ssl = NULL;
-   struct message* msg = NULL;
+   struct json* payload = NULL;
    struct configuration* config;
 
    pgexporter_start_logging();
@@ -68,51 +68,32 @@ pgexporter_remote_management(int client_fd, char* address)
    auth_status = pgexporter_remote_management_auth(client_fd, address, &client_ssl);
    if (auth_status == AUTH_SUCCESS)
    {
-      status = pgexporter_read_timeout_message(client_ssl, client_fd, 5 /* TODO config->authentication_timeout */, &msg);
-      if (status != MESSAGE_STATUS_OK)
-      {
-         goto done;
-      }
-
-      type = pgexporter_read_byte(msg->data);
-
       if (pgexporter_connect_unix_socket(config->unix_socket_dir, MAIN_UDS, &server_fd))
       {
          goto done;
       }
 
-      status = pgexporter_write_message(NULL, server_fd, msg);
-      if (status != MESSAGE_STATUS_OK)
+      if (pgexporter_management_read_json(client_ssl, client_fd, &compression, &encryption, &payload))
       {
          goto done;
       }
 
-      switch (type)
+      if (pgexporter_management_write_json(NULL, server_fd, compression, encryption, payload))
       {
-         case MANAGEMENT_STOP:
-         case MANAGEMENT_RESET:
-         case MANAGEMENT_RELOAD:
-            break;
-         case MANAGEMENT_STATUS:
-         case MANAGEMENT_ISALIVE:
-         case MANAGEMENT_DETAILS:
-            do
-            {
-               status = pgexporter_read_timeout_message(NULL, server_fd, 1, &msg);
-               if (status != MESSAGE_STATUS_OK)
-               {
-                  goto done;
-               }
+         goto done;
+      }
 
-               status = pgexporter_write_message(client_ssl, client_fd, msg);
-            }
-            while (status == MESSAGE_STATUS_OK);
-            break;
-         default:
-            pgexporter_log_warn("Unknown management operation: %d", type);
-            exit_code = 1;
-            goto done;
-            break;
+      pgexporter_json_destroy(payload);
+      payload = NULL;
+
+      if (pgexporter_management_read_json(NULL, server_fd, &compression, &encryption, &payload))
+      {
+         goto done;
+      }
+
+      if (pgexporter_management_write_json(client_ssl, client_fd, compression, encryption, payload))
+      {
+         goto done;
       }
    }
    else
@@ -121,6 +102,9 @@ pgexporter_remote_management(int client_fd, char* address)
    }
 
 done:
+
+   pgexporter_json_destroy(payload);
+   payload = NULL;
 
    if (client_ssl != NULL)
    {
