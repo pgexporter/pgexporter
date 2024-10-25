@@ -15,6 +15,7 @@ Donglin Xie <xray20161@gmail.com>
 Saurav Pal <resyfer.dev@gmail.com>
 Jakub Jirutka <jakub@jirutka.cz>
 Andreas Wahlen <andreas.wahlen@nerou.de>
+Haoran Zhang <andrewzhr9911@gmail.com>
 ```
 
 ## Contributing
@@ -32,7 +33,3 @@ Please, consult our [Code of Conduct][conduct] policies for interacting in our
 community.
 
 Consider giving the project a [star][star] on [GitHub][pgexporter] if you find it useful.
-
-## License
-
-[BSD-3-Clause][license]

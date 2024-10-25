@@ -58,9 +58,8 @@ enum value_type {
    ValueDeque,
    ValueART,
    ValueRef,
-   ValueVerifyEntry,
+   ValueMem,
 };
-
 /**
  * @struct value
  * Defines a universal value

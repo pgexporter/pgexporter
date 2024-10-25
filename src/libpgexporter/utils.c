@@ -985,7 +985,6 @@ pgexporter_append_bool(char* orig, bool b)
    return orig;
 }
 
-
 char*
 pgexporter_append_char(char* orig, char c)
 {
@@ -2016,6 +2015,65 @@ error:
    free(wal_files);
 
    return 1;
+}
+
+char*
+pgexporter_escape_string(char* str)
+{
+   if (str == NULL)
+   {
+      return NULL;
+   }
+
+   char* translated_ec_string = NULL;
+   int len = 0;
+   int idx = 0;
+   size_t translated_len = 0;
+
+   len = strlen(str);
+   for (int i = 0; i < len; i++)
+   {
+      if (str[i] == '\"' || str[i] == '\\' || str[i] == '\n' || str[i] == '\t' || str[i] == '\r')
+      {
+         translated_len++;
+      }
+      translated_len++;
+   }
+   translated_ec_string = (char*)malloc(translated_len + 1);
+
+   for (int i = 0; i < len; i++, idx++)
+   {
+      switch (str[i])
+      {
+         case '\\':
+         case '\"':
+            translated_ec_string[idx] = '\\';
+            idx++;
+            translated_ec_string[idx] = str[i];
+            break;
+         case '\n':
+            translated_ec_string[idx] = '\\';
+            idx++;
+            translated_ec_string[idx] = 'n';
+            break;
+         case '\t':
+            translated_ec_string[idx] = '\\';
+            idx++;
+            translated_ec_string[idx] = 't';
+            break;
+         case '\r':
+            translated_ec_string[idx] = '\\';
+            idx++;
+            translated_ec_string[idx] = 'r';
+            break;
+         default:
+            translated_ec_string[idx] = str[i];
+            break;
+      }
+   }
+   translated_ec_string[idx] = '\0'; // terminator
+
+   return translated_ec_string;
 }
 
 static int

@@ -337,7 +337,6 @@ pgexporter_append_ulong(char* orig, unsigned long l);
 char*
 pgexporter_append_bool(char* orig, bool b);
 
-
 /**
  * Append a char
  * @param orig The original string
@@ -592,6 +591,14 @@ pgexporter_read_version(char* directory, char** version);
  */
 int
 pgexporter_read_wal(char* directory, char** wal);
+
+/**
+ * Escape a string
+ * @param str The original string
+ * @return The escaped string
+ */
+char*
+pgexporter_escape_string(char* str);
 
 #ifdef DEBUG
 

@@ -469,7 +469,7 @@ metrics_page(int client_fd)
 
    start_time = time(NULL);
 
- retry_cache_locking:
+retry_cache_locking:
    cache_is_free = STATE_FREE;
    if (atomic_compare_exchange_strong(&cache->lock, &cache_is_free, STATE_IN_USE))
    {
@@ -571,7 +571,7 @@ metrics_page(int client_fd)
       {
          goto error;
       }
-      
+
       /* Sleep for 10ms */
       SLEEP_AND_GOTO(10000000L, retry_cache_locking);
    }
