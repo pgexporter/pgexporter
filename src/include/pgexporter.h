@@ -55,8 +55,7 @@ extern "C" {
 
 #define MAX_PROCESS_TITLE_LENGTH 256
 
-#define MAX_BUFFER_SIZE      65536
-#define DEFAULT_BUFFER_SIZE  65536
+#define DEFAULT_BUFFER_SIZE 131072
 
 #define MAX_USERNAME_LENGTH  128
 #define MAX_PASSWORD_LENGTH 1024
@@ -330,7 +329,6 @@ struct configuration
    unsigned int update_process_title;  /**< Behaviour for updating the process title */
 
    char libev[MISC_LENGTH]; /**< Name of libev mode */
-   int buffer_size;         /**< Socket buffer size */
    bool keep_alive;         /**< Use keep alive */
    bool nodelay;            /**< Use NODELAY */
    bool non_blocking;       /**< Use non blocking */

@@ -203,7 +203,6 @@ pgexporter_extract_message(char type, struct message* msg, struct message** extr
 
          result->kind = pgexporter_read_byte(data);
          result->length = 1 + m_length;
-         result->max_length = 1 + m_length;
          result->data = data;
 
          *extracted = result;
@@ -265,7 +264,6 @@ pgexporter_extract_message_offset(size_t offset, void* data, struct message** ex
 
    result->kind = type;
    result->length = 1 + m_length;
-   result->max_length = 1 + m_length;
    result->data = m_data;
 
    *extracted = result;
@@ -299,7 +297,6 @@ pgexporter_extract_message_from_data(char type, void* data, size_t data_size, st
 
          result->kind = pgexporter_read_byte(m_data);
          result->length = 1 + m_length;
-         result->max_length = 1 + m_length;
          result->data = m_data;
 
          *extracted = result;

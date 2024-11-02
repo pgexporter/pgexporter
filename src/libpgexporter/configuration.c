@@ -96,7 +96,6 @@ pgexporter_init_configuration(void* shm)
    config->blocking_timeout = 30;
    config->authentication_timeout = 5;
 
-   config->buffer_size = DEFAULT_BUFFER_SIZE;
    config->keep_alive = true;
    config->nodelay = true;
    config->non_blocking = true;
@@ -617,24 +616,6 @@ pgexporter_read_configuration(void* shm, char* filename)
                         max = MISC_LENGTH - 1;
                      }
                      memcpy(config->libev, value, max);
-                  }
-                  else
-                  {
-                     unknown = true;
-                  }
-               }
-               else if (!strcmp(key, "buffer_size"))
-               {
-                  if (!strcmp(section, "pgexporter"))
-                  {
-                     if (as_int(value, &config->buffer_size))
-                     {
-                        unknown = true;
-                     }
-                     if (config->buffer_size > MAX_BUFFER_SIZE)
-                     {
-                        config->buffer_size = MAX_BUFFER_SIZE;
-                     }
                   }
                   else
                   {
@@ -1976,7 +1957,6 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
 
    /* libev */
    restart_string("libev", config->libev, reload->libev);
-   config->buffer_size = reload->buffer_size;
    config->keep_alive = reload->keep_alive;
    config->nodelay = reload->nodelay;
    config->non_blocking = reload->non_blocking;

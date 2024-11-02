@@ -41,42 +41,43 @@
 static struct message* message = NULL;
 static void* data = NULL;
 
-/**
- *
- */
 void
 pgexporter_memory_init(void)
 {
-   struct configuration* config;
+   if (message == NULL)
+   {
+      message = (struct message*)malloc(sizeof(struct message));
 
-   config = (struct configuration*)shmem;
+      if (message == NULL)
+      {
+         goto error;
+      }
 
-   pgexporter_memory_size(config->buffer_size);
+      data = malloc(DEFAULT_BUFFER_SIZE);
+
+      if (data == NULL)
+      {
+         goto error;
+      }
+   }
+
+#ifdef DEBUG
+   assert(message != NULL);
+   assert(data != NULL);
+#endif
+
+   pgexporter_memory_free();
+
+   return;
+
+error:
+
+#ifdef DEBUG
+   assert(message != NULL);
+   assert(data != NULL);
+#endif
 }
 
-/**
- *
- */
-void
-pgexporter_memory_size(size_t size)
-{
-   pgexporter_memory_destroy();
-
-   message = (struct message*)malloc(sizeof(struct message));
-   data = malloc(size);
-
-   memset(message, 0, sizeof(struct message));
-   memset(data, 0, size);
-
-   message->kind = 0;
-   message->length = 0;
-   message->max_length = size;
-   message->data = data;
-}
-
-/**
- *
- */
 struct message*
 pgexporter_memory_message(void)
 {
@@ -88,31 +89,22 @@ pgexporter_memory_message(void)
    return message;
 }
 
-/**
- *
- */
 void
 pgexporter_memory_free(void)
 {
-   size_t length = message->max_length;
-
 #ifdef DEBUG
    assert(message != NULL);
    assert(data != NULL);
 #endif
 
    memset(message, 0, sizeof(struct message));
-   memset(data, 0, length);
+   memset(data, 0, DEFAULT_BUFFER_SIZE);
 
    message->kind = 0;
    message->length = 0;
-   message->max_length = length;
    message->data = data;
 }
 
-/**
- *
- */
 void
 pgexporter_memory_destroy(void)
 {

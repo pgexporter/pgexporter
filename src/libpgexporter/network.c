@@ -536,19 +536,17 @@ pgexporter_tcp_nodelay(int fd)
 int
 pgexporter_socket_buffers(int fd)
 {
-   struct configuration* config;
+   int default_buffer_size = 8192; //DEFAULT_BUFFER_SIZE;
    socklen_t optlen = sizeof(int);
 
-   config = (struct configuration*)shmem;
-
-   if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &config->buffer_size, optlen) == -1)
+   if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &default_buffer_size, optlen) == -1)
    {
       pgexporter_log_warn("socket_buffers: SO_RCVBUF %d %s", fd, strerror(errno));
       errno = 0;
       return 1;
    }
 
-   if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &config->buffer_size, optlen) == -1)
+   if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &default_buffer_size, optlen) == -1)
    {
       pgexporter_log_warn("socket_buffers: SO_SNDBUF %d %s", fd, strerror(errno));
       errno = 0;
