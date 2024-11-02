@@ -26,74 +26,65 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PGEXPORTER_SECURITY_H
-#define PGEXPORTER_SECURITY_H
+#ifndef PGEXPORTER_AES_H
+#define PGEXPORTER_AES_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include <pgexporter.h>
-
-#include <stdlib.h>
+#include <json.h>
 
 #include <openssl/ssl.h>
 
 /**
- * Authenticate a user
- * @param server The server
- * @param database The database
- * @param username The username
- * @param password The password
- * @param ssl The resulting SSL structure
- * @param fd The resulting socket
- * @return AUTH_SUCCESS, AUTH_BAD_PASSWORD or AUTH_ERROR
- */
-int
-pgexporter_server_authenticate(int server, char* database, char* username, char* password, SSL** ssl, int* fd);
-
-/**
- * Authenticate a remote management user
- * @param client_fd The descriptor
- * @param address The client address
- * @param client_ssl The client SSL context
+ * Encrypt a string
+ * @param plaintext The string
+ * @param password The master password
+ * @param ciphertext The ciphertext output
+ * @param ciphertext_length The length of the ciphertext
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl);
+pgexporter_encrypt(char* plaintext, char* password, char** ciphertext, int* ciphertext_length, int mode);
 
 /**
- * Connect using SCRAM-SHA256
- * @param username The user name
- * @param password The password
- * @param server_fd The descriptor
- * @param s_ssl The SSL context
+ * Decrypt a string
+ * @param ciphertext The string
+ * @param ciphertext_length The length of the ciphertext
+ * @param password The master password
+ * @param plaintext The plaintext output
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_remote_management_scram_sha256(char* username, char* password, int server_fd, SSL** s_ssl);
+pgexporter_decrypt(char* ciphertext, int ciphertext_length, char* password, char** plaintext, int mode);
 
 /**
- * Get the master key
- * @param masterkey The master key
+ *
+ * Encrypt a buffer
+ * @param origin_buffer The original buffer
+ * @param origin_size The size of the buffer
+ * @param enc_buffer The result buffer
+ * @param enc_size The result buffer size
+ * @param mode The aes mode
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_get_master_key(char** masterkey);
+pgexporter_encrypt_buffer(unsigned char* origin_buffer, size_t origin_size, unsigned char** enc_buffer, size_t* enc_size, int mode);
 
 /**
- * Is the TLS configuration valid
+ *
+ * Decrypt a buffer
+ * @param origin_buffer The original buffer
+ * @param origin_size The size of the buffer
+ * @param dec_buffer The result buffer
+ * @param dec_size The result buffer size
+ * @param mode The aes mode
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_tls_valid(void);
-
-/**
- * Close a SSL structure
- * @param ssl The SSL structure
- */
-void
-pgexporter_close_ssl(SSL* ssl);
+pgexporter_decrypt_buffer(unsigned char* origin_buffer, size_t origin_size, unsigned char** dec_buffer, size_t* dec_size, int mode);
 
 #ifdef __cplusplus
 }

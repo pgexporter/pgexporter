@@ -28,6 +28,7 @@
 
 /* pgexporter */
 #include <pgexporter.h>
+#include <aes.h>
 #include <logging.h>
 #include <security.h>
 #include <utils.h>
@@ -589,7 +590,7 @@ password:
       }
    }
 
-   pgexporter_encrypt(password, master_key, &encrypted, &encrypted_length);
+   pgexporter_encrypt(password, master_key, &encrypted, &encrypted_length, ENCRYPTION_AES_256_CBC);
    pgexporter_base64_encode(encrypted, encrypted_length, &encoded, &encoded_length);
 
    snprintf(line, sizeof(line), "%s:%s\n", username, encoded);
@@ -758,7 +759,7 @@ password:
             }
          }
 
-         pgexporter_encrypt(password, master_key, &encrypted, &encrypted_length);
+         pgexporter_encrypt(password, master_key, &encrypted, &encrypted_length, ENCRYPTION_AES_256_CBC);
          pgexporter_base64_encode(encrypted, encrypted_length, &encoded, &encoded_length);
 
          memset(&line, 0, sizeof(line));

@@ -28,6 +28,7 @@
 
 /* pgexporter */
 #include <pgexporter.h>
+#include <aes.h>
 #include <configuration.h>
 #include <logging.h>
 #include <query_alts.h>
@@ -952,12 +953,12 @@ pgexporter_read_users_configuration(void* shm, char* filename)
                goto error;
             }
 
-            if (pgexporter_base64_decode(ptr, strlen(ptr), &decoded, &decoded_length))
+            if (pgexporter_base64_decode(ptr, strlen(ptr), (void**)&decoded, &decoded_length))
             {
                goto error;
             }
 
-            if (pgexporter_decrypt(decoded, decoded_length, master_key, &password))
+            if (pgexporter_decrypt(decoded, decoded_length, master_key, &password, ENCRYPTION_AES_256_CBC))
             {
                goto error;
             }
@@ -1129,12 +1130,12 @@ pgexporter_read_admins_configuration(void* shm, char* filename)
                goto error;
             }
 
-            if (pgexporter_base64_decode(ptr, strlen(ptr), &decoded, &decoded_length))
+            if (pgexporter_base64_decode(ptr, strlen(ptr), (void**)&decoded, &decoded_length))
             {
                goto error;
             }
 
-            if (pgexporter_decrypt(decoded, decoded_length, master_key, &password))
+            if (pgexporter_decrypt(decoded, decoded_length, master_key, &password, ENCRYPTION_AES_256_CBC))
             {
                goto error;
             }

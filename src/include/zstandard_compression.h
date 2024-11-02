@@ -26,74 +26,34 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PGEXPORTER_SECURITY_H
-#define PGEXPORTER_SECURITY_H
+#ifndef PGEXPORTER_ZSTANDARD_H
+#define PGEXPORTER_ZSTANDARD_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <pgexporter.h>
-
 #include <stdlib.h>
 
-#include <openssl/ssl.h>
-
 /**
- * Authenticate a user
- * @param server The server
- * @param database The database
- * @param username The username
- * @param password The password
- * @param ssl The resulting SSL structure
- * @param fd The resulting socket
- * @return AUTH_SUCCESS, AUTH_BAD_PASSWORD or AUTH_ERROR
- */
-int
-pgexporter_server_authenticate(int server, char* database, char* username, char* password, SSL** ssl, int* fd);
-
-/**
- * Authenticate a remote management user
- * @param client_fd The descriptor
- * @param address The client address
- * @param client_ssl The client SSL context
+ * ZSTD compress a string
+ * @param s The original string
+ * @param buffer The point to the compressed data buffer
+ * @param buffer_size The size of the compressed buffer will be stored.
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl);
+pgexporter_zstdc_string(char* s, unsigned char** buffer, size_t* buffer_size);
 
 /**
- * Connect using SCRAM-SHA256
- * @param username The user name
- * @param password The password
- * @param server_fd The descriptor
- * @param s_ssl The SSL context
+ * ZSTD decompress a buffer to string
+ * @param compressed_buffer The buffer containing the GZIP compressed data
+ * @param compressed_size The size of the compressed buffer
+ * @param output_string The pointer to a string where the decompressed data will be stored
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_remote_management_scram_sha256(char* username, char* password, int server_fd, SSL** s_ssl);
-
-/**
- * Get the master key
- * @param masterkey The master key
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_get_master_key(char** masterkey);
-
-/**
- * Is the TLS configuration valid
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_tls_valid(void);
-
-/**
- * Close a SSL structure
- * @param ssl The SSL structure
- */
-void
-pgexporter_close_ssl(SSL* ssl);
+pgexporter_zstdd_string(unsigned char* compressed_buffer, size_t compressed_size, char** output_string);
 
 #ifdef __cplusplus
 }

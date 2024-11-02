@@ -246,7 +246,7 @@ pgexporter_get_password(void);
  * @return 0 if success, otherwise 1
  */
 int
-pgexporter_base64_encode(char* raw, size_t raw_length, char** encoded, size_t* encoded_length);
+pgexporter_base64_encode(void* raw, size_t raw_length, char** encoded, size_t* encoded_length);
 
 /**
  * BASE64 decode a string
@@ -257,7 +257,7 @@ pgexporter_base64_encode(char* raw, size_t raw_length, char** encoded, size_t* e
  * @return 0 if success, otherwise 1
  */
 int
-pgexporter_base64_decode(char* encoded, size_t encoded_length, char** raw, size_t* raw_length);
+pgexporter_base64_decode(char* encoded, size_t encoded_length, void** raw, size_t* raw_length);
 
 /**
  * Set process title.

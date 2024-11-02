@@ -237,6 +237,7 @@ pgexporter_connect(const char* hostname, int port, int* fd)
    int rv;
    char sport[5];
    int error = 0;
+   int default_buffer_size = DEFAULT_BUFFER_SIZE;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
@@ -298,7 +299,7 @@ pgexporter_connect(const char* hostname, int port, int* fd)
 
          if (config != NULL)
          {
-            if (setsockopt(*fd, SOL_SOCKET, SO_RCVBUF, &config->buffer_size, optlen) == -1)
+            if (setsockopt(*fd, SOL_SOCKET, SO_RCVBUF, &default_buffer_size, optlen) == -1)
             {
                error = errno;
                pgexporter_disconnect(*fd);
@@ -307,7 +308,7 @@ pgexporter_connect(const char* hostname, int port, int* fd)
                continue;
             }
 
-            if (setsockopt(*fd, SOL_SOCKET, SO_SNDBUF, &config->buffer_size, optlen) == -1)
+            if (setsockopt(*fd, SOL_SOCKET, SO_SNDBUF, &default_buffer_size, optlen) == -1)
             {
                error = errno;
                pgexporter_disconnect(*fd);

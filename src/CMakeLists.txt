@@ -28,6 +28,10 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     ${OPENSSL_INCLUDE_DIR}
     ${LIBYAML_INCLUDE_DIRS}
     ${THREAD_INCLUDE_DIRS}
+    ${ZLIB_INCLUDE_DIRS}
+    ${BZIP2_INCLUDE_DIRS}
+    ${ZSTD_INCLUDE_DIRS}
+    ${LZ4_INCLUDE_DIRS}
   )
 
   #
@@ -40,6 +44,10 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     ${LIBYAML_LIBRARIES}
     ${LIBATOMIC_LIBRARY}
     ${THREAD_LIBRARY}
+    ${ZLIB_LIBRARIES}
+    ${BZIP2_LIBRARIES}
+    ${ZSTD_LIBRARIES}
+    ${LZ4_LIBRARIES}
   )
 
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")
@@ -60,6 +68,10 @@ else()
     ${OPENSSL_INCLUDE_DIR}
     ${LIBYAML_INCLUDE_DIRS}
     ${THREAD_INCLUDE_DIRS}
+    ${ZLIB_INCLUDE_DIRS}
+    ${BZIP2_INCLUDE_DIRS}
+    ${ZSTD_INCLUDE_DIRS}
+    ${LZ4_INCLUDE_DIRS}
   )
 
   #
@@ -71,6 +83,10 @@ else()
     ${OPENSSL_SSL_LIBRARY}
     ${LIBYAML_LIBRARIES}
     ${THREAD_LIBRARY}
+    ${ZLIB_LIBRARIES}
+    ${BZIP2_LIBRARIES}
+    ${ZSTD_LIBRARIES}
+    ${LZ4_LIBRARIES}
   )
 
   if (${CMAKE_SYSTEM_NAME} STREQUAL "OpenBSD")
@@ -98,6 +114,14 @@ add_compile_options(-D__USE_ISOC11)
 add_compile_options(-D_GNU_SOURCE)
 add_compile_options(-Wno-deprecated)
 add_compile_options(-Wno-deprecated-declarations)
+
+#
+# version number and string management
+#
+add_compile_options(-DPGEXPORTER_MAJOR_VERSION=${VERSION_MAJOR})
+add_compile_options(-DPGEXPORTER_MINOR_VERSION=${VERSION_MINOR})
+add_compile_options(-DPGEXPORTER_PATCH_VERSION=${VERSION_PATCH})
+add_compile_options(-DPGEXPORTER_VERSION="${VERSION_STRING}")
 
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
   add_compile_options(-Wstrict-prototypes)

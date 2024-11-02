@@ -52,6 +52,10 @@ dnf install git gcc cmake make libev libev-devel \
             systemd systemd-devel \
             python3-docutils libatomic \
             libyaml libyaml-devel
+            zlib zlib-devel \
+            libzstd libzstd-devel \
+            lz4 lz4-devel \
+            bzip2 bzip2-devel
 ```
 
 Alternative [clang 8+](https://clang.llvm.org/) can be used.

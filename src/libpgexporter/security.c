@@ -28,6 +28,7 @@
 
 /* pgexporter */
 #include <pgexporter.h>
+#include <aes.h>
 #include <logging.h>
 #include <memory.h>
 #include <message.h>
@@ -83,10 +84,6 @@ static int server_md5(char* username, char* password, SSL* ssl, int server_fd);
 static int server_scram256(char* username, char* password, SSL* ssl, int server_fd);
 
 static char* get_admin_password(char* username);
-
-static int derive_key_iv(char* password, unsigned char* key, unsigned char* iv);
-static int aes_encrypt(char* plaintext, unsigned char* key, unsigned char* iv, char** ciphertext, int* ciphertext_length);
-static int aes_decrypt(char* ciphertext, int ciphertext_length, unsigned char* key, unsigned char* iv, char** plaintext);
 
 static int sasl_prep(char* password, char** password_prep);
 static int generate_nounce(char** nounce);
@@ -332,7 +329,7 @@ pgexporter_remote_management_scram_sha256(char* username, char* password, int se
    struct message* sasl_final = NULL;
    struct message* msg = NULL;
 
-   pgexporter_memory_size(DEFAULT_BUFFER_SIZE);
+   pgexporter_memory_init();
 
    if (pgexporter_get_home_directory() == NULL)
    {
@@ -501,7 +498,7 @@ pgexporter_remote_management_scram_sha256(char* username, char* password, int se
       goto error;
    }
 
-   pgexporter_base64_decode(base64_salt, strlen(base64_salt), &salt, &salt_length);
+   pgexporter_base64_decode(base64_salt, strlen(base64_salt), (void**)&salt, &salt_length);
 
    iteration = atoi(iteration_string);
 
@@ -550,7 +547,7 @@ pgexporter_remote_management_scram_sha256(char* username, char* password, int se
 
    /* Get 'v' attribute */
    base64_server_signature = sasl_final->data + 11;
-   pgexporter_base64_decode(base64_server_signature, sasl_final->length - 11, &server_signature_received, &server_signature_received_length);
+   pgexporter_base64_decode(base64_server_signature, sasl_final->length - 11, (void**)&server_signature_received, &server_signature_received_length);
 
    if (server_signature(password_prep, salt, salt_length, iteration,
                         NULL, 0,
@@ -897,7 +894,7 @@ retry:
    }
 
    get_scram_attribute('p', (char*)msg->data + 5, msg->length - 5, &base64_client_proof);
-   pgexporter_base64_decode(base64_client_proof, strlen(base64_client_proof), &client_proof_received, &client_proof_received_length);
+   pgexporter_base64_decode(base64_client_proof, strlen(base64_client_proof), (void**)&client_proof_received, &client_proof_received_length);
 
    client_final_message_without_proof = malloc(58);
    memset(client_final_message_without_proof, 0, 58);
@@ -1552,7 +1549,7 @@ server_scram256(char* username, char* password, SSL* ssl, int server_fd)
       goto error;
    }
 
-   pgexporter_base64_decode(base64_salt, strlen(base64_salt), &salt, &salt_length);
+   pgexporter_base64_decode(base64_salt, strlen(base64_salt), (void**)&salt, &salt_length);
 
    iteration = atoi(iteration_string);
 
@@ -1612,7 +1609,7 @@ server_scram256(char* username, char* password, SSL* ssl, int server_fd)
    /* Get 'v' attribute */
    base64_server_signature = sasl_final->data + 11;
    pgexporter_base64_decode(base64_server_signature, sasl_final->length - 11,
-                            &server_signature_received, &server_signature_received_length);
+                            (void**)&server_signature_received, &server_signature_received_length);
 
    if (server_signature(password_prep, salt, salt_length, iteration,
                         NULL, 0,
@@ -1779,7 +1776,7 @@ pgexporter_get_master_key(char** masterkey)
       goto error;
    }
 
-   pgexporter_base64_decode(&line[0], strlen(&line[0]), &mk, &mk_length);
+   pgexporter_base64_decode(&line[0], strlen(&line[0]), (void**)&mk, &mk_length);
 
    *masterkey = mk;
 
@@ -1797,40 +1794,6 @@ error:
    }
 
    return 1;
-}
-
-int
-pgexporter_encrypt(char* plaintext, char* password, char** ciphertext, int* ciphertext_length)
-{
-   unsigned char key[EVP_MAX_KEY_LENGTH];
-   unsigned char iv[EVP_MAX_IV_LENGTH];
-
-   memset(&key, 0, sizeof(key));
-   memset(&iv, 0, sizeof(iv));
-
-   if (derive_key_iv(password, key, iv) != 0)
-   {
-      return 1;
-   }
-
-   return aes_encrypt(plaintext, key, iv, ciphertext, ciphertext_length);
-}
-
-int
-pgexporter_decrypt(char* ciphertext, int ciphertext_length, char* password, char** plaintext)
-{
-   unsigned char key[EVP_MAX_KEY_LENGTH];
-   unsigned char iv[EVP_MAX_IV_LENGTH];
-
-   memset(&key, 0, sizeof(key));
-   memset(&iv, 0, sizeof(iv));
-
-   if (derive_key_iv(password, key, iv) != 0)
-   {
-      return 1;
-   }
-
-   return aes_decrypt(ciphertext, ciphertext_length, key, iv, plaintext);
 }
 
 int
@@ -1941,133 +1904,6 @@ pgexporter_tls_valid(void)
    return 0;
 
 error:
-
-   return 1;
-}
-
-static int
-derive_key_iv(char* password, unsigned char* key, unsigned char* iv)
-{
-   if (!EVP_BytesToKey(EVP_aes_256_cbc(), EVP_sha1(), NULL,
-                       (unsigned char*) password, strlen(password), 1,
-                       key, iv))
-   {
-      return 1;
-   }
-
-   return 0;
-}
-
-static int
-aes_encrypt(char* plaintext, unsigned char* key, unsigned char* iv, char** ciphertext, int* ciphertext_length)
-{
-   EVP_CIPHER_CTX* ctx = NULL;
-   int length;
-   size_t size;
-   unsigned char* ct = NULL;
-   int ct_length;
-
-   if (!(ctx = EVP_CIPHER_CTX_new()))
-   {
-      goto error;
-   }
-
-   if (EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv) != 1)
-   {
-      goto error;
-   }
-
-   size = strlen(plaintext) + EVP_CIPHER_block_size(EVP_aes_256_cbc());
-   ct = malloc(size);
-   memset(ct, 0, size);
-
-   if (EVP_EncryptUpdate(ctx,
-                         ct, &length,
-                         (unsigned char*)plaintext, strlen((char*)plaintext)) != 1)
-   {
-      goto error;
-   }
-
-   ct_length = length;
-
-   if (EVP_EncryptFinal_ex(ctx, ct + length, &length) != 1)
-   {
-      goto error;
-   }
-
-   ct_length += length;
-
-   EVP_CIPHER_CTX_free(ctx);
-
-   *ciphertext = (char*)ct;
-   *ciphertext_length = ct_length;
-
-   return 0;
-
-error:
-   if (ctx)
-   {
-      EVP_CIPHER_CTX_free(ctx);
-   }
-
-   free(ct);
-
-   return 1;
-}
-
-static int
-aes_decrypt(char* ciphertext, int ciphertext_length, unsigned char* key, unsigned char* iv, char** plaintext)
-{
-   EVP_CIPHER_CTX* ctx = NULL;
-   int plaintext_length;
-   int length;
-   size_t size;
-   char* pt = NULL;
-
-   if (!(ctx = EVP_CIPHER_CTX_new()))
-   {
-      goto error;
-   }
-
-   if (EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv) != 1)
-   {
-      goto error;
-   }
-
-   size = ciphertext_length + EVP_CIPHER_block_size(EVP_aes_256_cbc());
-   pt = malloc(size);
-   memset(pt, 0, size);
-
-   if (EVP_DecryptUpdate(ctx,
-                         (unsigned char*)pt, &length,
-                         (unsigned char*)ciphertext, ciphertext_length) != 1)
-   {
-      goto error;
-   }
-
-   plaintext_length = length;
-
-   if (EVP_DecryptFinal_ex(ctx, (unsigned char*)pt + length, &length) != 1)
-   {
-      goto error;
-   }
-
-   plaintext_length += length;
-
-   EVP_CIPHER_CTX_free(ctx);
-
-   pt[plaintext_length] = 0;
-   *plaintext = pt;
-
-   return 0;
-
-error:
-   if (ctx)
-   {
-      EVP_CIPHER_CTX_free(ctx);
-   }
-
-   free(pt);
 
    return 1;
 }

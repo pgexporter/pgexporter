@@ -661,7 +661,7 @@ pgexporter_get_password(void)
 }
 
 int
-pgexporter_base64_encode(char* raw, size_t raw_length, char** encoded, size_t* encoded_length)
+pgexporter_base64_encode(void* raw, size_t raw_length, char** encoded, size_t* encoded_length)
 {
    BIO* b64_bio;
    BIO* mem_bio;
@@ -711,7 +711,7 @@ error:
 }
 
 int
-pgexporter_base64_decode(char* encoded, size_t encoded_length, char** raw, size_t* raw_length)
+pgexporter_base64_decode(char* encoded, size_t encoded_length, void** raw, size_t* raw_length)
 {
    BIO* b64_bio;
    BIO* mem_bio;
