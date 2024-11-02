@@ -1944,6 +1944,12 @@ send_chunk(int client_fd, char* data)
    memset(&msg, 0, sizeof(struct message));
 
    m = malloc(20);
+
+   if (m == NULL)
+   {
+      goto error;
+   }
+
    memset(m, 0, 20);
 
    sprintf(m, "%zX\r\n", strlen(data));
@@ -1962,6 +1968,10 @@ send_chunk(int client_fd, char* data)
    free(m);
 
    return status;
+
+error:
+
+   return MESSAGE_STATUS_ERROR;
 }
 
 static char*
