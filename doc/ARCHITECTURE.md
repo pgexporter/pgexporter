@@ -39,16 +39,48 @@ The memory interface is defined in [memory.h](../src/include/memory.h) ([memory.
 `pgexporter` has a management interface which defines the administrator abilities that can be performed when it is running.
 This include for example taking a backup. The `pgexporter-cli` program is used for these operations ([cli.c](../src/cli.c)).
 
-The management interface use Unix Domain Socket for communication.
-
 The management interface is defined in [management.h](../src/include/management.h). The management interface
-uses its own protocol which always consist of a header
+uses its own protocol which uses JSON as its foundation.
 
-| Field      | Type | Description |
-|------------|------|-------------|
-| `id` | Byte | The identifier of the message type |
+### Write
 
-The rest of the message is depending on the message type.
+The client sends a single JSON string to the server,
+
+| Field         | Type   | Description                     |
+| :------------ | :----- | :------------------------------ |
+| `compression` | uint8  | The compression type            |
+| `encryption`  | uint8  | The encryption type             |
+| `length`      | uint32 | The length of the JSON document |
+| `json`        | String | The JSON document               |
+
+The server sends a single JSON string to the client,
+
+| Field         | Type   | Description                     |
+| :------------ | :----- | :------------------------------ |
+| `compression` | uint8  | The compression type            |
+| `encryption`  | uint8  | The encryption type             |
+| `length`      | uint32 | The length of the JSON document |
+| `json`        | String | The JSON document               |
+
+### Read
+
+The server sends a single JSON string to the client,
+
+| Field         | Type   | Description                     |
+| :------------ | :----- | :------------------------------ |
+| `compression` | uint8  | The compression type            |
+| `encryption`  | uint8  | The encryption type             |
+| `length`      | uint32 | The length of the JSON document |
+| `json`        | String | The JSON document               |
+
+The client sends to the server a single JSON documents,
+
+| Field         | Type   | Description                     |
+| :------------ | :----- | :------------------------------ |
+| `compression` | uint8  | The compression type            |
+| `encryption`  | uint8  | The encryption type             |
+| `length`      | uint32 | The length of the JSON document |
+| `json`        | String | The JSON document               |
 
 ### Remote management
 
