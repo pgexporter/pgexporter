@@ -10,39 +10,39 @@ function _pgexporter_cli()
                "*::arg:->args"
     case $line[1] in
         status)
-            _pgmoneta_cli_status
+            _pgexporter_cli_status
             ;;
         conf)
-            _pgmoneta_cli_conf
+            _pgexporter_cli_conf
             ;;
         clear)
-            _pgmoneta_cli_clear
+            _pgexporter_cli_clear
             ;;
     esac
 }
 
-function _pgmoneta_cli_status()
+function _pgexporter_cli_status()
 {
     _arguments -C \
                "1: :(details)" \
                "*::arg:->args"
 }
 
-function _pgmoneta_cli_conf()
+function _pgexporter_cli_conf()
 {
     _arguments -C \
                "1: :(reload)" \
                "*::arg:->args"
 }
 
-function _pgmoneta_cli_clear()
+function _pgexporter_cli_clear()
 {
     _arguments -C \
                "1: :(prometheus)" \
                "*::arg:->args"
 }
 
-function _pgmoneta_admin()
+function _pgexporter_admin()
 {
    local line
     _arguments -C \
@@ -51,12 +51,12 @@ function _pgmoneta_admin()
 
     case $line[1] in
         user)
-            _pgmoneta_admin_user
+            _pgexporter_admin_user
             ;;
     esac
 }
 
-function _pgmoneta_admin_user()
+function _pgexporter_admin_user()
 {
     _arguments -C \
                "1: :(add del edit ls)" \
