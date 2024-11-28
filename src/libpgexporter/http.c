@@ -191,6 +191,7 @@ pgexporter_http_destroy(struct http* http)
    {
       curl_easy_cleanup(http->curl);
 
+      free(http->url);
       free(http->header);
       free(http->body);
    }
