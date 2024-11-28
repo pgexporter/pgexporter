@@ -29,6 +29,7 @@
 /* pgexporter */
 #include <pgexporter.h>
 #include <http.h>
+#include <logging.h>
 #include <memory.h>
 #include <utils.h>
 
@@ -182,6 +183,46 @@ pgexporter_http_post(struct http* http)
 error:
 
    return 1;
+}
+
+void
+pgexporter_http_log(struct http* http)
+{
+   if (http == NULL)
+   {
+      pgexporter_log_debug("HTTP is NULL");
+   }
+   else
+   {
+      pgexporter_log_debug("HTTP: %p", http);
+
+      if (http->url == NULL)
+      {
+         pgexporter_log_debug("URL is NULL");
+      }
+      else
+      {
+         pgexporter_log_mem(http->url, http->url_length);
+      }
+
+      if (http->header == NULL)
+      {
+         pgexporter_log_debug("Header is NULL");
+      }
+      else
+      {
+         pgexporter_log_mem(http->header, http->header_length);
+      }
+
+      if (http->body == NULL)
+      {
+         pgexporter_log_debug("Body is NULL");
+      }
+      else
+      {
+         pgexporter_log_mem(http->body, http->body_length);
+      }
+   }
 }
 
 int

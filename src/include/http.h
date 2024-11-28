@@ -101,6 +101,13 @@ int
 pgexporter_http_post(struct http* http);
 
 /**
+ * Log a HTTP interaction
+ * @param http The interaction
+ */
+void
+pgexporter_http_log(struct http* http);
+
+/**
  * Destroy HTTP interaction
  * @param http The HTTP interaction
  * @return 0 if success, otherwise 1
