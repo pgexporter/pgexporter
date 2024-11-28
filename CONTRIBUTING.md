@@ -34,7 +34,7 @@ Don't forget to indicate your pgexporter version.
 For Red Hat RPM based distributions use the following command:
 
 ```
-dnf install git gcc cmake make libev libev-devel openssl openssl-devel systemd systemd-devel python3-docutils
+dnf install git gcc cmake make libev libev-devel libcurl libcurl-devel openssl openssl-devel systemd systemd-devel python3-docutils
 ```
 
 in order to get the necessary dependencies.

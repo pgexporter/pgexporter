@@ -114,3 +114,40 @@ pgexporter_memory_destroy(void)
    data = NULL;
    message = NULL;
 }
+
+void*
+pgexporter_memory_dynamic_create(size_t* size)
+{
+   *size = 0;
+
+   return NULL;
+}
+
+void*
+pgexporter_memory_dynamic_append(void* orig, size_t orig_size, void* append, size_t append_size, size_t* new_size)
+{
+   void* d = NULL;
+   size_t s;
+
+   if (append != NULL)
+   {
+      s = orig_size + append_size;
+      d = realloc(orig, s);
+      memcpy(d + orig_size, append, append_size);
+   }
+   else
+   {
+      s = orig_size;
+      d = orig;
+   }
+
+   *new_size = s;
+
+   return d;
+}
+
+void
+pgexporter_memory_dynamic_destroy(void* data)
+{
+   free(data);
+}

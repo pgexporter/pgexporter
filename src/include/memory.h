@@ -62,6 +62,33 @@ pgexporter_memory_free(void);
 void
 pgexporter_memory_destroy(void);
 
+/**
+ * Create a dynamic memory segment
+ * @param size The new size
+ * @return The segment
+ */
+void*
+pgexporter_memory_dynamic_create(size_t* size);
+
+/**
+ * Append a dynamic memory segment
+ * @param orig The original memory segment
+ * @param orig_size The original size
+ * @param append The append memory segment
+ * @param append_size The append size
+ * @param new_size The new size
+ * @return The new segment
+ */
+void*
+pgexporter_memory_dynamic_append(void* orig, size_t orig_size, void* append, size_t append_size, size_t* new_size);
+
+/**
+ * Destroy a dynamic memory segment
+ * @param data The segment
+ */
+void
+pgexporter_memory_dynamic_destroy(void* data);
+
 #ifdef __cplusplus
 }
 #endif
