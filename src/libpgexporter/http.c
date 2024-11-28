@@ -80,6 +80,11 @@ pgexporter_http_add_header(struct http* http, char* header, char* value)
 {
    char* h = NULL;
 
+   if (http == NULL)
+   {
+      goto error;
+   }
+
    h = pgexporter_append(h, header);
    h = pgexporter_append(h, ": ");
    h = pgexporter_append(h, value);
@@ -89,12 +94,21 @@ pgexporter_http_add_header(struct http* http, char* header, char* value)
    free(h);
 
    return 0;
+
+error:
+
+   return 1;
 }
 
 int
 pgexporter_http_get(struct http* http)
 {
    CURLcode cres;
+
+   if (http == NULL)
+   {
+      goto error;
+   }
 
    if (basic_settings(http, HTTP_GET))
    {
@@ -119,6 +133,11 @@ pgexporter_http_put(struct http* http)
 {
    CURLcode cres;
 
+   if (http == NULL)
+   {
+      goto error;
+   }
+
    if (basic_settings(http, HTTP_PUT))
    {
       goto error;
@@ -142,6 +161,11 @@ pgexporter_http_post(struct http* http)
 {
    CURLcode cres;
 
+   if (http == NULL)
+   {
+      goto error;
+   }
+
    if (basic_settings(http, HTTP_POST))
    {
       goto error;
@@ -163,10 +187,13 @@ error:
 int
 pgexporter_http_destroy(struct http* http)
 {
-   curl_easy_cleanup(http->curl);
+   if (http != NULL)
+   {
+      curl_easy_cleanup(http->curl);
 
-   free(http->header);
-   free(http->body);
+      free(http->header);
+      free(http->body);
+   }
    free(http);
 
    return 0;
