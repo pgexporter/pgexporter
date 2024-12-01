@@ -27,7 +27,6 @@
  */
 
 /* pgexporter */
-#include "prometheus_client.h"
 #include <pgexporter.h>
 #include <configuration.h>
 #include <connection.h>
