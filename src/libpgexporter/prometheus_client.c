@@ -1,3 +1,4 @@
+
 /*
  * Copyright (C) 2024 The pgexporter community
  *
@@ -26,41 +27,45 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PGEXPORTER_CONNECTION_H
-#define PGEXPORTER_CONNECTION_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <pgexporter.h>
-#include <json.h>
+#include <logging.h>
+#include <http.h>
+#include <prometheus_client.h>
+#include <utils.h>
 
 #include <stdbool.h>
-#include <stdlib.h>
+#include <stdio.h>
 
-#include <openssl/ssl.h>
-
-/**
- * Transfer a connection
- * @param slot The slot
- * @return 0 upon success, otherwise 1
- */
 int
-pgexporter_transfer_connection_write(int server);
+pgexporter_prometheus_client_get(char* url, char** response)
+{
+   struct http* http = NULL;
 
-/**
- * Read the connection
- * @param client_fd The client descriptor
- * @param server The server
- * @param fd The file descriptor
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_transfer_connection_read(int client_fd, int* server, int* fd);
+   *response = NULL;
 
-#ifdef __cplusplus
+   if (pgexporter_http_create(url, &http))
+   {
+      pgexporter_log_error("Failed to create HTTP interaction");
+      goto error;
+   }
+
+   if (pgexporter_http_get(http))
+   {
+      pgexporter_log_error("Failed to execute HTTP/GET interaction");
+      goto error;
+   }
+
+   pgexporter_http_log(http);
+
+   *response = pgexporter_append(*response, http->body);
+
+   pgexporter_http_destroy(http);
+
+   return 0;
+
+error:
+
+   pgexporter_http_destroy(http);
+
+   return 1;
 }
-#endif
-
-#endif

@@ -125,7 +125,6 @@ pgexporter_status_details(SSL* ssl, int client_fd, uint8_t compression, uint8_t 
 
    pgexporter_memory_init();
    pgexporter_start_logging();
-   
 
    config = (struct configuration*)shmem;
 

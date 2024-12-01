@@ -133,7 +133,7 @@ pgexporter_transfer_connection_read(int client_fd, int* server, int* fd)
    struct cmsghdr* cmptr = NULL;
    struct iovec iov[1];
    struct msghdr msg;
-   
+
    *server = -1;
    *fd = -1;
 

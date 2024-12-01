@@ -27,6 +27,7 @@
  */
 
 /* pgexporter */
+#include "prometheus_client.h"
 #include <pgexporter.h>
 #include <configuration.h>
 #include <connection.h>
@@ -1044,7 +1045,7 @@ accept_transfer_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
    return;
 
- error:
+error:
 
    pgexporter_disconnect(client_fd);
 }

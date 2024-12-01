@@ -37,10 +37,6 @@ extern "C" {
 #include <stdio.h>
 #include <curl/curl.h>
 
-#define HTTP_GET  0
-#define HTTP_PUT  1
-#define HTTP_POST 2
-
 /** @struct http
  * Defines a HTTP interaction
  */
@@ -48,13 +44,9 @@ struct http
 {
    CURL* curl;                 /**< The CURL backup */
    struct curl_slist* headers; /**< The HTTP header options */
-   int type;                   /**< The HTTP type (GET, PUT, POST) */
    char* url;                  /**< The URL */
-   size_t url_length;          /**< The URL length */
    char* header;               /**< The HTTP header */
-   size_t header_length;       /**< The HTTP header length */
    char* body;                 /**< The HTTP body */
-   size_t body_length;         /**< The HTTP body length */
 };
 
 /**
@@ -83,7 +75,7 @@ pgexporter_http_add_header(struct http* http, char* header, char* value);
  */
 int
 pgexporter_http_get(struct http* http);
-   
+
 /**
  * Execute PUT request
  * @param http The HTTP interaction
@@ -91,7 +83,7 @@ pgexporter_http_get(struct http* http);
  */
 int
 pgexporter_http_put(struct http* http);
-   
+
 /**
  * Execute POST request
  * @param http The HTTP interaction
@@ -114,7 +106,7 @@ pgexporter_http_log(struct http* http);
  */
 int
 pgexporter_http_destroy(struct http* http);
-   
+
 #ifdef __cplusplus
 }
 #endif

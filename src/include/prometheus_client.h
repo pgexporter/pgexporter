@@ -26,38 +26,27 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PGEXPORTER_CONNECTION_H
-#define PGEXPORTER_CONNECTION_H
+#ifndef PGEXPORTER_PROMETHUS_CLIENT_H
+#define PGEXPORTER_PROMETHUS_CLIENT_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include <pgexporter.h>
-#include <json.h>
+#include <http.h>
 
 #include <stdbool.h>
-#include <stdlib.h>
-
-#include <openssl/ssl.h>
+#include <stdio.h>
 
 /**
- * Transfer a connection
- * @param slot The slot
- * @return 0 upon success, otherwise 1
+ * Get a response from a Prometheus endpoint
+ * @param url The URL
+ * @param response The resulting response
+ * @return 0 if success, otherwise 1
  */
 int
-pgexporter_transfer_connection_write(int server);
-
-/**
- * Read the connection
- * @param client_fd The client descriptor
- * @param server The server
- * @param fd The file descriptor
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_transfer_connection_read(int client_fd, int* server, int* fd);
+pgexporter_prometheus_client_get(char* url, char** response);
 
 #ifdef __cplusplus
 }
