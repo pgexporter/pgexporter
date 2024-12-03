@@ -58,17 +58,8 @@ struct prometheus_metric
    char* name;                /**< The name of the metric */
    char* help;                /**< The #HELP of the metric */
    char* type;                /**< The #TYPE of the metric */
-   struct deque* definitions; /**< The attributes of the metric - ValueRef<prometheus_attributes> */
-};
-
-/**
- * @struct prometheus_attributes
- * The definition of the attributes for a metric
- */
-struct prometheus_attributes
-{
-   struct deque* attributes; /**< Each attribute - ValueRef<prometheus_attribute> */
-   struct deque* values;     /**< The values - ValueRef<prometheus_value> */
+   struct deque* attributes;  /**< Each attribute - ValueRef<prometheus_attribute> */
+   struct deque* values;      /**< The values - ValueRef<prometheus_value> */
 };
 
 /**
