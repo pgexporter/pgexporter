@@ -46,7 +46,7 @@ extern "C" {
  */
 struct prometheus_bridge
 {
-   struct art* metrics; /**< endpoint -> deque<prometheus_metric> */
+   struct art* metrics; /**< prometheus_metric::name -> deque<prometheus_metric> */
 };
 
 /**
@@ -58,7 +58,7 @@ struct prometheus_metric
    char* name;                /**< The name of the metric */
    char* help;                /**< The #HELP of the metric */
    char* type;                /**< The #TYPE of the metric */
-   struct deque* definitions; /**< The attributes of the metric - there can be multiple definitions */
+   struct deque* definitions; /**< The attributes of the metric - ValueRef<prometheus_attributes> */
 };
 
 /**
@@ -67,8 +67,8 @@ struct prometheus_metric
  */
 struct prometheus_attributes
 {
-   struct deque* attributes; /**< Each attribute */
-   struct deque* values;     /**< The values */
+   struct deque* attributes; /**< Each attribute - ValueRef<prometheus_attribute> */
+   struct deque* values;     /**< The values - ValueRef<prometheus_value> */
 };
 
 /**
@@ -77,8 +77,8 @@ struct prometheus_attributes
  */
 struct prometheus_attribute
 {
-   char* key;                /**< The key */
-   char* value;              /**< The value */
+   char* key;   /**< The key */
+   char* value; /**< The value */
 };
 
 /**
