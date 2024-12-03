@@ -34,19 +34,96 @@ extern "C" {
 #endif
 
 #include <pgexporter.h>
+#include <art.h>
 #include <http.h>
 
 #include <stdbool.h>
 #include <stdio.h>
 
 /**
- * Get a response from a Prometheus endpoint
- * @param url The URL
- * @param response The resulting response
+ * @struct prometheus_bridge
+ * Prometheus metrics from multiple endpoints
+ */
+struct prometheus_bridge
+{
+   struct art* metrics; /**< endpoint -> deque<prometheus_metric> */
+};
+
+/**
+ * @struct prometheus_metric
+ * Description
+ */
+struct prometheus_metric
+{
+   char* name;                /**< The name of the metric */
+   char* help;                /**< The #HELP of the metric */
+   char* type;                /**< The #TYPE of the metric */
+   struct deque* definitions; /**< The attributes of the metric - there can be multiple definitions */
+};
+
+/**
+ * @struct prometheus_attributes
+ * The definition of the attributes for a metric
+ */
+struct prometheus_attributes
+{
+   struct deque* attributes; /**< Each attribute */
+   struct deque* values;     /**< The values */
+};
+
+/**
+ * @struct prometheus_attribute
+ * An attribute
+ */
+struct prometheus_attribute
+{
+   char* key;                /**< The key */
+   char* value;              /**< The value */
+};
+
+/**
+ * @struct prometheus_value
+ * A value
+ */
+struct prometheus_value
+{
+   time_t timestamp; /**< The timestamp */
+   char* value;      /**< The value */
+};
+
+/**
+ * Create the bridge
+ * @param bridge The resulting bridge
  * @return 0 if success, otherwise 1
  */
 int
-pgexporter_prometheus_client_get(char* url, char** response);
+pgexporter_prometheus_client_create_bridge(struct prometheus_bridge** bridge);
+
+/**
+ * Destroy the bridge
+ * @param bridge The resulting bridge
+ * @return 0 if success, otherwise 1
+ */
+int
+pgexporter_prometheus_client_destroy_bridge(struct prometheus_bridge* bridge);
+
+/**
+ * Get a response from a Prometheus endpoint
+ * @param url The URL
+ * @param metrics The resulting metrics
+ * @return 0 if success, otherwise 1
+ */
+int
+pgexporter_prometheus_client_get(char* url, struct deque** metrics);
+
+/**
+ * Merge metrics into the bridge
+ * @param bridge The bridge
+ * @param metrics The resulting metrics
+ * @return 0 if success, otherwise 1
+ */
+int
+pgexporter_prometheus_client_merge(struct prometheus_bridge* bridge, struct deque* metrics);
 
 #ifdef __cplusplus
 }
