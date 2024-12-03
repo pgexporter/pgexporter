@@ -56,8 +56,8 @@ struct prometheus_bridge
 struct prometheus_metric
 {
    char* name;                /**< The name of the metric */
-   char* help;                /**< The #HELP of the metric */
-   char* type;                /**< The #TYPE of the metric */
+   char* help;                /**< The HELP of the metric */
+   char* type;                /**< The TYPE of the metric */
    struct deque* definitions; /**< The attributes of the metric - ValueRef<prometheus_attributes> */
 };
 
