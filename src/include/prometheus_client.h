@@ -46,7 +46,7 @@ extern "C" {
  */
 struct prometheus_bridge
 {
-   struct art* metrics; /**< prometheus_metric::name -> deque<prometheus_metric> */
+   struct art* metrics; /**< prometheus_metric::name -> ValueRef<prometheus_metric> */
 };
 
 /**
