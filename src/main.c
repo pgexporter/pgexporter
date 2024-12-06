@@ -28,6 +28,7 @@
 
 /* pgexporter */
 #include <pgexporter.h>
+#include <bridge.h>
 #include <configuration.h>
 #include <connection.h>
 #include <internal.h>
@@ -77,6 +78,7 @@
 static void accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
 static void accept_transfer_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
 static void accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
+static void accept_bridge_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
 static void accept_management_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
 static void shutdown_cb(struct ev_loop* loop, ev_signal* w, int revents);
 static void reload_cb(struct ev_loop* loop, ev_signal* w, int revents);
@@ -106,6 +108,9 @@ static int unix_transfer_socket = -1;
 static struct accept_io io_metrics[MAX_FDS];
 static int* metrics_fds = NULL;
 static int metrics_fds_length = -1;
+static struct accept_io io_bridge[MAX_FDS];
+static int* bridge_fds = NULL;
+static int bridge_fds_length = -1;
 static struct accept_io io_management[MAX_FDS];
 static int* management_fds = NULL;
 static int management_fds_length = -1;
@@ -186,6 +191,32 @@ shutdown_metrics(void)
 }
 
 static void
+start_bridge(void)
+{
+   for (int i = 0; i < bridge_fds_length; i++)
+   {
+      int sockfd = *(bridge_fds + i);
+
+      memset(&io_bridge[i], 0, sizeof(struct accept_io));
+      ev_io_init((struct ev_io*)&io_bridge[i], accept_bridge_cb, sockfd, EV_READ);
+      io_bridge[i].socket = sockfd;
+      io_bridge[i].argv = argv_ptr;
+      ev_io_start(main_loop, (struct ev_io*)&io_bridge[i]);
+   }
+}
+
+static void
+shutdown_bridge(void)
+{
+   for (int i = 0; i < bridge_fds_length; i++)
+   {
+      ev_io_stop(main_loop, (struct ev_io*)&io_bridge[i]);
+      pgexporter_disconnect(io_bridge[i].socket);
+      errno = 0;
+   }
+}
+
+static void
 start_management(void)
 {
    for (int i = 0; i < management_fds_length; i++)
@@ -256,6 +287,7 @@ main(int argc, char** argv)
    struct signal_info signal_watcher[5];
    size_t shmem_size;
    size_t prometheus_cache_shmem_size = 0;
+   size_t bridge_cache_shmem_size = 0;
    struct configuration* config = NULL;
    int ret;
    int c;
@@ -607,6 +639,14 @@ main(int argc, char** argv)
       errx(1, "Error in creating and initializing prometheus cache shared memory");
    }
 
+   if (pgexporter_bridge_init_cache(&bridge_cache_shmem_size, &bridge_cache_shmem))
+   {
+#ifdef HAVE_SYSTEMD
+      sd_notifyf(0, "STATUS=Error in creating and initializing prometheus cache shared memory");
+#endif
+      errx(1, "Error in creating and initializing prometheus cache shared memory");
+   }
+
    /* Bind Unix Domain Socket: Main */
    if (pgexporter_bind_unix_socket(config->unix_socket_dir, MAIN_UDS, &unix_management_socket))
    {
@@ -687,6 +727,30 @@ main(int argc, char** argv)
       start_metrics();
    }
 
+   if (config->metrics > 0)
+   {
+      /* Bind bridge socket */
+      if (pgexporter_bind(config->host, config->bridge, &bridge_fds, &bridge_fds_length))
+      {
+         pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->bridge);
+#ifdef HAVE_SYSTEMD
+         sd_notifyf(0, "STATUS=Could not bind to %s:%d", config->host, config->bridge);
+#endif
+         exit(1);
+      }
+
+      if (bridge_fds_length > MAX_FDS)
+      {
+         pgexporter_log_fatal("pgexporter: Too many descriptors %d", bridge_fds_length);
+#ifdef HAVE_SYSTEMD
+         sd_notifyf(0, "STATUS=Too many descriptors %d", bridge_fds_length);
+#endif
+         exit(1);
+      }
+
+      start_bridge();
+   }
+
    if (config->management > 0)
    {
       /* Bind management socket */
@@ -717,6 +781,10 @@ main(int argc, char** argv)
    for (int i = 0; i < metrics_fds_length; i++)
    {
       pgexporter_log_debug("Metrics: %d", *(metrics_fds + i));
+   }
+   for (int i = 0; i < bridge_fds_length; i++)
+   {
+      pgexporter_log_debug("Bridge: %d", *(bridge_fds + i));
    }
    for (int i = 0; i < management_fds_length; i++)
    {
@@ -762,6 +830,7 @@ main(int argc, char** argv)
 
    shutdown_management();
    shutdown_metrics();
+   shutdown_bridge();
    shutdown_mgt();
    shutdown_transfer();
 
@@ -773,6 +842,7 @@ main(int argc, char** argv)
    ev_loop_destroy(main_loop);
 
    free(metrics_fds);
+   free(bridge_fds);
    free(management_fds);
 
    remove_pidfile();
@@ -1127,6 +1197,95 @@ accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
       pgexporter_set_proc_title(1, ai->argv, "metrics", NULL);
       pgexporter_prometheus(client_fd);
+   }
+
+   pgexporter_disconnect(client_fd);
+
+   return;
+
+error:
+
+   pgexporter_disconnect(client_fd);
+}
+
+static void
+accept_bridge_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
+{
+   struct sockaddr_in6 client_addr;
+   socklen_t client_addr_length;
+   int client_fd;
+   pid_t pid;
+   struct accept_io* ai;
+   struct configuration* config;
+
+   if (EV_ERROR & revents)
+   {
+      pgexporter_log_debug("accept_bridge_cb: invalid event: %s", strerror(errno));
+      errno = 0;
+      return;
+   }
+
+   config = (struct configuration*)shmem;
+   ai = (struct accept_io*)watcher;
+
+   errno = 0;
+
+   client_addr_length = sizeof(client_addr);
+   client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
+   if (client_fd == -1)
+   {
+      if (accept_fatal(errno) && keep_running)
+      {
+         pgexporter_log_warn("Restarting listening port due to: %s (%d)", strerror(errno), watcher->fd);
+
+         shutdown_bridge();
+
+         free(bridge_fds);
+         bridge_fds = NULL;
+         bridge_fds_length = 0;
+
+         if (pgexporter_bind(config->host, config->bridge, &bridge_fds, &bridge_fds_length))
+         {
+            pgexporter_log_fatal("Could not bind to %s:%d", config->host, config->bridge);
+            exit(1);
+         }
+
+         if (bridge_fds_length > MAX_FDS)
+         {
+            pgexporter_log_fatal("Too many descriptors %d", bridge_fds_length);
+            exit(1);
+         }
+
+         start_bridge();
+
+         for (int i = 0; i < bridge_fds_length; i++)
+         {
+            pgexporter_log_debug("Bridge: %d", *(metrics_fds + i));
+         }
+      }
+      else
+      {
+         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fd);
+      }
+      errno = 0;
+      return;
+   }
+
+   pid = fork();
+   if (pid == -1)
+   {
+      pgexporter_log_error("Bridge: No fork (%d)", MANAGEMENT_ERROR_BRIDGE_NOFORK);
+      goto error;
+   }
+   else if (pid == 0)
+   {
+      ev_loop_fork(loop);
+
+      /* We are leaving the socket descriptor valid such that the client won't reuse it */
+      shutdown_ports();
+
+      pgexporter_set_proc_title(1, ai->argv, "bridge", NULL);
+      pgexporter_bridge(client_fd);
    }
 
    pgexporter_disconnect(client_fd);

@@ -167,6 +167,8 @@ pgexporter_prometheus(int client_fd)
 
    page = resolve_page(msg);
 
+   pgexporter_log_info("Page: %d", page);
+
    if (page == PAGE_HOME)
    {
       home_page(client_fd);

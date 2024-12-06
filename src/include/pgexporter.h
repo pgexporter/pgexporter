@@ -68,6 +68,7 @@ extern "C" {
 #define NUMBER_OF_ADMINS        8
 #define NUMBER_OF_METRICS     256
 #define NUMBER_OF_COLLECTORS  256
+#define NUMBER_OF_ENDPOINTS    32
 
 #define STATE_FREE        0
 #define STATE_IN_USE      1
@@ -199,6 +200,12 @@ extern void* shmem;
  */
 extern void* prometheus_cache_shmem;
 
+/**
+ * Shared memory used to contain the bridge
+ * response cache.
+ */
+extern void* bridge_cache_shmem;
+
 /** @struct server
  * Defines a server
  */
@@ -304,6 +311,15 @@ struct prometheus
    struct query_alts* root;                        /**< Root of the Query Alternatives' AVL Tree */
 } __attribute__ ((aligned (64)));
 
+/** @struct endpoint
+ * Defines a Prometheus endpoint
+ */
+struct endpoint
+{
+   char host[MISC_LENGTH]; /**< The host */
+   int port;               /**< The port */
+} __attribute__((aligned(64)));
+
 /** @struct configuration
  * Defines the configuration and state of pgexporter
  */
@@ -319,7 +335,11 @@ struct configuration
    int metrics_cache_max_size; /**< Number of bytes max to cache the Prometheus response */
    int management;             /**< The management port */
 
-   bool cache; /**< Cache connection */
+   int bridge;                /**< The bridge port */
+   int bridge_cache_max_age;  /**< Number of seconds to cache the bridge response */
+   int bridge_cache_max_size; /**< Number of bytes max to cache the bridge response */
+
+   bool cache;  /**< Cache connection */
 
    int log_type;                      /**< The logging type */
    int log_level;                     /**< The logging level */
@@ -355,6 +375,7 @@ struct configuration
    int number_of_admins;         /**< The number of admins */
    int number_of_metrics;        /**< The number of metrics*/
    int number_of_collectors;     /**< Number of total collectors */
+   int number_of_endpoints;      /**< The number of endpoints */
 
    char metrics_path[MAX_PATH]; /**< The metrics path */
 
@@ -368,7 +389,8 @@ struct configuration
    struct user users[NUMBER_OF_USERS];                          /**< The users */
    struct user admins[NUMBER_OF_ADMINS];                        /**< The admins */
    struct prometheus prometheus[NUMBER_OF_METRICS];             /**< The Prometheus metrics */
-} __attribute__ ((aligned (64)));
+   struct endpoint endpoints[NUMBER_OF_ENDPOINTS];              /**< The Prometheus metrics */
+} __attribute__((aligned(64)));
 
 #ifdef __cplusplus
 }

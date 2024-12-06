@@ -73,6 +73,7 @@ static bool transfer_configuration(struct configuration* config, struct configur
 static void copy_server(struct server* dst, struct server* src);
 static void copy_user(struct user* dst, struct user* src);
 static void copy_promethus(struct prometheus* dst, struct prometheus* src);
+static void copy_endpoint(struct endpoint* dst, struct endpoint* src);
 static int restart_int(char* name, int e, int n);
 static int restart_string(char* name, char* e, char* n);
 
@@ -90,6 +91,8 @@ pgexporter_init_configuration(void* shm)
 
    config->metrics = -1;
    config->cache = true;
+
+   config->bridge = -1;
 
    config->tls = false;
 
@@ -312,6 +315,48 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (!strcmp(section, "pgexporter"))
                   {
                      if (as_seconds(value, &config->metrics_cache_max_age, 0))
+                     {
+                        unknown = true;
+                     }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "bridge"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     if (as_int(value, &config->bridge))
+                     {
+                        unknown = true;
+                     }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "bridge_cache_max_size"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     if (as_bytes(value, &config->bridge_cache_max_size, 0))
+                     {
+                        unknown = true;
+                     }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "bridge_cache_max_age"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     if (as_seconds(value, &config->bridge_cache_max_age, 0))
                      {
                         unknown = true;
                      }
@@ -1922,6 +1967,12 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    {
       changed = true;
    }
+   config->bridge = reload->bridge;
+   config->bridge_cache_max_age = reload->bridge_cache_max_age;
+   if (restart_int("bridge_cache_max_size", config->bridge_cache_max_size, reload->bridge_cache_max_size))
+   {
+      changed = true;
+   }
    config->management = reload->management;
    config->cache = reload->cache;
 
@@ -2015,6 +2066,13 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    }
    config->number_of_metrics = reload->number_of_metrics;
 
+   /* endpoint */
+   for (int i = 0; i < reload->number_of_endpoints; i++)
+   {
+      copy_endpoint(&config->endpoints[i], &reload->endpoints[i]);
+   }
+   config->number_of_endpoints = reload->number_of_endpoints;
+
 #ifdef HAVE_SYSTEMD
    sd_notify(0, "READY=1");
 #endif
@@ -2051,6 +2109,13 @@ copy_promethus(struct prometheus* dst, struct prometheus* src)
    dst->server_query_type = src->server_query_type;
 
    pgexporter_copy_query_alts(&dst->root, src->root);
+}
+
+static void
+copy_endpoint(struct endpoint* dst, struct endpoint* src)
+{
+   memcpy(dst->host, src->host, MISC_LENGTH);
+   dst->port = src->port;
 }
 
 static int

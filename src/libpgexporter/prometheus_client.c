@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2024 The pgexporter community
  *
@@ -27,11 +26,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "art.h"
-#include "deque.h"
 #include <pgexporter.h>
-#include <logging.h>
+#include <art.h>
+#include <deque.h>
 #include <http.h>
+#include <logging.h>
 #include <prometheus_client.h>
 #include <utils.h>
 
@@ -86,28 +85,30 @@ pgexporter_prometheus_client_destroy_bridge(struct prometheus_bridge* bridge)
 int
 pgexporter_prometheus_client_get(char* url, struct deque** metrics)
 {
-  struct http *http = NULL;
-  char* response = NULL;
+   struct http* http = NULL;
+   char* response = NULL;
 
-  *metrics = NULL;
+   *metrics = NULL;
 
-  if (pgexporter_http_create(url, &http)) {
-    pgexporter_log_error("Failed to create HTTP interaction");
-    goto error;
-  }
+   if (pgexporter_http_create(url, &http))
+   {
+      pgexporter_log_error("Failed to create HTTP interaction");
+      goto error;
+   }
 
-  if (pgexporter_http_get(http)) {
-    pgexporter_log_error("Failed to execute HTTP/GET interaction");
-    goto error;
-  }
+   if (pgexporter_http_get(http))
+   {
+      pgexporter_log_error("Failed to execute HTTP/GET interaction");
+      goto error;
+   }
 
-  pgexporter_http_log(http);
+   pgexporter_http_log(http);
 
-  response = pgexporter_append(response, http->body);
+   response = pgexporter_append(response, http->body);
 
-  pgexporter_http_destroy(http);
+   pgexporter_http_destroy(http);
 
-  return 0;
+   return 0;
 
 error:
 
