@@ -727,7 +727,7 @@ main(int argc, char** argv)
       start_metrics();
    }
 
-   if (config->metrics > 0)
+   if (config->bridge > 0)
    {
       /* Bind bridge socket */
       if (pgexporter_bind(config->host, config->bridge, &bridge_fds, &bridge_fds_length))
