@@ -55,6 +55,9 @@ metrics_cache_max_size
 bridge
   The bridge port
 
+bridge_endpoints
+  A comma-separated list of bridge endpoints specified by host:port
+
 bridge_cache_max_age
   The number of seconds to keep in cache a Prometheus (bridge) response.
   If set to zero, the caching will be disabled. Can be a string with a suffix, like ``2m`` to indicate 2 minutes.

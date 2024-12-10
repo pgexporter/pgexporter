@@ -338,6 +338,17 @@ pgexporter_read_configuration(void* shm, char* filename)
                      unknown = true;
                   }
                }
+               else if (!strcmp(key, "bridge_endpoints"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     /* TODO - as_endpoints() */
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
                else if (!strcmp(key, "bridge_cache_max_size"))
                {
                   if (!strcmp(section, "pgexporter"))
