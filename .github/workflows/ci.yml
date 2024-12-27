@@ -29,6 +29,8 @@ jobs:
       run: sudo apt install -y liblz4-dev
     - name: Install libcurl
       run: sudo apt install -y libcurl4-openssl-dev
+    - name: Install bzip2
+      run: sudo apt install -y libbz2-dev
     - name: Install graphviz
       run: sudo apt install graphviz
     - name: Install doxygen
