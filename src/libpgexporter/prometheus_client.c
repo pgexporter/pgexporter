@@ -92,19 +92,21 @@ pgexporter_prometheus_client_get(char* url, struct deque** metrics)
 
    if (pgexporter_http_create(url, &http))
    {
-      pgexporter_log_error("Failed to create HTTP interaction");
+      pgexporter_log_error("Failed to create HTTP interaction with %s", url);
       goto error;
    }
 
    if (pgexporter_http_get(http))
    {
-      pgexporter_log_error("Failed to execute HTTP/GET interaction");
+      pgexporter_log_error("Failed to execute HTTP/GET interaction with %s", url);
       goto error;
    }
 
    pgexporter_http_log(http);
 
    response = pgexporter_append(response, http->body);
+
+   // TODO: Separate out the metrics into the deque
 
    pgexporter_http_destroy(http);
 

@@ -95,6 +95,16 @@ int
 pgexporter_deque_add(struct deque* deque, char* tag, uintptr_t data, enum value_type type);
 
 /**
+ * Transfer a deque's contents to the tail of another deque.
+ * This function is thread safe
+ * @param dest Destination deque
+ * @param src Source deque.
+ * @return 0 if success, otherwise 1
+ */
+int
+pgexporter_deque_transfer_deque(struct deque* dest, struct deque** src);
+
+/**
  * Remove all the nodes with the given tag
  * @param deque The deque
  * @param tag The tag

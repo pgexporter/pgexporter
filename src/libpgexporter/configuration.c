@@ -68,7 +68,7 @@ static int as_logging_rotation_size(char* str, int* size);
 static int as_logging_rotation_age(char* str, int* age);
 static int as_seconds(char* str, int* age, int default_age);
 static int as_bytes(char* str, int* bytes, int default_bytes);
-
+static int as_endpoints(char* str, struct endpoint endpoints[NUMBER_OF_ENDPOINTS], int* n_endpoints);
 static bool transfer_configuration(struct configuration* config, struct configuration* reload);
 static void copy_server(struct server* dst, struct server* src);
 static void copy_user(struct user* dst, struct user* src);
@@ -342,7 +342,10 @@ pgexporter_read_configuration(void* shm, char* filename)
                {
                   if (!strcmp(section, "pgexporter"))
                   {
-                     /* TODO - as_endpoints() */
+                     if (as_endpoints(value, config->endpoints, &config->number_of_endpoints))
+                     {
+                        unknown = true;
+                     }
                   }
                   else
                   {
@@ -1960,6 +1963,57 @@ error:
       *bytes = default_bytes;
       return 1;
    }
+}
+
+static int
+as_endpoints(char* str, struct endpoint endpoints[NUMBER_OF_ENDPOINTS], int* n_endpoints)
+{
+   int idx = 0;
+   int port = 0;
+   char* token = NULL;
+   char host[MISC_LENGTH] = {0};
+   char portstr[6] = {0};
+
+   // TODO: Does this need to be strtok_r()?
+   token = strtok((char*) str, ",");
+
+   while (token != NULL && idx < NUMBER_OF_ENDPOINTS)
+   {
+
+      /*
+       * Each endpoint is host:port.
+       * Host is of length [0, 127].
+       * Port is of length [0, 5] (16-bit unsigned integer).
+       */
+
+      if (sscanf(token, "%127[^:]:%5s", host, portstr) == 2)
+      {
+         port = atoi(portstr);
+
+         strncpy(endpoints[idx].host, host, MISC_LENGTH);
+         endpoints[idx].port = port;
+         idx++;
+
+         pgexporter_log_info("Bridge Endpoint %d | Host: %s, Port: %s", idx, host, portstr);
+
+         memset(host, 0, MISC_LENGTH);
+         memset(portstr, 0, 6);
+      }
+      else
+      {
+         pgexporter_log_error("Error parsing endpoint: %s", token);
+         goto errout;
+      }
+
+      token = strtok(NULL, ",");
+   }
+
+   *n_endpoints = idx;
+
+   return 0;
+
+errout:
+   return 1;
 }
 
 static bool
