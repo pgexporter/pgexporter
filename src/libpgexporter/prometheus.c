@@ -33,6 +33,7 @@
 #include <message.h>
 #include <network.h>
 #include <prometheus.h>
+#include <prometheus_client.h>
 #include <queries.h>
 #include <query_alts.h>
 #include <security.h>
@@ -123,7 +124,7 @@ static void uptime_information(int client_fd);
 static void primary_information(int client_fd);
 static void settings_information(int client_fd);
 static void custom_metrics(int client_fd); // Handles custom metrics provided in YAML format, both internal and external
-
+static void bridge_metrics(struct deque** deque);
 static void append_help_info(char** data, char* tag, char* name, char* description);
 static void append_type_info(char** data, char* tag, char* name, int typeId);
 
@@ -503,6 +504,7 @@ metrics_page(int client_fd)
    struct prometheus_cache* cache;
    signed char cache_is_free;
    struct configuration* config;
+   struct deque* bridge_metrics_deque = NULL;
 
    config = (struct configuration*)shmem;
    cache = (struct prometheus_cache*)prometheus_cache_shmem;
@@ -584,6 +586,9 @@ retry_cache_locking:
          extension_information(client_fd);
 
          custom_metrics(client_fd);
+         bridge_metrics(&bridge_metrics_deque);
+
+         // Need to think how to sort and manage bridge_metrics inside metrics.
 
          pgexporter_close_connections();
 
@@ -1429,6 +1434,33 @@ custom_metrics(int client_fd)
       free(last);
    }
    q_list = NULL;
+}
+
+static void
+bridge_metrics(struct deque** deque)
+{
+   struct configuration* config = NULL;
+   char url[MISC_LENGTH + 7] = {0}; // Host + : + Port + \0
+   struct deque* deque_temp = NULL;
+
+   config = (struct configuration*)shmem;
+
+   if (config->number_of_endpoints == 0)
+   {
+      return;
+   }
+
+   if (pgexporter_deque_create(true, deque))
+   {
+      return;
+   }
+
+   for (int i = 0; i < config->number_of_endpoints; i++)
+   {
+      sprintf(url, "%s:%d", config->endpoints[i].host, config->endpoints[i].port);
+      pgexporter_prometheus_client_get(url, &deque_temp);
+      pgexporter_deque_transfer_deque(*deque, &deque_temp);
+   }
 }
 
 static int

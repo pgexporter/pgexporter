@@ -112,6 +112,15 @@ pgexporter_deque_add(struct deque* deque, char* tag, uintptr_t data, enum value_
 }
 
 int
+pgexporter_deque_transfer_deque(struct deque* dest, struct deque** src)
+{
+   // TODO
+
+   *src = NULL;
+   return 0;
+}
+
+int
 pgexporter_deque_remove(struct deque* deque, char* tag)
 {
    int cnt = 0;
