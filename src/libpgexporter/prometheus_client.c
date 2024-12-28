@@ -33,9 +33,16 @@
 #include <logging.h>
 #include <prometheus_client.h>
 #include <utils.h>
+#include <value.h>
 
+#include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
+
+static int prometheus_metric_find_create(struct prometheus_bridge* bridge, char* name, struct prometheus_metric** metric);
+static int prometheus_metric_set_help(struct prometheus_metric* metric, char* help);
+static int prometheus_metric_set_type(struct prometheus_metric* metric, char* type);
 
 int
 pgexporter_prometheus_client_create_bridge(struct prometheus_bridge** bridge)
@@ -115,4 +122,84 @@ error:
    pgexporter_http_destroy(http);
 
    return 1;
+}
+
+static int
+prometheus_metric_find_create(struct prometheus_bridge* bridge, char* name, struct prometheus_metric** metric)
+{
+   struct prometheus_metric* m = NULL;
+
+   *metric = NULL;
+
+   m = (struct prometheus_metric*)pgexporter_art_search(bridge->metrics, (unsigned char*)name, strlen(name));
+
+   if (m == NULL)
+   {
+      struct deque* defs = NULL;
+
+      m = (struct prometheus_metric*)malloc(sizeof(struct prometheus_metric));
+      memset(m, 0, sizeof(struct prometheus_metric));
+
+      if (pgexporter_deque_create(false, &defs))
+      {
+         goto error;
+      }
+
+      m->name = strdup(name);
+      m->definitions = defs;
+
+      if (pgexporter_art_insert(bridge->metrics, (unsigned char*)name, strlen(name),
+                                (uintptr_t)m, ValueRef))
+      {
+         goto error;
+      }
+   }
+
+   *metric = m;
+
+   return 0;
+
+error:
+
+   return 1;
+}
+
+static int
+prometheus_metric_set_help(struct prometheus_metric* metric, char* help)
+{
+   if (metric->help != NULL)
+   {
+      free(metric->help);
+      metric->help = NULL;
+   }
+
+   metric->help = strdup(help);
+
+   if (metric->help == NULL)
+   {
+      errno = 0;
+      return 1;
+   }
+
+   return 0;
+}
+
+static int
+prometheus_metric_set_type(struct prometheus_metric* metric, char* type)
+{
+   if (metric->type != NULL)
+   {
+      free(metric->type);
+      metric->type = NULL;
+   }
+
+   metric->type = strdup(type);
+
+   if (metric->type == NULL)
+   {
+      errno = 0;
+      return 1;
+   }
+
+   return 0;
 }
