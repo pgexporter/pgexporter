@@ -4,7 +4,7 @@ This tutorial will show how to set custom metrics for pgexporter.
 
 ### Preface
 
-This tutorial assumes that you have an installation of PostgreSQL 12+ and pgexporter.
+This tutorial assumes that you have an installation of PostgreSQL 13+ and pgexporter.
 
 For RPM based distributions such as Fedora and RHEL you can add the
 [PostgreSQL YUM repository](https://yum.postgresql.org/) and do the install via

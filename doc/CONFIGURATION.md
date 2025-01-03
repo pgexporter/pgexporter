@@ -68,7 +68,7 @@ See a [sample](./etc/pgexporter.conf) configuration for running `pgexporter` on 
 | tls_key_file | | String | No | Private key file for TLS. This file must be owned by either the user running pgexporter or root. Additionally permissions must be at least `0640` when owned by root or `0600` otherwise. |
 | tls_ca_file | | String | No | Certificate Authority (CA) file for TLS. This file must be owned by either the user running pgexporter or root.  |
 
-Note, that PostgreSQL 12+ is required.
+Note, that PostgreSQL 13+ is required.
 
 Note, that if `host` starts with a `/` it represents a path and `pgexporter` will connect using a Unix Domain Socket.
 

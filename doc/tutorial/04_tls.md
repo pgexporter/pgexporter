@@ -6,7 +6,7 @@ This tutorial is about using Transport Level Security (TLS) in PostgreSQL, and h
 
 ### Preface
 
-This tutorial assumes that you have an installation of PostgreSQL 12+, OpenSSL and pgexporter.
+This tutorial assumes that you have an installation of PostgreSQL 13+, OpenSSL and pgexporter.
 
 See [Install pgexporter](https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/01_install.md)
 for more detail.
