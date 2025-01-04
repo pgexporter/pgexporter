@@ -1080,7 +1080,24 @@ semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t*
          return 1;
       }
 
+      if (yaml_config->metrics[i].tag == NULL)
+      {
+         pgexporter_log_error("No tag defined for '%s' (%d)",
+                              yaml_config->metrics[i].queries != NULL ? yaml_config->metrics[i].queries->query : "Unknown",
+                              prometheus_idx);
+         return 1;
+      }
+
+      if (yaml_config->metrics[i].collector == NULL)
+      {
+         pgexporter_log_error("No collector defined for '%s' (%d)",
+                              yaml_config->metrics[i].queries != NULL ? yaml_config->metrics[i].queries->query : "Unknown",
+                              prometheus_idx);
+         return 1;
+      }
+
       prom = &prometheus[prometheus_idx + i];
+
       memcpy(prom->tag, yaml_config->metrics[i].tag, MIN(MISC_LENGTH - 1, strlen(yaml_config->metrics[i].tag)));
       memcpy(prom->collector, yaml_config->metrics[i].collector, MIN(MAX_COLLECTOR_LENGTH - 1, strlen(yaml_config->metrics[i].collector)));
 
