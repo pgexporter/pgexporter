@@ -81,8 +81,17 @@ static int details(SSL* ssl, int socket, uint8_t compression, uint8_t encryption
 static int ping(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format);
 static int reset(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format);
 static int reload(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format);
+static int conf_ls(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format);
+static int conf_get(SSL* ssl, int socket, char* config_key, uint8_t compression, uint8_t encryption, int32_t output_format);
+static int conf_set(SSL* ssl, int socket, char* config_key, char* config_value, uint8_t compression, uint8_t encryption, int32_t output_format);
 
 static int  process_result(SSL* ssl, int socket, int32_t output_format);
+static int process_ls_result(SSL* ssl, int socket, int32_t output_format);
+static int process_get_result(SSL* ssl, int socket, char* config_key, int32_t output_format);
+static int process_set_result(SSL* ssl, int socket, char* config_key, int32_t output_format);
+
+static int get_conf_path_result(struct json* j, uintptr_t* r);
+static int get_config_key_result(char* config_key, struct json* j, uintptr_t* r, int32_t output_format);
 
 static char* translate_command(int32_t cmd_code);
 static char* translate_output_format(int32_t out_code);
@@ -127,6 +136,9 @@ usage(void)
    printf("  status [details]         Status of pgexporter, with optional details\n");
    printf("  conf <action>            Manage the configuration, with one of subcommands:\n");
    printf("                           - 'reload' to reload the configuration\n");
+   printf("                           - 'ls' to print the configurations used\n");
+   printf("                           - 'get' to obtain information about a runtime configuration value\n");
+   printf("                           - 'set' to modify a configuration value;\n");
    printf("  clear <what>             Clear data, with:\n");
    printf("                           - 'prometheus' to reset the Prometheus statistics\n");
    printf("\n");
@@ -176,6 +188,30 @@ const struct pgexporter_command command_table[] = {
       .log_message = "<conf reload>"
    },
    {
+      .command = "conf",
+      .subcommand = "ls",
+      .accepted_argument_count = {0},
+      .action = MANAGEMENT_CONF_LS,
+      .deprecated = false,
+      .log_message = "<conf ls>"
+   },
+   {
+      .command = "conf",
+      .subcommand = "get",
+      .accepted_argument_count = {0, 1},
+      .action = MANAGEMENT_CONF_GET,
+      .deprecated = false,
+      .log_message = "<conf get> [%s]"
+   },
+   {
+      .command = "conf",
+      .subcommand = "set",
+      .accepted_argument_count = {2},
+      .action = MANAGEMENT_CONF_SET,
+      .deprecated = false,
+      .log_message = "<conf set> [%s]"
+   },
+   {
       .command = "clear",
       .subcommand = "prometheus",
       .accepted_argument_count = {0},
@@ -203,7 +239,6 @@ main(int argc, char** argv)
    int c;
    int option_index = 0;
    /* Store the result from command parser*/
-   bool matched = false;
    size_t size;
    char un[MAX_USERNAME_LENGTH];
    struct configuration* config = NULL;
@@ -450,8 +485,6 @@ main(int argc, char** argv)
       goto done;
    }
 
-   matched = true;
-
    if (configuration_path != NULL)
    {
       /* Local connection */
@@ -550,6 +583,25 @@ password:
    {
       exit_code = reload(s_ssl, socket, compression, encryption, output_format);
    }
+   else if (parsed.cmd->action == MANAGEMENT_CONF_LS)
+   {
+      exit_code = conf_ls(s_ssl, socket, compression, encryption, output_format);
+   }
+   else if (parsed.cmd->action == MANAGEMENT_CONF_GET)
+   {
+      if (parsed.args[0])
+      {
+         exit_code = conf_get(s_ssl, socket, parsed.args[0], compression, encryption, output_format);
+      }
+      else
+      {
+         exit_code = conf_get(s_ssl, socket, NULL, compression, encryption, output_format);
+      }
+   }
+   else if (parsed.cmd->action == MANAGEMENT_CONF_SET)
+   {
+      exit_code = conf_set(s_ssl, socket, parsed.args[0], parsed.args[1], compression, encryption, output_format);
+   }
 
 done:
 
@@ -567,14 +619,6 @@ done:
    }
 
    pgexporter_disconnect(socket);
-
-   if (configuration_path != NULL)
-   {
-      if (matched && exit_code != 0)
-      {
-         warnx("No connection to pgexporter on %s", config->unix_socket_dir);
-      }
-   }
 
    pgexporter_stop_logging();
    pgexporter_destroy_shared_memory(shmem, size);
@@ -627,6 +671,9 @@ help_conf(void)
 {
    printf("Manage the configuration\n");
    printf("  pgexporter-cli conf [reload]\n");
+   printf("  pgexporter-cli conf [ls]\n");
+   printf("  pgexporter-cli conf [get] <parameter_name>\n");
+   printf("  pgexporter-cli conf [set] <parameter_name> <parameter_value>\n");
 }
 
 static void
@@ -786,6 +833,66 @@ error:
 }
 
 static int
+conf_ls(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format)
+{
+   if (pgexporter_management_request_conf_ls(ssl, socket, compression, encryption, output_format))
+   {
+      goto error;
+   }
+
+   if (process_ls_result(ssl, socket, output_format))
+   {
+      goto error;
+   }
+
+   return 0;
+
+error:
+
+   return 1;
+}
+
+static int
+conf_get(SSL* ssl, int socket, char* config_key, uint8_t compression, uint8_t encryption, int32_t output_format)
+{
+   if (pgexporter_management_request_conf_get(ssl, socket, compression, encryption, output_format))
+   {
+      goto error;
+   }
+
+   if (process_get_result(ssl, socket, config_key, output_format))
+   {
+      goto error;
+   }
+
+   return 0;
+
+error:
+
+   return 1;
+}
+
+static int
+conf_set(SSL* ssl, int socket, char* config_key, char* config_value, uint8_t compression, uint8_t encryption, int32_t output_format)
+{
+   if (pgexporter_management_request_conf_set(ssl, socket, config_key, config_value, compression, encryption, output_format))
+   {
+      goto error;
+   }
+
+   if (process_set_result(ssl, socket, config_key, output_format))
+   {
+      goto error;
+   }
+
+   return 0;
+
+error:
+
+   return 1;
+}
+
+static int
 process_result(SSL* ssl, int socket, int32_t output_format)
 {
    struct json* read = NULL;
@@ -820,6 +927,396 @@ error:
    return 1;
 }
 
+static int
+process_ls_result(SSL* ssl, int socket, int32_t output_format)
+{
+   struct json* read = NULL;
+   struct json* json_res = NULL;
+   uintptr_t res;
+
+   if (pgexporter_management_read_json(ssl, socket, NULL, NULL, &read))
+   {
+      goto error;
+   }
+
+   if (get_conf_path_result(read, &res))
+   {
+      goto error;
+   }
+
+   json_res = (struct json*)res;
+
+   if (MANAGEMENT_OUTPUT_FORMAT_JSON == output_format)
+   {
+      pgexporter_json_print(json_res, FORMAT_JSON_COMPACT);
+   }
+   else
+   {
+      struct json_iterator* iter = NULL;
+      pgexporter_json_iterator_create(json_res, &iter);
+      while (pgexporter_json_iterator_next(iter))
+      {
+         char* value = pgexporter_value_to_string(iter->value, FORMAT_TEXT, NULL, 0);
+         printf("%s\n", value);
+         free(value);
+      }
+      pgexporter_json_iterator_destroy(iter);
+   }
+
+   pgexporter_json_destroy(read);
+   pgexporter_json_destroy(json_res);
+   return 0;
+
+error:
+
+   pgexporter_json_destroy(read);
+   pgexporter_json_destroy(json_res);
+   return 1;
+}
+
+static int
+process_get_result(SSL* ssl, int socket, char* config_key, int32_t output_format)
+{
+   struct json* read = NULL;
+   bool is_char = false;
+   char* char_res = NULL;
+   struct json* json_res = NULL;
+   uintptr_t res;
+
+   if (pgexporter_management_read_json(ssl, socket, NULL, NULL, &read))
+   {
+      goto error;
+   }
+
+   if (get_config_key_result(config_key, read, &res, output_format))
+   {
+      if (MANAGEMENT_OUTPUT_FORMAT_JSON == output_format)
+      {
+         json_res = (struct json*)res;
+         pgexporter_json_print(json_res, FORMAT_JSON_COMPACT);
+      }
+      else
+      {
+         is_char = true;
+         char_res = (char*)res;
+         printf("%s\n", char_res);
+      }
+      goto error;
+   }
+
+   if (!config_key)  // error response | complete configuration
+   {
+      json_res = (struct json*)res;
+
+      if (MANAGEMENT_OUTPUT_FORMAT_RAW != output_format)
+      {
+         translate_json_object(json_res);
+      }
+
+      if (MANAGEMENT_OUTPUT_FORMAT_TEXT == output_format)
+      {
+         pgexporter_json_print(json_res, FORMAT_TEXT);
+      }
+      else
+      {
+         pgexporter_json_print(json_res, FORMAT_JSON);
+      }
+   }
+   else
+   {
+      if (MANAGEMENT_OUTPUT_FORMAT_JSON == output_format)
+      {
+         json_res = (struct json*)res;
+         pgexporter_json_print(json_res, FORMAT_JSON_COMPACT);
+      }
+      else
+      {
+         is_char = true;
+         char_res = (char*)res;
+         printf("%s\n", char_res);
+      }
+   }
+
+   pgexporter_json_destroy(read);
+   if (config_key)
+   {
+      if (is_char)
+      {
+         free(char_res);
+      }
+      else
+      {
+         pgexporter_json_destroy(json_res);
+      }
+   }
+
+   return 0;
+
+error:
+
+   pgexporter_json_destroy(read);
+   if (config_key)
+   {
+      if (is_char)
+      {
+         free(char_res);
+      }
+      else
+      {
+         pgexporter_json_destroy(json_res);
+      }
+   }
+
+   return 1;
+}
+
+static int
+process_set_result(SSL* ssl, int socket, char* config_key, int32_t output_format)
+{
+   struct json* read = NULL;
+   bool is_char = false;
+   char* char_res = NULL;
+   int status = 0;
+   struct json* json_res = NULL;
+   uintptr_t res;
+
+   if (pgexporter_management_read_json(ssl, socket, NULL, NULL, &read))
+   {
+      goto error;
+   }
+
+   status = get_config_key_result(config_key, read, &res, output_format);
+   if (MANAGEMENT_OUTPUT_FORMAT_JSON == output_format)
+   {
+      json_res = (struct json*)res;
+      pgexporter_json_print(json_res, FORMAT_JSON_COMPACT);
+   }
+   else
+   {
+      is_char = true;
+      char_res = (char*)res;
+      printf("%s\n", char_res);
+   }
+
+   if (status == 1)
+   {
+      goto error;
+   }
+
+   pgexporter_json_destroy(read);
+   if (config_key)
+   {
+      if (is_char)
+      {
+         free(char_res);
+      }
+      else
+      {
+         pgexporter_json_destroy(json_res);
+      }
+   }
+
+   return 0;
+
+error:
+
+   pgexporter_json_destroy(read);
+   if (config_key)
+   {
+      if (is_char)
+      {
+         free(char_res);
+      }
+      else
+      {
+         pgexporter_json_destroy(json_res);
+      }
+   }
+
+   return 1;
+}
+
+static int
+get_conf_path_result(struct json* j, uintptr_t* r)
+{
+   struct json* conf_path_response = NULL;
+   struct json* response = NULL;
+
+   response = (struct json*)pgexporter_json_get(j, MANAGEMENT_CATEGORY_RESPONSE);
+
+   if (!response)
+   {
+      goto error;
+   }
+
+   if (pgexporter_json_create(&conf_path_response))
+   {
+      goto error;
+   }
+
+   if (pgexporter_json_contains_key(response, CONFIGURATION_ARGUMENT_ADMIN_CONF_PATH))
+   {
+      pgexporter_json_put(conf_path_response, CONFIGURATION_ARGUMENT_ADMIN_CONF_PATH, (uintptr_t)pgexporter_json_get(response, CONFIGURATION_ARGUMENT_ADMIN_CONF_PATH), ValueString);
+   }
+   if (pgexporter_json_contains_key(response, CONFIGURATION_ARGUMENT_MAIN_CONF_PATH))
+   {
+      pgexporter_json_put(conf_path_response, CONFIGURATION_ARGUMENT_MAIN_CONF_PATH, (uintptr_t)pgexporter_json_get(response, CONFIGURATION_ARGUMENT_MAIN_CONF_PATH), ValueString);
+   }
+   if (pgexporter_json_contains_key(response, CONFIGURATION_ARGUMENT_USER_CONF_PATH))
+   {
+      pgexporter_json_put(conf_path_response, CONFIGURATION_ARGUMENT_USER_CONF_PATH, (uintptr_t)pgexporter_json_get(response, CONFIGURATION_ARGUMENT_USER_CONF_PATH), ValueString);
+   }
+
+   *r = (uintptr_t)conf_path_response;
+
+   return 0;
+error:
+
+   return 1;
+
+}
+
+static int
+get_config_key_result(char* config_key, struct json* j, uintptr_t* r, int32_t output_format)
+{
+   char server[MISC_LENGTH];
+   char key[MISC_LENGTH];
+
+   struct json* configuration_js = NULL;
+   struct json* filtered_response = NULL;
+   struct json* response = NULL;
+   struct json* outcome = NULL;
+   struct json_iterator* iter;
+   char* config_value = NULL;
+   int begin = -1, end = -1;
+
+   if (!config_key)
+   {
+      *r = (uintptr_t)j;
+      return 0;
+   }
+
+   if (pgexporter_json_create(&filtered_response))
+   {
+      goto error;
+   }
+
+   memset(server, 0, MISC_LENGTH);
+   memset(key, 0, MISC_LENGTH);
+
+   for (int i = 0; i < strlen(config_key); i++)
+   {
+      if (config_key[i] == '.')
+      {
+         if (!strlen(server))
+         {
+            memcpy(server, &config_key[begin], end - begin + 1);
+            server[end - begin + 1] = '\0';
+            begin = end = -1;
+            continue;
+         }
+      }
+
+      if (begin < 0)
+      {
+         begin = i;
+      }
+
+      end = i;
+
+   }
+
+   // if the key has not been found, since there is no ending dot,
+   // try to extract it from the string
+   if (!strlen(key))
+   {
+      memcpy(key, &config_key[begin], end - begin + 1);
+      key[end - begin + 1] = '\0';
+   }
+
+   response = (struct json*)pgexporter_json_get(j, MANAGEMENT_CATEGORY_RESPONSE);
+   outcome = (struct json*)pgexporter_json_get(j, MANAGEMENT_CATEGORY_OUTCOME);
+   if (!response || !outcome)
+   {
+      goto error;
+   }
+
+   // Check if error response
+   if (pgexporter_json_contains_key(outcome, MANAGEMENT_ARGUMENT_ERROR))
+   {
+      goto error;
+   }
+
+   if (strlen(server) > 0)
+   {
+      configuration_js = (struct json*)pgexporter_json_get(response, server);
+      if (!configuration_js)
+      {
+         goto error;
+      }
+   }
+   else
+   {
+      configuration_js = response;
+   }
+
+   pgexporter_json_iterator_create(configuration_js, &iter);
+   while (pgexporter_json_iterator_next(iter))
+   {
+      if (!strcmp(key, iter->key))
+      {
+         config_value = pgexporter_value_to_string(iter->value, FORMAT_TEXT, NULL, 0);
+         if (iter->value->type == ValueJSON)
+         {
+            struct json* server_data = NULL;
+            pgexporter_json_clone((struct json*)iter->value->data, &server_data);
+            pgexporter_json_put(filtered_response, key, (uintptr_t)server_data, iter->value->type);
+         }
+         else
+         {
+            pgexporter_json_put(filtered_response, key, (uintptr_t)iter->value->data, iter->value->type);
+         }
+      }
+   }
+   pgexporter_json_iterator_destroy(iter);
+
+   if (!config_value)  // if key doesn't match with any field in configuration
+   {
+      goto error;
+   }
+
+   if (output_format == MANAGEMENT_OUTPUT_FORMAT_JSON || !config_key)
+   {
+      *r = (uintptr_t)filtered_response;
+      free(config_value);
+   }
+   else
+   {
+      *r = (uintptr_t)config_value;
+      pgexporter_json_destroy(filtered_response);
+   }
+
+   return 0;
+
+error:
+
+   if (output_format == MANAGEMENT_OUTPUT_FORMAT_JSON)
+   {
+      pgexporter_json_put(filtered_response, "Outcome", (uintptr_t)false, ValueBool);
+      *r = (uintptr_t)filtered_response;
+      free(config_value);
+   }
+   else
+   {
+      config_value = (char*)malloc(6);
+      memcpy(config_value, "Error\0", 6);
+      *r = (uintptr_t)config_value;
+      pgexporter_json_destroy(filtered_response);
+   }
+
+   return 1;
+}
+
 static char*
 translate_command(int32_t cmd_code)
 {
@@ -843,6 +1340,21 @@ translate_command(int32_t cmd_code)
          break;
       case MANAGEMENT_RELOAD:
          command_output = pgexporter_append(command_output, COMMAND_RELOAD);
+         break;
+      case MANAGEMENT_CONF_LS:
+         command_output = pgexporter_append(command_output, COMMAND_CONF);
+         command_output = pgexporter_append_char(command_output, ' ');
+         command_output = pgexporter_append(command_output, "ls");
+         break;
+      case MANAGEMENT_CONF_GET:
+         command_output = pgexporter_append(command_output, COMMAND_CONF);
+         command_output = pgexporter_append_char(command_output, ' ');
+         command_output = pgexporter_append(command_output, "get");
+         break;
+      case MANAGEMENT_CONF_SET:
+         command_output = pgexporter_append(command_output, COMMAND_CONF);
+         command_output = pgexporter_append_char(command_output, ' ');
+         command_output = pgexporter_append(command_output, "set");
          break;
       default:
          break;

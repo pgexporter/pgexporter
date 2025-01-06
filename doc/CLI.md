@@ -50,13 +50,30 @@ Command
 pgexporter-cli status details
 ```
 
-## conf reload
-Reload the configuration
+## conf
+
+Manage the configuration
 
 Command
 
+``` sh
+pgmoneta-cli conf [reload | ls | get | set]
 ```
-pgexporter-cli conf reload
+
+Subcommand
+
+- `reload`: Reload configuration
+- `ls` : To print the configurations used
+- `get <config_key>` : To obtain information about a runtime configuration value
+- `set <config_key> <config_value>` : To modify the runtime configuration value
+
+Example
+
+``` sh
+pgmoneta-cli conf reload
+pgmoneta-cli conf ls
+pgmoneta-cli conf get primary.host
+pgmoneta-cli conf set encryption aes-256-cbc
 ```
 
 ## clear prometheus

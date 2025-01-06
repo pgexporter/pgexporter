@@ -65,6 +65,9 @@ extern "C" {
 #define MANAGEMENT_PING                5
 #define MANAGEMENT_RESET               6
 #define MANAGEMENT_RELOAD              7
+#define MANAGEMENT_CONF_LS             8
+#define MANAGEMENT_CONF_GET            9
+#define MANAGEMENT_CONF_SET            10
 
 /**
  * Management categories
@@ -81,6 +84,8 @@ extern "C" {
 #define MANAGEMENT_ARGUMENT_CLIENT_VERSION        "ClientVersion"
 #define MANAGEMENT_ARGUMENT_COMMAND               "Command"
 #define MANAGEMENT_ARGUMENT_COMPRESSION           "Compression"
+#define MANAGEMENT_ARGUMENT_CONFIG_KEY            "ConfigKey"
+#define MANAGEMENT_ARGUMENT_CONFIG_VALUE          "ConfigValue"
 #define MANAGEMENT_ARGUMENT_ENCRYPTION            "Encryption"
 #define MANAGEMENT_ARGUMENT_ERROR                 "Error"
 #define MANAGEMENT_ARGUMENT_MAJOR_VERSION         "MajorVersion"
@@ -113,6 +118,19 @@ extern "C" {
 
 #define MANAGEMENT_ERROR_BRIDGE_NOFORK  900
 #define MANAGEMENT_ERROR_BRIDGE_NETWORK 901
+
+#define MANAGEMENT_ERROR_CONF_GET_NOFORK  1000
+#define MANAGEMENT_ERROR_CONF_GET_NETWORK 1001
+#define MANAGEMENT_ERROR_CONF_GET_ERROR   1002
+
+#define MANAGEMENT_ERROR_CONF_SET_NOFORK                    1100
+#define MANAGEMENT_ERROR_CONF_SET_NOREQUEST                 1101
+#define MANAGEMENT_ERROR_CONF_SET_NOCONFIG_KEY_OR_VALUE     1102
+#define MANAGEMENT_ERROR_CONF_SET_NORESPONSE                1103
+#define MANAGEMENT_ERROR_CONF_SET_UNKNOWN_CONFIGURATION_KEY 1104
+#define MANAGEMENT_ERROR_CONF_SET_UNKNOWN_SERVER            1105
+#define MANAGEMENT_ERROR_CONF_SET_NETWORK                   1106
+#define MANAGEMENT_ERROR_CONF_SET_ERROR                     1107
 
 /**
  * Output formats
@@ -179,6 +197,42 @@ pgexporter_management_request_ping(SSL* ssl, int socket, uint8_t compression, ui
  */
 int
 pgexporter_management_request_reset(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format);
+
+/**
+ * @param ssl The SSL connection
+ * @param socket The socket
+ * @param compression The compress method for wire protocol
+ * @param encryption The encrypt method for wire protocol
+ * @param output_format The output format
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_management_request_conf_ls(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format);
+
+/**
+ * @param ssl The SSL connection
+ * @param socket The socket
+ * @param compression The compress method for wire protocol
+ * @param encryption The encrypt method for wire protocol
+ * @param output_format The output format
+ * @return 0 upon success, otherwise 1
+ */
+int 
+pgexporter_management_request_conf_get(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format);
+
+/**
+ * Create a conf get request
+ * @param ssl The SSL connection
+ * @param socket The socket descriptor
+ * @param config_key The configuration key
+ * @param config_value The configuration value
+ * @param compression The compress method for wire protocol
+ * @param encryption The encrypt method for wire protocol
+ * @param output_format The output format
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_management_request_conf_set(SSL* ssl, int socket, char* config_key, char* config_value, uint8_t compression, uint8_t encryption, int32_t output_format);
 
 /**
  * Management operation: Reload
