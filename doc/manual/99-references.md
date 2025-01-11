@@ -13,7 +13,6 @@
   [cmake]: https://cmake.org
   [make]: https://www.gnu.org/software/make/
   [libev]: http://software.schmorp.de/pkg/libev.html
-  [libcurl]: https://curl.se/libcurl/
   [openssl]: http://www.openssl.org/
   [systemd]: https://www.freedesktop.org/wiki/Software/systemd/
   [rst2man]: https://docutils.sourceforge.io/
@@ -62,7 +61,7 @@
   [remote_c]: https://github.com/pgexporter/pgexporter/blob/main/src/libpgexporter/remote.c
   [prometheus_c]: https://github.com/pgexporter/pgexporter/blob/main/src/libpgexporter/prometheus.c
   [logging_c]: https://github.com/pgexporter/pgexporter/blob/main/src/libpgexporter/logging.c
-  
+
 <!-- Contributing -->
   [ask]: https://github.com/pgexporter/pgexporter/discussions
   [issue]: https://github.com/pgexporter/pgexporter/issues

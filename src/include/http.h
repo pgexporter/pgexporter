@@ -35,38 +35,26 @@ extern "C" {
 
 #include <stdbool.h>
 #include <stdio.h>
-#include <curl/curl.h>
 
 /** @struct http
  * Defines a HTTP interaction
  */
 struct http
 {
-   CURL* curl;                 /**< The CURL backup */
-   struct curl_slist* headers; /**< The HTTP header options */
-   char* url;                  /**< The URL */
-   char* header;               /**< The HTTP header */
-   char* body;                 /**< The HTTP body */
+   int endpoint;  /**< The endpoint */
+   int socket;    /**< The socket */
+   char* headers; /**< The HTTP headers */
+   char* body;    /**< The HTTP body */
 };
 
 /**
- * Create a HTTP interaction a header
- * @param url The URL
+ * Create a HTTP interaction
+ * @param endpoint The endpoint
  * @param http The resulting HTTP interaction
  * @return 0 if success, otherwise 1
  */
 int
-pgexporter_http_create(char* url, struct http** http);
-
-/**
- * Add a HTTP header
- * @param http The HTTP interaction
- * @param header The header
- * @param value The value
- * @return 0 if success, otherwise 1
- */
-int
-pgexporter_http_add_header(struct http* http, char* header, char* value);
+pgexporter_http_create(int endpoint, struct http** http);
 
 /**
  * Execute GET request
@@ -75,29 +63,6 @@ pgexporter_http_add_header(struct http* http, char* header, char* value);
  */
 int
 pgexporter_http_get(struct http* http);
-
-/**
- * Execute PUT request
- * @param http The HTTP interaction
- * @return 0 if success, otherwise 1
- */
-int
-pgexporter_http_put(struct http* http);
-
-/**
- * Execute POST request
- * @param http The HTTP interaction
- * @return 0 if success, otherwise 1
- */
-int
-pgexporter_http_post(struct http* http);
-
-/**
- * Log a HTTP interaction
- * @param http The interaction
- */
-void
-pgexporter_http_log(struct http* http);
 
 /**
  * Destroy HTTP interaction

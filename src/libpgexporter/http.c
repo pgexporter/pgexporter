@@ -27,72 +27,28 @@
  */
 
 /* pgexporter */
+#include "message.h"
 #include <pgexporter.h>
 #include <http.h>
 #include <logging.h>
 #include <memory.h>
-#include <stdio.h>
-#include <string.h>
+#include <network.h>
+#include <stdlib.h>
 #include <utils.h>
 
-#include <curl/curl.h>
+#include <stdio.h>
+#include <string.h>
 
-#define HTTP_GET  0
-#define HTTP_PUT  1
-#define HTTP_POST 2
-
-static size_t write_callback(char* ptr, size_t size, size_t nmemb, char* data);
-
-static int basic_settings(struct http* http, int type);
-
-#ifdef DEBUG
-
-static int
-http_interaction(CURL* curl, curl_infotype type, char* data, size_t size, void* userp)
-{
-   char* text = NULL;
-
-   switch (type)
-   {
-      case CURLINFO_TEXT:
-         text = pgexporter_append(text, "== Info");
-         break;
-      case CURLINFO_HEADER_OUT:
-         text = pgexporter_append(text, "=> Send header");
-         break;
-      case CURLINFO_DATA_OUT:
-         text = pgexporter_append(text, "=> Send data");
-         break;
-      case CURLINFO_SSL_DATA_OUT:
-         text = pgexporter_append(text, "=> Send SSL data");
-         break;
-      case CURLINFO_HEADER_IN:
-         text = pgexporter_append(text, "<= Recv header");
-         break;
-      case CURLINFO_DATA_IN:
-         text = pgexporter_append(text, "<= Recv data");
-         break;
-      case CURLINFO_SSL_DATA_IN:
-         text = pgexporter_append(text, "<= Recv SSL data");
-         break;
-      default:
-         pgexporter_log_warn("Unknown type: %d", type);
-   }
-
-   pgexporter_log_debug("%s", text);
-   pgexporter_log_mem(data, size);
-
-   free(text);
-
-   return 0;
-}
-
-#endif
+static int build_get_request(int endpoint, char** request);
+static int extract_headers_body(char* response, struct http* http);
 
 int
-pgexporter_http_create(char* url, struct http** http)
+pgexporter_http_create(int endpoint, struct http** http)
 {
    struct http* h = NULL;
+   struct configuration* config = NULL;
+
+   config = (struct configuration*)shmem;
 
    *http = NULL;
 
@@ -104,23 +60,18 @@ pgexporter_http_create(char* url, struct http** http)
       goto error;
    }
 
-   h->curl = curl_easy_init();
-   if (h->curl == NULL)
+   /* Initialize */
+   memset(h, 0, sizeof(struct http));
+
+   h->endpoint = endpoint;
+
+   if (pgexporter_connect(config->endpoints[endpoint].host, config->endpoints[endpoint].port, &h->socket))
    {
-      pgexporter_log_error("Could not initialize CURL");
+      pgexporter_log_error("Failed to connect to %s:%d",
+                           config->endpoints[endpoint].host,
+                           config->endpoints[endpoint].port);
       goto error;
    }
-
-   /* Initialize */
-   h->url = NULL;
-   h->headers = NULL;
-   h->header = NULL;
-   h->body = NULL;
-
-   /* Fill in values */
-   h->url = pgexporter_append(h->url, url);
-   h->header = pgexporter_append(h->header, "");
-   h->body = pgexporter_append(h->body, "");
 
    *http = h;
 
@@ -128,30 +79,7 @@ pgexporter_http_create(char* url, struct http** http)
 
 error:
 
-   return 1;
-}
-
-int
-pgexporter_http_add_header(struct http* http, char* header, char* value)
-{
-   char* h = NULL;
-
-   if (http == NULL)
-   {
-      goto error;
-   }
-
-   h = pgexporter_append(h, header);
-   h = pgexporter_append(h, ": ");
-   h = pgexporter_append(h, value);
-
-   http->headers = curl_slist_append(http->headers, h);
-
    free(h);
-
-   return 0;
-
-error:
 
    return 1;
 }
@@ -159,161 +87,86 @@ error:
 int
 pgexporter_http_get(struct http* http)
 {
-   CURLcode cres;
-   char* url;
-   long response_code;
-   double elapsed;
+   struct message* msg_request = NULL;
+   struct message* msg_response = NULL;
+   int error = 0;
+   int status;
+   char* request = NULL;
+   char* response = NULL;
 
-   if (http == NULL)
-   {
-      pgexporter_log_error("HTTP/GET is NULL");
-      goto error;
-   }
-
-   if (basic_settings(http, HTTP_GET))
+   if (build_get_request(http->endpoint, &request))
    {
       goto error;
    }
 
-   pgexporter_log_trace("HTTP/GET interaction: %s", http->url);
-   cres = curl_easy_perform(http->curl);
-   if (cres != CURLE_OK)
-   {
-      pgexporter_log_error("Could not perform HTTP/GET interaction: %s", curl_easy_strerror(cres));
-      goto error;
-   }
-
-   curl_easy_getinfo(http->curl, CURLINFO_RESPONSE_CODE, &response_code);
-   curl_easy_getinfo(http->curl, CURLINFO_TOTAL_TIME, &elapsed);
-   curl_easy_getinfo(http->curl, CURLINFO_EFFECTIVE_URL, &url);
-
-   pgexporter_log_debug("HTTP/GET: %s -> %ld (%f)", url, response_code, elapsed);
-
-   return 0;
-
-error:
-
-   return 1;
-}
-
-int
-pgexporter_http_put(struct http* http)
-{
-   CURLcode cres;
-   char* url;
-   long response_code;
-   double elapsed;
-
-   if (http == NULL)
-   {
-      pgexporter_log_error("HTTP/PUT is NULL");
-      goto error;
-   }
-
-   if (basic_settings(http, HTTP_PUT))
+   msg_request = (struct message*)malloc(sizeof(struct message));
+   if (msg_request == NULL)
    {
       goto error;
    }
 
-   pgexporter_log_trace("HTTP/PUT interaction: %s", http->url);
-   cres = curl_easy_perform(http->curl);
-   if (cres != CURLE_OK)
+   memset(msg_request, 0, sizeof(struct message));
+
+   msg_request->data = request;
+   msg_request->length = strlen(request) + 1;
+
+   error = 0;
+req:
+   if (error < 5)
    {
-      pgexporter_log_error("Could not perform HTTP/PUT interaction");
-      goto error;
-   }
-
-   curl_easy_getinfo(http->curl, CURLINFO_RESPONSE_CODE, &response_code);
-   curl_easy_getinfo(http->curl, CURLINFO_TOTAL_TIME, &elapsed);
-   curl_easy_getinfo(http->curl, CURLINFO_EFFECTIVE_URL, &url);
-
-   pgexporter_log_debug("HTTP/PUT: %s -> %ld (%f)", url, response_code, elapsed);
-
-   return 0;
-
-error:
-
-   return 1;
-}
-
-int
-pgexporter_http_post(struct http* http)
-{
-   CURLcode cres;
-   char* url;
-   long response_code;
-   double elapsed;
-
-   if (http == NULL)
-   {
-      pgexporter_log_error("HTTP/POST is NULL");
-      goto error;
-   }
-
-   if (basic_settings(http, HTTP_POST))
-   {
-      goto error;
-   }
-
-   pgexporter_log_trace("HTTP/POST interaction: %s", http->url);
-   cres = curl_easy_perform(http->curl);
-   if (cres != CURLE_OK)
-   {
-      pgexporter_log_error("Could not perform HTTP/POST interaction");
-      goto error;
-   }
-
-   curl_easy_getinfo(http->curl, CURLINFO_RESPONSE_CODE, &response_code);
-   curl_easy_getinfo(http->curl, CURLINFO_TOTAL_TIME, &elapsed);
-   curl_easy_getinfo(http->curl, CURLINFO_EFFECTIVE_URL, &url);
-
-   pgexporter_log_debug("HTTP/POST: %s -> %ld (%f)", url, response_code, elapsed);
-
-   return 0;
-
-error:
-
-   return 1;
-}
-
-void
-pgexporter_http_log(struct http* http)
-{
-   if (http == NULL)
-   {
-      pgexporter_log_debug("HTTP is NULL");
+      status = pgexporter_write_message(NULL, http->socket, msg_request);
+      if (status != MESSAGE_STATUS_OK)
+      {
+         error++;
+         goto req;
+      }
    }
    else
    {
-      pgexporter_log_debug("HTTP: %p", http);
+      goto error;
+   }
 
-      if (http->url == NULL)
+res:
+   status = pgexporter_read_block_message(NULL, http->socket, &msg_response);
+   if (status != MESSAGE_STATUS_ZERO)
+   {
+      if (status == MESSAGE_STATUS_OK)
       {
-         pgexporter_log_debug("URL is NULL");
+         response = pgexporter_append(response, (char*)msg_response->data);
+         pgexporter_free_message(msg_response);
+         goto res;
       }
       else
       {
-         pgexporter_log_mem(http->url, strlen(http->url));
-      }
-
-      if (http->header == NULL)
-      {
-         pgexporter_log_debug("Header is NULL");
-      }
-      else
-      {
-         pgexporter_log_mem(http->header, strlen(http->header) + 1);
-      }
-
-      if (http->body == NULL)
-      {
-         pgexporter_log_debug("Body is NULL");
-      }
-      else
-      {
-         pgexporter_log_mem(http->body, strlen(http->body) + 1);
+         goto error;
       }
    }
+
+   if (msg_response->length > 0)
+   {
+      response = pgexporter_append(response, (char*)msg_response->data);
+   }
+
+   if (extract_headers_body(response, http))
+   {
+      goto error;
+   }
+
+   free(request);
+   free(response);
+
+   free(msg_request);
+
+   return 0;
+
+error:
+
+   free(request);
+   free(response);
+
+   free(msg_request);
+
+   return 1;
 }
 
 int
@@ -321,172 +174,83 @@ pgexporter_http_destroy(struct http* http)
 {
    if (http != NULL)
    {
-      if (http->curl != NULL)
-      {
-         curl_easy_cleanup(http->curl);
-      }
-      http->curl = NULL;
+      pgexporter_disconnect(http->socket);
 
-      if (http->headers != NULL)
-      {
-         curl_slist_free_all(http->headers);
-      }
-      http->headers = NULL;
-
-      free(http->url);
-      free(http->header);
+      free(http->headers);
       free(http->body);
    }
+
    free(http);
    http = NULL;
 
-   curl_global_cleanup();
-
    return 0;
-}
-
-static size_t
-write_callback(char* ptr, size_t size, size_t nmemb, char* data)
-{
-   data = pgexporter_append(data, ptr);
-
-   return size * nmemb;
 }
 
 static int
-basic_settings(struct http* http, int type)
+build_get_request(int endpoint, char** request)
 {
-   CURLcode cres = 1;
-   char agent[MISC_LENGTH];
+   char* r = NULL;
+   struct configuration* config = NULL;
 
-   if (type == HTTP_GET)
-   {
-      cres = curl_easy_setopt(http->curl, CURLOPT_HTTPGET, 1L);
-   }
-   else if (type == HTTP_PUT)
-   {
-      cres = curl_easy_setopt(http->curl, CURLOPT_UPLOAD, 1L);
-   }
-   else if (type == HTTP_POST)
-   {
-      cres = curl_easy_setopt(http->curl, CURLOPT_UPLOAD, 1L);
-   }
+   config = (struct configuration*)shmem;
 
-   if (cres != CURLE_OK)
-   {
-      pgexporter_log_error("Could not set type");
-      goto error;
-   }
+   *request = NULL;
 
-#ifdef DEBUG
-   cres = curl_easy_setopt(http->curl, CURLOPT_DEBUGFUNCTION, http_interaction);
-   if (cres != CURLE_OK)
-   {
-      pgexporter_log_error("Could not set debug function");
-      goto error;
-   }
+   r = pgexporter_append(r, "GET /metrics HTTP/1.1\r\n");
 
-   cres = curl_easy_setopt(http->curl, CURLOPT_VERBOSE, 1L);
-   if (cres != CURLE_OK)
-   {
-      pgexporter_log_error("Could not set verbose");
-      goto error;
-   }
-#endif
+   r = pgexporter_append(r, "Host: ");
+   r = pgexporter_append(r, config->endpoints[endpoint].host);
+   r = pgexporter_append(r, "\r\n");
 
-   cres = curl_easy_setopt(http->curl, CURLOPT_URL, http->url);
-   if (cres != CURLE_OK)
-   {
-      pgexporter_log_error("Could not set URL");
-      goto error;
-   }
+   r = pgexporter_append(r, "User-Agent: pgexporter/");
+   r = pgexporter_append(r, VERSION);
+   r = pgexporter_append(r, "\r\n");
 
-   cres = curl_easy_setopt(http->curl, CURLOPT_FOLLOWLOCATION, 1L);
-   if (cres != CURLE_OK)
-   {
-      pgexporter_log_error("Could not set follow location");
-      goto error;
-   }
+   r = pgexporter_append(r, "Accept: text/*\r\n");
 
-   cres = curl_easy_setopt(http->curl, CURLOPT_NOPROGRESS, 1L);
-   if (cres != CURLE_OK)
-   {
-      pgexporter_log_error("Could not set noprogress");
-      goto error;
-   }
+   r = pgexporter_append(r, "\r\n");
 
-   memset(&agent[0], 0, sizeof(agent));
-   snprintf(&agent[0], sizeof(agent) - 1, "pgexporter/%s", VERSION);
-
-   cres = curl_easy_setopt(http->curl, CURLOPT_USERAGENT, &agent[0]);
-   if (cres != CURLE_OK)
-   {
-      pgexporter_log_error("Could not set useragent");
-      goto error;
-   }
-
-   curl_easy_setopt(http->curl, CURLOPT_MAXREDIRS, 50L);
-   if (cres != CURLE_OK)
-   {
-      pgexporter_log_error("Could not set max redirects");
-      goto error;
-   }
-
-   curl_easy_setopt(http->curl, CURLOPT_TCP_KEEPALIVE, 1L);
-   if (cres != CURLE_OK)
-   {
-      pgexporter_log_error("Could not set TCP keepalive");
-      goto error;
-   }
-
-   cres = curl_easy_setopt(http->curl, CURLOPT_HEADER, 1L);
-   if (cres != CURLE_OK)
-   {
-      pgexporter_log_error("Could not set header");
-      goto error;
-   }
-
-   if (http->headers != NULL)
-   {
-      cres = curl_easy_setopt(http->curl, CURLOPT_HTTPHEADER, http->headers);
-      if (cres != CURLE_OK)
-      {
-         pgexporter_log_error("Could not set headers");
-         goto error;
-      }
-   }
-
-   cres = curl_easy_setopt(http->curl, CURLOPT_HEADERFUNCTION, write_callback);
-   if (cres != CURLE_OK)
-   {
-      pgexporter_log_error("Could not set header write callback");
-      goto error;
-   }
-
-   cres = curl_easy_setopt(http->curl, CURLOPT_WRITEFUNCTION, write_callback);
-   if (cres != CURLE_OK)
-   {
-      pgexporter_log_error("Could not set write callback");
-      goto error;
-   }
-
-   cres = curl_easy_setopt(http->curl, CURLOPT_WRITEDATA, http->body);
-   if (cres != CURLE_OK)
-   {
-      pgexporter_log_error("Could not set body data");
-      goto error;
-   }
-
-   cres = curl_easy_setopt(http->curl, CURLOPT_HEADERDATA, http->header);
-   if (cres != CURLE_OK)
-   {
-      pgexporter_log_error("Could not set header data");
-      goto error;
-   }
+   *request = r;
 
    return 0;
+}
 
-error:
+static int
+extract_headers_body(char* response, struct http* http)
+{
+   bool header = true;
+   char* p = NULL;
 
-   return 1;
+   p = strtok(response, "\n");
+   while (p != NULL)
+   {
+      if (*p == '\r')
+      {
+         header = false;
+      }
+      else
+      {
+         if (!pgexporter_is_number(p, 16))
+         {
+            if (header)
+            {
+               http->headers = pgexporter_append(http->headers, p);
+               http->headers = pgexporter_append_char(http->headers, '\n');
+            }
+            else
+            {
+               http->body = pgexporter_append(http->body, p);
+               http->body = pgexporter_append_char(http->body, '\n');
+            }
+         }
+      }
+
+      p = strtok(NULL, "\n");
+   }
+
+   pgexporter_log_info("Response: %s", response);
+   pgexporter_log_info("Headers: %s", http->headers);
+   pgexporter_log_info("Body: %s", http->body);
+
+   return 0;
 }

@@ -29,6 +29,7 @@
 #ifndef PGEXPORTER_UTILS_H
 #define PGEXPORTER_UTILS_H
 
+#include <stdbool.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -720,11 +721,20 @@ char*
 pgexporter_escape_string(char* str);
 
 /**
- * Provide the application version number as a unique value composed of the three
- * specified parts. For example, when invoked with (1,5,0) it returns 10500.
- * Every part of the number must be between 0 and 99, and the function
- * applies a restriction on the values. For example passing 1 or 101 as one of the part
- * will produce the same result.
+ * Is the string a number ?
+ * @param str The string
+ * @param base The base (10 or 16)
+ * @return True if number, otherwise false
+ */
+bool
+pgexporter_is_number(char* str, int base);
+
+/**
+ * Provide the application version number as a unique value composed of the
+ * three specified parts. For example, when invoked with (1,5,0) it returns
+ * 10500. Every part of the number must be between 0 and 99, and the function
+ * applies a restriction on the values. For example passing 1 or 101 as one of
+ * the part will produce the same result.
  *
  * @param major the major version number
  * @param minor the minor version number

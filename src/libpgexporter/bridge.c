@@ -27,6 +27,7 @@
  */
 
 /* pgexporter */
+#include "art.h"
 #include <pgexporter.h>
 #include <bridge.h>
 #include <logging.h>
@@ -69,6 +70,8 @@ static bool bridge_cache_finalize(void);
 static size_t bridge_cache_size_to_alloc(void);
 static void bridge_cache_invalidate(void);
 
+static void bridge_metrics(int client_fd);
+
 void
 pgexporter_bridge(int client_fd)
 {
@@ -91,6 +94,8 @@ pgexporter_bridge(int client_fd)
    }
 
    page = resolve_page(msg);
+
+   pgexporter_log_message(msg);
 
    if (page == PAGE_HOME)
    {
@@ -272,17 +277,19 @@ home_page(int client_fd)
    free(data);
    data = NULL;
 
-   data = pgexporter_vappend(data, 10,
-                             "<html>\n",
-                             "<head>\n",
-                             "  <title>pgexporter: bridge</title>\n",
+   data = pgexporter_vappend(data, 13,
+                             "<html>\n", "<head>\n",
+                             "  <title>pgexporter: Bridge</title>\n",
                              "</head>\n",
                              "<body>\n",
                              "  <h1>pgexporter</h1>\n",
-                             "  A bridge for Prometheus\n",
+                             "  Bridge for Prometheus\n",
                              "  <p>\n",
                              "  <a href=\"/metrics\">Metrics</a>\n",
-                             "  <ul>\n"
+                             "  <p>\n",
+                             "  <a href=\"https://pgexporter.github.io/\">pgexporter.github.io/</a>\n",
+                             "</body>\n",
+                             "</html>\n"
                              );
 
    send_chunk(client_fd, data);
@@ -385,6 +392,9 @@ retry_cache_locking:
 
          free(data);
          data = NULL;
+
+         /* Metrics */
+         bridge_metrics(client_fd);
 
          /* Footer */
          data = pgexporter_append(data, "0\r\n\r\n");
@@ -722,4 +732,75 @@ bridge_cache_finalize(void)
    now = time(NULL);
    cache->valid_until = now + config->bridge_cache_max_age;
    return cache->valid_until > now;
+}
+
+static void
+bridge_metrics(int client_fd)
+{
+   char* art_s = NULL;
+   struct prometheus_bridge* bridge = NULL;
+   struct art_iterator* metrics_iterator = NULL;
+   struct configuration* config = NULL;
+
+   config = (struct configuration*)shmem;
+
+   if (pgexporter_prometheus_client_create_bridge(&bridge))
+   {
+      goto error;
+   }
+
+   for (int i = 0; i < config->number_of_endpoints; i++)
+   {
+      pgexporter_log_info("Start: %s:%d",
+                          config->endpoints[i].host,
+                          config->endpoints[i].port);
+      pgexporter_prometheus_client_get(i, bridge);
+      pgexporter_log_info("Done: %s:%d",
+                          config->endpoints[i].host,
+                          config->endpoints[i].port);
+   }
+
+   // TODO: Consolidate bridge into metric string.
+
+   /* TODO: The bridge is not supposed to send the gathered metrics directly. All the metrics
+    * need to be pooled and be sent together alphabetically. The chunks in this case can be each metric.
+    * as they can be resolved from the ART in one go, and sent.
+    */
+
+   art_s = pgexporter_art_to_string(bridge->metrics, FORMAT_JSON, NULL, 0);
+   pgexporter_log_debug(art_s);
+
+   if (pgexporter_art_iterator_create(bridge->metrics, &metrics_iterator))
+   {
+      goto error;
+   }
+
+   while (pgexporter_art_iterator_next(metrics_iterator))
+   {
+
+   }
+
+   // if (data)
+   // {
+   //    send_chunk(client_fd, data);
+   //    bridge_cache_append(data);
+   //    free(data);
+   //    data = NULL;
+   // }
+
+   free(art_s);
+
+   pgexporter_art_iterator_destroy(metrics_iterator);
+
+   pgexporter_prometheus_client_destroy_bridge(bridge);
+
+   return;
+
+error:
+
+   free(art_s);
+
+   pgexporter_art_iterator_destroy(metrics_iterator);
+
+   pgexporter_prometheus_client_destroy_bridge(bridge);
 }

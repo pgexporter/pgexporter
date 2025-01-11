@@ -12,7 +12,7 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v3
     - name: Update system
@@ -27,8 +27,6 @@ jobs:
       run: sudo apt install -y libzstd-dev
     - name: Install lz4
       run: sudo apt install -y liblz4-dev
-    - name: Install libcurl
-      run: sudo apt install -y libcurl4-openssl-dev
     - name: Install bzip2
       run: sudo apt install -y libbz2-dev
     - name: Install graphviz

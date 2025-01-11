@@ -105,13 +105,6 @@ else ()
   message(FATAL_ERROR "OpenSSL needed")
 endif()
 
-find_package(Libcurl)
-if (LIBCURL_FOUND)
-  message(STATUS "libcurl found")
-else ()
-  message(FATAL_ERROR "libcurl needed")
-endif()
-
 find_package(Rst2man)
 if (RST2MAN_FOUND)
   message(STATUS "rst2man found")

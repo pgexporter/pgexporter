@@ -123,7 +123,6 @@ static void uptime_information(int client_fd);
 static void primary_information(int client_fd);
 static void settings_information(int client_fd);
 static void custom_metrics(int client_fd); // Handles custom metrics provided in YAML format, both internal and external
-
 static void append_help_info(char** data, char* tag, char* name, char* description);
 static void append_type_info(char** data, char* tag, char* name, int typeId);
 
@@ -1277,7 +1276,6 @@ data:
 static void
 custom_metrics(int client_fd)
 {
-
    struct configuration* config = NULL;
    char* data = NULL;
 

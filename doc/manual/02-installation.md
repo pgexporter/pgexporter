@@ -49,7 +49,6 @@ We recommend using Fedora to test and run [**pgexporter**][pgexporter], but othe
 ```sh
 dnf install git gcc cmake make libev libev-devel \
             openssl openssl-devel \
-            libcurl libcurl-devel \
             systemd systemd-devel \
             python3-docutils libatomic \
             libyaml libyaml-devel

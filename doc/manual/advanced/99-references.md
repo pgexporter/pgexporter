@@ -17,7 +17,6 @@
   [cmake]: https://cmake.org
   [make]: https://www.gnu.org/software/make/
   [libev]: http://software.schmorp.de/pkg/libev.html
-  [libcurl]: https://curl.se/libcurl/
   [openssl]: http://www.openssl.org/
   [systemd]: https://www.freedesktop.org/wiki/Software/systemd/
   [rst2man]: https://docutils.sourceforge.io/

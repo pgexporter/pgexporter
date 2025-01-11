@@ -108,13 +108,13 @@ int
 pgexporter_prometheus_client_destroy_bridge(struct prometheus_bridge* bridge);
 
 /**
- * Get a response from a Prometheus endpoint
- * @param url The URL
- * @param metrics The resulting metrics
+ * Get a response from a Prometheus endpoint and parse its metrics.
+ * @param endpoint The prometheus endpoint
+ * @param bridge The ART containing all bridge metrics.
  * @return 0 if success, otherwise 1
  */
 int
-pgexporter_prometheus_client_get(char* url, struct deque** metrics);
+pgexporter_prometheus_client_get(int endpoint, struct prometheus_bridge* bridge);
 
 /**
  * Merge metrics into the bridge

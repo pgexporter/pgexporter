@@ -2144,6 +2144,49 @@ pgexporter_escape_string(char* str)
    return translated_ec_string;
 }
 
+bool
+pgexporter_is_number(char* str, int base)
+{
+   if (str == NULL || strlen(str) == 0)
+   {
+      return false;
+   }
+
+   if (base != 10 && base != 16)
+   {
+      return false;
+   }
+
+   for (int i = 0; str[i] != '\0'; i++)
+   {
+      if (str[i] >= 48 && str[i] <= 57)
+      {
+         /* Standard numbers */
+      }
+      else if (str[i] == '\r' || str[i] == '\n')
+      {
+         /* Feeds */
+      }
+      else if (base == 16)
+      {
+         if ((str[i] >= 65 && str[i] <= 70) || (str[i] >= 97 && str[i] <= 102))
+         {
+            /* Hex */
+         }
+         else
+         {
+            return false;
+         }
+      }
+      else
+      {
+         return false;
+      }
+   }
+
+   return true;
+}
+
 /* Parser for pgexporter-cli amd pgexporter-admin commands */
 bool
 parse_command(int argc,
