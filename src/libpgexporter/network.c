@@ -235,7 +235,7 @@ pgexporter_connect(const char* hostname, int port, int* fd)
    int yes = 1;
    socklen_t optlen = sizeof(int);
    int rv;
-   char sport[5];
+   char sport[6];
    int error = 0;
    int default_buffer_size = DEFAULT_BUFFER_SIZE;
    struct configuration* config;
@@ -576,8 +576,8 @@ bind_host(const char* hostname, int port, int** fds, int* length)
    index = 0;
    size = 0;
 
-   sport = malloc(5);
-   memset(sport, 0, 5);
+   sport = malloc(6);
+   memset(sport, 0, 6);
    sprintf(sport, "%d", port);
 
    /* Find all SOCK_STREAM addresses */
