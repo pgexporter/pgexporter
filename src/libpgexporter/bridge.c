@@ -320,7 +320,7 @@ metrics_page(int client_fd)
    struct configuration* config;
 
    config = (struct configuration*)shmem;
-   cache = (struct prometheus_cache*)prometheus_cache_shmem;
+   cache = (struct prometheus_cache*)bridge_cache_shmem;
 
    memset(&msg, 0, sizeof(struct message));
 
