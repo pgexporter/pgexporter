@@ -40,7 +40,7 @@ extern "C" {
  * it is equivalent to set `bridge_cache`
  * to 0 (seconds).
  */
-#define PGEXPORTER_PROMETHEUS_BRIDGE_CACHE_DISABLED 0
+#define PROMETHEUS_BRIDGE_CACHE_DISABLED 0
 
 /**
  * Max size of the cache (in bytes).
@@ -48,13 +48,6 @@ extern "C" {
  * the caching should be aborted in some way.
  */
 #define PROMETHEUS_MAX_BRIDGE_CACHE_SIZE (10 * 1024 * 1024)
-
-/**
- * The default cache size in the case
- * the user did not set any particular
- * configuration option.
- */
-#define PROMETHEUS_DEFAULT_BRIDGE_CACHE_SIZE (1024 * 1024)
 
 /**
  * Create a prometheus bridge

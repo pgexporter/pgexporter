@@ -522,7 +522,7 @@ is_bridge_cache_configured(void)
       return false;
    }
 
-   return config->bridge_cache_max_age != PGEXPORTER_PROMETHEUS_BRIDGE_CACHE_DISABLED;
+   return config->bridge_cache_max_age != PROMETHEUS_BRIDGE_CACHE_DISABLED;
 }
 
 /**
@@ -582,7 +582,7 @@ pgexporter_bridge_init_cache(size_t* p_size, void** p_shmem)
 
 error:
    // disable caching
-   config->bridge_cache_max_age = config->bridge_cache_max_size = PGEXPORTER_PROMETHEUS_BRIDGE_CACHE_DISABLED;
+   config->bridge_cache_max_age = config->bridge_cache_max_size = PROMETHEUS_BRIDGE_CACHE_DISABLED;
    pgexporter_log_error("Cannot allocate shared memory for the Prometheus cache!");
    *p_size = 0;
    *p_shmem = NULL;
@@ -613,9 +613,12 @@ bridge_cache_size_to_alloc(void)
    // or the default value
    if (is_bridge_cache_configured())
    {
-      cache_size = config->bridge_cache_max_size > 0
-            ? MIN(config->bridge_cache_max_size, PROMETHEUS_MAX_BRIDGE_CACHE_SIZE)
-            : PROMETHEUS_DEFAULT_BRIDGE_CACHE_SIZE;
+      cache_size = config->bridge_cache_max_size;
+
+      if (cache_size > 0)
+      {
+         cache_size = MIN(config->bridge_cache_max_size, PROMETHEUS_MAX_BRIDGE_CACHE_SIZE);
+      }
    }
 
    return cache_size;

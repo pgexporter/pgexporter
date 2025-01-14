@@ -29,6 +29,7 @@
 /* pgexporter */
 #include <pgexporter.h>
 #include <aes.h>
+#include <bridge.h>
 #include <configuration.h>
 #include <logging.h>
 #include <management.h>
@@ -358,7 +359,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                {
                   if (!strcmp(section, "pgexporter"))
                   {
-                     if (as_bytes(value, &config->bridge_cache_max_size, 0))
+                     if (as_bytes(value, &config->bridge_cache_max_size, PROMETHEUS_MAX_BRIDGE_CACHE_SIZE))
                      {
                         unknown = true;
                      }
@@ -372,7 +373,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                {
                   if (!strcmp(section, "pgexporter"))
                   {
-                     if (as_seconds(value, &config->bridge_cache_max_age, 0))
+                     if (as_seconds(value, &config->bridge_cache_max_age, 300))
                      {
                         unknown = true;
                      }

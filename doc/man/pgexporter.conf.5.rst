@@ -61,7 +61,7 @@ bridge_endpoints
 bridge_cache_max_age
   The number of seconds to keep in cache a Prometheus (bridge) response.
   If set to zero, the caching will be disabled. Can be a string with a suffix, like ``2m`` to indicate 2 minutes.
-  Default is 0 (disabled)
+  Default is ``5m``
 
 bridge_cache_max_size
   The maximum amount of data to keep in cache when serving Prometheus responses. Changes require restart.
@@ -69,7 +69,7 @@ bridge_cache_max_size
   bridge are disabled. Its value, however, is taken into account only if bridge_cache_max_age is set
   to a non-zero value. Supports suffixes: B (bytes), the default if omitted, K or KB (kilobytes),
   M or MB (megabytes), G or GB (gigabytes).
-  Default is 1M
+  Default is 10M
 
 management
   The remote management port. Default is 0 (disabled)
