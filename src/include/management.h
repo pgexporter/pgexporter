@@ -58,6 +58,7 @@ extern "C" {
 /**
  * Management commands
  */
+#define MANAGEMENT_UNKNOWN             0
 #define MANAGEMENT_TRANSFER_CONNECTION 1
 #define MANAGEMENT_SHUTDOWN            2
 #define MANAGEMENT_STATUS              3
@@ -68,6 +69,12 @@ extern "C" {
 #define MANAGEMENT_CONF_LS             8
 #define MANAGEMENT_CONF_GET            9
 #define MANAGEMENT_CONF_SET            10
+
+#define MANAGEMENT_MASTER_KEY          11
+#define MANAGEMENT_ADD_USER            12
+#define MANAGEMENT_UPDATE_USER         13
+#define MANAGEMENT_REMOVE_USER         14
+#define MANAGEMENT_LIST_USERS          15
 
 /**
  * Management categories
@@ -138,6 +145,48 @@ extern "C" {
 #define MANAGEMENT_OUTPUT_FORMAT_TEXT 0
 #define MANAGEMENT_OUTPUT_FORMAT_JSON 1
 #define MANAGEMENT_OUTPUT_FORMAT_RAW  2
+
+/**
+ * Create header for management command
+ * @param command The command
+ * @param compression The compress method for wire protocol
+ * @param encryption The encrypt method for wire protocol
+ * @param output_format The output format
+ * @param json The target json
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_management_create_header(int32_t command, uint8_t compression, uint8_t encryption, int32_t output_format, struct json** json);
+
+/**
+ * Create request for management command
+ * @param json The target json
+ * @param json The request json
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_management_create_request(struct json* json, struct json** request);
+
+/**
+ * Create success outcome for management command
+ * @param json The target json
+ * @param start_t The start time of the command
+ * @param end_t The end time of the command
+ * @param outcome The outcome json
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_management_create_outcome_success(struct json* json, time_t start_t, time_t end_t, struct json** outcome);
+
+/**
+ * Create success outcome for management command
+ * @param json The target json
+ * @param error The error code
+ * @param outcome The outcome json
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_management_create_outcome_failure(struct json* json, int32_t error, struct json** outcome);
 
 /**
  * Management operation: Shutdown
@@ -217,7 +266,7 @@ pgexporter_management_request_conf_ls(SSL* ssl, int socket, uint8_t compression,
  * @param output_format The output format
  * @return 0 upon success, otherwise 1
  */
-int 
+int
 pgexporter_management_request_conf_get(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format);
 
 /**

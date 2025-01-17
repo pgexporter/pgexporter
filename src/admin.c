@@ -28,9 +28,10 @@
 
 /* pgexporter */
 #include <pgexporter.h>
-#include <logging.h>
-#include <security.h>
 #include <aes.h>
+#include <logging.h>
+#include <management.h>
+#include <security.h>
 #include <utils.h>
 
 /* system */
@@ -42,18 +43,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #define DEFAULT_PASSWORD_LENGTH 64
-
-#define ACTION_UNKNOWN     0
-#define ACTION_MASTER_KEY  1
-#define ACTION_ADD_USER    2
-#define ACTION_UPDATE_USER 3
-#define ACTION_REMOVE_USER 4
-#define ACTION_LIST_USERS  5
 
 static char CHARS[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
                        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
@@ -61,13 +55,14 @@ static char CHARS[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L
                        '!', '@', '$', '%', '^', '&', '*', '(', ')', '-', '_', '=', '+', '[', '{', ']', '}', '\\', '|', ':',
                        '\'', '\"', ',', '<', '.', '>', '/', '?'};
 
-static int master_key(char* password, bool generate_pwd, int pwd_length);
+static int master_key(char* password, bool generate_pwd, int pwd_length, int32_t output_format);
 static bool is_valid_key(char* key);
-static int add_user(char* users_path, char* username, char* password, bool generate_pwd, int pwd_length);
-static int update_user(char* users_path, char* username, char* password, bool generate_pwd, int pwd_length);
-static int remove_user(char* users_path, char* username);
-static int list_users(char* users_path);
+static int add_user(char* users_path, char* username, char* password, bool generate_pwd, int pwd_length, int32_t output_format);
+static int update_user(char* users_path, char* username, char* password, bool generate_pwd, int pwd_length, int32_t output_format);
+static int remove_user(char* users_path, char* username, int32_t output_format);
+static int list_users(char* users_path, int32_t output_format);
 static char* generate_password(int pwd_length);
+static int create_response(char* users_path, struct json* json, struct json** response);
 
 const struct pgexporter_command command_table[] =
 {
@@ -76,7 +71,7 @@ const struct pgexporter_command command_table[] =
       .subcommand = "",
       .accepted_argument_count = {0},
       .deprecated = false,
-      .action = ACTION_MASTER_KEY,
+      .action = MANAGEMENT_MASTER_KEY,
       .log_message = "<master-key>",
    },
    {
@@ -84,7 +79,7 @@ const struct pgexporter_command command_table[] =
       .subcommand = "add",
       .accepted_argument_count = {0},
       .deprecated = false,
-      .action = ACTION_ADD_USER,
+      .action = MANAGEMENT_ADD_USER,
       .log_message = "<user add> [%s]",
    },
    {
@@ -92,7 +87,7 @@ const struct pgexporter_command command_table[] =
       .subcommand = "edit",
       .accepted_argument_count = {0},
       .deprecated = false,
-      .action = ACTION_UPDATE_USER,
+      .action = MANAGEMENT_UPDATE_USER,
       .log_message = "<user edit> [%s]",
    },
    {
@@ -100,7 +95,7 @@ const struct pgexporter_command command_table[] =
       .subcommand = "del",
       .accepted_argument_count = {0},
       .deprecated = false,
-      .action = ACTION_REMOVE_USER,
+      .action = MANAGEMENT_REMOVE_USER,
       .log_message = "<user del> [%s]",
    },
    {
@@ -108,7 +103,7 @@ const struct pgexporter_command command_table[] =
       .subcommand = "ls",
       .accepted_argument_count = {0},
       .deprecated = false,
-      .action = ACTION_LIST_USERS,
+      .action = MANAGEMENT_LIST_USERS,
       .log_message = "<user ls>",
    },
 };
@@ -137,6 +132,7 @@ usage(void)
    printf("  -g, --generate          Generate a password\n");
    printf("  -l, --length            Password length\n");
    printf("  -V, --version           Display version information\n");
+   printf("  -F, --format text|json  Set the output format\n");
    printf("  -?, --help              Display help\n");
    printf("\n");
    printf("Commands:\n");
@@ -163,6 +159,7 @@ main(int argc, char** argv)
    int option_index = 0;
    size_t command_count = sizeof(command_table) / sizeof(struct pgexporter_command);
    struct pgexporter_parsed_command parsed = {.cmd = NULL, .args = {0}};
+   int32_t output_format = MANAGEMENT_OUTPUT_FORMAT_TEXT;
 
    // Disable stdout buffering (i.e. write to stdout immediatelly).
    setbuf(stdout, NULL);
@@ -176,11 +173,12 @@ main(int argc, char** argv)
          {"file", required_argument, 0, 'f'},
          {"generate", no_argument, 0, 'g'},
          {"length", required_argument, 0, 'l'},
+         {"format", required_argument, 0, 'F'},
          {"version", no_argument, 0, 'V'},
          {"help", no_argument, 0, '?'}
       };
 
-      c = getopt_long(argc, argv, "gV?f:U:P:l:",
+      c = getopt_long(argc, argv, "gV?f:U:P:l:F:",
                       long_options, &option_index);
 
       if (c == -1)
@@ -208,6 +206,21 @@ main(int argc, char** argv)
          case 'V':
             version();
             break;
+         case 'F':
+            if (!strncmp(optarg, "json", MISC_LENGTH))
+            {
+               output_format = MANAGEMENT_OUTPUT_FORMAT_JSON;
+            }
+            else if (!strncmp(optarg, "text", MISC_LENGTH))
+            {
+               output_format = MANAGEMENT_OUTPUT_FORMAT_TEXT;
+            }
+            else
+            {
+               warnx("pgexporter-cli: Format type is not correct");
+               exit(1);
+            }
+            break;
          case '?':
             usage();
             exit(1);
@@ -228,9 +241,9 @@ main(int argc, char** argv)
       goto error;
    }
 
-   if (parsed.cmd->action == ACTION_MASTER_KEY)
+   if (parsed.cmd->action == MANAGEMENT_MASTER_KEY)
    {
-      if (master_key(password, generate_pwd, pwd_length))
+      if (master_key(password, generate_pwd, pwd_length, output_format))
       {
          errx(1, "Cannot generate master key");
       }
@@ -242,32 +255,32 @@ main(int argc, char** argv)
          errx(1, "Missing file argument");
       }
 
-      if (parsed.cmd->action == ACTION_ADD_USER)
+      if (parsed.cmd->action == MANAGEMENT_ADD_USER)
       {
-         if (add_user(file_path, username, password, generate_pwd, pwd_length))
+         if (add_user(file_path, username, password, generate_pwd, pwd_length, output_format))
          {
             errx(1, "Error for <user add>");
          }
       }
-      else if (parsed.cmd->action == ACTION_UPDATE_USER)
+      else if (parsed.cmd->action == MANAGEMENT_UPDATE_USER)
       {
-         if (update_user(file_path, username, password, generate_pwd, pwd_length))
+         if (update_user(file_path, username, password, generate_pwd, pwd_length, output_format))
          {
             errx(1, "Error for <user edit>");
          }
       }
-      else if (parsed.cmd->action == ACTION_REMOVE_USER)
+      else if (parsed.cmd->action == MANAGEMENT_REMOVE_USER)
       {
 
-         if (remove_user(file_path, username))
+         if (remove_user(file_path, username, output_format))
          {
             errx(1, "Error for <user del>");
          }
       }
-      else if (parsed.cmd->action == ACTION_LIST_USERS)
+      else if (parsed.cmd->action == MANAGEMENT_LIST_USERS)
       {
 
-         if (list_users(file_path))
+         if (list_users(file_path, output_format))
          {
             errx(1, "Error for <user ls>");
          }
@@ -283,7 +296,7 @@ error:
 }
 
 static int
-master_key(char* password, bool generate_pwd, int pwd_length)
+master_key(char* password, bool generate_pwd, int pwd_length, int32_t output_format)
 {
    FILE* file = NULL;
    char buf[MISC_LENGTH];
@@ -291,6 +304,17 @@ master_key(char* password, bool generate_pwd, int pwd_length)
    size_t encoded_length;
    struct stat st = {0};
    bool do_free = true;
+   struct json* j = NULL;
+   struct json* outcome = NULL;
+   time_t start_t;
+   time_t end_t;
+
+   start_t = time(NULL);
+
+   if (pgexporter_management_create_header(MANAGEMENT_MASTER_KEY, 0, 0, output_format, &j))
+   {
+      goto error;
+   }
 
    if (password != NULL)
    {
@@ -399,9 +423,27 @@ master_key(char* password, bool generate_pwd, int pwd_length)
       }
    }
 
+   end_t = time(NULL);
+
+   if (pgexporter_management_create_outcome_success(j, start_t, end_t, &outcome))
+   {
+      goto error;
+   }
+
+   if (output_format == MANAGEMENT_OUTPUT_FORMAT_JSON)
+   {
+      pgexporter_json_print(j, FORMAT_JSON);
+   }
+   else
+   {
+      pgexporter_json_print(j, FORMAT_TEXT);
+   }
+
    pgexporter_base64_encode(password, strlen(password), &encoded, &encoded_length);
    fputs(encoded, file);
    free(encoded);
+
+   pgexporter_json_destroy(j);
 
    if (do_free)
    {
@@ -463,7 +505,7 @@ is_valid_key(char* key)
 }
 
 static int
-add_user(char* users_path, char* username, char* password, bool generate_pwd, int pwd_length)
+add_user(char* users_path, char* username, char* password, bool generate_pwd, int pwd_length, int32_t output_format)
 {
    FILE* users_file = NULL;
    char line[MISC_LENGTH];
@@ -479,6 +521,18 @@ add_user(char* users_path, char* username, char* password, bool generate_pwd, in
    bool do_verify = true;
    char* verify = NULL;
    bool do_free = true;
+   struct json* j = NULL;
+   struct json* outcome = NULL;
+   struct json* response = NULL;
+   time_t start_t;
+   time_t end_t;
+
+   start_t = time(NULL);
+
+   if (pgexporter_management_create_header(MANAGEMENT_ADD_USER, 0, 0, output_format, &j))
+   {
+      goto error;
+   }
 
    if (pgexporter_get_master_key(&master_key))
    {
@@ -612,6 +666,29 @@ password:
 
    fclose(users_file);
 
+   end_t = time(NULL);
+
+   if (pgexporter_management_create_outcome_success(j, start_t, end_t, &outcome))
+   {
+      goto error;
+   }
+
+   if (create_response(users_path, j, &response))
+   {
+      goto error;
+   }
+
+   if (output_format == MANAGEMENT_OUTPUT_FORMAT_JSON)
+   {
+      pgexporter_json_print(j, FORMAT_JSON);
+   }
+   else
+   {
+      pgexporter_json_print(j, FORMAT_TEXT);
+   }
+
+   pgexporter_json_destroy(j);
+
    return 0;
 
 error:
@@ -631,11 +708,24 @@ error:
       fclose(users_file);
    }
 
+   pgexporter_management_create_outcome_failure(j, 1, &outcome);
+
+   if (output_format == MANAGEMENT_OUTPUT_FORMAT_JSON)
+   {
+      pgexporter_json_print(j, FORMAT_JSON);
+   }
+   else
+   {
+      pgexporter_json_print(j, FORMAT_TEXT);
+   }
+
+   pgexporter_json_destroy(j);
+
    return 1;
 }
 
 static int
-update_user(char* users_path, char* username, char* password, bool generate_pwd, int pwd_length)
+update_user(char* users_path, char* username, char* password, bool generate_pwd, int pwd_length, int32_t output_format)
 {
    FILE* users_file = NULL;
    FILE* users_file_tmp = NULL;
@@ -654,6 +744,18 @@ update_user(char* users_path, char* username, char* password, bool generate_pwd,
    bool do_verify = true;
    char* verify = NULL;
    bool do_free = true;
+   struct json* j = NULL;
+   struct json* outcome = NULL;
+   struct json* response = NULL;
+   time_t start_t;
+   time_t end_t;
+
+   start_t = time(NULL);
+
+   if (pgexporter_management_create_header(MANAGEMENT_UPDATE_USER, 0, 0, output_format, &j))
+   {
+      goto error;
+   }
 
    memset(&tmpfilename, 0, sizeof(tmpfilename));
 
@@ -806,6 +908,29 @@ password:
 
    rename(tmpfilename, users_path);
 
+   end_t = time(NULL);
+
+   if (pgexporter_management_create_outcome_success(j, start_t, end_t, &outcome))
+   {
+      goto error;
+   }
+
+   if (create_response(users_path, j, &response))
+   {
+      goto error;
+   }
+
+   if (output_format == MANAGEMENT_OUTPUT_FORMAT_JSON)
+   {
+      pgexporter_json_print(j, FORMAT_JSON);
+   }
+   else
+   {
+      pgexporter_json_print(j, FORMAT_TEXT);
+   }
+
+   pgexporter_json_destroy(j);
+
    return 0;
 
 error:
@@ -834,11 +959,24 @@ error:
       remove(tmpfilename);
    }
 
+   pgexporter_management_create_outcome_failure(j, 1, &outcome);
+
+   if (output_format == MANAGEMENT_OUTPUT_FORMAT_JSON)
+   {
+      pgexporter_json_print(j, FORMAT_JSON);
+   }
+   else
+   {
+      pgexporter_json_print(j, FORMAT_TEXT);
+   }
+
+   pgexporter_json_destroy(j);
+
    return 1;
 }
 
 static int
-remove_user(char* users_path, char* username)
+remove_user(char* users_path, char* username, int32_t output_format)
 {
    FILE* users_file = NULL;
    FILE* users_file_tmp = NULL;
@@ -848,6 +986,18 @@ remove_user(char* users_path, char* username)
    char* ptr = NULL;
    char un[MAX_USERNAME_LENGTH];
    bool found = false;
+   struct json* j = NULL;
+   struct json* outcome = NULL;
+   struct json* response = NULL;
+   time_t start_t;
+   time_t end_t;
+
+   start_t = time(NULL);
+
+   if (pgexporter_management_create_header(MANAGEMENT_REMOVE_USER, 0, 0, output_format, &j))
+   {
+      goto error;
+   }
 
    users_file = fopen(users_path, "r");
    if (!users_file)
@@ -913,6 +1063,29 @@ username:
 
    rename(tmpfilename, users_path);
 
+   end_t = time(NULL);
+
+   if (pgexporter_management_create_outcome_success(j, start_t, end_t, &outcome))
+   {
+      goto error;
+   }
+
+   if (create_response(users_path, j, &response))
+   {
+      goto error;
+   }
+
+   if (output_format == MANAGEMENT_OUTPUT_FORMAT_JSON)
+   {
+      pgexporter_json_print(j, FORMAT_JSON);
+   }
+   else
+   {
+      pgexporter_json_print(j, FORMAT_TEXT);
+   }
+
+   pgexporter_json_destroy(j);
+
    return 0;
 
 error:
@@ -932,15 +1105,40 @@ error:
       remove(tmpfilename);
    }
 
+   pgexporter_management_create_outcome_failure(j, 1, &outcome);
+
+   if (output_format == MANAGEMENT_OUTPUT_FORMAT_JSON)
+   {
+      pgexporter_json_print(j, FORMAT_JSON);
+   }
+   else
+   {
+      pgexporter_json_print(j, FORMAT_TEXT);
+   }
+
+   pgexporter_json_destroy(j);
+
    return 1;
 }
 
 static int
-list_users(char* users_path)
+list_users(char* users_path, int32_t output_format)
 {
    FILE* users_file = NULL;
    char line[MISC_LENGTH];
    char* ptr = NULL;
+   struct json* j = NULL;
+   struct json* outcome = NULL;
+   struct json* response = NULL;
+   time_t start_t;
+   time_t end_t;
+
+   start_t = time(NULL);
+
+   if (pgexporter_management_create_header(MANAGEMENT_LIST_USERS, 0, 0, output_format, &j))
+   {
+      goto error;
+   }
 
    users_file = fopen(users_path, "r");
    if (!users_file)
@@ -952,10 +1150,37 @@ list_users(char* users_path)
    while (fgets(line, sizeof(line), users_file))
    {
       ptr = strtok(line, ":");
+      if (strchr(ptr, '\n'))
+      {
+         continue;
+      }
       printf("%s\n", ptr);
    }
 
    fclose(users_file);
+
+   end_t = time(NULL);
+
+   if (pgexporter_management_create_outcome_success(j, start_t, end_t, &outcome))
+   {
+      goto error;
+   }
+
+   if (create_response(users_path, j, &response))
+   {
+      goto error;
+   }
+
+   if (output_format == MANAGEMENT_OUTPUT_FORMAT_JSON)
+   {
+      pgexporter_json_print(j, FORMAT_JSON);
+   }
+   else
+   {
+      pgexporter_json_print(j, FORMAT_TEXT);
+   }
+
+   pgexporter_json_destroy(j);
 
    return 0;
 
@@ -965,6 +1190,19 @@ error:
    {
       fclose(users_file);
    }
+
+   pgexporter_management_create_outcome_failure(j, 1, &outcome);
+
+   if (output_format == MANAGEMENT_OUTPUT_FORMAT_JSON)
+   {
+      pgexporter_json_print(j, FORMAT_JSON);
+   }
+   else
+   {
+      pgexporter_json_print(j, FORMAT_TEXT);
+   }
+
+   pgexporter_json_destroy(j);
 
    return 1;
 }
@@ -990,4 +1228,56 @@ generate_password(int pwd_length)
    *((char*)(pwd + pwd_length)) = '\0';
 
    return pwd;
+}
+
+static int
+create_response(char* users_path, struct json* json, struct json** response)
+{
+   struct json* r = NULL;
+   struct json* users = NULL;
+   FILE* users_file = NULL;
+   char line[MISC_LENGTH];
+   char* ptr = NULL;
+
+   *response = NULL;
+
+   if (pgexporter_json_create(&r))
+   {
+      goto error;
+   }
+
+   pgexporter_json_put(json, MANAGEMENT_CATEGORY_RESPONSE, (uintptr_t)r, ValueJSON);
+
+   if (pgexporter_json_create(&users))
+   {
+      goto error;
+   }
+
+   users_file = fopen(users_path, "r");
+   if (!users_file)
+   {
+      goto error;
+   }
+
+   while (fgets(line, sizeof(line), users_file))
+   {
+      ptr = strtok(line, ":");
+      if (strchr(ptr, '\n'))
+      {
+         continue;
+      }
+      pgexporter_json_append(users, (uintptr_t)ptr, ValueString);
+   }
+
+   pgexporter_json_put(r, "Users", (uintptr_t)users, ValueJSON);
+
+   *response = r;
+
+   return 0;
+
+error:
+
+   pgexporter_json_destroy(r);
+
+   return 1;
 }
