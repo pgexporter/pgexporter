@@ -1672,7 +1672,7 @@ pgexporter_conf_set(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryp
          }
          pgexporter_json_put(response, key, (uintptr_t)config->management, ValueInt64);
       }
-            else if (!strcmp(key, "cache"))
+      else if (!strcmp(key, "cache"))
       {
          if (as_bool(config_value, &config->cache))
          {
