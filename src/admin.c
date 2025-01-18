@@ -451,6 +451,7 @@ master_key(char* password, bool generate_pwd, int pwd_length, int32_t output_for
    }
 
    fclose(file);
+   file = NULL;
 
    chmod(&buf[0], S_IRUSR | S_IWUSR);
 
@@ -468,6 +469,7 @@ error:
    if (file)
    {
       fclose(file);
+      file = NULL;
    }
 
    return 1;
@@ -665,6 +667,7 @@ password:
    free(verify);
 
    fclose(users_file);
+   users_file = NULL;
 
    end_t = time(NULL);
 
@@ -706,6 +709,7 @@ error:
    if (users_file)
    {
       fclose(users_file);
+      users_file = NULL;
    }
 
    pgexporter_management_create_outcome_failure(j, 1, &outcome);
@@ -904,7 +908,9 @@ password:
    free(verify);
 
    fclose(users_file);
+   users_file = NULL;
    fclose(users_file_tmp);
+   users_file_tmp = NULL;
 
    rename(tmpfilename, users_path);
 
@@ -947,11 +953,13 @@ error:
    if (users_file)
    {
       fclose(users_file);
+      users_file = NULL;
    }
 
    if (users_file_tmp)
    {
       fclose(users_file_tmp);
+      users_file_tmp = NULL;
    }
 
    if (strlen(tmpfilename) > 0)
@@ -1059,7 +1067,9 @@ username:
    }
 
    fclose(users_file);
+   users_file = NULL;
    fclose(users_file_tmp);
+   users_file_tmp = NULL;
 
    rename(tmpfilename, users_path);
 
@@ -1093,11 +1103,13 @@ error:
    if (users_file)
    {
       fclose(users_file);
+      users_file = NULL;
    }
 
    if (users_file_tmp)
    {
       fclose(users_file_tmp);
+      users_file_tmp = NULL;
    }
 
    if (strlen(tmpfilename) > 0)
@@ -1158,6 +1170,7 @@ list_users(char* users_path, int32_t output_format)
    }
 
    fclose(users_file);
+   users_file = NULL;
 
    end_t = time(NULL);
 
@@ -1189,6 +1202,7 @@ error:
    if (users_file)
    {
       fclose(users_file);
+      users_file = NULL;
    }
 
    pgexporter_management_create_outcome_failure(j, 1, &outcome);
