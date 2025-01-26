@@ -1108,6 +1108,7 @@ extern "C" {
         "      columns:\n" \
         "        - type: gauge\n" \
         "          description: Number of DB connections with delegated GSSAPI credentials.\n" \
+        "      version: 16\n" \
         "    tag: pg_gssapi_credentials_delegated\n" \
         "    collector: gssapi_creds_delegated\n" \
         "\n" \
@@ -1176,6 +1177,7 @@ extern "C" {
         "        - name: fsync_time\n" \
         "          type: counter\n" \
         "          description: Total time spent on fsync operations in milliseconds.\n" \
+        "      version: 16\n" \
         "    tag: pg_stat_io\n" \
         "    collector: stat_io\n" \
         "\n" \
@@ -1241,6 +1243,7 @@ extern "C" {
         "        - name: confl_active_logicalslot\n" \
         "          type: counter\n" \
         "          description: pg_stat_database_conflicts_confl_active_logicalslot\n" \
+        "      version: 16\n" \
         "    tag: pg_stat_database_conflicts\n" \
         "    sort: data\n" \
         "    collector: stat_conflicts\n" \
@@ -1290,10 +1293,34 @@ extern "C" {
         "          description: Milliseconds since last scan of an index in the table.\n" \
         "        - type: label\n" \
         "          name: relname\n" \
+        "      version: 16\n" \
         "    tag: pg_stat_all_indexes\n" \
         "    sort: data\n" \
-        "    collector: stat_all_indexes"
-
+        "    collector: stat_all_indexes\n" \
+        "\n" \
+        "#\n" \
+        "# PostgreSQL 17\n" \
+        "#\n" \
+        "\n" \
+        "\n" \
+        "  - queries:\n" \
+        "    - query: SELECT\n" \
+        "                       type,\n" \
+        "                       count(*) as count\n" \
+        "               FROM pg_wait_events\n" \
+        "               GROUP BY type\n" \
+        "               ORDER BY count DESC;\n" \
+        "      columns:\n" \
+        "        - name: type\n" \
+        "          type: label\n" \
+        "        - name: count\n" \
+        "          type: gauge\n" \
+        "          description: pg_wait_events_count\n" \
+        "      version: 17\n" \
+        "    tag: pg_wait_events\n" \
+        "    sort: data\n" \
+        "    collector: wait_events \n" \
+        "\n"
 #ifdef __cplusplus
 }
 #endif
