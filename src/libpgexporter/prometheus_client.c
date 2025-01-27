@@ -351,7 +351,7 @@ parse_metric_line(struct prometheus_metric* metric, struct deque** attrs,
     * The first token can be further tokenized on "{,}".
     */
 
-   token = strtok_r(line_cpy, " ", &saveptr);
+   token = strtok_r(line_cpy, "{,} ", &saveptr);
 
    while (token != NULL)
    {
@@ -359,7 +359,7 @@ parse_metric_line(struct prometheus_metric* metric, struct deque** attrs,
       {
          /* First token is the name of the metric. So just a sanity check. */
 
-         if (strcmp(token, metric->name))
+         if (strncmp(token, metric->name, strlen(metric->name)))
          {
             goto error;
          }
@@ -378,7 +378,8 @@ parse_metric_line(struct prometheus_metric* metric, struct deque** attrs,
       {
          /* Assuming of the form key="value" */
 
-         sscanf(token, "%127s=\"%127s\"", key, value);
+         sscanf(token, "%127[^=]", key);
+         sscanf(token + strlen(key) + 2, "%127[^\"]", value);
 
          if (strlen(key) == 0 || strlen(value) == 0)
          {
@@ -392,7 +393,7 @@ parse_metric_line(struct prometheus_metric* metric, struct deque** attrs,
          }
       }
 
-      token = strtok_r(NULL, " ", &saveptr);
+      token = strtok_r(NULL, "{,} ", &saveptr);
    }
 
    free(line_cpy);
@@ -696,7 +697,7 @@ add_definition(struct prometheus_metric* metric, struct deque** attr, struct deq
    struct value_config* vc = NULL;
    struct prometheus_attributes* def = NULL;
 
-   if (attr == NULL || *attr == NULL || val == NULL || *val == NULL || metric == NULL)
+   if (attr == NULL || val == NULL || metric == NULL)
    {
       pgexporter_log_error("Something is NULL");
       goto errout;
@@ -786,7 +787,7 @@ parse_body_to_bridge(char* endpoint, char* body, struct prometheus_bridge* bridg
    char* line = NULL;
    char* saveptr = NULL;
    char name[MISC_LENGTH] = {0};
-   char help[MISC_LENGTH] = {0};
+   char help[MAX_PATH] = {0};
    char type[MISC_LENGTH] = {0};
    struct value_config* vc = NULL;
    struct prometheus_metric* metric = NULL;
@@ -819,18 +820,19 @@ parse_body_to_bridge(char* endpoint, char* body, struct prometheus_bridge* bridg
       {
          if (!strncmp(&line[1], "HELP", 4))
          {
-            sscanf(line, "#HELP %127s %127[^\n]", name, help);
+            sscanf(line + 6, "%127s %1021[^\n]", name, help);
+
+            // TODO: help is as expected here, but JSON prints a string that's not terminated with a "
 
             metric_find_create(bridge, name, &metric);
 
             metric_set_name(metric, name);
-            metric_set_help(metric, strdup(help));
-
+            metric_set_help(metric, help);
          }
          else if (!strncmp(&line[1], "TYPE", 4))
          {
-            sscanf(line, "#TYPE %127s %127[^\n]", name, type);
-            metric_set_type(metric, strdup(type));
+            sscanf(line + 6, "%127s %127[^\n]", name, type);
+            metric_set_type(metric, type);
             // assert(!strcmp(metric->name, name));
          }
          else
