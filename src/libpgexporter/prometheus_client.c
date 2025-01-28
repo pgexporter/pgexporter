@@ -402,10 +402,14 @@ parse_metric_line(struct prometheus_metric* metric, struct deque** attrs,
       token = strtok_r(NULL, "{,} ", &saveptr);
    }
 
+   free(e);
    free(line_cpy);
+
    return 0;
 
 error:
+
+   free(e);
    free(line_cpy);
 
    return 1;

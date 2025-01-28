@@ -27,9 +27,10 @@
  */
 
 /* pgexporter */
-#include "art.h"
 #include <pgexporter.h>
+#include <art.h>
 #include <bridge.h>
+#include <deque.h>
 #include <logging.h>
 #include <memory.h>
 #include <message.h>
@@ -66,7 +67,8 @@ static int send_chunk(int client_fd, char* data);
 
 static bool is_bridge_cache_configured(void);
 static bool is_bridge_cache_valid(void);
-static bool bridge_cache_set(char* data);
+static bool bridge_cache_append(char* data);
+static bool bridge_cache_finalize(void);
 static size_t bridge_cache_size_to_alloc(void);
 static void bridge_cache_invalidate(void);
 
@@ -651,12 +653,12 @@ bridge_cache_invalidate(void)
 }
 
 /**
- * Set data to the cache.
+ * Appends data to the cache.
  *
  * Requires the caller to hold the lock on the cache!
  *
  * If the input data is empty, nothing happens.
- * The data is applied only if the cache does not overflows, that
+ * The data is appended only if the cache does not overflows, that
  * means the current size of the cache plus the size of the data
  * to append does not exceed the current cache size.
  * If the cache overflows, the cache is flushed and marked
@@ -664,18 +666,16 @@ bridge_cache_invalidate(void)
  * This makes safe to call this method along the workflow of
  * building the Prometheus response.
  *
- * @param data the string to set to the cache
+ * @param data the string to append to the cache
  * @return true on success
  */
 static bool
-bridge_cache_set(char* data)
+bridge_cache_append(char* data)
 {
-   time_t now;
-   size_t length;
-   struct configuration* config;
+   int origin_length = 0;
+   int append_length = 0;
    struct prometheus_cache* cache;
 
-   config = (struct configuration*)shmem;
    cache = (struct prometheus_cache*)bridge_cache_shmem;
 
    if (!is_bridge_cache_configured())
@@ -683,39 +683,70 @@ bridge_cache_set(char* data)
       return false;
    }
 
-   length = strlen(data);
-
-   if (length >= cache->size)
+   origin_length = strlen(cache->data);
+   append_length = strlen(data);
+   // need to append the data to the cache
+   if (origin_length + append_length >= cache->size)
    {
       // cannot append new data, so invalidate cache
-      pgexporter_log_debug("Cannot set %d bytes to the Prometheus cache because it will overflow the size of %d bytes. HINT: try adjusting `bridge_cache_max_size`",
-                           length, cache->size);
-
+      pgexporter_log_debug("Cannot append %d bytes to the Prometheus cache because it will overflow the size of %d bytes (currently at %d bytes). HINT: try adjusting `bridge_cache_max_size`",
+                           append_length,
+                           cache->size,
+                           origin_length);
       bridge_cache_invalidate();
-
       return false;
    }
 
-   // Set the data to the data field
-   memset(cache->data, 0, cache->size);
-   memcpy(cache->data, data, length);
-   cache->data[length + 1] = '\0';
+   // append the data to the data field
+   memcpy(cache->data + origin_length, data, append_length);
+   cache->data[origin_length + append_length + 1] = '\0';
+   return true;
+}
+
+/**
+ * Finalizes the cache.
+ *
+ * Requires the caller to hold the lock on the cache!
+ *
+ * This method should be invoked when the cache is complete
+ * and therefore can be served.
+ *
+ * @return true if the cache has a validity
+ */
+static bool
+bridge_cache_finalize(void)
+{
+   struct configuration* config;
+   struct prometheus_cache* cache;
+   time_t now;
+
+   cache = (struct prometheus_cache*)bridge_cache_shmem;
+   config = (struct configuration*)shmem;
+
+   if (!is_bridge_cache_configured())
+   {
+      return false;
+   }
 
    now = time(NULL);
    cache->valid_until = now + config->bridge_cache_max_age;
-
-   return true;
+   return cache->valid_until > now;
 }
 
 static void
 bridge_metrics(int client_fd)
 {
-   char* art_s = NULL;
+   time_t start_time;
+   int dt;
+   signed char cache_is_free;
+   char* data = NULL;
    struct prometheus_bridge* bridge = NULL;
    struct art_iterator* metrics_iterator = NULL;
+   struct prometheus_cache* cache;
    struct configuration* config = NULL;
 
    config = (struct configuration*)shmem;
+   cache = (struct prometheus_cache*)bridge_cache_shmem;
 
    if (pgexporter_prometheus_client_create_bridge(&bridge))
    {
@@ -733,31 +764,122 @@ bridge_metrics(int client_fd)
                           config->endpoints[i].port);
    }
 
-   // TODO: Consolidate bridge into metric string.
-
-   /* TODO: The bridge is not supposed to send the gathered metrics directly. All the metrics
-    * need to be pooled and be sent together alphabetically. The chunks in this case can be each metric.
-    * as they can be resolved from the ART in one go, and sent.
-    */
-
    if (pgexporter_art_iterator_create(bridge->metrics, &metrics_iterator))
    {
       goto error;
    }
 
+   cache_is_free = STATE_FREE;
+
+   start_time = time(NULL);
+
+retry_cache_locking:
+   if (is_bridge_cache_configured())
+   {
+      if (atomic_compare_exchange_strong(&cache->lock, &cache_is_free, STATE_IN_USE))
+      {
+         bridge_cache_invalidate();
+      }
+      else
+      {
+         dt = (int)difftime(time(NULL), start_time);
+         if (dt >= (config->blocking_timeout > 0 ? config->blocking_timeout : 30))
+         {
+            goto error;
+         }
+
+         /* Sleep for 10ms */
+         SLEEP_AND_GOTO(10000000L, retry_cache_locking);
+      }
+   }
+
    while (pgexporter_art_iterator_next(metrics_iterator))
    {
+      struct prometheus_metric* metric_data = (struct prometheus_metric*)metrics_iterator->value->data;
+      struct deque_iterator* definition_iterator = NULL;
 
+      data = pgexporter_append(data, "#HELP ");
+      data = pgexporter_append(data, metric_data->name);
+      data = pgexporter_append_char(data, ' ');
+      data = pgexporter_append(data, metric_data->help);
+      data = pgexporter_append_char(data, '\n');
+
+      data = pgexporter_append(data, "#TYPE ");
+      data = pgexporter_append(data, metric_data->name);
+      data = pgexporter_append_char(data, ' ');
+      data = pgexporter_append(data, metric_data->type);
+      data = pgexporter_append_char(data, '\n');
+
+      if (pgexporter_deque_iterator_create(metric_data->definitions, &definition_iterator))
+      {
+         goto error;
+      }
+
+      while (pgexporter_deque_iterator_next(definition_iterator))
+      {
+         int i = 0;
+         int number_of_attributes;
+         struct deque_iterator* attributes_iterator = NULL;
+         struct prometheus_attributes* attrs_data = (struct prometheus_attributes*)definition_iterator->value->data;
+         struct prometheus_value* value_data = NULL;
+
+         if (pgexporter_deque_iterator_create(attrs_data->attributes, &attributes_iterator))
+         {
+            goto error;
+         }
+
+         number_of_attributes = pgexporter_deque_size(attrs_data->attributes);
+
+         value_data = (struct prometheus_value*)pgexporter_deque_peek_last(attrs_data->values, NULL);
+
+         data = pgexporter_append(data, metric_data->name);
+         data = pgexporter_append_char(data, '{');
+
+         while (pgexporter_deque_iterator_next(attributes_iterator))
+         {
+            struct prometheus_attribute* attr_data = (struct prometheus_attribute*)attributes_iterator->value->data;
+
+            data = pgexporter_append(data, attr_data->key);
+            data = pgexporter_append(data, "=\"");
+            data = pgexporter_append(data, attr_data->value);
+            data = pgexporter_append_char(data, '\"');
+
+            if (i < number_of_attributes - 1)
+            {
+               data = pgexporter_append(data, ", ");
+            }
+
+            i++;
+         }
+
+         data = pgexporter_append(data, "} ");
+         data = pgexporter_append(data, value_data->value);
+
+         data = pgexporter_append_char(data, '\n');
+
+         pgexporter_deque_iterator_destroy(attributes_iterator);
+      }
+
+      data = pgexporter_append_char(data, '\n');
+
+      if (is_bridge_cache_configured())
+      {
+         bridge_cache_append(data);
+      }
+
+      send_chunk(client_fd, data);
+
+      pgexporter_deque_iterator_destroy(definition_iterator);
+
+      free(data);
+      data = NULL;
    }
 
    if (is_bridge_cache_configured())
    {
-      art_s = pgexporter_art_to_string(bridge->metrics, FORMAT_JSON, NULL, 0);
-      pgexporter_log_debug(art_s);
-      bridge_cache_set(art_s);
+      bridge_cache_finalize();
+      atomic_store(&cache->lock, STATE_FREE);
    }
-
-   free(art_s);
 
    pgexporter_art_iterator_destroy(metrics_iterator);
 
@@ -766,8 +888,6 @@ bridge_metrics(int client_fd)
    return;
 
 error:
-
-   free(art_s);
 
    pgexporter_art_iterator_destroy(metrics_iterator);
 
