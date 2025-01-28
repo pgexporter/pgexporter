@@ -102,6 +102,8 @@ pgexporter_init_configuration(void* shm)
    config->cache = true;
 
    config->bridge = -1;
+   config->bridge_cache_max_age = 300;
+   config->bridge_cache_max_size = PROMETHEUS_DEFAULT_BRIDGE_CACHE_SIZE;
 
    config->tls = false;
 

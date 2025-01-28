@@ -127,11 +127,8 @@ pgexporter_prometheus_client_get(int endpoint, struct prometheus_bridge* bridge)
 
    timestamp = time(NULL);
 
-   pgexporter_log_info("Ready to merge: %d", http->endpoint);
-
    if (parse_body_to_bridge(endpoint, timestamp, http->body, bridge))
    {
-      // TODO: What do we do with the bridge?
       goto error;
    }
 
@@ -373,10 +370,8 @@ parse_metric_line(struct prometheus_metric* metric, struct deque** attrs,
       else if (*saveptr == '\0')
       {
          /* Final token. */
-
          if (add_value(vals, timestamp, token))
          {
-            /* TODO: Clear memory of items in deque. */
             goto error;
          }
       }
@@ -394,7 +389,6 @@ parse_metric_line(struct prometheus_metric* metric, struct deque** attrs,
 
          if (add_attribute(attrs, key, value))
          {
-            /* TODO: Clear memory of items in deque. */
             goto error;
          }
       }
@@ -777,8 +771,6 @@ parse_body_to_bridge(int endpoint, time_t timestamp, char* body, struct promethe
 
    line = strtok_r(body, "\n", &saveptr); /* We ideally should not care if body is modified. */
 
-   // TODO: What about metric ? Is it a missing metric = bridge->definitions ?
-
    while (line != NULL)
    {
       if ((!strcmp(line, "") || !strcmp(line, "\r")) &&
@@ -796,8 +788,6 @@ parse_body_to_bridge(int endpoint, time_t timestamp, char* body, struct promethe
          {
             sscanf(line + 6, "%127s %1021[^\n]", name, help);
 
-            // TODO: help is as expected here, but JSON prints a string that's not terminated with a "
-
             metric_find_create(bridge, name, &metric);
 
             metric_set_name(metric, name);
@@ -811,7 +801,6 @@ parse_body_to_bridge(int endpoint, time_t timestamp, char* body, struct promethe
          }
          else
          {
-            // TODO: Destroy all of `metric` during this as well.
             goto error;
          }
       }

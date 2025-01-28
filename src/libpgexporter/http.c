@@ -248,9 +248,5 @@ extract_headers_body(char* response, struct http* http)
       p = strtok(NULL, "\n");
    }
 
-   pgexporter_log_info("Response: %s", response);
-   pgexporter_log_info("Headers: %s", http->headers);
-   pgexporter_log_info("Body: %s", http->body);
-
    return 0;
 }

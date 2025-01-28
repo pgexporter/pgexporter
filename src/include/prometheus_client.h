@@ -116,15 +116,6 @@ pgexporter_prometheus_client_destroy_bridge(struct prometheus_bridge* bridge);
 int
 pgexporter_prometheus_client_get(int endpoint, struct prometheus_bridge* bridge);
 
-/**
- * Merge metrics into the bridge
- * @param bridge The bridge
- * @param metrics The resulting metrics
- * @return 0 if success, otherwise 1
- */
-int
-pgexporter_prometheus_client_merge(struct prometheus_bridge* bridge, struct deque* metrics);
-
 #ifdef __cplusplus
 }
 #endif

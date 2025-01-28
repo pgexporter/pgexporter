@@ -320,7 +320,6 @@ metrics_page(int client_fd)
    char* data = NULL;
    time_t start_time;
    int dt;
-   time_t now;
    char time_buf[32];
    int status;
    struct message msg;
@@ -335,18 +334,42 @@ metrics_page(int client_fd)
 
    start_time = time(NULL);
 
+   memset(&time_buf, 0, sizeof(time_buf));
+   ctime_r(&start_time, &time_buf[0]);
+   time_buf[strlen(time_buf) - 1] = 0;
+
 retry_cache_locking:
    cache_is_free = STATE_FREE;
    if (atomic_compare_exchange_strong(&cache->lock, &cache_is_free, STATE_IN_USE))
    {
-      // TODO: Can we serve the message out of cache?
-      if (false && is_bridge_cache_configured() && is_bridge_cache_valid())
+      // Can we serve the message out of cache?
+      if (is_bridge_cache_configured() && is_bridge_cache_valid())
       {
          // serve the message directly out of the cache
          pgexporter_log_debug("Serving bridge out of cache (%d/%d bytes valid until %lld)",
                               strlen(cache->data),
                               cache->size,
                               cache->valid_until);
+
+         /* Header */
+         data = pgexporter_vappend(data, 7,
+                                   "HTTP/1.1 200 OK\r\n",
+                                   "Content-Type: text/html; charset=utf-8\r\n",
+                                   "Date: ", &time_buf[0], "\r\n",
+                                   "Transfer-Encoding: chunked\r\n", "\r\n");
+
+         msg.kind = 0;
+         msg.length = strlen(data);
+         msg.data = data;
+
+         status = pgexporter_write_message(NULL, client_fd, &msg);
+         if (status != MESSAGE_STATUS_OK)
+         {
+           goto error;
+         }
+
+         free(data);
+         data = NULL;
 
          msg.kind = 0;
          msg.length = strlen(cache->data);
@@ -357,29 +380,26 @@ retry_cache_locking:
          {
             goto error;
          }
+
+         /* Footer */
+         data = pgexporter_append(data, "\r\n\r\n");
+
+         send_chunk(client_fd, data);
+         free(data);
+         data = NULL;
       }
       else
       {
-         // build the message without the cache
+         pgexporter_log_debug("Serving bridge fresh");
+
          bridge_cache_invalidate();
 
-         now = time(NULL);
-
-         memset(&time_buf, 0, sizeof(time_buf));
-         ctime_r(&now, &time_buf[0]);
-         time_buf[strlen(time_buf) - 1] = 0;
-
-         data = pgexporter_vappend(data, 5,
+         data = pgexporter_vappend(data, 7,
                                    "HTTP/1.1 200 OK\r\n",
                                    "Content-Type: text/plain; version=0.0.1; charset=utf-8\r\n",
-                                   "Date: ",
-                                   &time_buf[0],
-                                   "\r\n"
-                                   );
-         data = pgexporter_vappend(data, 2,
+                                   "Date: ", &time_buf[0], "\r\n",
                                    "Transfer-Encoding: chunked\r\n",
-                                   "\r\n"
-                                   );
+                                   "\r\n");
 
          msg.kind = 0;
          msg.length = strlen(data);
@@ -755,13 +775,13 @@ bridge_metrics(int client_fd)
 
    for (int i = 0; i < config->number_of_endpoints; i++)
    {
-      pgexporter_log_info("Start: %s:%d",
-                          config->endpoints[i].host,
-                          config->endpoints[i].port);
+      pgexporter_log_trace("Start: %s:%d",
+                           config->endpoints[i].host,
+                           config->endpoints[i].port);
       pgexporter_prometheus_client_get(i, bridge);
-      pgexporter_log_info("Done: %s:%d",
-                          config->endpoints[i].host,
-                          config->endpoints[i].port);
+      pgexporter_log_trace("Done: %s:%d",
+                           config->endpoints[i].host,
+                           config->endpoints[i].port);
    }
 
    if (pgexporter_art_iterator_create(bridge->metrics, &metrics_iterator))

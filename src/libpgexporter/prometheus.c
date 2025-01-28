@@ -166,8 +166,6 @@ pgexporter_prometheus(int client_fd)
 
    page = resolve_page(msg);
 
-   pgexporter_log_info("Page: %d", page);
-
    if (page == PAGE_HOME)
    {
       home_page(client_fd);
@@ -2060,7 +2058,7 @@ get_value(char* tag, char* name, char* val)
    }
    errno = 0;
 
-   pgexporter_log_trace("get_value(%s/%s): %s", tag, name, val);
+   /* pgexporter_log_trace("get_value(%s/%s): %s", tag, name, val); */
 
    /* Map general strings to 1 */
    return "1";
@@ -2081,7 +2079,7 @@ safe_prometheus_key_additional_length(char* key)
       i++;
    }
 
-   pgexporter_log_trace("key(%s): %d", key, count);
+   /* pgexporter_log_trace("key(%s): %d", key, count); */
    return count;
 }
 
