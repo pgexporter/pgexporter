@@ -169,38 +169,49 @@ prometheus_metric_destroy_cb(uintptr_t data)
 }
 
 static char*
+deque_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+{
+   struct deque *d = NULL;
+
+   d = (struct deque*)data;
+
+   return pgexporter_deque_to_string(d, format, tag, indent);
+}
+
+
+static char*
 prometheus_metric_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 {
-   char* s = "";
-   struct json* j = NULL;
-   struct prometheus_metric* m = NULL;
+   char* s = NULL;
+   struct art* a = NULL;
+   struct value_config vc = {.destroy_data = NULL,
+                             .to_string = &deque_string_cb};
+   struct prometheus_metric *m = NULL;
 
    m = (struct prometheus_metric*)data;
 
-   if (pgexporter_json_create(&j))
+   if (pgexporter_art_create(&a))
    {
       goto error;
    }
 
    if (m != NULL)
    {
-      pgexporter_json_put(j, "Name", (uintptr_t)m->name, ValueString);
-      pgexporter_json_put(j, "Help", (uintptr_t)m->help, ValueString);
-      pgexporter_json_put(j, "Type", (uintptr_t)m->type, ValueString);
-      pgexporter_json_put(j, "Definitions", (uintptr_t)m->definitions, ValueRef);
+      pgexporter_art_insert(a, (unsigned char*)"Name", strlen("Name"), (uintptr_t)m->name, ValueString);
+      pgexporter_art_insert(a, (unsigned char*)"Help", strlen("Help"), (uintptr_t)m->help, ValueString);
+      pgexporter_art_insert(a, (unsigned char*)"Type", strlen("Type"), (uintptr_t)m->type, ValueString);
+      pgexporter_art_insert_with_config(a, (unsigned char*)"Definitions", strlen("Definitions"), (uintptr_t)m->definitions, &vc);
 
-      s = pgexporter_json_to_string(j, format, tag, indent);
+      s = pgexporter_art_to_string(a, format, tag, indent);
    }
 
-   pgexporter_json_destroy(j);
+   pgexporter_art_destroy(a);
 
    return s;
 
 error:
 
-   pgexporter_json_destroy(j);
-
-   free(s);
+   pgexporter_art_destroy(a);
 
    return "Error";
 }
@@ -210,16 +221,8 @@ metric_find_create(struct prometheus_bridge* bridge, char* name,
                    struct prometheus_metric** metric)
 {
    struct prometheus_metric* m = NULL;
-   struct value_config* vc = NULL;
-
-   vc = (struct value_config*)malloc(sizeof(struct value_config));
-   if (vc == NULL)
-   {
-      goto error;
-   }
-   memset(vc, 0, sizeof(struct value_config));
-   vc->destroy_data = &prometheus_metric_destroy_cb;
-   vc->to_string = &prometheus_metric_string_cb;
+   struct value_config vc = {.destroy_data = &prometheus_metric_destroy_cb,
+                             .to_string = &prometheus_metric_string_cb};
 
    *metric = NULL;
 
@@ -241,7 +244,7 @@ metric_find_create(struct prometheus_bridge* bridge, char* name,
       m->definitions = defs;
 
       if (pgexporter_art_insert_with_config(bridge->metrics, (unsigned char*)name, strlen(name),
-                                            (uintptr_t)m, vc))
+                                            (uintptr_t)m, &vc))
       {
          goto error;
       }
@@ -351,7 +354,7 @@ parse_metric_line(struct prometheus_metric* metric, struct deque** attrs,
     * The first token can be further tokenized on "{,}".
     */
 
-   token = strtok_r(line_cpy, " ", &saveptr);
+   token = strtok_r(line_cpy, "{,} ", &saveptr);
 
    while (token != NULL)
    {
@@ -359,7 +362,7 @@ parse_metric_line(struct prometheus_metric* metric, struct deque** attrs,
       {
          /* First token is the name of the metric. So just a sanity check. */
 
-         if (strcmp(token, metric->name))
+         if (strncmp(token, metric->name, strlen(metric->name)))
          {
             goto error;
          }
@@ -378,7 +381,8 @@ parse_metric_line(struct prometheus_metric* metric, struct deque** attrs,
       {
          /* Assuming of the form key="value" */
 
-         sscanf(token, "%127s=\"%127s\"", key, value);
+         sscanf(token, "%127[^=]", key);
+         sscanf(token + strlen(key) + 2, "%127[^\"]", value);
 
          if (strlen(key) == 0 || strlen(value) == 0)
          {
@@ -392,7 +396,7 @@ parse_metric_line(struct prometheus_metric* metric, struct deque** attrs,
          }
       }
 
-      token = strtok_r(NULL, " ", &saveptr);
+      token = strtok_r(NULL, "{,} ", &saveptr);
    }
 
    free(line_cpy);
@@ -422,34 +426,31 @@ prometheus_value_destroy_cb(uintptr_t data)
 static char*
 prometheus_value_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 {
-   char* s = "";
-   struct json* j = NULL;
-   struct prometheus_value* m = NULL;
+   char *s = NULL;
+   struct art *a = NULL;
+   struct prometheus_value *m = NULL;
 
-   m = (struct prometheus_value*)data;
+   m = (struct prometheus_value *)data;
 
-   if (pgexporter_json_create(&j))
-   {
+   if (pgexporter_art_create(&a)) {
       goto error;
    }
 
    if (m != NULL)
    {
-      pgexporter_json_put(j, "Timestamp", (uintptr_t)m->timestamp, ValueInt64);
-      pgexporter_json_put(j, "Value", (uintptr_t)m->value, ValueString);
+      pgexporter_art_insert(a, (unsigned char *)"Timestamp", strlen("Timestamp"), (uintptr_t)m->timestamp, ValueInt64);
+      pgexporter_art_insert(a, (unsigned char *)"Value", strlen("Value"), (uintptr_t)m->value, ValueString);
 
-      s = pgexporter_json_to_string(j, format, tag, indent);
+      s = pgexporter_art_to_string(a, format, tag, indent);
    }
 
-   pgexporter_json_destroy(j);
+   pgexporter_art_destroy(a);
 
    return s;
 
 error:
 
-   pgexporter_json_destroy(j);
-
-   free(s);
+   pgexporter_art_destroy(a);
 
    return "Error";
 }
@@ -459,7 +460,8 @@ add_value(struct deque** values, char* value)
 {
    bool new = false;
    struct deque* vals = NULL;
-   struct value_config* vc = NULL;
+   struct value_config vc = {.destroy_data = &prometheus_value_destroy_cb,
+                             .to_string = &prometheus_value_string_cb};
    struct prometheus_value* val = NULL;
 
    val = (struct prometheus_value*)malloc(sizeof(struct prometheus_value));
@@ -469,15 +471,6 @@ add_value(struct deque** values, char* value)
    }
 
    vals = *values;
-
-   vc = (struct value_config*)malloc(sizeof(struct value_config));
-   if (vc == NULL)
-   {
-      goto error;
-   }
-
-   vc->destroy_data = &prometheus_value_destroy_cb;
-   vc->to_string = &prometheus_value_string_cb;
 
    if (vals == NULL)
    {
@@ -505,7 +498,7 @@ add_value(struct deque** values, char* value)
       goto error;
    }
 
-   pgexporter_deque_add_with_config(*values, NULL, (uintptr_t)val, vc);
+   pgexporter_deque_add_with_config(*values, NULL, (uintptr_t)val, &vc);
 
    return 0;
 
@@ -539,34 +532,30 @@ prometheus_attribute_destroy_cb(uintptr_t data)
 static char*
 prometheus_attribute_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 {
-   char* s = "";
-   struct json* j = NULL;
-   struct prometheus_attribute* m = NULL;
+   char *s = NULL;
+   struct art *a = NULL;
+   struct prometheus_attribute *m = NULL;
 
-   m = (struct prometheus_attribute*)data;
+   m = (struct prometheus_attribute *)data;
 
-   if (pgexporter_json_create(&j))
-   {
+   if (pgexporter_art_create(&a)) {
       goto error;
    }
 
-   if (m != NULL)
-   {
-      pgexporter_json_put(j, "Key", (uintptr_t)m->key, ValueString);
-      pgexporter_json_put(j, "Value", (uintptr_t)m->value, ValueString);
+   if (m != NULL) {
+      pgexporter_art_insert(a, (unsigned char *)"Key", strlen("Key"), (uintptr_t)m->key, ValueString);
+      pgexporter_art_insert(a, (unsigned char *)"Value", strlen("Value"), (uintptr_t)m->value, ValueString);
 
-      s = pgexporter_json_to_string(j, format, tag, indent);
+      s = pgexporter_art_to_string(a, format, tag, indent);
    }
 
-   pgexporter_json_destroy(j);
+   pgexporter_art_destroy(a);
 
    return s;
 
 error:
 
-   pgexporter_json_destroy(j);
-
-   free(s);
+   pgexporter_art_destroy(a);
 
    return "Error";
 }
@@ -575,7 +564,8 @@ static int
 add_attribute(struct deque** attributes, char* key, char* value)
 {
    struct deque* attrs = NULL;
-   struct value_config* vc = NULL;
+   struct value_config vc = {.destroy_data = &prometheus_attribute_destroy_cb,
+                             .to_string = &prometheus_attribute_string_cb};
    struct prometheus_attribute* attr = NULL;
 
    attrs = *attributes;
@@ -587,16 +577,6 @@ add_attribute(struct deque** attributes, char* key, char* value)
    }
    memset(attr, 0, sizeof(struct prometheus_attribute));
 
-   vc = (struct value_config*)malloc(sizeof(struct value_config));
-   if (vc == NULL)
-   {
-      goto error;
-   }
-   memset(vc, 0, sizeof(struct value_config));
-
-   vc->destroy_data = &prometheus_attribute_destroy_cb;
-   vc->to_string = &prometheus_attribute_string_cb;
-
    if (attrs == NULL)
    {
       pgexporter_deque_create(true, &attrs);
@@ -605,6 +585,8 @@ add_attribute(struct deque** attributes, char* key, char* value)
       {
          goto error;
       }
+
+      *attributes = attrs;
    }
 
    attr->key = strdup(key);
@@ -619,7 +601,7 @@ add_attribute(struct deque** attributes, char* key, char* value)
       goto error;
    }
 
-   pgexporter_deque_add_with_config(attrs, NULL, (uintptr_t) attr, vc);
+   pgexporter_deque_add_with_config(attrs, NULL, (uintptr_t) attr, &vc);
 
    return 0;
 
@@ -656,34 +638,32 @@ prometheus_attributes_destroy_cb(uintptr_t data)
 static char*
 prometheus_attributes_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 {
-   char* s = "";
-   struct json* j = NULL;
-   struct prometheus_attributes* m = NULL;
+   char *s = NULL;
+   struct art *a = NULL;
+   struct value_config vc = {.destroy_data = NULL,
+                             .to_string = &deque_string_cb};
+   struct prometheus_attributes *m = NULL;
 
-   m = (struct prometheus_attributes*)data;
+   m = (struct prometheus_attributes *)data;
 
-   if (pgexporter_json_create(&j))
-   {
+   if (pgexporter_art_create(&a)) {
       goto error;
    }
 
-   if (m != NULL)
-   {
-      pgexporter_json_put(j, "Attributes", (uintptr_t)m->attributes, ValueRef);
-      pgexporter_json_put(j, "Value", (uintptr_t)m->values, ValueRef);
+   if (m != NULL) {
+      pgexporter_art_insert_with_config(a, (unsigned char *)"Attributes", strlen("Attributes"), (uintptr_t)m->attributes, &vc);
+      pgexporter_art_insert_with_config(a, (unsigned char *)"Values", strlen("Values"), (uintptr_t)m->values, &vc);
 
-      s = pgexporter_json_to_string(j, format, tag, indent);
+      s = pgexporter_art_to_string(a, format, tag, indent);
    }
 
-   pgexporter_json_destroy(j);
+   pgexporter_art_destroy(a);
 
    return s;
 
 error:
 
-   pgexporter_json_destroy(j);
-
-   free(s);
+   pgexporter_art_destroy(a);
 
    return "Error";
 }
@@ -693,10 +673,11 @@ add_definition(struct prometheus_metric* metric, struct deque** attr, struct deq
 {
    struct deque* attrs = NULL;
    struct deque* vals = NULL;
-   struct value_config* vc = NULL;
+   struct value_config vc = {.destroy_data = &prometheus_attributes_destroy_cb,
+                             .to_string = &prometheus_attributes_string_cb};
    struct prometheus_attributes* def = NULL;
 
-   if (attr == NULL || *attr == NULL || val == NULL || *val == NULL || metric == NULL)
+   if (attr == NULL || val == NULL || metric == NULL)
    {
       pgexporter_log_error("Something is NULL");
       goto errout;
@@ -711,16 +692,6 @@ add_definition(struct prometheus_metric* metric, struct deque** attr, struct deq
       goto errout;
    }
 
-   vc = (struct value_config*)malloc(sizeof(struct value_config));
-   if (vc == NULL)
-   {
-      goto errout;
-   }
-   memset(vc, 0, sizeof(struct value_config));
-
-   vc->destroy_data = &prometheus_attributes_destroy_cb;
-   vc->to_string = &prometheus_attributes_string_cb;
-
    if (metric->definitions == NULL)
    {
       pgexporter_deque_create(true, &metric->definitions);
@@ -732,7 +703,7 @@ add_definition(struct prometheus_metric* metric, struct deque** attr, struct deq
    *attr = NULL;
    *val = NULL;
 
-   if (pgexporter_deque_add_with_config(metric->definitions, NULL, (uintptr_t) def, vc))
+   if (pgexporter_deque_add_with_config(metric->definitions, NULL, (uintptr_t) def, &vc))
    {
       goto errout_with_def;
    }
@@ -786,9 +757,10 @@ parse_body_to_bridge(char* endpoint, char* body, struct prometheus_bridge* bridg
    char* line = NULL;
    char* saveptr = NULL;
    char name[MISC_LENGTH] = {0};
-   char help[MISC_LENGTH] = {0};
+   char help[MAX_PATH] = {0};
    char type[MISC_LENGTH] = {0};
-   struct value_config* vc = NULL;
+   struct value_config vc = {.destroy_data = &prometheus_metric_destroy_cb,
+                             .to_string = &prometheus_metric_string_cb};
    struct prometheus_metric* metric = NULL;
 
    line = strtok_r(body, "\n", &saveptr); /* We ideally should not care if body is modified. */
@@ -801,16 +773,7 @@ parse_body_to_bridge(char* endpoint, char* body, struct prometheus_bridge* bridg
           metric != NULL && metric->definitions->size > 0) /* Basically empty strings, empty lines, or empty Windows lines. */
       {
          /* Previous metric is over. */
-         vc = (struct value_config*)malloc(sizeof(struct value_config));
-         if (vc == NULL)
-         {
-            goto error;
-         }
-         memset(vc, 0, sizeof(struct value_config));
-         vc->destroy_data = &prometheus_metric_destroy_cb;
-         vc->to_string = &prometheus_metric_string_cb;
-
-         pgexporter_art_insert_with_config(bridge->metrics, (unsigned char*) metric->name, strlen(metric->name), (uintptr_t) metric, vc);
+         pgexporter_art_insert_with_config(bridge->metrics, (unsigned char*) metric->name, strlen(metric->name), (uintptr_t) metric, &vc);
 
          metric = NULL;
          continue;
@@ -819,18 +782,19 @@ parse_body_to_bridge(char* endpoint, char* body, struct prometheus_bridge* bridg
       {
          if (!strncmp(&line[1], "HELP", 4))
          {
-            sscanf(line, "#HELP %127s %127[^\n]", name, help);
+            sscanf(line + 6, "%127s %1021[^\n]", name, help);
+
+            // TODO: help is as expected here, but JSON prints a string that's not terminated with a "
 
             metric_find_create(bridge, name, &metric);
 
             metric_set_name(metric, name);
-            metric_set_help(metric, strdup(help));
-
+            metric_set_help(metric, help);
          }
          else if (!strncmp(&line[1], "TYPE", 4))
          {
-            sscanf(line, "#TYPE %127s %127[^\n]", name, type);
-            metric_set_type(metric, strdup(type));
+            sscanf(line + 6, "%127s %127[^\n]", name, type);
+            metric_set_type(metric, type);
             // assert(!strcmp(metric->name, name));
          }
          else
