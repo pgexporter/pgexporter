@@ -26,11 +26,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "json.h"
 #include <pgexporter.h>
 #include <art.h>
 #include <deque.h>
 #include <http.h>
+#include <json.h>
 #include <logging.h>
 #include <prometheus_client.h>
 #include <utils.h>
@@ -38,8 +38,10 @@
 
 #include <errno.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 static int metric_find_create(struct prometheus_bridge* bridge, char* name, struct prometheus_metric** metric);
 static int metric_set_name(struct prometheus_metric* metric, char* name);
@@ -47,10 +49,11 @@ static int metric_set_help(struct prometheus_metric* metric, char* help);
 static int metric_set_type(struct prometheus_metric* metric, char* type);
 static int add_definition(struct prometheus_metric* metric, struct deque** attr, struct deque** val);
 static int add_attribute(struct deque** attributes, char* key, char* value);
-static int add_value(struct deque** values, char* value);
-static int add_line(struct prometheus_metric* metric, char* line, char* endpoint);
-static int parse_body_to_bridge(char* endpoint, char* body, struct prometheus_bridge* bridge);
-static int parse_metric_line(struct prometheus_metric* metric, struct deque** attrs, struct deque** vals, char* line, char* endpoint);
+static int add_value(struct deque** values, time_t timestamp, char* value);
+static int add_line(struct prometheus_metric* metric, char* line, int endpoint, time_t timestamp);
+static int parse_body_to_bridge(int endpoint, time_t timestamp, char* body, struct prometheus_bridge* bridge);
+static int parse_metric_line(struct prometheus_metric* metric, struct deque** attrs, struct deque** vals,
+                             char* line, int endpoint, time_t timestamp);
 
 int
 pgexporter_prometheus_client_create_bridge(struct prometheus_bridge** bridge)
@@ -100,7 +103,7 @@ pgexporter_prometheus_client_destroy_bridge(struct prometheus_bridge* bridge)
 int
 pgexporter_prometheus_client_get(int endpoint, struct prometheus_bridge* bridge)
 {
-   char* url = NULL;
+   time_t timestamp;
    struct http* http = NULL;
    struct configuration* config = NULL;
 
@@ -122,27 +125,21 @@ pgexporter_prometheus_client_get(int endpoint, struct prometheus_bridge* bridge)
       goto error;
    }
 
+   timestamp = time(NULL);
+
    pgexporter_log_info("Ready to merge: %d", http->endpoint);
 
-   url = pgexporter_append(url, config->endpoints[endpoint].host);
-   url = pgexporter_append_char(url, ':');
-   url = pgexporter_append_int(url, config->endpoints[endpoint].port);
-
-   if (parse_body_to_bridge(url, http->body, bridge))
+   if (parse_body_to_bridge(endpoint, timestamp, http->body, bridge))
    {
       // TODO: What do we do with the bridge?
       goto error;
    }
-
-   free(url);
 
    pgexporter_http_destroy(http);
 
    return 0;
 
 error:
-
-   free(url);
 
    pgexporter_http_destroy(http);
 
@@ -320,15 +317,18 @@ metric_set_type(struct prometheus_metric* metric, char* type)
 
 static int
 parse_metric_line(struct prometheus_metric* metric, struct deque** attrs,
-                  struct deque** vals, char* line, char* endpoint)
+                  struct deque** vals, char* line, int endpoint, time_t timestamp)
 {
    /* Metric lines are the ones that actually carry metrics, and not help or type. */
-
+   char* e = NULL;
    char key[MISC_LENGTH] = {0};
    char value[MISC_LENGTH] = {0};
    char* token = NULL;
    char* saveptr = NULL;
    char* line_cpy = NULL;
+   struct configuration *config = NULL;
+
+   config = (struct configuration *)shmem;
 
    if (line == NULL)
    {
@@ -341,7 +341,11 @@ parse_metric_line(struct prometheus_metric* metric, struct deque** attrs,
       goto error;
    }
 
-   if (add_attribute(attrs, "endpoint", endpoint))
+   e = pgexporter_append(e, config->endpoints[endpoint].host);
+   e = pgexporter_append_char(e, ':');
+   e = pgexporter_append_int(e, config->endpoints[endpoint].port);
+
+   if (add_attribute(attrs, "endpoint", e))
    {
       goto error;
    }
@@ -371,7 +375,7 @@ parse_metric_line(struct prometheus_metric* metric, struct deque** attrs,
       {
          /* Final token. */
 
-         if (add_value(vals, token))
+         if (add_value(vals, timestamp, token))
          {
             /* TODO: Clear memory of items in deque. */
             goto error;
@@ -456,7 +460,7 @@ error:
 }
 
 static int
-add_value(struct deque** values, char* value)
+add_value(struct deque** values, time_t timestamp, char* value)
 {
    bool new = false;
    struct deque* vals = NULL;
@@ -485,7 +489,7 @@ add_value(struct deque** values, char* value)
       new = true;
    }
 
-   val->timestamp = time(NULL); // TODO: Attach current timestamp.
+   val->timestamp = timestamp;
    val->value = strdup(value);
 
    if (val->value == NULL)
@@ -725,13 +729,13 @@ errout:
 }
 
 static int
-add_line(struct prometheus_metric* metric, char* line, char* endpoint)
+add_line(struct prometheus_metric* metric, char* line, int endpoint, time_t timestamp)
 {
    struct deque* attrs = NULL;
    struct deque* vals = NULL;
 
    // attr and val are allocated here.
-   if (parse_metric_line(metric, &attrs, &vals, line, endpoint))
+   if (parse_metric_line(metric, &attrs, &vals, line, endpoint, timestamp))
    {
       goto error;
    }
@@ -752,7 +756,7 @@ error:
 }
 
 static int
-parse_body_to_bridge(char* endpoint, char* body, struct prometheus_bridge* bridge)
+parse_body_to_bridge(int endpoint, time_t timestamp, char* body, struct prometheus_bridge* bridge)
 {
    char* line = NULL;
    char* saveptr = NULL;
@@ -805,7 +809,7 @@ parse_body_to_bridge(char* endpoint, char* body, struct prometheus_bridge* bridg
       }
       else
       {
-         add_line(metric, line, endpoint);
+         add_line(metric, line, endpoint, timestamp);
       }
 
       line = strtok_r(NULL, "\n", &saveptr);
