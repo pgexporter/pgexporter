@@ -738,9 +738,11 @@ static void
 bridge_metrics(int client_fd)
 {
    char* art_s = NULL;
+   unsigned char* key = NULL;
    struct prometheus_bridge* bridge = NULL;
    struct art_iterator* metrics_iterator = NULL;
    struct configuration* config = NULL;
+   struct prometheus_metric* metric = NULL;
 
    config = (struct configuration*)shmem;
 
@@ -777,7 +779,13 @@ bridge_metrics(int client_fd)
 
    while (pgexporter_art_iterator_next(metrics_iterator))
    {
+      key = metrics_iterator->key;
+      metric = (struct prometheus_metric*) metrics_iterator->value->data;
 
+      // TODO: Weird values. Definitely something up with parsing or storing.
+      // printf("%s: %s\n", key, ((struct prometheus_value*) pgexporter_deque_peek(
+      //                            ((struct prometheus_attributes*) pgexporter_deque_peek(metric->definitions, NULL))->values,
+      //                            NULL))->value);
    }
 
    // if (data)
