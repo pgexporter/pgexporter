@@ -39,10 +39,11 @@ extern "C" {
 #endif
 #include <stdatomic.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <time.h>
-#include <sys/types.h>
 #include <openssl/ssl.h>
+#include <sys/types.h>
 
 #define VERSION "0.6.0"
 
@@ -329,15 +330,15 @@ struct configuration
    char users_path[MAX_PATH];         /**< The users path */
    char admins_path[MAX_PATH];        /**< The admins path */
 
-   char host[MISC_LENGTH];     /**< The host */
-   int metrics;                /**< The metrics port */
-   int metrics_cache_max_age;  /**< Number of seconds to cache the Prometheus response */
-   int metrics_cache_max_size; /**< Number of bytes max to cache the Prometheus response */
-   int management;             /**< The management port */
+   char host[MISC_LENGTH];        /**< The host */
+   int metrics;                   /**< The metrics port */
+   int metrics_cache_max_age;     /**< Number of seconds to cache the Prometheus response */
+   size_t metrics_cache_max_size; /**< Number of bytes max to cache the Prometheus response */
+   int management;                /**< The management port */
 
-   int bridge;                /**< The bridge port */
-   int bridge_cache_max_age;  /**< Number of seconds to cache the bridge response */
-   int bridge_cache_max_size; /**< Number of bytes max to cache the bridge response */
+   int bridge;                   /**< The bridge port */
+   int bridge_cache_max_age;     /**< Number of seconds to cache the bridge response */
+   size_t bridge_cache_max_size; /**< Number of bytes max to cache the bridge response */
 
    bool cache;  /**< Cache connection */
 
@@ -345,7 +346,7 @@ struct configuration
    int log_level;                     /**< The logging level */
    char log_path[MISC_LENGTH];        /**< The logging path */
    int log_mode;                      /**< The logging mode */
-   int log_rotation_size;             /**< bytes to force log rotation */
+   size_t log_rotation_size;          /**< bytes to force log rotation */
    int log_rotation_age;              /**< minutes for log rotation */
    char log_line_prefix[MISC_LENGTH]; /**< The logging prefix */
    atomic_schar log_lock;             /**< The logging lock */

@@ -34,6 +34,7 @@
 #include <logging.h>
 #include <management.h>
 #include <network.h>
+#include <prometheus.h>
 #include <query_alts.h>
 #include <security.h>
 #include <shmem.h>
@@ -46,13 +47,14 @@
 #include <errno.h>
 #include <stdatomic.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 #ifdef HAVE_SYSTEMD
 #include <systemd/sd-daemon.h>
 #endif
@@ -61,16 +63,17 @@
 
 static void extract_key_value(char* str, char** key, char** value);
 static int as_int(char* str, int* i);
+static int as_long(char* str, long* l);
 static int as_bool(char* str, bool* b);
 static int as_logging_type(char* str);
 static int as_logging_level(char* str);
 static int as_logging_mode(char* str);
 static int as_hugepage(char* str);
 static unsigned int as_update_process_title(char* str, unsigned int default_policy);
-static int as_logging_rotation_size(char* str, int* size);
+static int as_logging_rotation_size(char* str, size_t* size);
 static int as_logging_rotation_age(char* str, int* age);
 static int as_seconds(char* str, int* age, int default_age);
-static int as_bytes(char* str, int* bytes, int default_bytes);
+static int as_bytes(char* str, long* bytes, long default_bytes);
 static int as_endpoints(char* str, struct configuration* config);
 static bool transfer_configuration(struct configuration* config, struct configuration* reload);
 static void copy_server(struct server* dst, struct server* src);
@@ -306,9 +309,16 @@ pgexporter_read_configuration(void* shm, char* filename)
                {
                   if (!strcmp(section, "pgexporter"))
                   {
-                     if (as_bytes(value, &config->metrics_cache_max_size, 0))
+                     long l = 0;
+                     if (as_bytes(value, &l, 0))
                      {
                         unknown = true;
+                     }
+
+                     config->metrics_cache_max_size = (size_t)l;
+                     if (config->metrics_cache_max_size > PROMETHEUS_MAX_CACHE_SIZE)
+                     {
+                        config->metrics_cache_max_size = PROMETHEUS_MAX_CACHE_SIZE;
                      }
                   }
                   else
@@ -362,9 +372,18 @@ pgexporter_read_configuration(void* shm, char* filename)
                {
                   if (!strcmp(section, "pgexporter"))
                   {
-                     if (as_bytes(value, &config->bridge_cache_max_size, PROMETHEUS_MAX_BRIDGE_CACHE_SIZE))
+                     long l = 0;
+
+                     if (as_bytes(value, &l, PROMETHEUS_DEFAULT_BRIDGE_CACHE_SIZE))
                      {
                         unknown = true;
+                     }
+
+                     config->bridge_cache_max_size = (size_t)l;
+
+                     if (config->bridge_cache_max_size > PROMETHEUS_MAX_BRIDGE_CACHE_SIZE)
+                     {
+                        config->bridge_cache_max_size = PROMETHEUS_MAX_BRIDGE_CACHE_SIZE;
                      }
                   }
                   else
@@ -618,7 +637,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                {
                   if (!strcmp(section, "pgexporter"))
                   {
-                     if (as_logging_rotation_age(value, &config->log_rotation_size))
+                     if (as_logging_rotation_age(value, &config->log_rotation_age))
                      {
                         unknown = true;
                      }
@@ -1619,10 +1638,15 @@ pgexporter_conf_set(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryp
       }
       else if (!strcmp(key, "metrics_cache_max_size"))
       {
-         if (as_bytes(config_value, &config->metrics_cache_max_size, 0))
+         long l = 0;
+
+         if (as_bytes(config_value, &l, 0))
          {
             unknown = true;
          }
+
+         config->metrics_cache_max_size = (size_t)l;
+
          pgexporter_json_put(response, key, (uintptr_t)config->metrics_cache_max_size, ValueInt64);
       }
       else if (!strcmp(key, "metrics_cache_max_age"))
@@ -1653,10 +1677,15 @@ pgexporter_conf_set(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryp
       }
       else if (!strcmp(key, "bridge_cache_max_size"))
       {
-         if (as_bytes(config_value, &config->bridge_cache_max_size, 0))
+         long l = 0;
+
+         if (as_bytes(config_value, &l, 0))
          {
             unknown = true;
          }
+
+         config->bridge_cache_max_size = (size_t)l;
+
          pgexporter_json_put(response, key, (uintptr_t)config->bridge_cache_max_size, ValueInt64);
       }
       else if (!strcmp(key, "bridge_cache_max_age"))
@@ -1816,7 +1845,7 @@ pgexporter_conf_set(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryp
       }
       else if (!strcmp(key, "log_rotation_age"))
       {
-         if (as_logging_rotation_age(config_value, &config->log_rotation_size))
+         if (as_logging_rotation_age(config_value, &config->log_rotation_age))
          {
             unknown = true;
          }
@@ -2211,6 +2240,42 @@ error:
 }
 
 static int
+as_long(char* str, long* l)
+{
+   char* endptr;
+   long val;
+
+   errno = 0;
+   val = strtol(str, &endptr, 10);
+
+   if ((errno == ERANGE && (val == LONG_MAX || val == LONG_MIN)) ||
+       (errno != 0 && val == 0))
+   {
+      goto error;
+   }
+
+   if (str == endptr)
+   {
+      goto error;
+   }
+
+   if (*endptr != '\0')
+   {
+      goto error;
+   }
+
+   *l = val;
+
+   return 0;
+
+error:
+
+   errno = 0;
+
+   return 1;
+}
+
+static int
 as_bool(char* str, bool* b)
 {
    if (!strcasecmp(str, "true") || !strcasecmp(str, "on") || !strcasecmp(str, "yes") || !strcasecmp(str, "1"))
@@ -2400,9 +2465,16 @@ as_update_process_title(char* str, unsigned int default_policy)
  *
  */
 static int
-as_logging_rotation_size(char* str, int* size)
+as_logging_rotation_size(char* str, size_t* size)
 {
-   return as_bytes(str, size, PGEXPORTER_LOGGING_ROTATION_DISABLED);
+   long l = 0;
+   int ret;
+
+   ret = as_bytes(str, &l, PGEXPORTER_LOGGING_ROTATION_DISABLED);
+
+   *size = (size_t)l;
+
+   return ret;
 }
 
 /**
@@ -2549,13 +2621,13 @@ error:
  *         performed correctly (or almost correctly, e.g., empty string)
  */
 static int
-as_bytes(char* str, int* bytes, int default_bytes)
+as_bytes(char* str, long* bytes, long default_bytes)
 {
    int multiplier = 1;
    int index;
    char value[MISC_LENGTH];
    bool multiplier_set = false;
-   int i_value = default_bytes;
+   long l_value = default_bytes;
 
    if (is_empty_string(str))
    {
@@ -2613,13 +2685,13 @@ as_bytes(char* str, int* bytes, int default_bytes)
    }
 
    value[index] = '\0';
-   if (!as_int(value, &i_value))
+   if (!as_long(value, &l_value))
    {
       // sanity check: the value
       // must be a positive number!
-      if (i_value >= 0)
+      if (l_value >= 0)
       {
-         *bytes = i_value * multiplier;
+         *bytes = l_value * multiplier;
       }
       else
       {

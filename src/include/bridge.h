@@ -43,11 +43,18 @@ extern "C" {
 #define PROMETHEUS_BRIDGE_CACHE_DISABLED 0
 
 /**
+ * Default size of the cache (in bytes).
+ * If the cache request exceeds this size
+ * the caching should be aborted in some way.
+ */
+#define PROMETHEUS_DEFAULT_BRIDGE_CACHE_SIZE (10 * 1024 * 1024)
+
+/**
  * Max size of the cache (in bytes).
  * If the cache request exceeds this size
  * the caching should be aborted in some way.
  */
-#define PROMETHEUS_MAX_BRIDGE_CACHE_SIZE (10 * 1024 * 1024)
+#define PROMETHEUS_MAX_BRIDGE_CACHE_SIZE (1 * 1024 * 1024 * 1024)
 
 /**
  * Create a prometheus bridge

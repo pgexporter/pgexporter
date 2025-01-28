@@ -168,13 +168,12 @@ prometheus_metric_destroy_cb(uintptr_t data)
 static char*
 deque_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 {
-   struct deque *d = NULL;
+   struct deque* d = NULL;
 
    d = (struct deque*)data;
 
    return pgexporter_deque_to_string(d, format, tag, indent);
 }
-
 
 static char*
 prometheus_metric_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
@@ -183,7 +182,7 @@ prometheus_metric_string_cb(uintptr_t data, int32_t format, char* tag, int inden
    struct art* a = NULL;
    struct value_config vc = {.destroy_data = NULL,
                              .to_string = &deque_string_cb};
-   struct prometheus_metric *m = NULL;
+   struct prometheus_metric* m = NULL;
 
    m = (struct prometheus_metric*)data;
 
@@ -326,9 +325,9 @@ parse_metric_line(struct prometheus_metric* metric, struct deque** attrs,
    char* token = NULL;
    char* saveptr = NULL;
    char* line_cpy = NULL;
-   struct configuration *config = NULL;
+   struct configuration* config = NULL;
 
-   config = (struct configuration *)shmem;
+   config = (struct configuration*)shmem;
 
    if (line == NULL)
    {
@@ -430,20 +429,21 @@ prometheus_value_destroy_cb(uintptr_t data)
 static char*
 prometheus_value_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 {
-   char *s = NULL;
-   struct art *a = NULL;
-   struct prometheus_value *m = NULL;
+   char* s = NULL;
+   struct art* a = NULL;
+   struct prometheus_value* m = NULL;
 
-   m = (struct prometheus_value *)data;
+   m = (struct prometheus_value*)data;
 
-   if (pgexporter_art_create(&a)) {
+   if (pgexporter_art_create(&a))
+   {
       goto error;
    }
 
    if (m != NULL)
    {
-      pgexporter_art_insert(a, (unsigned char *)"Timestamp", strlen("Timestamp"), (uintptr_t)m->timestamp, ValueInt64);
-      pgexporter_art_insert(a, (unsigned char *)"Value", strlen("Value"), (uintptr_t)m->value, ValueString);
+      pgexporter_art_insert(a, (unsigned char*)"Timestamp", strlen("Timestamp"), (uintptr_t)m->timestamp, ValueInt64);
+      pgexporter_art_insert(a, (unsigned char*)"Value", strlen("Value"), (uintptr_t)m->value, ValueString);
 
       s = pgexporter_art_to_string(a, format, tag, indent);
    }
@@ -536,19 +536,21 @@ prometheus_attribute_destroy_cb(uintptr_t data)
 static char*
 prometheus_attribute_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 {
-   char *s = NULL;
-   struct art *a = NULL;
-   struct prometheus_attribute *m = NULL;
+   char* s = NULL;
+   struct art* a = NULL;
+   struct prometheus_attribute* m = NULL;
 
-   m = (struct prometheus_attribute *)data;
+   m = (struct prometheus_attribute*)data;
 
-   if (pgexporter_art_create(&a)) {
+   if (pgexporter_art_create(&a))
+   {
       goto error;
    }
 
-   if (m != NULL) {
-      pgexporter_art_insert(a, (unsigned char *)"Key", strlen("Key"), (uintptr_t)m->key, ValueString);
-      pgexporter_art_insert(a, (unsigned char *)"Value", strlen("Value"), (uintptr_t)m->value, ValueString);
+   if (m != NULL)
+   {
+      pgexporter_art_insert(a, (unsigned char*)"Key", strlen("Key"), (uintptr_t)m->key, ValueString);
+      pgexporter_art_insert(a, (unsigned char*)"Value", strlen("Value"), (uintptr_t)m->value, ValueString);
 
       s = pgexporter_art_to_string(a, format, tag, indent);
    }
@@ -642,21 +644,23 @@ prometheus_attributes_destroy_cb(uintptr_t data)
 static char*
 prometheus_attributes_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 {
-   char *s = NULL;
-   struct art *a = NULL;
+   char* s = NULL;
+   struct art* a = NULL;
    struct value_config vc = {.destroy_data = NULL,
                              .to_string = &deque_string_cb};
-   struct prometheus_attributes *m = NULL;
+   struct prometheus_attributes* m = NULL;
 
-   m = (struct prometheus_attributes *)data;
+   m = (struct prometheus_attributes*)data;
 
-   if (pgexporter_art_create(&a)) {
+   if (pgexporter_art_create(&a))
+   {
       goto error;
    }
 
-   if (m != NULL) {
-      pgexporter_art_insert_with_config(a, (unsigned char *)"Attributes", strlen("Attributes"), (uintptr_t)m->attributes, &vc);
-      pgexporter_art_insert_with_config(a, (unsigned char *)"Values", strlen("Values"), (uintptr_t)m->values, &vc);
+   if (m != NULL)
+   {
+      pgexporter_art_insert_with_config(a, (unsigned char*)"Attributes", strlen("Attributes"), (uintptr_t)m->attributes, &vc);
+      pgexporter_art_insert_with_config(a, (unsigned char*)"Values", strlen("Values"), (uintptr_t)m->values, &vc);
 
       s = pgexporter_art_to_string(a, format, tag, indent);
    }

@@ -38,6 +38,7 @@
 #include <queries.h>
 #include <security.h>
 #include <shmem.h>
+#include <stddef.h>
 #include <utils.h>
 
 /* system */
@@ -65,8 +66,7 @@ static int send_chunk(int client_fd, char* data);
 
 static bool is_bridge_cache_configured(void);
 static bool is_bridge_cache_valid(void);
-static bool bridge_cache_append(char* data);
-static bool bridge_cache_finalize(void);
+static bool bridge_cache_set(char* data);
 static size_t bridge_cache_size_to_alloc(void);
 static void bridge_cache_invalidate(void);
 
@@ -337,8 +337,8 @@ retry_cache_locking:
    cache_is_free = STATE_FREE;
    if (atomic_compare_exchange_strong(&cache->lock, &cache_is_free, STATE_IN_USE))
    {
-      // can serve the message out of cache?
-      if (is_bridge_cache_configured() && is_bridge_cache_valid())
+      // TODO: Can we serve the message out of cache?
+      if (false && is_bridge_cache_configured() && is_bridge_cache_valid())
       {
          // serve the message directly out of the cache
          pgexporter_log_debug("Serving bridge out of cache (%d/%d bytes valid until %lld)",
@@ -374,7 +374,6 @@ retry_cache_locking:
                                    &time_buf[0],
                                    "\r\n"
                                    );
-         bridge_cache_append(data);  // cache here to avoid the chunking for the cache
          data = pgexporter_vappend(data, 2,
                                    "Transfer-Encoding: chunked\r\n",
                                    "\r\n"
@@ -408,8 +407,6 @@ retry_cache_locking:
          {
             goto error;
          }
-
-         bridge_cache_finalize();
       }
 
       // free the cache
@@ -654,12 +651,12 @@ bridge_cache_invalidate(void)
 }
 
 /**
- * Appends data to the cache.
+ * Set data to the cache.
  *
  * Requires the caller to hold the lock on the cache!
  *
  * If the input data is empty, nothing happens.
- * The data is appended only if the cache does not overflows, that
+ * The data is applied only if the cache does not overflows, that
  * means the current size of the cache plus the size of the data
  * to append does not exceed the current cache size.
  * If the cache overflows, the cache is flushed and marked
@@ -667,71 +664,47 @@ bridge_cache_invalidate(void)
  * This makes safe to call this method along the workflow of
  * building the Prometheus response.
  *
- * @param data the string to append to the cache
+ * @param data the string to set to the cache
  * @return true on success
  */
 static bool
-bridge_cache_append(char* data)
+bridge_cache_set(char* data)
 {
-   int origin_length = 0;
-   int append_length = 0;
-   struct prometheus_cache* cache;
-
-   cache = (struct prometheus_cache*)bridge_cache_shmem;
-
-   if (!is_bridge_cache_configured())
-   {
-      return false;
-   }
-
-   origin_length = strlen(cache->data);
-   append_length = strlen(data);
-   // need to append the data to the cache
-   if (origin_length + append_length >= cache->size)
-   {
-      // cannot append new data, so invalidate cache
-      pgexporter_log_debug("Cannot append %d bytes to the Prometheus cache because it will overflow the size of %d bytes (currently at %d bytes). HINT: try adjusting `bridge_cache_max_size`",
-                           append_length,
-                           cache->size,
-                           origin_length);
-      bridge_cache_invalidate();
-      return false;
-   }
-
-   // append the data to the data field
-   memcpy(cache->data + origin_length, data, append_length);
-   cache->data[origin_length + append_length + 1] = '\0';
-   return true;
-}
-
-/**
- * Finalizes the cache.
- *
- * Requires the caller to hold the lock on the cache!
- *
- * This method should be invoked when the cache is complete
- * and therefore can be served.
- *
- * @return true if the cache has a validity
- */
-static bool
-bridge_cache_finalize(void)
-{
+   time_t now;
+   size_t length;
    struct configuration* config;
    struct prometheus_cache* cache;
-   time_t now;
 
-   cache = (struct prometheus_cache*)bridge_cache_shmem;
    config = (struct configuration*)shmem;
+   cache = (struct prometheus_cache*)bridge_cache_shmem;
 
    if (!is_bridge_cache_configured())
    {
       return false;
    }
+
+   length = strlen(data);
+
+   if (length >= cache->size)
+   {
+      // cannot append new data, so invalidate cache
+      pgexporter_log_debug("Cannot set %d bytes to the Prometheus cache because it will overflow the size of %d bytes. HINT: try adjusting `bridge_cache_max_size`",
+                           length, cache->size);
+
+      bridge_cache_invalidate();
+
+      return false;
+   }
+
+   // Set the data to the data field
+   memset(cache->data, 0, cache->size);
+   memcpy(cache->data, data, length);
+   cache->data[length + 1] = '\0';
 
    now = time(NULL);
    cache->valid_until = now + config->bridge_cache_max_age;
-   return cache->valid_until > now;
+
+   return true;
 }
 
 static void
@@ -767,9 +740,6 @@ bridge_metrics(int client_fd)
     * as they can be resolved from the ART in one go, and sent.
     */
 
-   art_s = pgexporter_art_to_string(bridge->metrics, FORMAT_JSON, NULL, 0);
-   pgexporter_log_debug(art_s);
-
    if (pgexporter_art_iterator_create(bridge->metrics, &metrics_iterator))
    {
       goto error;
@@ -780,13 +750,12 @@ bridge_metrics(int client_fd)
 
    }
 
-   // if (data)
-   // {
-   //    send_chunk(client_fd, data);
-   //    bridge_cache_append(data);
-   //    free(data);
-   //    data = NULL;
-   // }
+   if (is_bridge_cache_configured())
+   {
+      art_s = pgexporter_art_to_string(bridge->metrics, FORMAT_JSON, NULL, 0);
+      pgexporter_log_debug(art_s);
+      bridge_cache_set(art_s);
+   }
 
    free(art_s);
 
