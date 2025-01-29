@@ -97,8 +97,6 @@ pgexporter_bridge(int client_fd)
 
    page = resolve_page(msg);
 
-   pgexporter_log_message(msg);
-
    if (page == PAGE_HOME)
    {
       home_page(client_fd);
@@ -354,32 +352,17 @@ retry_cache_locking:
          /* Header */
          data = pgexporter_vappend(data, 7,
                                    "HTTP/1.1 200 OK\r\n",
-                                   "Content-Type: text/html; charset=utf-8\r\n",
+                                   "Content-Type: text/plain; charset=utf-8\r\n",
                                    "Date: ", &time_buf[0], "\r\n",
                                    "Transfer-Encoding: chunked\r\n", "\r\n");
 
-         msg.kind = 0;
-         msg.length = strlen(data);
-         msg.data = data;
 
-         status = pgexporter_write_message(NULL, client_fd, &msg);
-         if (status != MESSAGE_STATUS_OK)
-         {
-           goto error;
-         }
-
+         send_chunk(client_fd, data);
          free(data);
          data = NULL;
 
-         msg.kind = 0;
-         msg.length = strlen(cache->data);
-         msg.data = cache->data;
-
-         status = pgexporter_write_message(NULL, client_fd, &msg);
-         if (status != MESSAGE_STATUS_OK)
-         {
-            goto error;
-         }
+         /* Cache */
+         send_chunk(client_fd, cache->data);
 
          /* Footer */
          data = pgexporter_append(data, "\r\n\r\n");
