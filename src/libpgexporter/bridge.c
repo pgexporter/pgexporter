@@ -356,7 +356,16 @@ retry_cache_locking:
                                    "Date: ", &time_buf[0], "\r\n",
                                    "Transfer-Encoding: chunked\r\n", "\r\n");
 
-         send_chunk(client_fd, data);
+         msg.kind = 0;
+         msg.length = strlen(data);
+         msg.data = data;
+
+         status = pgexporter_write_message(NULL, client_fd, &msg);
+         if (status != MESSAGE_STATUS_OK)
+         {
+           goto error;
+         }
+
          free(data);
          data = NULL;
 
@@ -366,7 +375,16 @@ retry_cache_locking:
          /* Footer */
          data = pgexporter_append(data, "\r\n\r\n");
 
-         send_chunk(client_fd, data);
+         msg.kind = 0;
+         msg.length = strlen(data);
+         msg.data = data;
+
+         status = pgexporter_write_message(NULL, client_fd, &msg);
+         if (status != MESSAGE_STATUS_OK)
+         {
+           goto error;
+         }
+
          free(data);
          data = NULL;
       }
