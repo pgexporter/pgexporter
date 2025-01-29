@@ -2731,12 +2731,29 @@ as_endpoints(char* str, struct configuration* config)
        */
       if (sscanf(token, "%127[^:]:%5s", host, port) == 2)
       {
-         strncpy(config->endpoints[idx].host, host, MISC_LENGTH);
-         config->endpoints[idx].port = atoi(port);
+         bool found = false;
 
-         pgexporter_log_trace("Bridge Endpoint %d | Host: %s, Port: %s", idx, host, port);
+         for (int i = 0; i <= idx; i++)
+         {
+            if (!strcmp(config->endpoints[i].host, host) && config->endpoints[i].port == atoi(port))
+            {
+               found = true;
+            }
+         }
 
-         idx++;
+         if (!found)
+         {
+            strncpy(config->endpoints[idx].host, host, MISC_LENGTH);
+            config->endpoints[idx].port = atoi(port);
+
+            pgexporter_log_trace("Bridge Endpoint %d | Host: %s, Port: %s", idx, host, port);
+
+            idx++;
+         }
+         else
+         {
+            pgexporter_log_warn("Duplicated endpoint: %s:%s", host, port);
+         }
 
          memset(host, 0, sizeof(host));
          memset(port, 0, sizeof(port));
