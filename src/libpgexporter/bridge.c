@@ -373,7 +373,7 @@ retry_cache_locking:
          send_chunk(client_fd, cache->data);
 
          /* Footer */
-         data = pgexporter_append(data, "\r\n\r\n");
+         data = pgexporter_append(data, "0\r\n\r\n");
 
          msg.kind = 0;
          msg.length = strlen(data);
