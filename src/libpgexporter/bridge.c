@@ -901,6 +901,13 @@ retry_cache_locking:
       atomic_store(&cache->lock, STATE_FREE);
    }
 
+   if (pgexporter_log_is_enabled(PGEXPORTER_LOGGING_LEVEL_DEBUG5))
+   {
+      char *arts = pgexporter_art_to_string(bridge->metrics, FORMAT_JSON, NULL, 0);
+      pgexporter_log_trace("%s", arts);
+      free(arts);
+   }
+
    pgexporter_art_iterator_destroy(metrics_iterator);
 
    pgexporter_prometheus_client_destroy_bridge(bridge);
