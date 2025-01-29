@@ -356,7 +356,6 @@ retry_cache_locking:
                                    "Date: ", &time_buf[0], "\r\n",
                                    "Transfer-Encoding: chunked\r\n", "\r\n");
 
-
          send_chunk(client_fd, data);
          free(data);
          data = NULL;

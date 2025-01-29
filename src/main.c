@@ -87,8 +87,8 @@ static bool accept_fatal(int error);
 static bool reload_configuration(void);
 static int  create_pidfile(void);
 static void remove_pidfile(void);
-static int  create_lockfile(void);
-static void remove_lockfile(void);
+static int  create_lockfile(int port);
+static void remove_lockfile(int port);
 static void shutdown_ports(void);
 
 struct accept_io
@@ -119,11 +119,18 @@ static struct accept_io io_transfer;
 static void
 start_mgt(void)
 {
-   memset(&io_mgt, 0, sizeof(struct accept_io));
-   ev_io_init((struct ev_io*)&io_mgt, accept_mgt_cb, unix_management_socket, EV_READ);
-   io_mgt.socket = unix_management_socket;
-   io_mgt.argv = argv_ptr;
-   ev_io_start(main_loop, (struct ev_io*)&io_mgt);
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (config->metrics != -1)
+   {
+      memset(&io_mgt, 0, sizeof(struct accept_io));
+      ev_io_init((struct ev_io*)&io_mgt, accept_mgt_cb, unix_management_socket, EV_READ);
+      io_mgt.socket = unix_management_socket;
+      io_mgt.argv = argv_ptr;
+      ev_io_start(main_loop, (struct ev_io*)&io_mgt);
+   }
 }
 
 static void
@@ -133,21 +140,31 @@ shutdown_mgt(void)
 
    config = (struct configuration*)shmem;
 
-   ev_io_stop(main_loop, (struct ev_io*)&io_mgt);
-   pgexporter_disconnect(unix_management_socket);
-   errno = 0;
-   pgexporter_remove_unix_socket(config->unix_socket_dir, MAIN_UDS);
-   errno = 0;
+   if (config->metrics != -1)
+   {
+      ev_io_stop(main_loop, (struct ev_io*)&io_mgt);
+      pgexporter_disconnect(unix_management_socket);
+      errno = 0;
+      pgexporter_remove_unix_socket(config->unix_socket_dir, MAIN_UDS);
+      errno = 0;
+   }
 }
 
 static void
 start_transfer(void)
 {
-   memset(&io_transfer, 0, sizeof(struct accept_io));
-   ev_io_init((struct ev_io*)&io_transfer, accept_transfer_cb, unix_transfer_socket, EV_READ);
-   io_transfer.socket = unix_transfer_socket;
-   io_transfer.argv = argv_ptr;
-   ev_io_start(main_loop, (struct ev_io*)&io_transfer);
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (config->metrics != -1)
+   {
+      memset(&io_transfer, 0, sizeof(struct accept_io));
+      ev_io_init((struct ev_io*)&io_transfer, accept_transfer_cb, unix_transfer_socket, EV_READ);
+      io_transfer.socket = unix_transfer_socket;
+      io_transfer.argv = argv_ptr;
+      ev_io_start(main_loop, (struct ev_io*)&io_transfer);
+   }
 }
 
 static void
@@ -157,62 +174,93 @@ shutdown_transfer(void)
 
    config = (struct configuration*)shmem;
 
-   ev_io_stop(main_loop, (struct ev_io*)&io_transfer);
-   pgexporter_disconnect(unix_transfer_socket);
-   errno = 0;
-   pgexporter_remove_unix_socket(config->unix_socket_dir, TRANSFER_UDS);
-   errno = 0;
+   if (config->metrics != -1)
+   {
+      ev_io_stop(main_loop, (struct ev_io*)&io_transfer);
+      pgexporter_disconnect(unix_transfer_socket);
+      errno = 0;
+      pgexporter_remove_unix_socket(config->unix_socket_dir, TRANSFER_UDS);
+      errno = 0;
+   }
 }
 
 static void
 start_metrics(void)
 {
-   for (int i = 0; i < metrics_fds_length; i++)
-   {
-      int sockfd = *(metrics_fds + i);
+   struct configuration* config;
 
-      memset(&io_metrics[i], 0, sizeof(struct accept_io));
-      ev_io_init((struct ev_io*)&io_metrics[i], accept_metrics_cb, sockfd, EV_READ);
-      io_metrics[i].socket = sockfd;
-      io_metrics[i].argv = argv_ptr;
-      ev_io_start(main_loop, (struct ev_io*)&io_metrics[i]);
+   config = (struct configuration*)shmem;
+
+   if (config->metrics != -1)
+   {
+      for (int i = 0; i < metrics_fds_length; i++)
+      {
+         int sockfd = *(metrics_fds + i);
+
+         memset(&io_metrics[i], 0, sizeof(struct accept_io));
+         ev_io_init((struct ev_io*)&io_metrics[i], accept_metrics_cb, sockfd, EV_READ);
+         io_metrics[i].socket = sockfd;
+         io_metrics[i].argv = argv_ptr;
+         ev_io_start(main_loop, (struct ev_io*)&io_metrics[i]);
+      }
    }
 }
 
 static void
 shutdown_metrics(void)
 {
-   for (int i = 0; i < metrics_fds_length; i++)
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (config->metrics != -1)
    {
-      ev_io_stop(main_loop, (struct ev_io*)&io_metrics[i]);
-      pgexporter_disconnect(io_metrics[i].socket);
-      errno = 0;
+      for (int i = 0; i < metrics_fds_length; i++)
+      {
+         ev_io_stop(main_loop, (struct ev_io*)&io_metrics[i]);
+         pgexporter_disconnect(io_metrics[i].socket);
+         errno = 0;
+      }
    }
 }
 
 static void
 start_bridge(void)
 {
-   for (int i = 0; i < bridge_fds_length; i++)
-   {
-      int sockfd = *(bridge_fds + i);
+   struct configuration* config;
 
-      memset(&io_bridge[i], 0, sizeof(struct accept_io));
-      ev_io_init((struct ev_io*)&io_bridge[i], accept_bridge_cb, sockfd, EV_READ);
-      io_bridge[i].socket = sockfd;
-      io_bridge[i].argv = argv_ptr;
-      ev_io_start(main_loop, (struct ev_io*)&io_bridge[i]);
+   config = (struct configuration*)shmem;
+
+   if (config->bridge != -1)
+   {
+      for (int i = 0; i < bridge_fds_length; i++)
+      {
+         int sockfd = *(bridge_fds + i);
+
+         memset(&io_bridge[i], 0, sizeof(struct accept_io));
+         ev_io_init((struct ev_io*)&io_bridge[i], accept_bridge_cb, sockfd, EV_READ);
+         io_bridge[i].socket = sockfd;
+         io_bridge[i].argv = argv_ptr;
+         ev_io_start(main_loop, (struct ev_io*)&io_bridge[i]);
+      }
    }
 }
 
 static void
 shutdown_bridge(void)
 {
-   for (int i = 0; i < bridge_fds_length; i++)
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (config->bridge != -1)
    {
-      ev_io_stop(main_loop, (struct ev_io*)&io_bridge[i]);
-      pgexporter_disconnect(io_bridge[i].socket);
-      errno = 0;
+      for (int i = 0; i < bridge_fds_length; i++)
+      {
+         ev_io_stop(main_loop, (struct ev_io*)&io_bridge[i]);
+         pgexporter_disconnect(io_bridge[i].socket);
+         errno = 0;
+      }
    }
 }
 
@@ -567,6 +615,28 @@ main(int argc, char** argv)
    }
 
    config = (struct configuration*)shmem;
+
+   if (create_pidfile())
+   {
+      exit(1);
+   }
+
+   if (config->metrics != -1)
+   {
+      if (create_lockfile(config->metrics))
+      {
+         exit(1);
+      }
+   }
+
+   if (config->bridge != -1)
+   {
+      if (create_lockfile(config->bridge))
+      {
+         exit(1);
+      }
+   }
+
    if (yaml_path != NULL)
    {
       memcpy(config->metrics_path, yaml_path, MIN(strlen(yaml_path), MAX_PATH - 1));
@@ -617,16 +687,6 @@ main(int argc, char** argv)
       {
          exit(1);
       }
-   }
-
-   if (create_pidfile())
-   {
-      exit(1);
-   }
-
-   if (create_lockfile())
-   {
-      exit(1);
    }
 
    pgexporter_set_proc_title(argc, argv, "main", NULL);
@@ -700,11 +760,11 @@ main(int argc, char** argv)
       exit(1);
    }
 
-   start_transfer();
-   start_mgt();
-
    if (config->metrics > 0)
    {
+      start_transfer();
+      start_mgt();
+
       /* Bind metrics socket */
       if (pgexporter_bind(config->host, config->metrics, &metrics_fds, &metrics_fds_length))
       {
@@ -829,10 +889,17 @@ main(int argc, char** argv)
    pgexporter_close_connections();
 
    shutdown_management();
-   shutdown_metrics();
-   shutdown_bridge();
-   shutdown_mgt();
-   shutdown_transfer();
+   if (config->metrics != -1)
+   {
+      shutdown_metrics();
+      shutdown_mgt();
+      shutdown_transfer();
+   }
+
+   if (config->bridge != -1)
+   {
+      shutdown_bridge();
+   }
 
    for (int i = 0; i < 5; i++)
    {
@@ -846,14 +913,16 @@ main(int argc, char** argv)
    free(management_fds);
 
    remove_pidfile();
-   remove_lockfile();
+   remove_lockfile(config->metrics);
+   remove_lockfile(config->bridge);
 
    pgexporter_stop_logging();
 
    pgexporter_free_query_alts(config);
 
    pgexporter_destroy_shared_memory(shmem, shmem_size);
-   pgexporter_destroy_shared_memory(prometheus_cache_shmem, prometheus_cache_shmem_size);
+   pgexporter_destroy_shared_memory(prometheus_cache_shmem,
+                                    prometheus_cache_shmem_size);
 
    pgexporter_memory_destroy();
 
@@ -1619,21 +1688,26 @@ remove_pidfile(void)
 }
 
 static int
-create_lockfile(void)
+create_lockfile(int port)
 {
    char* f = NULL;
    int fd;
 
-   f = pgexporter_append(f, "/tmp/pgexporter.lock");
-
-   fd = open(f, O_WRONLY | O_CREAT | O_EXCL, 0644);
-   if (fd < 0)
+   if (port > 0)
    {
-      warn("Could not create lock file '%s'", f);
-      goto error;
-   }
+      f = pgexporter_append(f, "/tmp/pgexporter.");
+      f = pgexporter_append_int(f, port);
+      f = pgexporter_append(f, ".lock");
 
-   close(fd);
+      fd = open(f, O_WRONLY | O_CREAT | O_EXCL, 0644);
+      if (fd < 0)
+      {
+         warn("Could not create lock file '%s'", f);
+         goto error;
+      }
+
+      close(fd);
+   }
 
    free(f);
 
@@ -1647,13 +1721,18 @@ error:
 }
 
 static void
-remove_lockfile(void)
+remove_lockfile(int port)
 {
    char* f = NULL;
 
-   f = pgexporter_append(f, "/tmp/pgexporter.lock");
+   if (port > 0)
+   {
+      f = pgexporter_append(f, "/tmp/pgexporter.");
+      f = pgexporter_append_int(f, port);
+      f = pgexporter_append(f, ".lock");
 
-   unlink(f);
+      unlink(f);
+   }
 
    free(f);
 }

@@ -914,9 +914,9 @@ pgexporter_validate_configuration(void* shm)
       return 1;
    }
 
-   if (config->metrics == -1)
+   if (config->metrics == -1 && config->bridge == -1)
    {
-      pgexporter_log_fatal("pgexporter: No metrics defined");
+      pgexporter_log_fatal("pgexporter: No metrics nor bridge defined");
       return 1;
    }
 
