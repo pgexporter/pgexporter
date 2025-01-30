@@ -2144,6 +2144,98 @@ pgexporter_escape_string(char* str)
    return translated_ec_string;
 }
 
+char*
+pgexporter_remove_whitespace(char* orig)
+{
+   size_t length;
+   char c = 0;
+   char* result = NULL;
+
+   if (orig == NULL || strlen(orig) == 0)
+   {
+      return orig;
+   }
+
+   length = strlen(orig);
+
+   for (size_t i = 0; i < length; i++)
+   {
+      c = *(orig + i);
+      if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+      {
+         /* Skip */
+      }
+      else
+      {
+         result = pgexporter_append_char(result, c);
+      }
+   }
+
+   return result;
+}
+
+char*
+pgexporter_remove_prefix(char* orig, char* prefix)
+{
+   char* res = NULL;
+   int idx = 0;
+   int len1 = strlen(orig);
+   int len2 = strlen(prefix);
+   int len = 0;
+   if (orig == NULL)
+   {
+      return NULL;
+   }
+   // make a copy of the original one
+   if (prefix == NULL || !strcmp(orig, "") || !pgexporter_starts_with(orig, prefix))
+   {
+      res = pgexporter_append(res, orig);
+      return res;
+   }
+   while (idx < len1 && idx < len2)
+   {
+      if (orig[idx] == prefix[idx])
+      {
+         idx++;
+      }
+   }
+   len = len1 - idx + 1;
+   res = malloc(len);
+   res[len - 1] = 0;
+   if (len > 1)
+   {
+      strcpy(res, orig + idx);
+   }
+   return res;
+}
+
+char*
+pgexporter_remove_suffix(char* orig, char* suffix)
+{
+   char* new_str = NULL;
+   if (orig == NULL)
+   {
+      return new_str;
+   }
+
+   if (pgexporter_ends_with(orig, suffix))
+   {
+      new_str = (char*)malloc(strlen(orig) - strlen(suffix) + 1);
+
+      if (new_str != NULL)
+      {
+         memset(new_str, 0, strlen(orig) - strlen(suffix) + 1);
+         memcpy(new_str, orig, strlen(orig) - strlen(suffix));
+      }
+   }
+   else
+   {
+      new_str = pgexporter_append(new_str, orig);
+   }
+
+   return new_str;
+}
+
 bool
 pgexporter_is_number(char* str, int base)
 {

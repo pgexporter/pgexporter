@@ -678,6 +678,33 @@ bool
 pgexporter_ends_with(char* str, char* suffix);
 
 /**
+ * Remove whitespace from a string
+ * @param orig The original string
+ * @return The resulting string
+ */
+char *
+pgexporter_remove_whitespace(char *orig);
+
+/**
+ * Remove the prefix from orig
+ * @param orig The original string
+ * @param prefix The prefix string
+ * @return The resulting string
+ */
+char *
+pgexporter_remove_prefix(char *orig, char *prefix);
+
+/**
+ * Remove the suffix from orig, it makes a copy of orig if the suffix doesn't
+ * exist
+ * @param orig The original string
+ * @param suffix The suffix string
+ * @return The resulting string
+ */
+char *
+pgexporter_remove_suffix(char *orig, char *suffix);
+
+/**
  * Sort a string array
  * @param size The size of the array
  * @param array The array

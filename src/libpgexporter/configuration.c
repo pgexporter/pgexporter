@@ -2722,14 +2722,34 @@ as_endpoints(char* str, struct configuration* config)
 
    while (token != NULL && idx < NUMBER_OF_ENDPOINTS)
    {
-      /* TODO: trim, remove http(s)://, remove /metrics */
+      char* t = token;
+      char* n = NULL;
+
+      n = pgexporter_remove_whitespace(t);
+      t = n;
+
+      n = pgexporter_remove_prefix(t, "https://");
+      free(t);
+      t = n;
+
+      n = pgexporter_remove_prefix(t, "http://");
+      free(t);
+      t = n;
+
+      n = pgexporter_remove_suffix(t, "/metrics");
+      free(t);
+      t = n;
+
+      n = pgexporter_remove_suffix(t, "/");
+      free(t);
+      t = n;
 
       /*
        * Each endpoint is host:port.
        * Host is of length [0, 127].
        * Port is of length [0, 5] (16-bit unsigned integer).
        */
-      if (sscanf(token, "%127[^:]:%5s", host, port) == 2)
+      if (sscanf(t, "%127[^:]:%5s", host, port) == 2)
       {
          bool found = false;
 
@@ -2763,6 +2783,8 @@ as_endpoints(char* str, struct configuration* config)
          pgexporter_log_error("Error parsing endpoint: %s", token);
          goto error;
       }
+
+      free(t);
 
       token = strtok(NULL, ",");
    }
