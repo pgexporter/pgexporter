@@ -3,7 +3,7 @@
 pgexporter contains a bridge that can aggregate multiple Prometheus endpoints
 into a single endpoint.
 
-pgexporter can only in bridge-only mode where it only aggregates endpoints.
+pgexporter can run in bridge-only mode where it only aggregates endpoints.
 
 ## Configuration
 
