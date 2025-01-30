@@ -500,6 +500,16 @@ add_value(struct deque** values, time_t timestamp, char* value)
       goto error;
    }
 
+   if (pgexporter_deque_size(*values) >= 100)
+   {
+      struct prometheus_value* v = NULL;
+
+      v = (struct prometheus_value *)pgexporter_deque_poll(*values, NULL);
+
+      free(v->value);
+      free(v);
+   }
+
    pgexporter_deque_add_with_config(*values, NULL, (uintptr_t)val, &vc);
 
    return 0;
