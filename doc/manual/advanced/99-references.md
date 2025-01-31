@@ -43,6 +43,7 @@
   [t_custom_metrics]: https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/02_custom_metrics.md
   [t_grafana]: https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/03_grafana.md
   [t_tls]: https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/04_tls.md
+  [t_bridge]: https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/05_bridge.md
 <!-- doc/etc -->
   [sample]: https://github.com/pgexporter/pgexporter/blob/main/doc/etc/pgexporter.conf
 

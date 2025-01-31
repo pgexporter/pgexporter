@@ -57,6 +57,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/02_custom_metrics.md %{buildroot}%{_docdir}/%{name}/tutorial/02_custom_metrics.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/03_grafana.md %{buildroot}%{_docdir}/%{name}/tutorial/03_grafana.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/04_tls.md %{buildroot}%{_docdir}/%{name}/tutorial/04_tls.md
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/05_bridge.md %{buildroot}%{_docdir}/%{name}/tutorial/05_bridge.md
 
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/etc/pgexporter.conf %{buildroot}%{_sysconfdir}/pgexporter/pgexporter.conf
 
@@ -101,6 +102,7 @@ cd %{buildroot}%{_libdir}/
 %{_docdir}/%{name}/tutorial/02_custom_metrics.md
 %{_docdir}/%{name}/tutorial/03_grafana.md
 %{_docdir}/%{name}/tutorial/04_tls.md
+%{_docdir}/%{name}/tutorial/05_bridge.md
 %{_mandir}/man1/pgexporter.1*
 %{_mandir}/man1/pgexporter-admin.1*
 %{_mandir}/man1/pgexporter-cli.1*
