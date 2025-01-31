@@ -1,11 +1,11 @@
-# Bridge
+## Bridge
 
 pgexporter contains a bridge that can aggregate multiple Prometheus endpoints
 into a single endpoint.
 
 pgexporter can run in bridge-only mode where it only aggregates endpoints.
 
-## Configuration
+### Configuration
 
 In order to enable the bridge add the following to `pgexporter.conf`
 
@@ -19,7 +19,7 @@ bridge_endpoints = localhost:5001, localhost:5002
 The `bridge_endpoints` setting is a comma-separated list of endpoints that should
 be aggregated.
 
-## Access
+### Access
 
 The bridge acts a standard Prometheus endpoint, so you can access the bridge by
 
@@ -27,7 +27,7 @@ The bridge acts a standard Prometheus endpoint, so you can access the bridge by
 curl http://localhost:5003/metrics
 ```
 
-## Cache
+### Cache
 
 The bridge has a cache enabled by default.
 
