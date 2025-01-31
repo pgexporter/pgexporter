@@ -136,6 +136,7 @@ pgexporter_json_array_length(struct json* array);
  */
 int
 pgexporter_json_iterator_create(struct json* object, struct json_iterator** iter);
+
 /**
  * Get the next kv pair/entry from JSON object
  * @param iter The iterator
@@ -143,6 +144,14 @@ pgexporter_json_iterator_create(struct json* object, struct json_iterator** iter
  */
 bool
 pgexporter_json_iterator_next(struct json_iterator* iter);
+
+/**
+ * Check if the json iterator has next kv pair/entry without advancing it
+ * @param iter The iterator
+ * @return true if has next, false if otherwise
+ */
+bool
+pgexporter_json_iterator_has_next(struct json_iterator* iter);
 
 /**
  * Destroy a iterator

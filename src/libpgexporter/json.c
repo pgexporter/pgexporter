@@ -240,6 +240,25 @@ pgexporter_json_iterator_next(struct json_iterator* iter)
    return has_next;
 }
 
+bool
+pgexporter_json_iterator_has_next(struct json_iterator* iter)
+{
+   bool has_next = false;
+   if (iter == NULL || iter->iter == NULL)
+   {
+      return false;
+   }
+   if (iter->obj->type == JSONArray)
+   {
+      has_next = pgexporter_deque_iterator_has_next((struct deque_iterator*)iter->iter);
+   }
+   else
+   {
+      has_next = pgexporter_art_iterator_has_next((struct art_iterator*)iter->iter);
+   }
+   return has_next;
+}
+
 int
 pgexporter_json_parse_string(char* str, struct json** obj)
 {

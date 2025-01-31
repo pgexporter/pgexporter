@@ -203,6 +203,14 @@ bool
 pgexporter_deque_iterator_next(struct deque_iterator* iter);
 
 /**
+ * Check if deque iterator has next value without advancing it
+ * @param iter The iterator
+ * @return true if has next, false if otherwise
+ */
+bool
+pgexporter_deque_iterator_has_next(struct deque_iterator* iter);
+
+/**
  * Remove the current node iterator points to and place the iterator to the previous node
  * @param iter The iterator
  */

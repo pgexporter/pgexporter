@@ -1434,6 +1434,16 @@ pgexporter_art_iterator_next(struct art_iterator* iter)
    return false;
 }
 
+bool
+pgexporter_art_iterator_has_next(struct art_iterator* iter)
+{
+   if (iter == NULL || iter->tree == NULL)
+   {
+      return false;
+   }
+   return iter->count < iter->tree->size;
+}
+
 void
 pgexporter_art_iterator_destroy(struct art_iterator* iter)
 {
