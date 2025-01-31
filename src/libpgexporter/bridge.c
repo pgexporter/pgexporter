@@ -837,8 +837,6 @@ retry_cache_locking:
 
       while (pgexporter_deque_iterator_next(definition_iterator))
       {
-         int i = 0;
-         int number_of_attributes;
          struct deque_iterator* attributes_iterator = NULL;
          struct prometheus_attributes* attrs_data = (struct prometheus_attributes*)definition_iterator->value->data;
          struct prometheus_value* value_data = NULL;
@@ -847,8 +845,6 @@ retry_cache_locking:
          {
             goto error;
          }
-
-         number_of_attributes = pgexporter_deque_size(attrs_data->attributes);
 
          value_data = (struct prometheus_value*)pgexporter_deque_peek_last(attrs_data->values, NULL);
 
@@ -864,12 +860,10 @@ retry_cache_locking:
             data = pgexporter_append(data, attr_data->value);
             data = pgexporter_append_char(data, '\"');
 
-            if (i < number_of_attributes - 1)
+            if (pgexporter_deque_iterator_has_next(attributes_iterator))
             {
                data = pgexporter_append(data, ", ");
             }
-
-            i++;
          }
 
          data = pgexporter_append(data, "} ");
