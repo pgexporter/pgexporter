@@ -40,20 +40,30 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-static int metric_find_create(struct prometheus_bridge* bridge, char* name, struct prometheus_metric** metric);
+static int parse_body_to_bridge(int endpoint, time_t timestamp, char *body, struct prometheus_bridge *bridge);
+static int metric_find_create(struct prometheus_bridge *bridge, char *name, struct prometheus_metric **metric);
 static int metric_set_name(struct prometheus_metric* metric, char* name);
 static int metric_set_help(struct prometheus_metric* metric, char* help);
 static int metric_set_type(struct prometheus_metric* metric, char* type);
-static int add_definition(struct prometheus_metric* metric, struct deque** attr, struct deque** val);
-static int add_attribute(struct deque** attributes, char* key, char* value);
-static int add_value(struct deque** values, time_t timestamp, char* value);
+static bool attributes_contains(struct deque *attributes, struct prometheus_attribute *attribute);
+static int attributes_find_create(struct deque *definitions, struct deque *input, struct prometheus_attributes **attributes, bool *new);
+static int add_attribute(struct deque* attributes, char *key, char *value);
+static int add_value(struct deque* values, time_t timestamp, char *value);
 static int add_line(struct prometheus_metric* metric, char* line, int endpoint, time_t timestamp);
-static int parse_body_to_bridge(int endpoint, time_t timestamp, char* body, struct prometheus_bridge* bridge);
-static int parse_metric_line(struct prometheus_metric* metric, struct deque** attrs, struct deque** vals,
-                             char* line, int endpoint, time_t timestamp);
+
+static void  prometheus_metric_destroy_cb(uintptr_t data);
+static char* deque_string_cb(uintptr_t data, int32_t format, char* tag, int indent);
+static char* prometheus_metric_string_cb(uintptr_t data, int32_t format, char* tag, int indent);
+static void  prometheus_attributes_destroy_cb(uintptr_t data);
+static char* prometheus_attributes_string_cb(uintptr_t data, int32_t format, char* tag, int indent);
+static void  prometheus_value_destroy_cb(uintptr_t data);
+static char* prometheus_value_string_cb(uintptr_t data, int32_t format, char* tag, int indent);
+static void  prometheus_attribute_destroy_cb(uintptr_t data);
+static char* prometheus_attribute_string_cb(uintptr_t data, int32_t format, char* tag, int indent);
 
 int
 pgexporter_prometheus_client_create_bridge(struct prometheus_bridge** bridge)
@@ -311,100 +321,172 @@ metric_set_type(struct prometheus_metric* metric, char* type)
    return 0;
 }
 
-static int
-parse_metric_line(struct prometheus_metric* metric, struct deque** attrs,
-                  struct deque** vals, char* line, int endpoint, time_t timestamp)
+static bool
+attributes_contains(struct deque* attributes, struct prometheus_attribute* attribute)
 {
-   /* Metric lines are the ones that actually carry metrics, and not help or type. */
-   char* e = NULL;
-   char key[MISC_LENGTH] = {0};
-   char value[MISC_LENGTH] = {0};
-   char* token = NULL;
-   char* saveptr = NULL;
-   char* line_cpy = NULL;
-   struct configuration* config = NULL;
+   bool found = false;
+   struct deque_iterator *attributes_iterator = NULL;
 
-   config = (struct configuration*)shmem;
+   if (!pgexporter_deque_empty(attributes))
+   {
+      if (pgexporter_deque_iterator_create(attributes, &attributes_iterator))
+      {
+         goto done;
+      }
 
-   if (line == NULL)
+      while (!found && pgexporter_deque_iterator_next(attributes_iterator))
+      {
+         struct prometheus_attribute* a = (struct prometheus_attribute*)attributes_iterator->value->data;
+
+         if (!strcmp(a->key, attribute->key) && !strcmp(a->value, attribute->value))
+         {
+            found = true;
+         }
+      }
+   }
+
+done:
+
+   pgexporter_deque_iterator_destroy(attributes_iterator);
+
+   return found;
+}
+
+static void
+prometheus_attributes_destroy_cb(uintptr_t data)
+{
+   struct prometheus_attributes* m = NULL;
+
+   m = (struct prometheus_attributes*)data;
+
+   if (m != NULL)
+   {
+      pgexporter_deque_destroy(m->attributes);
+      pgexporter_deque_destroy(m->values);
+   }
+
+   free(m);
+}
+
+static char*
+prometheus_attributes_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+{
+   char* s = NULL;
+   struct art* a = NULL;
+   struct value_config vc = {.destroy_data = NULL,
+                             .to_string = &deque_string_cb};
+   struct prometheus_attributes* m = NULL;
+
+   m = (struct prometheus_attributes*)data;
+
+   if (pgexporter_art_create(&a))
    {
       goto error;
    }
 
-   line_cpy = strdup(line); /* strtok modifies the string. */
-   if (line_cpy == NULL)
+   if (m != NULL)
    {
-      goto error;
+      pgexporter_art_insert_with_config(a, (unsigned char*)"Attributes", strlen("Attributes"), (uintptr_t)m->attributes, &vc);
+      pgexporter_art_insert_with_config(a, (unsigned char*)"Values", strlen("Values"), (uintptr_t)m->values, &vc);
+
+      s = pgexporter_art_to_string(a, format, tag, indent);
    }
 
-   e = pgexporter_append(e, config->endpoints[endpoint].host);
-   e = pgexporter_append_char(e, ':');
-   e = pgexporter_append_int(e, config->endpoints[endpoint].port);
+   pgexporter_art_destroy(a);
 
-   if (add_attribute(attrs, "endpoint", e))
+   return s;
+
+error:
+
+   pgexporter_art_destroy(a);
+
+   return "Error";
+}
+
+static int
+attributes_find_create(struct deque* definitions, struct deque* input,
+                       struct prometheus_attributes** attributes, bool* new)
+{
+   bool found = false;
+   struct prometheus_attributes* m = NULL;
+   struct deque_iterator *definition_iterator = NULL;
+   struct deque_iterator *input_iterator = NULL;
+   struct value_config vc = {.destroy_data = &prometheus_attributes_destroy_cb,
+                             .to_string = &prometheus_attributes_string_cb};
+
+   *attributes = NULL;
+   *new = false;
+
+   /* We have to search for an existing definition */
+   if (!pgexporter_deque_empty(definitions))
    {
-      goto error;
+      if (pgexporter_deque_iterator_create(definitions, &definition_iterator))
+      {
+         goto error;
+      }
+
+      while (!found && pgexporter_deque_iterator_next(definition_iterator))
+      {
+         bool match = true;
+         struct prometheus_attributes *a =
+             (struct prometheus_attributes *)definition_iterator->value->data;
+
+         if (pgexporter_deque_iterator_create(input, &input_iterator))
+         {
+            goto error;
+         }
+
+         while (match && pgexporter_deque_iterator_next(input_iterator))
+         {
+            struct prometheus_attribute *i =  (struct prometheus_attribute*)input_iterator->value->data;
+
+            if (!attributes_contains(a->attributes, i))
+            {
+               match = false;
+            }
+         }
+
+         if (match)
+         {
+            *attributes = a;
+            found = true;
+         }
+
+         pgexporter_deque_iterator_destroy(input_iterator);
+         input_iterator = NULL;
+      }
    }
 
-   /* Lines of the form:
-    *
-    * type{key1="value1",key2="value2",...} value
-    *
-    * Tokenizing on a " " will give the value on second call.
-    * The first token can be further tokenized on "{,}".
-    */
-
-   token = strtok_r(line_cpy, "{,} ", &saveptr);
-
-   while (token != NULL)
+   /* Ok, create a new one */
+   if (!found)
    {
-      if (token == line_cpy)
+      m = (struct prometheus_attributes*)malloc(sizeof (struct prometheus_attributes));
+      if (m == NULL)
       {
-         /* First token is the name of the metric. So just a sanity check. */
-
-         if (strncmp(token, metric->name, strlen(metric->name)))
-         {
-            goto error;
-         }
-      }
-      else if (*saveptr == '\0')
-      {
-         /* Final token. */
-         if (add_value(vals, timestamp, token))
-         {
-            goto error;
-         }
-      }
-      else if (strlen(token) > 0)
-      {
-         /* Assuming of the form key="value" */
-
-         sscanf(token, "%127[^=]", key);
-         sscanf(token + strlen(key) + 2, "%127[^\"]", value);
-
-         if (strlen(key) == 0 || strlen(value) == 0)
-         {
-            goto error;
-         }
-
-         if (add_attribute(attrs, key, value))
-         {
-            goto error;
-         }
+         goto error;
       }
 
-      token = strtok_r(NULL, "{,} ", &saveptr);
+      if (pgexporter_deque_create(false, &m->values))
+      {
+         goto error;
+      }
+
+      m->attributes = input;
+
+      if (pgexporter_deque_add_with_config(definitions, NULL, (uintptr_t)m, &vc))
+      {
+         goto error;
+      }
+
+      *attributes = m;
+      *new = true;
    }
 
-   free(e);
-   free(line_cpy);
+   pgexporter_deque_iterator_destroy(definition_iterator);
 
    return 0;
 
 error:
-
-   free(e);
-   free(line_cpy);
 
    return 1;
 }
@@ -458,10 +540,8 @@ error:
 }
 
 static int
-add_value(struct deque** values, time_t timestamp, char* value)
+add_value(struct deque* values, time_t timestamp, char* value)
 {
-   bool new = false;
-   struct deque* vals = NULL;
    struct value_config vc = {.destroy_data = &prometheus_value_destroy_cb,
                              .to_string = &prometheus_value_string_cb};
    struct prometheus_value* val = NULL;
@@ -472,45 +552,25 @@ add_value(struct deque** values, time_t timestamp, char* value)
       goto error;
    }
 
-   vals = *values;
-
-   if (vals == NULL)
-   {
-      pgexporter_deque_create(true, &vals);
-
-      if (vals == NULL)
-      {
-         goto error;
-      }
-
-      *values = vals;
-      new = true;
-   }
-
    val->timestamp = timestamp;
    val->value = strdup(value);
 
    if (val->value == NULL)
    {
-      if (new)
-      {
-         pgexporter_deque_destroy(vals);
-         *values = NULL;
-      }
       goto error;
    }
 
-   if (pgexporter_deque_size(*values) >= 100)
+   if (pgexporter_deque_size(values) >= 100)
    {
       struct prometheus_value* v = NULL;
 
-      v = (struct prometheus_value *)pgexporter_deque_poll(*values, NULL);
+      v = (struct prometheus_value *)pgexporter_deque_poll(values, NULL);
 
       free(v->value);
       free(v);
    }
 
-   pgexporter_deque_add_with_config(*values, NULL, (uintptr_t)val, &vc);
+   pgexporter_deque_add_with_config(values, NULL, (uintptr_t)val, &vc);
 
    return 0;
 
@@ -575,14 +635,11 @@ error:
 }
 
 static int
-add_attribute(struct deque** attributes, char* key, char* value)
+add_attribute(struct deque* attributes, char *key, char *value)
 {
-   struct deque* attrs = NULL;
+   struct prometheus_attribute *attr = NULL;
    struct value_config vc = {.destroy_data = &prometheus_attribute_destroy_cb,
                              .to_string = &prometheus_attribute_string_cb};
-   struct prometheus_attribute* attr = NULL;
-
-   attrs = *attributes;
 
    attr = (struct prometheus_attribute*)malloc(sizeof(struct prometheus_attribute));
    if (attr == NULL)
@@ -590,18 +647,6 @@ add_attribute(struct deque** attributes, char* key, char* value)
       goto error;
    }
    memset(attr, 0, sizeof(struct prometheus_attribute));
-
-   if (attrs == NULL)
-   {
-      pgexporter_deque_create(true, &attrs);
-
-      if (attrs == NULL)
-      {
-         goto error;
-      }
-
-      *attributes = attrs;
-   }
 
    attr->key = strdup(key);
    if (attr->key == NULL)
@@ -615,13 +660,11 @@ add_attribute(struct deque** attributes, char* key, char* value)
       goto error;
    }
 
-   pgexporter_deque_add_with_config(attrs, NULL, (uintptr_t) attr, &vc);
+   pgexporter_deque_add_with_config(attributes, NULL, (uintptr_t) attr, &vc);
 
    return 0;
 
 error:
-
-   pgexporter_deque_destroy(attrs);
 
    if (attr != NULL)
    {
@@ -633,136 +676,123 @@ error:
    return 1;
 }
 
-static void
-prometheus_attributes_destroy_cb(uintptr_t data)
-{
-   struct prometheus_attributes* m = NULL;
-
-   m = (struct prometheus_attributes*)data;
-
-   if (m != NULL)
-   {
-      pgexporter_deque_destroy(m->attributes);
-      pgexporter_deque_destroy(m->values);
-   }
-
-   free(m);
-}
-
-static char*
-prometheus_attributes_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
-{
-   char* s = NULL;
-   struct art* a = NULL;
-   struct value_config vc = {.destroy_data = NULL,
-                             .to_string = &deque_string_cb};
-   struct prometheus_attributes* m = NULL;
-
-   m = (struct prometheus_attributes*)data;
-
-   if (pgexporter_art_create(&a))
-   {
-      goto error;
-   }
-
-   if (m != NULL)
-   {
-      pgexporter_art_insert_with_config(a, (unsigned char*)"Attributes", strlen("Attributes"), (uintptr_t)m->attributes, &vc);
-      pgexporter_art_insert_with_config(a, (unsigned char*)"Values", strlen("Values"), (uintptr_t)m->values, &vc);
-
-      s = pgexporter_art_to_string(a, format, tag, indent);
-   }
-
-   pgexporter_art_destroy(a);
-
-   return s;
-
-error:
-
-   pgexporter_art_destroy(a);
-
-   return "Error";
-}
-
-static int
-add_definition(struct prometheus_metric* metric, struct deque** attr, struct deque** val)
-{
-   struct deque* attrs = NULL;
-   struct deque* vals = NULL;
-   struct value_config vc = {.destroy_data = &prometheus_attributes_destroy_cb,
-                             .to_string = &prometheus_attributes_string_cb};
-   struct prometheus_attributes* def = NULL;
-
-   if (attr == NULL || val == NULL || metric == NULL)
-   {
-      pgexporter_log_error("Something is NULL");
-      goto errout;
-   }
-
-   attrs = *attr;
-   vals = *val;
-
-   def = malloc(sizeof(*def));
-   if (def == NULL)
-   {
-      goto errout;
-   }
-
-   if (metric->definitions == NULL)
-   {
-      pgexporter_deque_create(true, &metric->definitions);
-   }
-
-   def->attributes = attrs;
-   def->values = vals;
-
-   *attr = NULL;
-   *val = NULL;
-
-   if (pgexporter_deque_add_with_config(metric->definitions, NULL, (uintptr_t) def, &vc))
-   {
-      goto errout_with_def;
-   }
-
-   return 0;
-
-errout_with_def:
-   pgexporter_deque_destroy(def->attributes);
-   def->attributes = NULL;
-
-   pgexporter_deque_destroy(def->values);
-   def->values = NULL;
-
-   free(def);
-   def = NULL;
-
-errout:
-   return 1;
-}
-
 static int
 add_line(struct prometheus_metric* metric, char* line, int endpoint, time_t timestamp)
 {
-   struct deque* attrs = NULL;
-   struct deque* vals = NULL;
+   char* e = NULL;
+   char key[MISC_LENGTH] = {0};
+   char value[MISC_LENGTH] = {0};
+   char* token = NULL;
+   char* saveptr = NULL;
+   char* line_cpy = NULL;
+   bool new = false;
+   char* line_value = NULL;
+   struct deque* line_attrs = NULL;
+   struct prometheus_attributes * attributes = NULL;
+   struct configuration *config = NULL;
 
-   // attr and val are allocated here.
-   if (parse_metric_line(metric, &attrs, &vals, line, endpoint, timestamp))
+   config = (struct configuration *)shmem;
+
+   if (line == NULL)
    {
       goto error;
    }
 
-   // attr and val have their ownership transferred.
-   if (add_definition(metric, &attrs, &vals))
+   line_cpy = strdup(line); /* strtok modifies the string. */
+   if (line_cpy == NULL)
    {
       goto error;
    }
+
+   if (pgexporter_deque_create(false, &line_attrs))
+   {
+      goto error;
+   }
+
+   e = pgexporter_append(e, config->endpoints[endpoint].host);
+   e = pgexporter_append_char(e, ':');
+   e = pgexporter_append_int(e, config->endpoints[endpoint].port);
+
+   if (add_attribute(line_attrs, "endpoint", e))
+   {
+      goto error;
+   }
+
+   /* Lines of the form:
+    *
+    * type{key1="value1",key2="value2",...} value
+    *
+    * Tokenizing on a " " will give the value on second call.
+    * The first token can be further tokenized on "{,}".
+    */
+
+   token = strtok_r(line_cpy, "{,} ", &saveptr);
+
+   while (token != NULL)
+   {
+      if (token == line_cpy)
+      {
+         /* First token is the name of the metric. So just a sanity check. */
+         if (strncmp(token, metric->name, strlen(metric->name)))
+         {
+            goto error;
+         }
+      }
+      else if (*saveptr == '\0')
+      {
+         /* Final token. */
+         line_value = strdup(token);
+      }
+      else if (strlen(token) > 0)
+      {
+         /* Assuming of the form key="value" */
+         sscanf(token, "%127[^=]", key);
+         sscanf(token + strlen(key) + 2, "%127[^\"]", value);
+
+         if (strlen(key) == 0 || strlen(value) == 0)
+         {
+            goto error;
+         }
+
+         if (add_attribute(line_attrs, key, value))
+         {
+            goto error;
+         }
+      }
+
+      token = strtok_r(NULL, "{,} ", &saveptr);
+   }
+
+   if (attributes_find_create(metric->definitions, line_attrs, &attributes, &new))
+   {
+      goto error;
+   }
+
+   pgexporter_log_info("Attributes: %p %p", attributes, attributes != NULL ? attributes->attributes : 0);
+
+   if (add_value(attributes->values, timestamp, line_value))
+   {
+      goto error;
+   }
+
+   if (!new)
+   {
+      pgexporter_deque_destroy(line_attrs);
+   }
+
+   free(e);
+   free(line_cpy);
+   free(line_value);
 
    return 0;
 
 error:
-   pgexporter_deque_destroy(attrs);
-   pgexporter_deque_destroy(vals);
+
+   pgexporter_deque_destroy(line_attrs);
+
+   free(e);
+   free(line_cpy);
+   free(line_value);
 
    return 1;
 }
@@ -807,7 +837,6 @@ parse_body_to_bridge(int endpoint, time_t timestamp, char* body, struct promethe
          {
             sscanf(line + 6, "%127s %127[^\n]", name, type);
             metric_set_type(metric, type);
-            // assert(!strcmp(metric->name, name));
          }
          else
          {
