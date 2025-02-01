@@ -65,10 +65,17 @@ bridge_cache_max_age
 
 bridge_cache_max_size
   The maximum amount of data to keep in cache when serving Prometheus responses. Changes require restart.
-  This parameter determines the size of memory allocated for the cache even if bridge_cache_max_age or
-  bridge are disabled. Its value, however, is taken into account only if bridge_cache_max_age is set
-  to a non-zero value. Supports suffixes: B (bytes), the default if omitted, K or KB (kilobytes),
-  M or MB (megabytes), G or GB (gigabytes).
+  If set to zero, the caching will be disabled. Supports suffixes: B (bytes), the default if omitted,
+  K or KB (kilobytes), M or MB (megabytes), G or GB (gigabytes).
+  Default is 10M
+
+bridge_json
+  The bridge JSON port
+
+bridge_json_cache_max_size
+  The maximum amount of data to keep in cache when serving Prometheus JSON responses. Changes require restart.
+  If set to zero, the caching will be disabled. Supports suffixes: B (bytes), the default if omitted,
+  K or KB (kilobytes), M or MB (megabytes), G or GB (gigabytes).
   Default is 10M
 
 management

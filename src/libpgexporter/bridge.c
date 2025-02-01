@@ -72,7 +72,12 @@ static bool bridge_cache_finalize(void);
 static size_t bridge_cache_size_to_alloc(void);
 static void bridge_cache_invalidate(void);
 
+static bool is_bridge_json_cache_configured(void);
+static bool bridge_json_cache_set(char* data);
+static size_t bridge_json_cache_size_to_alloc(void);
+
 static void bridge_metrics(int client_fd);
+static void bridge_json_metrics(int client_fd);
 
 void
 pgexporter_bridge(int client_fd)
@@ -104,6 +109,60 @@ pgexporter_bridge(int client_fd)
    else if (page == PAGE_METRICS)
    {
       metrics_page(client_fd);
+   }
+   else if (page == PAGE_UNKNOWN)
+   {
+      unknown_page(client_fd);
+   }
+   else
+   {
+      bad_request(client_fd);
+   }
+
+   pgexporter_disconnect(client_fd);
+
+   pgexporter_memory_destroy();
+   pgexporter_stop_logging();
+
+   exit(0);
+
+error:
+
+   badrequest_page(client_fd);
+
+   pgexporter_disconnect(client_fd);
+
+   pgexporter_memory_destroy();
+   pgexporter_stop_logging();
+
+   exit(1);
+}
+
+void
+pgexporter_bridge_json(int client_fd)
+{
+   int status;
+   int page;
+   struct message* msg = NULL;
+   struct configuration* config;
+
+   pgexporter_start_logging();
+   pgexporter_memory_init();
+
+   config = (struct configuration*)shmem;
+
+   status = pgexporter_read_timeout_message(NULL, client_fd, config->authentication_timeout, &msg);
+
+   if (status != MESSAGE_STATUS_OK)
+   {
+      goto error;
+   }
+
+   page = resolve_page(msg);
+
+   if (page == PAGE_HOME || page == PAGE_METRICS)
+   {
+      bridge_json_metrics(client_fd);
    }
    else if (page == PAGE_UNKNOWN)
    {
@@ -363,7 +422,7 @@ retry_cache_locking:
          status = pgexporter_write_message(NULL, client_fd, &msg);
          if (status != MESSAGE_STATUS_OK)
          {
-           goto error;
+            goto error;
          }
 
          free(data);
@@ -382,7 +441,7 @@ retry_cache_locking:
          status = pgexporter_write_message(NULL, client_fd, &msg);
          if (status != MESSAGE_STATUS_OK)
          {
-           goto error;
+            goto error;
          }
 
          free(data);
@@ -546,12 +605,13 @@ is_bridge_cache_configured(void)
    config = (struct configuration*)shmem;
 
    // cannot have caching if not set bridge!
-   if (config->bridge == 0)
+   if (config->bridge <= 0)
    {
       return false;
    }
 
-   return config->bridge_cache_max_age != PROMETHEUS_BRIDGE_CACHE_DISABLED;
+   return config->bridge_cache_max_age != PROMETHEUS_BRIDGE_CACHE_DISABLED &&
+          config->bridge_cache_max_size != PROMETHEUS_BRIDGE_CACHE_DISABLED;
 }
 
 /**
@@ -709,10 +769,10 @@ bridge_cache_append(char* data)
    if (origin_length + append_length >= cache->size)
    {
       // cannot append new data, so invalidate cache
-      pgexporter_log_debug("Cannot append %d bytes to the Prometheus cache because it will overflow the size of %d bytes (currently at %d bytes). HINT: try adjusting `bridge_cache_max_size`",
-                           append_length,
-                           cache->size,
-                           origin_length);
+      pgexporter_log_warn("Cannot append %d bytes to the Prometheus cache because it will overflow the size of %d bytes (currently at %d bytes). HINT: try adjusting `bridge_cache_max_size`",
+                          append_length,
+                          cache->size,
+                          origin_length);
       bridge_cache_invalidate();
       return false;
    }
@@ -753,20 +813,154 @@ bridge_cache_finalize(void)
    return cache->valid_until > now;
 }
 
+/**
+ * Checks if the Prometheus cache configuration setting
+ * (`bridge_json_cache`) has a non-zero value, that means there
+ * are seconds to cache the response.
+ *
+ * @return true if there is a cache configuration,
+ *         false if no cache is active
+ */
+static bool
+is_bridge_json_cache_configured(void)
+{
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   // cannot have caching if not set bridge_json!
+   if (config->bridge_json <= 0)
+   {
+      return false;
+   }
+
+   return true;
+}
+
+int
+pgexporter_bridge_json_init_cache(size_t* p_size, void** p_shmem)
+{
+   struct prometheus_cache* cache;
+   struct configuration* config;
+   size_t cache_size = 0;
+   size_t struct_size = 0;
+
+   config = (struct configuration*)shmem;
+
+   // first of all, allocate the overall cache structure
+   cache_size = bridge_json_cache_size_to_alloc();
+   struct_size = sizeof(struct prometheus_cache);
+
+   if (pgexporter_create_shared_memory(struct_size + cache_size, config->hugepage, (void*) &cache))
+   {
+      goto error;
+   }
+
+   memset(cache, 0, struct_size + cache_size);
+   cache->valid_until = 0;
+   cache->size = cache_size;
+   atomic_init(&cache->lock, STATE_FREE);
+
+   // success! do the memory swap
+   *p_shmem = cache;
+   *p_size = cache_size + struct_size;
+   return 0;
+
+error:
+   // disable caching
+   config->bridge_json_cache_max_size = PROMETHEUS_BRIDGE_CACHE_DISABLED;
+   pgexporter_log_error("Cannot allocate shared memory for the Prometheus cache!");
+   *p_size = 0;
+   *p_shmem = NULL;
+
+   return 1;
+}
+
+/**
+ * Provides the size of the cache to allocate.
+ *
+ * It checks if the bridge_json cache is configured, and
+ * computers the right minimum value between the
+ * user configured requested size and the default
+ * cache size.
+ *
+ * @return the cache size to allocate
+ */
+static size_t
+bridge_json_cache_size_to_alloc(void)
+{
+   struct configuration* config;
+   size_t cache_size = 0;
+
+   config = (struct configuration*)shmem;
+
+   // which size to use ?
+   // either the configured (i.e., requested by user) if lower than the max size
+   // or the default value
+   if (is_bridge_json_cache_configured())
+   {
+      cache_size = config->bridge_json_cache_max_size;
+
+      if (cache_size > 0)
+      {
+         cache_size = MIN(config->bridge_json_cache_max_size, PROMETHEUS_MAX_BRIDGE_JSON_CACHE_SIZE);
+      }
+   }
+
+   return cache_size;
+}
+
+/**
+ * Set data to the cache.
+ *
+ * Requires the caller to hold the lock on the cache!
+ *
+ * @param data the string to append to the cache
+ * @return true on success
+ */
+static bool
+bridge_json_cache_set(char* data)
+{
+   struct prometheus_cache* cache;
+
+   cache = (struct prometheus_cache*)bridge_json_cache_shmem;
+
+   if (!is_bridge_json_cache_configured())
+   {
+      return false;
+   }
+
+   memset(cache->data, 0, cache->size);
+
+   if (strlen(data) < cache->size)
+   {
+      memcpy(cache->data, data, strlen(data));
+   }
+   else
+   {
+      pgexporter_log_warn("Bridge/JSON: The data won't fit - %lld > %lld", strlen(data), cache->size);
+   }
+
+   return true;
+}
+
 static void
 bridge_metrics(int client_fd)
 {
    time_t start_time;
    int dt;
    signed char cache_is_free;
+   signed char cache_json_is_free;
    char* data = NULL;
    struct prometheus_bridge* bridge = NULL;
    struct art_iterator* metrics_iterator = NULL;
    struct prometheus_cache* cache;
+   struct prometheus_cache* cache_json;
    struct configuration* config = NULL;
 
    config = (struct configuration*)shmem;
    cache = (struct prometheus_cache*)bridge_cache_shmem;
+   cache_json = (struct prometheus_cache*)bridge_json_cache_shmem;
 
    if (pgexporter_prometheus_client_create_bridge(&bridge))
    {
@@ -790,6 +984,7 @@ bridge_metrics(int client_fd)
    }
 
    cache_is_free = STATE_FREE;
+   cache_json_is_free = STATE_FREE;
 
    start_time = time(NULL);
 
@@ -799,6 +994,22 @@ retry_cache_locking:
       if (atomic_compare_exchange_strong(&cache->lock, &cache_is_free, STATE_IN_USE))
       {
          bridge_cache_invalidate();
+
+         if (is_bridge_json_cache_configured())
+         {
+retry_cache_json_locking:
+            if (!atomic_compare_exchange_strong(&cache_json->lock, &cache_json_is_free, STATE_IN_USE))
+            {
+               dt = (int)difftime(time(NULL), start_time);
+               if (dt >= (config->blocking_timeout > 0 ? config->blocking_timeout : 30))
+               {
+                  goto error;
+               }
+
+               /* Sleep for 10ms */
+               SLEEP_AND_GOTO(10000000L, retry_cache_json_locking);
+            }
+         }
       }
       else
       {
@@ -889,17 +1100,23 @@ retry_cache_locking:
       data = NULL;
    }
 
+   if (is_bridge_json_cache_configured())
+   {
+      char* arts = pgexporter_art_to_string(bridge->metrics, FORMAT_JSON, NULL, 0);
+      bridge_json_cache_set(arts);
+      pgexporter_log_trace("%s", arts);
+      free(arts);
+   }
+
    if (is_bridge_cache_configured())
    {
       bridge_cache_finalize();
       atomic_store(&cache->lock, STATE_FREE);
-   }
 
-   if (pgexporter_log_is_enabled(PGEXPORTER_LOGGING_LEVEL_DEBUG5))
-   {
-      char *arts = pgexporter_art_to_string(bridge->metrics, FORMAT_JSON, NULL, 0);
-      pgexporter_log_trace("%s", arts);
-      free(arts);
+      if (is_bridge_json_cache_configured())
+      {
+         atomic_store(&cache_json->lock, STATE_FREE);
+      }
    }
 
    pgexporter_art_iterator_destroy(metrics_iterator);
@@ -913,4 +1130,106 @@ error:
    pgexporter_art_iterator_destroy(metrics_iterator);
 
    pgexporter_prometheus_client_destroy_bridge(bridge);
+}
+
+static void
+bridge_json_metrics(int client_fd)
+{
+   char* data = NULL;
+   time_t start_time;
+   int dt;
+   char time_buf[32];
+   int status;
+   struct message msg;
+   struct prometheus_cache* cache;
+   signed char cache_is_free;
+   struct configuration* config = NULL;
+
+   config = (struct configuration*)shmem;
+   cache = (struct prometheus_cache*)bridge_json_cache_shmem;
+
+   cache_is_free = STATE_FREE;
+
+   start_time = time(NULL);
+
+   memset(&msg, 0, sizeof(struct message));
+   memset(&data, 0, sizeof(data));
+
+   memset(&time_buf, 0, sizeof(time_buf));
+   ctime_r(&start_time, &time_buf[0]);
+   time_buf[strlen(time_buf) - 1] = 0;
+
+retry_cache_locking:
+   if (is_bridge_json_cache_configured())
+   {
+      if (!atomic_compare_exchange_strong(&cache->lock, &cache_is_free, STATE_IN_USE))
+      {
+         dt = (int)difftime(time(NULL), start_time);
+         if (dt >= (config->blocking_timeout > 0 ? config->blocking_timeout : 30))
+         {
+            goto error;
+         }
+
+         /* Sleep for 10ms */
+         SLEEP_AND_GOTO(10000000L, retry_cache_locking);
+      }
+
+      /* Header */
+      data = pgexporter_vappend(data, 7,
+                                "HTTP/1.1 200 OK\r\n",
+                                "Content-Type: text/plain; charset=utf-8\r\n",
+                                "Date: ", &time_buf[0], "\r\n",
+                                "Transfer-Encoding: chunked\r\n", "\r\n");
+
+      msg.kind = 0;
+      msg.length = strlen(data);
+      msg.data = data;
+
+      status = pgexporter_write_message(NULL, client_fd, &msg);
+      if (status != MESSAGE_STATUS_OK)
+      {
+         goto error;
+      }
+
+      free(data);
+      data = NULL;
+
+      /* Cache */
+      if (strlen(cache->data) > 0)
+      {
+         send_chunk(client_fd, cache->data);
+      }
+      else
+      {
+         send_chunk(client_fd, "{\n}\n");
+      }
+
+      /* Footer */
+      data = pgexporter_append(data, "0\r\n\r\n");
+
+      msg.kind = 0;
+      msg.length = strlen(data);
+      msg.data = data;
+
+      status = pgexporter_write_message(NULL, client_fd, &msg);
+      if (status != MESSAGE_STATUS_OK)
+      {
+         goto error;
+      }
+
+      free(data);
+      data = NULL;
+
+      atomic_store(&cache->lock, STATE_FREE);
+   }
+   else
+   {
+      goto error;
+   }
+
+   return;
+
+error:
+
+   pgexporter_log_error("bridge_json_metrics called");
 }

@@ -682,8 +682,8 @@ pgexporter_ends_with(char* str, char* suffix);
  * @param orig The original string
  * @return The resulting string
  */
-char *
-pgexporter_remove_whitespace(char *orig);
+char*
+pgexporter_remove_whitespace(char* orig);
 
 /**
  * Remove the prefix from orig
@@ -691,8 +691,8 @@ pgexporter_remove_whitespace(char *orig);
  * @param prefix The prefix string
  * @return The resulting string
  */
-char *
-pgexporter_remove_prefix(char *orig, char *prefix);
+char*
+pgexporter_remove_prefix(char* orig, char* prefix);
 
 /**
  * Remove the suffix from orig, it makes a copy of orig if the suffix doesn't
@@ -701,8 +701,8 @@ pgexporter_remove_prefix(char *orig, char *prefix);
  * @param suffix The suffix string
  * @return The resulting string
  */
-char *
-pgexporter_remove_suffix(char *orig, char *suffix);
+char*
+pgexporter_remove_suffix(char* orig, char* suffix);
 
 /**
  * Sort a string array

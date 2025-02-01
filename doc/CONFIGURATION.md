@@ -31,7 +31,9 @@ See a [sample](./etc/pgexporter.conf) configuration for running `pgexporter` on 
 | bridge | | Int | No | The bridge port |
 | bridge_endpoints | | String | No | A comma-separated list of bridge endpoints specified by host:port |
 | bridge_cache_max_age | `5m` | String | No | The number of seconds to keep in cache a Prometheus (metrics) response. If set to zero, the caching will be disabled. Can be a string with a suffix, like `2m` to indicate 2 minutes |
-| bridge_cache_max_size | `10M` | String | No | The maximum amount of data to keep in cache when serving bridge responses. Changes require restart. This parameter determines the size of memory allocated for the cache even if `bridge_cache_max_age` or `bridge` are disabled. Its value, however, is taken into account only if `bridge_cache_max_age` is set to a non-zero value. Supports suffixes: 'B' (bytes), the default if omitted, 'K' or 'KB' (kilobytes), 'M' or 'MB' (megabytes), 'G' or 'GB' (gigabytes).|
+| bridge_cache_max_size | `10M` | String | No | The maximum amount of data to keep in cache when serving bridge responses. Changes require restart. If set to zero, the caching will be disabled. Supports suffixes: 'B' (bytes), the default if omitted, 'K' or 'KB' (kilobytes), 'M' or 'MB' (megabytes), 'G' or 'GB' (gigabytes).|
+| bridge_json | | Int | No | The bridge JSON port |
+| bridge_json_cache_max_size | `10M` | String | No | The maximum amount of data to keep in cache when serving bridge JSON responses. Changes require restart. Supports suffixes: 'B' (bytes), the default if omitted, 'K' or 'KB' (kilobytes), 'M' or 'MB' (megabytes), 'G' or 'GB' (gigabytes).|
 | management | 0 | Int | No | The remote management port (disable = 0) |
 | cache | `on` | Bool | No | Cache connection |
 | log_type | console | String | No | The logging type (console, file, syslog) |

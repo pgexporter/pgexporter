@@ -207,6 +207,12 @@ extern void* prometheus_cache_shmem;
  */
 extern void* bridge_cache_shmem;
 
+/**
+ * Shared memory used to contain the bridge JSON
+ * response cache.
+ */
+extern void* bridge_json_cache_shmem;
+
 /** @struct server
  * Defines a server
  */
@@ -336,9 +342,11 @@ struct configuration
    size_t metrics_cache_max_size; /**< Number of bytes max to cache the Prometheus response */
    int management;                /**< The management port */
 
-   int bridge;                   /**< The bridge port */
-   int bridge_cache_max_age;     /**< Number of seconds to cache the bridge response */
-   size_t bridge_cache_max_size; /**< Number of bytes max to cache the bridge response */
+   int bridge;                        /**< The bridge port */
+   int bridge_cache_max_age;          /**< Number of seconds to cache the bridge response */
+   size_t bridge_cache_max_size;      /**< Number of bytes max to cache the bridge response */
+   int bridge_json;                   /**< The bridge port */
+   size_t bridge_json_cache_max_size; /**< Number of bytes max to cache the bridge response */
 
    bool cache;  /**< Cache connection */
 

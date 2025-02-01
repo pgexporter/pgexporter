@@ -79,6 +79,7 @@ static void accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int reven
 static void accept_transfer_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
 static void accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
 static void accept_bridge_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
+static void accept_bridge_json_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
 static void accept_management_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
 static void shutdown_cb(struct ev_loop* loop, ev_signal* w, int revents);
 static void reload_cb(struct ev_loop* loop, ev_signal* w, int revents);
@@ -111,6 +112,9 @@ static int metrics_fds_length = -1;
 static struct accept_io io_bridge[MAX_FDS];
 static int* bridge_fds = NULL;
 static int bridge_fds_length = -1;
+static struct accept_io io_bridge_json[MAX_FDS];
+static int* bridge_json_fds = NULL;
+static int bridge_json_fds_length = -1;
 static struct accept_io io_management[MAX_FDS];
 static int* management_fds = NULL;
 static int management_fds_length = -1;
@@ -265,6 +269,46 @@ shutdown_bridge(void)
 }
 
 static void
+start_bridge_json(void)
+{
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (config->bridge != -1 && config->bridge_json != -1)
+   {
+      for (int i = 0; i < bridge_json_fds_length; i++)
+      {
+         int sockfd = *(bridge_json_fds + i);
+
+         memset(&io_bridge_json[i], 0, sizeof(struct accept_io));
+         ev_io_init((struct ev_io*)&io_bridge_json[i], accept_bridge_json_cb, sockfd, EV_READ);
+         io_bridge_json[i].socket = sockfd;
+         io_bridge_json[i].argv = argv_ptr;
+         ev_io_start(main_loop, (struct ev_io*)&io_bridge_json[i]);
+      }
+   }
+}
+
+static void
+shutdown_bridge_json(void)
+{
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (config->bridge != -1 && config->bridge_json != -1)
+   {
+      for (int i = 0; i < bridge_json_fds_length; i++)
+      {
+         ev_io_stop(main_loop, (struct ev_io*)&io_bridge_json[i]);
+         pgexporter_disconnect(io_bridge_json[i].socket);
+         errno = 0;
+      }
+   }
+}
+
+static void
 start_management(void)
 {
    for (int i = 0; i < management_fds_length; i++)
@@ -336,6 +380,7 @@ main(int argc, char** argv)
    size_t shmem_size;
    size_t prometheus_cache_shmem_size = 0;
    size_t bridge_cache_shmem_size = 0;
+   size_t bridge_json_cache_shmem_size = 0;
    struct configuration* config = NULL;
    int ret;
    int c;
@@ -635,6 +680,14 @@ main(int argc, char** argv)
       {
          exit(1);
       }
+
+      if (config->bridge_json != -1)
+      {
+         if (create_lockfile(config->bridge_json))
+         {
+            exit(1);
+         }
+      }
    }
 
    if (yaml_path != NULL)
@@ -699,12 +752,26 @@ main(int argc, char** argv)
       errx(1, "Error in creating and initializing prometheus cache shared memory");
    }
 
-   if (pgexporter_bridge_init_cache(&bridge_cache_shmem_size, &bridge_cache_shmem))
+   if (config->bridge > 0 && config->bridge_cache_max_age > 0 && config->bridge_cache_max_size > 0)
    {
+      if (pgexporter_bridge_init_cache(&bridge_cache_shmem_size, &bridge_cache_shmem))
+      {
 #ifdef HAVE_SYSTEMD
-      sd_notifyf(0, "STATUS=Error in creating and initializing prometheus cache shared memory");
+         sd_notifyf(0, "STATUS=Error in creating and initializing prometheus cache shared memory");
 #endif
-      errx(1, "Error in creating and initializing prometheus cache shared memory");
+         errx(1, "Error in creating and initializing prometheus cache shared memory");
+      }
+   }
+
+   if (config->bridge_json > 0)
+   {
+      if (pgexporter_bridge_json_init_cache(&bridge_json_cache_shmem_size, &bridge_json_cache_shmem))
+      {
+#ifdef HAVE_SYSTEMD
+         sd_notifyf(0, "STATUS=Error in creating and initializing prometheus JSON cache shared memory");
+#endif
+         errx(1, "Error in creating and initializing prometheus JSON cache shared memory");
+      }
    }
 
    /* Bind Unix Domain Socket: Main */
@@ -809,6 +876,30 @@ main(int argc, char** argv)
       }
 
       start_bridge();
+
+      if (config->bridge_json > 0)
+      {
+         /* Bind bridge socket */
+         if (pgexporter_bind(config->host, config->bridge_json, &bridge_json_fds, &bridge_json_fds_length))
+         {
+            pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->bridge_json);
+#ifdef HAVE_SYSTEMD
+            sd_notifyf(0, "STATUS=Could not bind to %s:%d", config->host, config->bridge_json);
+#endif
+            exit(1);
+         }
+
+         if (bridge_json_fds_length > MAX_FDS)
+         {
+            pgexporter_log_fatal("pgexporter: Too many descriptors %d", bridge_json_fds_length);
+#ifdef HAVE_SYSTEMD
+            sd_notifyf(0, "STATUS=Too many descriptors %d", bridge_json_fds_length);
+#endif
+            exit(1);
+         }
+
+         start_bridge_json();
+      }
    }
 
    if (config->management > 0)
@@ -845,6 +936,10 @@ main(int argc, char** argv)
    for (int i = 0; i < bridge_fds_length; i++)
    {
       pgexporter_log_debug("Bridge: %d", *(bridge_fds + i));
+   }
+   for (int i = 0; i < bridge_json_fds_length; i++)
+   {
+      pgexporter_log_debug("Bridge JSON: %d", *(bridge_json_fds + i));
    }
    for (int i = 0; i < management_fds_length; i++)
    {
@@ -899,6 +994,11 @@ main(int argc, char** argv)
    if (config->bridge != -1)
    {
       shutdown_bridge();
+
+      if (config->bridge_json != -1)
+      {
+         shutdown_bridge_json();
+      }
    }
 
    for (int i = 0; i < 5; i++)
@@ -910,11 +1010,13 @@ main(int argc, char** argv)
 
    free(metrics_fds);
    free(bridge_fds);
+   free(bridge_json_fds);
    free(management_fds);
 
    remove_pidfile();
    remove_lockfile(config->metrics);
    remove_lockfile(config->bridge);
+   remove_lockfile(config->bridge_json);
 
    pgexporter_stop_logging();
 
@@ -1413,6 +1515,95 @@ accept_bridge_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
       pgexporter_set_proc_title(1, ai->argv, "bridge", NULL);
       pgexporter_bridge(client_fd);
+   }
+
+   pgexporter_disconnect(client_fd);
+
+   return;
+
+error:
+
+   pgexporter_disconnect(client_fd);
+}
+
+static void
+accept_bridge_json_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
+{
+   struct sockaddr_in6 client_addr;
+   socklen_t client_addr_length;
+   int client_fd;
+   pid_t pid;
+   struct accept_io* ai;
+   struct configuration* config;
+
+   if (EV_ERROR & revents)
+   {
+      pgexporter_log_debug("accept_bridge_json_cb: invalid event: %s", strerror(errno));
+      errno = 0;
+      return;
+   }
+
+   config = (struct configuration*)shmem;
+   ai = (struct accept_io*)watcher;
+
+   errno = 0;
+
+   client_addr_length = sizeof(client_addr);
+   client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
+   if (client_fd == -1)
+   {
+      if (accept_fatal(errno) && keep_running)
+      {
+         pgexporter_log_warn("Restarting listening port due to: %s (%d)", strerror(errno), watcher->fd);
+
+         shutdown_bridge_json();
+
+         free(bridge_json_fds);
+         bridge_json_fds = NULL;
+         bridge_json_fds_length = 0;
+
+         if (pgexporter_bind(config->host, config->bridge_json, &bridge_json_fds, &bridge_json_fds_length))
+         {
+            pgexporter_log_fatal("Could not bind to %s:%d", config->host, config->bridge_json);
+            exit(1);
+         }
+
+         if (bridge_json_fds_length > MAX_FDS)
+         {
+            pgexporter_log_fatal("Too many descriptors %d", bridge_json_fds_length);
+            exit(1);
+         }
+
+         start_bridge_json();
+
+         for (int i = 0; i < bridge_json_fds_length; i++)
+         {
+            pgexporter_log_debug("Bridge JSON: %d", *(metrics_fds + i));
+         }
+      }
+      else
+      {
+         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fd);
+      }
+      errno = 0;
+      return;
+   }
+
+   pid = fork();
+   if (pid == -1)
+   {
+      pgexporter_log_error("Bridge JSON: No fork (%d)", MANAGEMENT_ERROR_BRIDGE_JSON_NOFORK);
+      goto error;
+   }
+   else if (pid == 0)
+   {
+      ev_loop_fork(loop);
+
+      /* We are leaving the socket descriptor valid such that the client won't reuse it */
+      shutdown_ports();
+
+      pgexporter_set_proc_title(1, ai->argv, "bridge_json", NULL);
+      pgexporter_bridge_json(client_fd);
    }
 
    pgexporter_disconnect(client_fd);

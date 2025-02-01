@@ -38,6 +38,7 @@
 void* shmem = NULL;
 void* prometheus_cache_shmem = NULL;
 void* bridge_cache_shmem = NULL;
+void* bridge_json_cache_shmem = NULL;
 
 int
 pgexporter_create_shared_memory(size_t size, unsigned char hp, void** shmem)

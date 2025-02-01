@@ -57,6 +57,20 @@ extern "C" {
 #define PROMETHEUS_MAX_BRIDGE_CACHE_SIZE (1 * 1024 * 1024 * 1024)
 
 /**
+ * Default size of the cache (in bytes).
+ * If the cache request exceeds this size
+ * the caching should be aborted in some way.
+ */
+#define PROMETHEUS_DEFAULT_BRIDGE_JSON_CACHE_SIZE (10 * 1024 * 1024)
+
+/**
+ * Max size of the cache (in bytes).
+ * If the cache request exceeds this size
+ * the caching should be aborted in some way.
+ */
+#define PROMETHEUS_MAX_BRIDGE_JSON_CACHE_SIZE (1 * 1024 * 1024 * 1024)
+
+/**
  * Create a prometheus bridge
  * @param fd The client descriptor
  */
@@ -86,6 +100,37 @@ pgexporter_bridge(int fd);
  */
 int
 pgexporter_bridge_init_cache(size_t* p_size, void** p_shmem);
+
+/**
+ * Create a prometheus JSON bridge
+ * @param fd The client descriptor
+ */
+void
+pgexporter_bridge_json(int fd);
+
+/**
+ * Allocates, for the first time, the bridge JSON cache.
+ *
+ * The cache structure, as well as its dynamically sized payload,
+ * are created as shared memory chunks.
+ *
+ * Assumes the shared memory for the cofiguration is already set.
+ *
+ * The cache will be allocated as soon as this method is invoked,
+ * even if the cache has not been configured at all!
+ *
+ * If the memory cannot be allocated, the function issues errors
+ * in the logs and disables the caching machinaery.
+ *
+ * @param p_size a pointer to where to store the size of
+ * allocated chunk of memory
+ * @param p_shmem the pointer to the pointer at which the allocated chunk
+ * of shared memory is going to be inserted
+ *
+ * @return 0 on success, otherwise 1
+ */
+int
+pgexporter_bridge_json_init_cache(size_t* p_size, void** p_shmem);
 
 #ifdef __cplusplus
 }

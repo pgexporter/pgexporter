@@ -38,3 +38,37 @@ The cache can be configured using the following settings
 
 The cache can be disabled by setting `bridge_cache_max_size` to 0. By disabling the cache
 each endpoint is scrapped upon each bridge invocation.
+
+### Bridge/JSON
+
+The bridge has an optional component that will server a JSON presentation of the bridge data.
+
+The bridge/json requires the bridge to be enabled, and invoked to serve data.
+
+#### Configuration
+
+In order to enable the bridge add the following to `pgexporter.conf`
+
+```ini
+[pgexporter]
+
+bridge_json = 5004
+```
+
+#### Access
+
+The bridge/json component acts a JSON endpoint and you can access the bridge by
+
+```sh
+curl http://localhost:5004/metrics
+```
+
+#### Cache
+
+The bridge/json has a cache enabled by default, and is mandatory.
+
+The cache can be configured using the following settings
+
+* `bridge_json_cache_max_size`
+
+If the JSON representation can't fit in the cache an empty JSON object is returned.

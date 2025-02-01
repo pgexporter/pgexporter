@@ -44,15 +44,15 @@
 #include <string.h>
 #include <time.h>
 
-static int parse_body_to_bridge(int endpoint, time_t timestamp, char *body, struct prometheus_bridge *bridge);
-static int metric_find_create(struct prometheus_bridge *bridge, char *name, struct prometheus_metric **metric);
+static int parse_body_to_bridge(int endpoint, time_t timestamp, char* body, struct prometheus_bridge* bridge);
+static int metric_find_create(struct prometheus_bridge* bridge, char* name, struct prometheus_metric** metric);
 static int metric_set_name(struct prometheus_metric* metric, char* name);
 static int metric_set_help(struct prometheus_metric* metric, char* help);
 static int metric_set_type(struct prometheus_metric* metric, char* type);
-static bool attributes_contains(struct deque *attributes, struct prometheus_attribute *attribute);
-static int attributes_find_create(struct deque *definitions, struct deque *input, struct prometheus_attributes **attributes, bool *new);
-static int add_attribute(struct deque* attributes, char *key, char *value);
-static int add_value(struct deque* values, time_t timestamp, char *value);
+static bool attributes_contains(struct deque* attributes, struct prometheus_attribute* attribute);
+static int attributes_find_create(struct deque* definitions, struct deque* input, struct prometheus_attributes** attributes, bool* new);
+static int add_attribute(struct deque* attributes, char* key, char* value);
+static int add_value(struct deque* values, time_t timestamp, char* value);
 static int add_line(struct prometheus_metric* metric, char* line, int endpoint, time_t timestamp);
 
 static void  prometheus_metric_destroy_cb(uintptr_t data);
@@ -325,7 +325,7 @@ static bool
 attributes_contains(struct deque* attributes, struct prometheus_attribute* attribute)
 {
    bool found = false;
-   struct deque_iterator *attributes_iterator = NULL;
+   struct deque_iterator* attributes_iterator = NULL;
 
    if (!pgexporter_deque_empty(attributes))
    {
@@ -409,8 +409,8 @@ attributes_find_create(struct deque* definitions, struct deque* input,
 {
    bool found = false;
    struct prometheus_attributes* m = NULL;
-   struct deque_iterator *definition_iterator = NULL;
-   struct deque_iterator *input_iterator = NULL;
+   struct deque_iterator* definition_iterator = NULL;
+   struct deque_iterator* input_iterator = NULL;
    struct value_config vc = {.destroy_data = &prometheus_attributes_destroy_cb,
                              .to_string = &prometheus_attributes_string_cb};
 
@@ -428,8 +428,8 @@ attributes_find_create(struct deque* definitions, struct deque* input,
       while (!found && pgexporter_deque_iterator_next(definition_iterator))
       {
          bool match = true;
-         struct prometheus_attributes *a =
-             (struct prometheus_attributes *)definition_iterator->value->data;
+         struct prometheus_attributes* a =
+            (struct prometheus_attributes*)definition_iterator->value->data;
 
          if (pgexporter_deque_iterator_create(input, &input_iterator))
          {
@@ -438,7 +438,7 @@ attributes_find_create(struct deque* definitions, struct deque* input,
 
          while (match && pgexporter_deque_iterator_next(input_iterator))
          {
-            struct prometheus_attribute *i =  (struct prometheus_attribute*)input_iterator->value->data;
+            struct prometheus_attribute* i = (struct prometheus_attribute*)input_iterator->value->data;
 
             if (!attributes_contains(a->attributes, i))
             {
@@ -564,7 +564,7 @@ add_value(struct deque* values, time_t timestamp, char* value)
    {
       struct prometheus_value* v = NULL;
 
-      v = (struct prometheus_value *)pgexporter_deque_poll(values, NULL);
+      v = (struct prometheus_value*)pgexporter_deque_poll(values, NULL);
 
       free(v->value);
       free(v);
@@ -635,9 +635,9 @@ error:
 }
 
 static int
-add_attribute(struct deque* attributes, char *key, char *value)
+add_attribute(struct deque* attributes, char* key, char* value)
 {
-   struct prometheus_attribute *attr = NULL;
+   struct prometheus_attribute* attr = NULL;
    struct value_config vc = {.destroy_data = &prometheus_attribute_destroy_cb,
                              .to_string = &prometheus_attribute_string_cb};
 
@@ -688,10 +688,10 @@ add_line(struct prometheus_metric* metric, char* line, int endpoint, time_t time
    bool new = false;
    char* line_value = NULL;
    struct deque* line_attrs = NULL;
-   struct prometheus_attributes * attributes = NULL;
-   struct configuration *config = NULL;
+   struct prometheus_attributes* attributes = NULL;
+   struct configuration* config = NULL;
 
-   config = (struct configuration *)shmem;
+   config = (struct configuration*)shmem;
 
    if (line == NULL)
    {

@@ -104,6 +104,8 @@ pgexporter_init_configuration(void* shm)
    config->bridge = -1;
    config->bridge_cache_max_age = 300;
    config->bridge_cache_max_size = PROMETHEUS_DEFAULT_BRIDGE_CACHE_SIZE;
+   config->bridge_json = -1;
+   config->bridge_json_cache_max_size = PROMETHEUS_DEFAULT_BRIDGE_CACHE_SIZE;
 
    config->tls = false;
 
@@ -400,6 +402,43 @@ pgexporter_read_configuration(void* shm, char* filename)
                      if (as_seconds(value, &config->bridge_cache_max_age, 300))
                      {
                         unknown = true;
+                     }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "bridge_json"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     if (as_int(value, &config->bridge_json))
+                     {
+                        unknown = true;
+                     }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "bridge_json_cache_max_size"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     long l = 0;
+
+                     if (as_bytes(value, &l, PROMETHEUS_DEFAULT_BRIDGE_JSON_CACHE_SIZE))
+                     {
+                        unknown = true;
+                     }
+
+                     config->bridge_json_cache_max_size = (size_t)l;
+
+                     if (config->bridge_json_cache_max_size > PROMETHEUS_MAX_BRIDGE_JSON_CACHE_SIZE)
+                     {
+                        config->bridge_json_cache_max_size = PROMETHEUS_MAX_BRIDGE_JSON_CACHE_SIZE;
                      }
                   }
                   else
@@ -920,8 +959,19 @@ pgexporter_validate_configuration(void* shm)
       return 1;
    }
 
-   if (config->backlog < 16)
+   if (config->bridge == -1 && config->bridge_json != -1)
    {
+      pgexporter_log_fatal("pgexporter: Bridge JSON defined, but bridge isn't enabled");
+      return 1;
+   }
+
+   if (config->bridge_json != -1 && config->bridge_json_cache_max_size <= 0)
+   {
+      pgexporter_log_fatal("pgexporter: Bridge JSON requires a cache");
+      return 1;
+   }
+
+   if (config->backlog < 16) {
       config->backlog = 16;
    }
 
@@ -1698,6 +1748,30 @@ pgexporter_conf_set(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryp
          }
          pgexporter_json_put(response, key, (uintptr_t)config->bridge_cache_max_age, ValueInt64);
       }
+      else if (!strcmp(key, "bridge_json"))
+      {
+         if (as_int(config_value, &config->bridge_json))
+         {
+            unknown = true;
+         }
+         pgexporter_json_put(response, key, (uintptr_t)config->bridge_json,
+                             ValueInt64);
+      }
+      else if (!strcmp(key, "bridge_json_cache_max_size"))
+      {
+         long l = 0;
+
+         if (as_bytes(config_value, &l, 0))
+         {
+            unknown = true;
+         }
+
+         config->bridge_json_cache_max_size = (size_t)l;
+
+         pgexporter_json_put(response, key,
+                             (uintptr_t)config->bridge_json_cache_max_size,
+                             ValueInt64);
+      }
       else if (!strcmp(key, "management"))
       {
          if (as_int(config_value, &config->management))
@@ -2022,6 +2096,8 @@ add_configuration_response(struct json* res)
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE, (uintptr_t)config->bridge, ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_CACHE_MAX_AGE, (uintptr_t)config->bridge_cache_max_age, ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_CACHE_MAX_SIZE, (uintptr_t)config->bridge_cache_max_size, ValueInt64);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_JSON, (uintptr_t)config->bridge_json, ValueInt64);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_JSON_CACHE_MAX_SIZE, (uintptr_t)config->bridge_json_cache_max_size, ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_MANAGEMENT, (uintptr_t)config->management, ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_CACHE, (uintptr_t)config->cache, ValueBool);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_LOG_TYPE, (uintptr_t)config->log_type, ValueInt32);
@@ -2820,6 +2896,11 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    config->bridge = reload->bridge;
    config->bridge_cache_max_age = reload->bridge_cache_max_age;
    if (restart_int("bridge_cache_max_size", config->bridge_cache_max_size, reload->bridge_cache_max_size))
+   {
+      changed = true;
+   }
+   config->bridge_json = reload->bridge_json;
+   if (restart_int("bridge_json_cache_max_size", config->bridge_json_cache_max_size, reload->bridge_json_cache_max_size))
    {
       changed = true;
    }
