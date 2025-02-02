@@ -39,6 +39,7 @@
 #include <security.h>
 #include <shmem.h>
 #include <utils.h>
+#include <value.h>
 #include <yaml_configuration.h>
 
 /* system */
@@ -74,7 +75,7 @@ static int as_logging_rotation_size(char* str, size_t* size);
 static int as_logging_rotation_age(char* str, int* age);
 static int as_seconds(char* str, int* age, int default_age);
 static int as_bytes(char* str, long* bytes, long default_bytes);
-static int as_endpoints(char* str, struct configuration* config);
+static int as_endpoints(char* str, struct configuration* config, bool reload);
 static bool transfer_configuration(struct configuration* config, struct configuration* reload);
 static void copy_server(struct server* dst, struct server* src);
 static void copy_user(struct user* dst, struct user* src);
@@ -105,7 +106,7 @@ pgexporter_init_configuration(void* shm)
    config->bridge_cache_max_age = 300;
    config->bridge_cache_max_size = PROMETHEUS_DEFAULT_BRIDGE_CACHE_SIZE;
    config->bridge_json = -1;
-   config->bridge_json_cache_max_size = PROMETHEUS_DEFAULT_BRIDGE_CACHE_SIZE;
+   config->bridge_json_cache_max_size = PROMETHEUS_DEFAULT_BRIDGE_JSON_CACHE_SIZE;
 
    config->tls = false;
 
@@ -362,7 +363,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                {
                   if (!strcmp(section, "pgexporter"))
                   {
-                     if (as_endpoints(value, config))
+                     if (as_endpoints(value, config, false))
                      {
                         unknown = true;
                      }
@@ -971,7 +972,8 @@ pgexporter_validate_configuration(void* shm)
       return 1;
    }
 
-   if (config->backlog < 16) {
+   if (config->backlog < 16)
+   {
       config->backlog = 16;
    }
 
@@ -1727,6 +1729,14 @@ pgexporter_conf_set(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryp
          }
          pgexporter_json_put(response, key, (uintptr_t)config->bridge, ValueInt64);
       }
+      else if (!strcmp(key, "bridge_endpoints"))
+      {
+         if (as_endpoints(config_value, config, true))
+         {
+            unknown = true;
+         }
+         pgexporter_json_put(response, key, (uintptr_t)config_value, ValueString);
+      }
       else if (!strcmp(key, "bridge_cache_max_size"))
       {
          long l = 0;
@@ -2083,6 +2093,7 @@ error:
 static void
 add_configuration_response(struct json* res)
 {
+   char* data = NULL;
    struct configuration* config = NULL;
 
    config = (struct configuration*)shmem;
@@ -2094,6 +2105,27 @@ add_configuration_response(struct json* res)
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, (uintptr_t)config->metrics_cache_max_age, ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_SIZE, (uintptr_t)config->metrics_cache_max_size, ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE, (uintptr_t)config->bridge, ValueInt64);
+
+   if (config->number_of_endpoints > 0)
+   {
+      for (int i = 0; i < config->number_of_endpoints; i++)
+      {
+         data = pgexporter_append(data, config->endpoints[i].host);
+         data = pgexporter_append_char(data, ':');
+         data = pgexporter_append_int(data, config->endpoints[i].port);
+
+         if (i < config->number_of_endpoints - 1)
+         {
+            data = pgexporter_append_char(data, ',');
+         }
+      }
+   }
+   else
+   {
+      data = pgexporter_append(data, "");
+   }
+
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_ENDPOINTS, (uintptr_t)data, ValueString);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_CACHE_MAX_AGE, (uintptr_t)config->bridge_cache_max_age, ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_CACHE_MAX_SIZE, (uintptr_t)config->bridge_cache_max_size, ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_JSON, (uintptr_t)config->bridge_json, ValueInt64);
@@ -2123,6 +2155,8 @@ add_configuration_response(struct json* res)
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_MAIN_CONF_PATH, (uintptr_t)config->configuration_path, ValueString);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_USER_CONF_PATH, (uintptr_t)config->users_path, ValueString);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_ADMIN_CONF_PATH, (uintptr_t)config->admins_path, ValueString);
+
+   free(data);
 }
 
 static void
@@ -2787,7 +2821,7 @@ error:
 }
 
 static int
-as_endpoints(char* str, struct configuration* config)
+as_endpoints(char* str, struct configuration* config, bool reload)
 {
    int idx = 0;
    char* token = NULL;
@@ -2829,11 +2863,14 @@ as_endpoints(char* str, struct configuration* config)
       {
          bool found = false;
 
-         for (int i = 0; i <= idx; i++)
+         if (!reload)
          {
-            if (!strcmp(config->endpoints[i].host, host) && config->endpoints[i].port == atoi(port))
+            for (int i = 0; i <= idx; i++)
             {
-               found = true;
+               if (!strcmp(config->endpoints[i].host, host) && config->endpoints[i].port == atoi(port))
+               {
+                  found = true;
+               }
             }
          }
 
@@ -2880,6 +2917,8 @@ error:
 static bool
 transfer_configuration(struct configuration* config, struct configuration* reload)
 {
+   char* old_endpoints = NULL;
+   char* new_endpoints = NULL;
    bool changed = false;
 
 #ifdef HAVE_SYSTEMD
@@ -2893,13 +2932,63 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    {
       changed = true;
    }
-   config->bridge = reload->bridge;
+   if (restart_int("bridge", config->bridge, reload->bridge))
+   {
+      changed = true;
+   }
+
+   if (config->number_of_endpoints > 0)
+   {
+      for (int i = 0; i < config->number_of_endpoints; i++)
+      {
+         old_endpoints = pgexporter_append(old_endpoints, config->endpoints[i].host);
+         old_endpoints = pgexporter_append_char(old_endpoints, ':');
+         old_endpoints = pgexporter_append_int(old_endpoints, config->endpoints[i].port);
+
+         if (i < config->number_of_endpoints - 1)
+         {
+            old_endpoints = pgexporter_append_char(old_endpoints, ',');
+         }
+      }
+   }
+   else
+   {
+      old_endpoints = pgexporter_append(old_endpoints, "");
+   }
+
+   if (reload->number_of_endpoints > 0)
+   {
+      for (int i = 0; i < reload->number_of_endpoints; i++)
+      {
+         new_endpoints = pgexporter_append(new_endpoints, reload->endpoints[i].host);
+         new_endpoints = pgexporter_append_char(new_endpoints, ':');
+         new_endpoints = pgexporter_append_int(new_endpoints, reload->endpoints[i].port);
+
+         if (i < reload->number_of_endpoints - 1)
+         {
+            new_endpoints = pgexporter_append_char(new_endpoints, ',');
+         }
+      }
+   }
+   else
+   {
+      new_endpoints = pgexporter_append(new_endpoints, "");
+   }
+
+   if (restart_string("bridge_endpoints", old_endpoints, new_endpoints))
+   {
+      changed = true;
+   }
+
    config->bridge_cache_max_age = reload->bridge_cache_max_age;
    if (restart_int("bridge_cache_max_size", config->bridge_cache_max_size, reload->bridge_cache_max_size))
    {
       changed = true;
    }
-   config->bridge_json = reload->bridge_json;
+   if (restart_int("bridge_json", config->bridge_json, reload->bridge_json))
+   {
+      changed = true;
+   }
    if (restart_int("bridge_json_cache_max_size", config->bridge_json_cache_max_size, reload->bridge_json_cache_max_size))
    {
       changed = true;
@@ -3007,6 +3096,9 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
 #ifdef HAVE_SYSTEMD
    sd_notify(0, "READY=1");
 #endif
+
+   free(old_endpoints);
+   free(new_endpoints);
 
    return changed;
 }
