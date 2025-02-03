@@ -10,6 +10,7 @@ See [Metrics](https://pgexporter.github.io/docs/pgexporter/metrics.html) for a l
 ## Features
 
 * Prometheus exporter
+* Bridge support with a JSON feature
 * Remote management
 * Transport Layer Security (TLS) v1.2+ support
 * Daemon mode
