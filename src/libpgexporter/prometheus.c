@@ -41,6 +41,7 @@
 
 /* system */
 #include <errno.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -55,6 +56,10 @@
 
 #define MAX_ARR_LENGTH 256
 #define NUMBER_OF_HISTOGRAM_COLUMNS 4
+
+#define INPUT_NO   0
+#define INPUT_DATA 1
+#define INPUT_WAL  2
 
 /**
  * This is a linked list of queries with the data received from the server
@@ -116,7 +121,7 @@ static void add_column_to_store(column_store_t* store, int n_store, char* data, 
 static void general_information(int client_fd);
 static void core_information(int client_fd);
 static void extension_information(int client_fd);
-static void extension_function(int client_fd, char* function, char* description, char* type);
+static void extension_function(int client_fd, char* function, int input, char* description, char* type);
 static void server_information(int client_fd);
 static void version_information(int client_fd);
 static void uptime_information(int client_fd);
@@ -1018,6 +1023,7 @@ core_information(int client_fd)
 static void
 extension_information(int client_fd)
 {
+   bool cont = true;
    struct query* query = NULL;
    struct tuple* tuple = NULL;
    struct configuration* config;
@@ -1027,10 +1033,11 @@ extension_information(int client_fd)
    /* Expose only if default or specified */
    if (!collector_pass("extension"))
    {
+      pgexporter_log_debug("extension_information disabled");
       return;
    }
 
-   for (int server = 0; query == NULL && server < config->number_of_servers; server++)
+   for (int server = 0; cont && server < config->number_of_servers; server++)
    {
       if (config->servers[server].extension && config->servers[server].fd != -1)
       {
@@ -1046,27 +1053,37 @@ extension_information(int client_fd)
                {
                   if (strcmp(tuple->data[0], "pgexporter_get_functions"))
                   {
-                     extension_function(client_fd, tuple->data[0], tuple->data[2], tuple->data[3]);
+                     extension_function(client_fd, tuple->data[0], false, tuple->data[2], tuple->data[3]);
+                  }
+               }
+               else
+               {
+                  if (strcmp(tuple->data[0], "pgexporter_is_supported"))
+                  {
+                     extension_function(client_fd, tuple->data[0], INPUT_DATA, tuple->data[2], tuple->data[3]);
+                     extension_function(client_fd, tuple->data[0], INPUT_WAL, tuple->data[2], tuple->data[3]);
                   }
                }
 
                tuple = tuple->next;
             }
 
-            pgexporter_free_query(query);
-            query = NULL;
+            cont = false;
          }
          else
          {
             config->servers[server].extension = false;
-            continue;
+            pgexporter_log_trace("extension_information disabled for server %d", server);
          }
+
+         pgexporter_free_query(query);
+         query = NULL;
       }
    }
 }
 
 static void
-extension_function(int client_fd, char* function, char* description, char* type)
+extension_function(int client_fd, char* function, int input, char* description, char* type)
 {
    char* data = NULL;
    bool header = false;
@@ -1081,70 +1098,149 @@ extension_function(int client_fd, char* function, char* description, char* type)
    {
       if (config->servers[server].extension && config->servers[server].fd != -1)
       {
-         sql = pgexporter_vappend(sql, 3,
-                                  "SELECT * FROM ",
-                                  function,
-                                  "();"
-                                  );
+         bool execute = true;
 
-         pgexporter_query_execute(server, sql, "pgexporter_ext", &query);
+         sql = pgexporter_append(sql, "SELECT * FROM ");
+         sql = pgexporter_append(sql, function);
+         sql = pgexporter_append_char(sql, '(');
+
+         if (input != INPUT_NO)
+         {
+            if (input == INPUT_DATA && strlen(config->servers[server].data) > 0)
+            {
+               sql = pgexporter_append_char(sql, '\'');
+               sql = pgexporter_append(sql, config->servers[server].data);
+               sql = pgexporter_append_char(sql, '\'');
+            }
+            else if (input == INPUT_WAL && strlen(config->servers[server].wal) > 0)
+            {
+               sql = pgexporter_append_char(sql, '\'');
+               sql = pgexporter_append(sql, config->servers[server].wal);
+               sql = pgexporter_append_char(sql, '\'');
+            }
+            else
+            {
+               execute = false;
+            }
+         }
+         sql = pgexporter_append(sql, ");");
+
+         if (execute)
+         {
+            pgexporter_query_execute(server, sql, "pgexporter_ext", &query);
+         }
 
          if (query == NULL)
          {
             config->servers[server].extension = false;
+
+            free(sql);
+            sql = NULL;
+
             continue;
          }
 
          if (!header)
          {
-            data = pgexporter_vappend(data, 10,
-                                      "#HELP ",
-                                      function,
+            data = pgexporter_append(data, "#HELP ");
+            data = pgexporter_append(data, function);
+
+            if (input == INPUT_DATA)
+            {
+               data = pgexporter_append(data, "_data");
+            }
+            else if (input == INPUT_WAL)
+            {
+               data = pgexporter_append(data, "_wal");
+            }
+
+            data = pgexporter_vappend(data, 3,
                                       " ",
                                       description,
-                                      "\n",
-                                      "#TYPE ",
-                                      function,
+                                      "\n");
+
+            data = pgexporter_append(data, "#TYPE ");
+            data = pgexporter_append(data, function);
+
+            if (input == INPUT_DATA)
+            {
+               data = pgexporter_append(data, "_data");
+            }
+            else if (input == INPUT_WAL)
+            {
+               data = pgexporter_append(data, "_wal");
+            }
+
+            data = pgexporter_vappend(data, 3,
                                       " ",
                                       type,
-                                      "\n"
-                                      );
+                                      "\n");
 
             header = true;
          }
+
+         config->servers[server].extension = true;
 
          tuple = query->tuples;
 
          while (tuple != NULL)
          {
-            data = pgexporter_vappend(data, 4,
-                                      function,
+            data = pgexporter_append(data, function);
+
+            if (input == INPUT_DATA)
+            {
+               data = pgexporter_append(data, "_data");
+            }
+            else if (input == INPUT_WAL)
+            {
+               data = pgexporter_append(data, "_wal");
+            }
+
+            data = pgexporter_vappend(data, 3,
                                       "{server=\"",
                                       &config->servers[server].name[0],
-                                      "\""
-                                      );
+                                      "\"");
 
             if (query->number_of_columns > 0)
             {
                data = pgexporter_append(data, ", ");
             }
 
-            for (int col = 0; col < query->number_of_columns; col++)
+            if (input == INPUT_NO)
             {
-               data = pgexporter_vappend(data, 4,
-                                         query->names[col],
-                                         "=\"",
-                                         tuple->data[col],
-                                         "\""
-                                         );
-
-               if (col < query->number_of_columns - 1)
+               for (int col = 0; col < query->number_of_columns; col++)
                {
-                  data = pgexporter_append(data, ", ");
-               }
-            }
+                  data = pgexporter_vappend(data, 4,
+                                            query->names[col],
+                                            "=\"",
+                                            tuple->data[col],
+                                            "\"");
 
-            data = pgexporter_append(data, "} 1\n");
+                  if (col < query->number_of_columns - 1)
+                  {
+                     data = pgexporter_append(data, ", ");
+                  }
+               }
+
+               data = pgexporter_append(data, "} 1\n");
+            }
+            else
+            {
+               data = pgexporter_append(data, "location=\"");
+
+               if (input == INPUT_DATA)
+               {
+                  data = pgexporter_append(data, config->servers[server].data);
+               }
+               else if (input == INPUT_WAL)
+               {
+                  data = pgexporter_append(data, config->servers[server].wal);
+               }
+
+               data = pgexporter_append(data, "\"} ");
+               data = pgexporter_append(data, tuple->data[0]);
+               data = pgexporter_append(data, "\n");
+            }
 
             tuple = tuple->next;
          }

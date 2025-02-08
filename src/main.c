@@ -969,6 +969,26 @@ main(int argc, char** argv)
       pgexporter_log_trace("Server: %s/%d.%d -> %s", config->servers[i].name,
                            config->servers[i].version, config->servers[i].minor_version,
                            config->servers[i].fd != -1 ? "true" : "false");
+
+      if (config->servers[i].fd != -1)
+      {
+         struct query* query = NULL;
+
+         pgexporter_query_get_functions(i, &query);
+         pgexporter_log_trace("extension_information %s for server %d", query != NULL ? "enabled" : "disabled", i);
+
+         if (query != NULL)
+         {
+            config->servers[i].extension = true;
+         }
+         else
+         {
+            config->servers[i].extension = false;
+         }
+
+         pgexporter_free_query(query);
+         query = NULL;
+      }
    }
 
    while (keep_running)
