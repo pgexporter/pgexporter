@@ -192,6 +192,22 @@ extern "C" {
         "        - description: pg_stat_bgwriter_maxwritten_clean\n" \
         "          name: maxwritten_clean\n" \
         "          type: counter\n" \
+        "    - query: SELECT\n" \
+        "                buffers_alloc,\n" \
+        "                buffers_clean,\n" \
+        "                maxwritten_clean\n" \
+        "              FROM pg_stat_bgwriter;\n" \
+        "      version: 17\n" \
+        "      columns:\n" \
+        "        - description: pg_stat_bgwriter_buffers_alloc\n" \
+        "          name: buffers_alloc\n" \
+        "          type: gauge\n" \
+        "        - description: pg_stat_bgwriter_buffers_clean\n" \
+        "          name: buffers_clean\n" \
+        "          type: gauge\n" \
+        "        - description: pg_stat_bgwriter_maxwritten_clean\n" \
+        "          name: maxwritten_clean\n" \
+        "          type: counter\n" \
         "    tag: pg_stat_bgwriter\n" \
         "    collector: stat_bgwriter\n" \
         "\n" \
