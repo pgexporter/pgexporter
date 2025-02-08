@@ -1,14 +1,42 @@
 # Developer guide
 
-For Fedora 40
+## Install PostgreSQL
 
-## Install PostgreSql
+For RPM based distributions such as Fedora and RHEL you can add the
+[PostgreSQL YUM repository](https://yum.postgresql.org/) and do the install via
 
-``` sh
-dnf install postgresql-server
+**Fedora 41**
+
+```sh
+rpm -Uvh https://download.postgresql.org/pub/repos/yum/reporpms/F-41-x86_64/pgdg-redhat-repo-latest.noarch.rpm
 ```
 
-, this will install PostgreSQL 15.
+**RHEL 9.x / Rocky Linux 9.x**
+
+**x86_64**
+
+```sh
+dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+rpm -Uvh https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+dnf config-manager --set-enabled crb
+```
+
+**aarch64**
+
+```sh
+dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+rpm -Uvh https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-aarch64/pgdg-redhat-repo-latest.noarch.rpm
+dnf config-manager --set-enabled crb
+```
+
+**PostgreSQL 17**
+
+``` sh
+dnf -qy module disable postgresql
+dnf install -y postgresql17 postgresql17-server postgresql17-contrib postgresql17-libs postgresql17-devel
+```
+
+This will install PostgreSQL 17.
 
 ## Install pgexporter
 
@@ -51,16 +79,15 @@ This process is optional. If you choose not to generate the PDF and HTML files, 
     dnf install 'tex(footnote.sty)' 'tex(footnotebackref.sty)' 'tex(pagecolor.sty)' 'tex(hardwrap.sty)' 'tex(mdframed.sty)' 'tex(sourcesanspro.sty)' 'tex(ly1enc.def)' 'tex(sourcecodepro.sty)' 'tex(titling.sty)' 'tex(csquotes.sty)' 'tex(zref-abspage.sty)' 'tex(needspace.sty)'
     ```
 
-
 #### Generate API guide
 
 This process is optional. If you choose not to generate the API HTML files, you can opt out of downloading these dependencies, and the process will automatically skip the generation.
 
 Download dependencies
 
-``` sh
-dnf install graphviz doxygen
-```
+    ``` sh
+    dnf install graphviz doxygen
+    ```
 
 ### Build
 
@@ -70,7 +97,7 @@ git clone https://github.com/pgexporter/pgexporter.git
 cd pgexporter
 mkdir build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=/usr/local ..
+cmake -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=/usr/local ..
 make
 make install
 ```
@@ -151,12 +178,12 @@ Set `password_encryption` value in `/tmp/pgsql/postgresql.conf` to be `scram-sha
 password_encryption = scram-sha-256
 ```
 
-For version 12/13, the default is `md5`, while for version 14 and above, it is `scram-sha-256`. Therefore, you should ensure that the value in `/tmp/pgsql/postgresql.conf` matches the value in `/tmp/pgsql/pg_hba.conf`.
+For version 13, the default is `md5`, while for version 14 and above, it is `scram-sha-256`. Therefore, you should ensure that the value in `/tmp/pgsql/postgresql.conf` matches the value in `/tmp/pgsql/pg_hba.conf`.
 
 #### Start PostgreSQL
 
 ``` sh
-pg_ctl  -D /tmp/pgsql/ start
+pg_ctl -D /tmp/pgsql/ start
 ```
 
 Here, you may encounter issues such as the port being occupied or permission being denied. If you experience a failure, you can go to `/tmp/pgsql/log` to check the reason.
