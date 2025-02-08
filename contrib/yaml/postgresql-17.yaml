@@ -114,14 +114,7 @@ metrics:
   - queries:
     - query: SELECT
                 buffers_alloc,
-                buffers_backend,
-                buffers_backend_fsync,
-                buffers_checkpoint,
                 buffers_clean,
-                checkpoint_sync_time,
-                checkpoint_write_time,
-                checkpoints_req,
-                checkpoints_timed,
                 maxwritten_clean
               FROM pg_stat_bgwriter;
       version: 10
@@ -129,30 +122,9 @@ metrics:
         - description: pg_stat_bgwriter_buffers_alloc
           name: buffers_alloc
           type: gauge
-        - description: pg_stat_bgwriter_buffers_backend
-          name: buffers_backend
-          type: gauge
-        - description: pg_stat_bgwriter_buffers_backend_fsync
-          name: buffers_backend_fsync
-          type: gauge
-        - description: pg_stat_bgwriter_buffers_checkpoint
-          name: buffers_checkpoint
-          type: gauge
         - description: pg_stat_bgwriter_buffers_clean
           name: buffers_clean
           type: gauge
-        - description: pg_stat_bgwriter_checkpoint_sync_time
-          name: checkpoint_sync_time
-          type: counter
-        - description: pg_stat_bgwriter_checkpoint_write_time
-          name: checkpoint_write_time
-          type: counter
-        - description: pg_stat_bgwriter_checkpoints_req
-          name: checkpoints_req
-          type: counter
-        - description: pg_stat_bgwriter_checkpoints_timed
-          name: checkpoints_timed
-          type: counter
         - description: pg_stat_bgwriter_maxwritten_clean
           name: maxwritten_clean
           type: counter
