@@ -74,8 +74,10 @@ We will need a user vault for the `pgexporter` account, so the following command
 
 ``` sh
 pgexporter-admin master-key
-pgexporter-admin -f pgexporter_users.conf add-user
+pgexporter-admin -f pgexporter_users.conf user add
 ```
+
+For scripted use, the master key and user password can be provided using the `PGEXPORTER_PASSWORD` environment variable.
 
 We are now ready to run [**pgexporter**][pgexporter].
 

@@ -81,6 +81,10 @@ pgexporter-admin master-key
 pgexporter-admin -f pgexporter_users.conf user add
 ```
 
+The master key must be at least 8 characters if provided interactively.
+
+For scripted use, the master key and user password can be provided using the `PGEXPORTER_PASSWORD` environment variable.
+
 We are now ready to run `pgexporter`.
 
 See [Configuration](./CONFIGURATION.md) for all configuration options.

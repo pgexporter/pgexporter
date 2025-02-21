@@ -16,6 +16,7 @@ Saurav Pal <resyfer.dev@gmail.com>
 Jakub Jirutka <jakub@jirutka.cz>
 Andreas Wahlen <andreas.wahlen@nerou.de>
 Haoran Zhang <andrewzhr9911@gmail.com>
+Georg Pfuetzenreuter <mail@georg-pfuetzenreuter.net>
 ```
 
 ## Contributing
