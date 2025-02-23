@@ -47,6 +47,7 @@
 #include <status.h>
 #include <utils.h>
 #include <yaml_configuration.h>
+#include <json_configuration.h>
 
 /* system */
 #include <err.h>
@@ -356,6 +357,7 @@ usage(void)
    printf("  -u, --users USERS_FILE                      Set the path to the pgexporter_users.conf file\n");
    printf("  -A, --admins ADMINS_FILE                    Set the path to the pgexporter_admins.conf file\n");
    printf("  -Y, --yaml METRICS_FILE_DIR                 Set the path to YAML file/directory\n");
+   printf("  -J, --json METRICS_FILE_DIR                 Set the path to JSON file/directory\n");
    printf("  -d, --daemon                                Run as a daemon\n");
    printf("  -C, --collectors NAME_1,NAME_2,...,NAME_N   Enable only specific collectors\n");
    printf("  -V, --version                               Display version information\n");
@@ -372,6 +374,7 @@ main(int argc, char** argv)
    char* users_path = NULL;
    char* admins_path = NULL;
    char* yaml_path = NULL;
+   char* json_path = NULL;
    char* collector = NULL;
    char collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];
    bool daemon = false;
@@ -396,6 +399,7 @@ main(int argc, char** argv)
          {"users", required_argument, 0, 'u'},
          {"admins", required_argument, 0, 'A'},
          {"yaml", required_argument, 0, 'Y'},
+         {"json", required_argument, 0, 'J'},
          {"daemon", no_argument, 0, 'd'},
          {"version", no_argument, 0, 'V'},
          {"help", no_argument, 0, '?'},
@@ -404,7 +408,7 @@ main(int argc, char** argv)
       };
       int option_index = 0;
 
-      c = getopt_long (argc, argv, "dV?c:u:A:Y:C:",
+      c = getopt_long (argc, argv, "dV?c:u:A:Y:J:C:",
                        long_options, &option_index);
 
       if (c == -1)
@@ -425,6 +429,9 @@ main(int argc, char** argv)
             break;
          case 'Y':
             yaml_path = optarg;
+            break;
+         case 'J':
+            json_path = optarg;
             break;
          case 'd':
             daemon = true;
@@ -690,19 +697,42 @@ main(int argc, char** argv)
       }
    }
 
+   if (yaml_path != NULL && json_path != NULL)
+   {
+      warnx("Both YAML and JSON paths cannot be specified at the same time");
+#ifdef HAVE_SYSTEMD
+      sd_notify(0, "STATUS=Both YAML and JSON paths cannot be specified at the same time");
+#endif
+      exit(1);
+   }
+
    if (yaml_path != NULL)
    {
       memcpy(config->metrics_path, yaml_path, MIN(strlen(yaml_path), MAX_PATH - 1));
-   }
-   if (strlen(config->metrics_path) > 0)
-   {
+
       if (pgexporter_read_metrics_configuration(shmem))
       {
 #ifdef HAVE_SYSTEMD
-         sd_notify(0, "STATUS=Invalid metrics yaml");
+         sd_notify(0, "STATUS=Invalid metrics YAML");
 #endif
          exit(1);
       }
+   }
+   else if (json_path != NULL)
+   {
+      memcpy(config->metrics_path, json_path, MIN(strlen(json_path), MAX_PATH - 1));
+
+      if (pgexporter_read_json_metrics_configuration(shmem))
+      {
+#ifdef HAVE_SYSTEMD
+         sd_notify(0, "STATUS=Invalid metrics JSON");
+#endif
+         exit(1);
+      }
+   }
+   if (yaml_path != NULL || json_path != NULL)
+   {
+      pgexporter_log_debug("Reading : %d metrics from path", config->number_of_metrics);
    }
 
    if (daemon)
