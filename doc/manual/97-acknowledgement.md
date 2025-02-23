@@ -17,6 +17,7 @@ Jakub Jirutka <jakub@jirutka.cz>
 Andreas Wahlen <andreas.wahlen@nerou.de>
 Haoran Zhang <andrewzhr9911@gmail.com>
 Georg Pfuetzenreuter <mail@georg-pfuetzenreuter.net>
+Bassam Adnan <mailbassam@gmail.com>
 ```
 
 ## Contributing

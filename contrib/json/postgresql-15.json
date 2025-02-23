@@ -1,0 +1,1283 @@
+{
+  "version": 15,
+  "metrics": [
+    {
+      "queries": [
+        {
+          "query": "SELECT ( CASE pg_is_in_recovery() WHEN 'f' THEN 't' ELSE 'f' END );",
+          "version": 10,
+          "columns": [
+            {
+              "description": "Is the PostgreSQL instance the primary",
+              "type": "gauge"
+            }
+          ]
+        }
+      ],
+      "tag": "postgresql_primary",
+      "sort": "name",
+      "collector": "primary",
+      "server": "both"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT datname, pg_database_size(datname) FROM pg_database;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "database",
+              "type": "label"
+            },
+            {
+              "description": "Size of the database",
+              "type": "gauge"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_database_size",
+      "sort": "data",
+      "collector": "db"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT pg_database.datname as database, tmp.mode, COALESCE(count, 0) as count FROM ( VALUES ('accesssharelock'), ('rowsharelock'), ('rowexclusivelock'), ('shareupdateexclusivelock'), ('sharelock'), ('sharerowexclusivelock'), ('exclusivelock'), ('accessexclusivelock'), ('sireadlock') ) AS tmp(mode) CROSS JOIN pg_database LEFT JOIN ( SELECT database, lower(mode) AS mode, count(*) AS count FROM pg_locks WHERE database IS NOT NULL GROUP BY database, lower(mode) ) AS tmp2 ON tmp.mode = tmp2.mode AND pg_database.oid = tmp2.database ORDER BY 1, 2;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "database",
+              "type": "label"
+            },
+            {
+              "name": "mode",
+              "type": "label"
+            },
+            {
+              "description": "Lock count of a database",
+              "type": "gauge"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_locks_count",
+      "sort": "data",
+      "collector": "locks"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT slot_name, slot_type, database, active, temporary FROM pg_replication_slots;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "slot_name",
+              "type": "label"
+            },
+            {
+              "name": "slot_type",
+              "type": "label"
+            },
+            {
+              "name": "database",
+              "type": "label"
+            },
+            {
+              "description": "Is the replication active",
+              "name": "active",
+              "type": "gauge"
+            },
+            {
+              "description": "Is the replication temporary",
+              "name": "temporary",
+              "type": "gauge"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_replication_slots",
+      "sort": "data",
+      "collector": "replication"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT buffers_alloc, buffers_backend, buffers_backend_fsync, buffers_checkpoint, buffers_clean, checkpoint_sync_time, checkpoint_write_time, checkpoints_req, checkpoints_timed, maxwritten_clean FROM pg_stat_bgwriter;",
+          "version": 10,
+          "columns": [
+            {
+              "description": "pg_stat_bgwriter_buffers_alloc",
+              "name": "buffers_alloc",
+              "type": "gauge"
+            },
+            {
+              "description": "pg_stat_bgwriter_buffers_backend",
+              "name": "buffers_backend",
+              "type": "gauge"
+            },
+            {
+              "description": "pg_stat_bgwriter_buffers_backend_fsync",
+              "name": "buffers_backend_fsync",
+              "type": "gauge"
+            },
+            {
+              "description": "pg_stat_bgwriter_buffers_checkpoint",
+              "name": "buffers_checkpoint",
+              "type": "gauge"
+            },
+            {
+              "description": "pg_stat_bgwriter_buffers_clean",
+              "name": "buffers_clean",
+              "type": "gauge"
+            },
+            {
+              "description": "pg_stat_bgwriter_checkpoint_sync_time",
+              "name": "checkpoint_sync_time",
+              "type": "counter"
+            },
+            {
+              "description": "pg_stat_bgwriter_checkpoint_write_time",
+              "name": "checkpoint_write_time",
+              "type": "counter"
+            },
+            {
+              "description": "pg_stat_bgwriter_checkpoints_req",
+              "name": "checkpoints_req",
+              "type": "counter"
+            },
+            {
+              "description": "pg_stat_bgwriter_checkpoints_timed",
+              "name": "checkpoints_timed",
+              "type": "counter"
+            },
+            {
+              "description": "pg_stat_bgwriter_maxwritten_clean",
+              "name": "maxwritten_clean",
+              "type": "counter"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_stat_bgwriter",
+      "collector": "stat_bgwriter"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT datname, confl_tablespace, confl_lock, confl_snapshot, confl_bufferpin, confl_deadlock FROM pg_stat_database_conflicts WHERE datname IS NOT NULL ORDER BY datname;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "database",
+              "type": "label"
+            },
+            {
+              "name": "confl_tablespace",
+              "type": "counter",
+              "description": "pg_stat_database_conflicts_confl_tablespace"
+            },
+            {
+              "name": "confl_lock",
+              "type": "counter",
+              "description": "pg_stat_database_conflicts_confl_lock"
+            },
+            {
+              "name": "confl_snapshot",
+              "type": "counter",
+              "description": "pg_stat_database_conflicts_confl_snapshot"
+            },
+            {
+              "name": "confl_bufferpin",
+              "type": "counter",
+              "description": "pg_stat_database_conflicts_confl_bufferpin"
+            },
+            {
+              "name": "confl_deadlock",
+              "type": "counter",
+              "description": "pg_stat_database_conflicts_confl_deadlock"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_stat_database_conflicts",
+      "sort": "data",
+      "collector": "stat_conflicts"
+    },
+    {
+      "queries": [
+        {
+          "query": "WITH metrics AS ( SELECT application_name, SUM(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - state_change))::bigint)::float AS process_idle_seconds_sum, COUNT(*) AS process_idle_seconds_count FROM pg_stat_activity WHERE state = 'idle' GROUP BY application_name ), buckets AS ( SELECT application_name, le, SUM( CASE WHEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - state_change)) <= le THEN 1 ELSE 0 END )::bigint AS bucket FROM pg_stat_activity, UNNEST(ARRAY[1, 2, 5, 15, 30, 60, 90, 120, 300]) AS le GROUP BY application_name, le ORDER BY application_name, le ) SELECT application_name, process_idle_seconds_sum as seconds_sum, process_idle_seconds_count as seconds_count, ARRAY_AGG(le) AS seconds, ARRAY_AGG(bucket) AS seconds_bucket FROM metrics JOIN buckets USING (application_name) GROUP BY 1, 2, 3;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "application_name",
+              "type": "label"
+            },
+            {
+              "name": "seconds",
+              "type": "histogram",
+              "description": "Histogram of idle processes"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_process_idle_seconds",
+      "collector": "idle_procs"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT COUNT(*) AS extensions FROM pg_available_extensions;",
+          "version": 10,
+          "columns": [
+            {
+              "type": "gauge",
+              "description": "Number of available extensions for installation."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_available_extensions",
+      "collector": "available_extensions"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT array_agg(extname) AS extensions, count(*) FROM pg_extension;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "extensions",
+              "type": "label"
+            },
+            {
+              "type": "gauge",
+              "description": "Number of installed extensions."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_installed_extensions",
+      "collector": "installed_extensions"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT sourcefile, COUNT(*), ( CASE applied WHEN 't' THEN 'true' ELSE 'false' END ) as applied FROM pg_file_settings WHERE applied = 't' GROUP BY sourcefile, applied;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "sourcefile",
+              "type": "label"
+            },
+            {
+              "type": "gauge",
+              "description": "Settings that are applied."
+            },
+            {
+              "name": "applied",
+              "type": "label"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_file_settings",
+      "sort": "data",
+      "collector": "file_settings"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT schemaname, tablename, COUNT(*) FROM pg_indexes GROUP BY schemaname,tablename;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "schemaname",
+              "type": "label"
+            },
+            {
+              "name": "tablename",
+              "type": "label"
+            },
+            {
+              "type": "gauge",
+              "description": "Indexes for each schemaname for each tablename."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_indexes",
+      "sort": "data",
+      "collector": "indexes"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT COUNT(*) FROM pg_matviews WHERE ispopulated = 't' GROUP BY ispopulated;",
+          "version": 10,
+          "columns": [
+            {
+              "type": "gauge",
+              "description": "Number of applied Materialized views."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_matviews",
+      "collector": "matviews"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT COUNT(*) FROM pg_roles;",
+          "version": 10,
+          "columns": [
+            {
+              "type": "gauge",
+              "description": "Number of roles."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_role",
+      "collector": "roles"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT tablename, COUNT(*) FROM pg_rules GROUP BY tablename;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "tablename",
+              "type": "label"
+            },
+            {
+              "type": "gauge",
+              "description": "Number of rules in table."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_rule",
+      "sort": "data",
+      "collector": "rules"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT ( CASE WHEN rolpassword LIKE 'md5%' THEN 'MD5' WHEN rolpassword LIKE 'SCRAM-SHA-256$%' THEN 'SCRAM-SHA-256' ELSE 'UNENCRYPTED' END ) AS encryption_type, COUNT(*) FROM pg_authid WHERE rolname != 'postgres' GROUP BY encryption_type;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "encryption_type",
+              "type": "label"
+            },
+            {
+              "type": "gauge",
+              "description": "Number of users with authentication type."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_shadow",
+      "sort": "data",
+      "collector": "auth_type"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT COUNT(*) FROM pg_event_trigger JOIN pg_authid ON pg_event_trigger.oid = pg_authid.oid WHERE rolname != 'postgres';",
+          "version": 10,
+          "columns": [
+            {
+              "type": "gauge",
+              "description": "Number of user defined event triggers."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_usr_evt_trigger",
+      "collector": "usr_evt_trigger"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT datname, count(*) FROM pg_stat_activity WHERE datname IS NOT NULL GROUP BY datname;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "database",
+              "type": "label"
+            },
+            {
+              "type": "gauge",
+              "description": "Number of database connections."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_db_conn",
+      "sort": "data",
+      "collector": "connections"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT datname, count(*) FROM pg_stat_ssl JOIN pg_stat_activity ON pg_stat_activity.pid = pg_stat_ssl.pid WHERE ssl = 't' AND datname IS NOT NULL GROUP BY datname;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "database",
+              "type": "label"
+            },
+            {
+              "type": "gauge",
+              "description": "Number of DB connections with SSL."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_db_conn",
+      "sort": "data",
+      "collector": "connections"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT COUNT(heap_blks_read) AS heap_blks_read, COUNT(heap_blks_hit) AS heap_blks_hit, COUNT(idx_blks_read) as idx_blks_read, COUNT(idx_blks_hit) AS idx_blks_hit, COUNT(toast_blks_read) AS toast_blks_read, COUNT(toast_blks_hit) AS toast_blks_hit, COUNT(tidx_blks_read) AS tidx_blks_read, COUNT(tidx_blks_hit) AS tidx_blks_hit FROM pg_statio_all_tables;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "heap_blks_read",
+              "type": "counter",
+              "description": "Number of disk blocks read in postgres db."
+            },
+            {
+              "name": "heap_blks_hit",
+              "type": "counter",
+              "description": "Number of buffer hits read in postgres db."
+            },
+            {
+              "name": "idx_blks_read",
+              "type": "counter",
+              "description": "Number of disk blocks reads from all indexes in postgres db."
+            },
+            {
+              "name": "idx_blks_hit",
+              "type": "counter",
+              "description": "Number of buffer hits read from all indexes in postgres db."
+            },
+            {
+              "name": "toast_blks_read",
+              "type": "counter",
+              "description": "Number of disk blocks reads from postgres db's TOAST tables."
+            },
+            {
+              "name": "toast_blks_hit",
+              "type": "counter",
+              "description": "Number of buffer hits read from postgres db's TOAST tables."
+            },
+            {
+              "name": "tidx_blks_read",
+              "type": "counter",
+              "description": "Number of disk blocks reads from postgres db's TOAST table indexes."
+            },
+            {
+              "name": "tidx_blks_hit",
+              "type": "counter",
+              "description": "Number of buffer hits read from postgres db's TOAST table indexes."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_statio_all_tables",
+      "collector": "statio_all_tables"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT COUNT(blks_read) AS blks_read, COUNT(blks_hit) AS blks_hit FROM pg_statio_all_sequences;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "blks_read",
+              "type": "counter",
+              "description": "Number of disk blocks read from sequences in postgres db."
+            },
+            {
+              "name": "blks_hit",
+              "type": "counter",
+              "description": "Number of buffer hits read from sequences in postgres db."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_statio_all_sequences",
+      "collector": "statio_all_sequences"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT funcname, calls, self_time, total_time FROM pg_stat_user_functions;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "funcname",
+              "type": "label"
+            },
+            {
+              "name": "calls",
+              "type": "counter",
+              "description": "Number of times function is called."
+            },
+            {
+              "name": "self_time",
+              "type": "counter",
+              "description": "Total time spent in milliseconds on the function itself."
+            },
+            {
+              "name": "total_time",
+              "type": "counter",
+              "description": "Total time spent in milliseconds by the function and any other functions called by it."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_stat_user_functions",
+      "sort": "data",
+      "collector": "stat_user_functions"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT calls, query FROM pg_stat_statements ORDER BY calls DESC LIMIT 10;",
+          "version": 10,
+          "columns": [
+            {
+              "type": "counter",
+              "description": "Number of times the SQL query is executed."
+            },
+            {
+              "name": "query",
+              "type": "label"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_stat_statements_calls",
+      "sort": "data",
+      "collector": "stat_statements_calls"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT rows, query FROM pg_stat_statements ORDER BY rows DESC LIMIT 10;",
+          "version": 10,
+          "columns": [
+            {
+              "type": "counter",
+              "description": "Number of rows the SQL query affects."
+            },
+            {
+              "name": "query",
+              "type": "label"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_stat_statements_rows",
+      "sort": "data",
+      "collector": "stat_statements_rows"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT COUNT(*), application_name FROM pg_stat_replication WHERE state = 'streaming' GROUP BY application_name;",
+          "version": 10,
+          "columns": [
+            {
+              "type": "gauge",
+              "description": "Number of streaming WAL connections per application."
+            },
+            {
+              "name": "application_name",
+              "type": "label"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_stat_replication",
+      "sort": "data",
+      "collector": "stat_replication"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT archived_count, (EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_archived_time)) * 1000)::bigint AS success_time_elapsed_ms, failed_count, (EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_failed_time)) * 1000)::bigint AS failure_time_elapsed_ms FROM pg_stat_archiver;",
+          "version": 10,
+          "columns": [
+            {
+              "type": "counter",
+              "name": "archived_count",
+              "description": "Number of successful archived WAL files."
+            },
+            {
+              "type": "counter",
+              "name": "success_time_elapsed_ms",
+              "description": "Milliseconds since successful archived WAL file."
+            },
+            {
+              "type": "counter",
+              "name": "archived_count",
+              "description": "Number of failed archival operation on WAL files."
+            },
+            {
+              "type": "counter",
+              "name": "archived_count",
+              "description": "Milliseconds since last failed archival operation on WAL files."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_stat_archiver",
+      "sort": "data",
+      "collector": "stat_archiver"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT SUM(idx_scan) AS idx_scans, SUM(idx_tup_read) AS idx_tup_reads, SUM(idx_tup_fetch) AS idx_tup_fetchs, relname FROM pg_stat_all_indexes GROUP BY relname;",
+          "version": 10,
+          "columns": [
+            {
+              "type": "counter",
+              "name": "idx_scans",
+              "description": "Number of index scans on the table's indexes."
+            },
+            {
+              "type": "counter",
+              "name": "idx_tup_reads",
+              "description": "Number of index entries returned by scans on the table's indexes."
+            },
+            {
+              "type": "counter",
+              "name": "idx_tup_fetchs",
+              "description": "Number of rows fetched by simple index scans on the table's indexes."
+            },
+            {
+              "type": "label",
+              "name": "relname"
+            }
+          ]
+        }
+      ],
+      "tag": "stat_all_indexes",
+      "sort": "data",
+      "collector": "pg_stat_all_indexes"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT datname, age(datfrozenxid) as age FROM pg_database;",
+          "version": 10,
+          "columns": [
+            {
+              "type": "label",
+              "name": "datname",
+              "description": "Database name."
+            },
+            {
+              "type": "counter",
+              "name": "age",
+              "description": "Age since last vaccum."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_db_vacuum",
+      "sort": "data",
+      "collector": "db_vacuum"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT c.oid::regclass as table_name, greatest(age(c.relfrozenxid),age(t.relfrozenxid)) as age FROM pg_class c LEFT JOIN pg_class t ON c.reltoastrelid = t.oid WHERE c.relkind IN ('r', 'm');",
+          "version": 10,
+          "columns": [
+            {
+              "type": "label",
+              "name": "datname",
+              "description": "View name."
+            },
+            {
+              "type": "counter",
+              "name": "age",
+              "description": "Age since last vaccum."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_view_vacuum",
+      "sort": "data",
+      "collector": "db_vacuum"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT CASE WHEN sender_host LIKE '/%' THEN sender_host ELSE sender_host || ':' || sender_port::text END AS sender, (EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_msg_send_time)) * 1000)::bigint AS time_elapsed_ms FROM pg_stat_wal_receiver;",
+          "version": 11,
+          "columns": [
+            {
+              "name": "sender",
+              "type": "label"
+            },
+            {
+              "type": "counter",
+              "description": "Time since last message received from WAL sender"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_wal_last_received",
+      "collector": "wal_last_received",
+      "server": "replica"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT COUNT(*) FROM pg_stat_gssapi JOIN pg_stat_activity ON pg_stat_gssapi.pid = pg_stat_activity.pid WHERE gss_authenticated = 't' AND datname IS NOT NULL;",
+          "version": 12,
+          "columns": [
+            {
+              "type": "gauge",
+              "description": "Number of GSSAPI authenticated DB connections."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_gss_auth",
+      "collector": "gssapi"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT COUNT(*) FROM pg_stat_gssapi JOIN pg_stat_activity ON pg_stat_gssapi.pid = pg_stat_activity.pid WHERE encrypted = 't' AND datname IS NOT NULL;",
+          "version": 12,
+          "columns": [
+            {
+              "type": "gauge",
+              "description": "Number of encrypted DB connections."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_encrypted_conn",
+      "collector": "encryted_conns"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT SUM(sum) AS size_sum, '1' AS size_count, array_agg((bucket - 1) * (50000))::int[] AS size, array_agg(count)::int[] AS size_bucket FROM ( SELECT width_bucket(allocated_size, 0, 5000000, 100) AS bucket, COUNT(*), SUM(allocated_size) FROM pg_shmem_allocations GROUP BY bucket ORDER BY bucket ) t;",
+          "version": 13,
+          "columns": [
+            {
+              "name": "size",
+              "type": "histogram",
+              "description": "Histogram of shared memory sizes."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_shmem_allocations",
+      "collector": "shmem_size"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT total_exec_time, query FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 10;",
+          "version": 13,
+          "columns": [
+            {
+              "type": "gauge",
+              "description": "Milliseconds taken by the sql query to execute."
+            },
+            {
+              "name": "query",
+              "type": "label"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_stat_statements_total_exec_time",
+      "collector": "stat_statements_total_exec_time"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT plans, query FROM pg_stat_statements ORDER BY plans desc LIMIT 10;",
+          "version": 13,
+          "columns": [
+            {
+              "type": "counter",
+              "description": "Number of times the sql query is planned."
+            },
+            {
+              "name": "query",
+              "type": "label"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_stat_statements_plans",
+      "sort": "data",
+      "collector": "stat_statements_plans"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT wal_bytes, query FROM pg_stat_statements ORDER BY wal_bytes desc LIMIT 10;",
+          "version": 13,
+          "columns": [
+            {
+              "type": "counter",
+              "description": "Bytes occupied in WAL."
+            },
+            {
+              "name": "query",
+              "type": "label"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_stat_statements_wal_bytes",
+      "sort": "data",
+      "collector": "stat_statements_wal_bytes"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT COUNT(*) AS contexts, parent, SUM(free_bytes) AS free_bytes, SUM(used_bytes) AS used_bytes, SUM(total_bytes) AS total_bytes FROM pg_backend_memory_contexts WHERE parent!='' GROUP BY parent;",
+          "version": 14,
+          "columns": [
+            {
+              "name": "contexts",
+              "type": "gauge",
+              "description": "Number of memory contexts per parent."
+            },
+            {
+              "name": "parent",
+              "type": "label"
+            },
+            {
+              "name": "free_bytes",
+              "type": "gauge",
+              "description": "Free bytes per memory context."
+            },
+            {
+              "name": "used_bytes",
+              "type": "gauge",
+              "description": "Used bytes per memory context."
+            },
+            {
+              "name": "total_bytes",
+              "type": "gauge",
+              "description": "Total bytes per memory context."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_mem_ctx",
+      "collector": "mem_ctx"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT wal_records, wal_fpi, wal_bytes, wal_buffers_full, wal_write, wal_sync, wal_write_time, wal_sync_time FROM pg_stat_wal;",
+          "version": 14,
+          "columns": [
+            {
+              "name": "wal_records",
+              "type": "counter",
+              "description": "Number of WAL records generated."
+            },
+            {
+              "name": "wal_fpi",
+              "type": "counter",
+              "description": "Number of WAL full page images generated."
+            },
+            {
+              "name": "wal_bytes",
+              "type": "counter",
+              "description": "Total bytes of generated WAL."
+            },
+            {
+              "name": "wal_buffers_full",
+              "type": "counter",
+              "description": "Number of disk writes due to WAL buffers being full."
+            },
+            {
+              "name": "wal_write",
+              "type": "counter",
+              "description": "Number of times WAL files were written to disk."
+            },
+            {
+              "name": "wal_sync",
+              "type": "counter",
+              "description": "Number of times WAL files were synced to disk."
+            },
+            {
+              "name": "wal_write_time",
+              "type": "counter",
+              "description": "Time taken for WAL files to be written to disk."
+            },
+            {
+              "name": "wal_sync_time",
+              "type": "counter",
+              "description": "Time taken for WAL files to be synced to disk."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_stat_wal",
+      "collector": "stat_wal"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT datname, blk_read_time, blk_write_time, blks_hit, blks_read, deadlocks, temp_files, temp_bytes, tup_returned, tup_fetched, tup_inserted, tup_updated, tup_deleted, xact_commit, xact_rollback, conflicts, numbackends FROM pg_stat_database WHERE datname IS NOT NULL ORDER BY datname;",
+          "columns": [
+            {
+              "name": "database",
+              "type": "label"
+            },
+            {
+              "name": "blk_read_time",
+              "type": "counter",
+              "description": "pg_stat_database_blk_read_time"
+            },
+            {
+              "name": "blk_write_time",
+              "type": "counter",
+              "description": "pg_stat_database_blk_write_time"
+            },
+            {
+              "name": "blks_hit",
+              "type": "counter",
+              "description": "pg_stat_database_blks_hit"
+            },
+            {
+              "name": "blks_read",
+              "type": "counter",
+              "description": "pg_stat_database_blks_read"
+            },
+            {
+              "name": "deadlocks",
+              "type": "counter",
+              "description": "pg_stat_database_deadlocks"
+            },
+            {
+              "name": "temp_files",
+              "type": "gauge",
+              "description": "pg_stat_database_temp_files"
+            },
+            {
+              "name": "temp_bytes",
+              "type": "gauge",
+              "description": "pg_stat_database_temp_bytes"
+            },
+            {
+              "name": "tup_returned",
+              "type": "counter",
+              "description": "pg_stat_database_tup_returned"
+            },
+            {
+              "name": "tup_fetched",
+              "type": "counter",
+              "description": "pg_stat_database_tup_fetched"
+            },
+            {
+              "name": "tup_inserted",
+              "type": "counter",
+              "description": "pg_stat_database_tup_inserted"
+            },
+            {
+              "name": "tup_updated",
+              "type": "counter",
+              "description": "pg_stat_database_tup_updated"
+            },
+            {
+              "name": "tup_deleted",
+              "type": "counter",
+              "description": "pg_stat_database_tup_deleted"
+            },
+            {
+              "name": "xact_commit",
+              "type": "counter",
+              "description": "pg_stat_database_xact_commit"
+            },
+            {
+              "name": "xact_rollback",
+              "type": "counter",
+              "description": "pg_stat_database_xact_rollback"
+            },
+            {
+              "name": "conflicts",
+              "type": "counter",
+              "description": "pg_stat_database_conflicts"
+            },
+            {
+              "name": "numbackends",
+              "type": "gauge",
+              "description": "pg_stat_database_numbackends"
+            }
+          ],
+          "version": 10
+        },
+        {
+          "query": "SELECT datname, blk_read_time, blk_write_time, blks_hit, blks_read, deadlocks, temp_files, temp_bytes, tup_returned, tup_fetched, tup_inserted, tup_updated, tup_deleted, xact_commit, xact_rollback, conflicts, numbackends, checksum_failures FROM pg_stat_database WHERE datname IS NOT NULL ORDER BY datname;",
+          "columns": [
+            {
+              "name": "database",
+              "type": "label"
+            },
+            {
+              "name": "blk_read_time",
+              "type": "counter",
+              "description": "pg_stat_database_blk_read_time"
+            },
+            {
+              "name": "blk_write_time",
+              "type": "counter",
+              "description": "pg_stat_database_blk_write_time"
+            },
+            {
+              "name": "blks_hit",
+              "type": "counter",
+              "description": "pg_stat_database_blks_hit"
+            },
+            {
+              "name": "blks_read",
+              "type": "counter",
+              "description": "pg_stat_database_blks_read"
+            },
+            {
+              "name": "deadlocks",
+              "type": "counter",
+              "description": "pg_stat_database_deadlocks"
+            },
+            {
+              "name": "temp_files",
+              "type": "gauge",
+              "description": "pg_stat_database_temp_files"
+            },
+            {
+              "name": "temp_bytes",
+              "type": "gauge",
+              "description": "pg_stat_database_temp_bytes"
+            },
+            {
+              "name": "tup_returned",
+              "type": "counter",
+              "description": "pg_stat_database_tup_returned"
+            },
+            {
+              "name": "tup_fetched",
+              "type": "counter",
+              "description": "pg_stat_database_tup_fetched"
+            },
+            {
+              "name": "tup_inserted",
+              "type": "counter",
+              "description": "pg_stat_database_tup_inserted"
+            },
+            {
+              "name": "tup_updated",
+              "type": "counter",
+              "description": "pg_stat_database_tup_updated"
+            },
+            {
+              "name": "tup_deleted",
+              "type": "counter",
+              "description": "pg_stat_database_tup_deleted"
+            },
+            {
+              "name": "xact_commit",
+              "type": "counter",
+              "description": "pg_stat_database_xact_commit"
+            },
+            {
+              "name": "xact_rollback",
+              "type": "counter",
+              "description": "pg_stat_database_xact_rollback"
+            },
+            {
+              "name": "conflicts",
+              "type": "counter",
+              "description": "pg_stat_database_conflicts"
+            },
+            {
+              "name": "numbackends",
+              "type": "gauge",
+              "description": "pg_stat_database_numbackends"
+            },
+            {
+              "name": "checksum_failures",
+              "type": "gauge",
+              "description": "pg_stat_database_checksum_failures"
+            }
+          ],
+          "version": 12
+        },
+        {
+          "query": "SELECT datname, blk_read_time, blk_write_time, blks_hit, blks_read, deadlocks, temp_files, temp_bytes, tup_returned, tup_fetched, tup_inserted, tup_updated, tup_deleted, xact_commit, xact_rollback, conflicts, numbackends, checksum_failures, session_time, active_time, idle_in_transaction_time, sessions, sessions_abandoned, sessions_fatal, sessions_killed FROM pg_stat_database WHERE datname IS NOT NULL ORDER BY datname;",
+          "version": 14,
+          "columns": [
+            {
+              "name": "database",
+              "type": "label"
+            },
+            {
+              "name": "blk_read_time",
+              "type": "counter",
+              "description": "pg_stat_database_blk_read_time"
+            },
+            {
+              "name": "blk_write_time",
+              "type": "counter",
+              "description": "pg_stat_database_blk_write_time"
+            },
+            {
+              "name": "blks_hit",
+              "type": "counter",
+              "description": "pg_stat_database_blks_hit"
+            },
+            {
+              "name": "blks_read",
+              "type": "counter",
+              "description": "pg_stat_database_blks_read"
+            },
+            {
+              "name": "deadlocks",
+              "type": "counter",
+              "description": "pg_stat_database_deadlocks"
+            },
+            {
+              "name": "temp_files",
+              "type": "gauge",
+              "description": "pg_stat_database_temp_files"
+            },
+            {
+              "name": "temp_bytes",
+              "type": "gauge",
+              "description": "pg_stat_database_temp_bytes"
+            },
+            {
+              "name": "tup_returned",
+              "type": "counter",
+              "description": "pg_stat_database_tup_returned"
+            },
+            {
+              "name": "tup_fetched",
+              "type": "counter",
+              "description": "pg_stat_database_tup_fetched"
+            },
+            {
+              "name": "tup_inserted",
+              "type": "counter",
+              "description": "pg_stat_database_tup_inserted"
+            },
+            {
+              "name": "tup_updated",
+              "type": "counter",
+              "description": "pg_stat_database_tup_updated"
+            },
+            {
+              "name": "tup_deleted",
+              "type": "counter",
+              "description": "pg_stat_database_tup_deleted"
+            },
+            {
+              "name": "xact_commit",
+              "type": "counter",
+              "description": "pg_stat_database_xact_commit"
+            },
+            {
+              "name": "xact_rollback",
+              "type": "counter",
+              "description": "pg_stat_database_xact_rollback"
+            },
+            {
+              "name": "conflicts",
+              "type": "counter",
+              "description": "pg_stat_database_conflicts"
+            },
+            {
+              "name": "numbackends",
+              "type": "gauge",
+              "description": "pg_stat_database_numbackends"
+            },
+            {
+              "name": "checksum_failures",
+              "type": "gauge",
+              "description": "pg_stat_database_checksum_failures"
+            },
+            {
+              "name": "session_time",
+              "type": "gauge",
+              "description": "pg_stat_database_session_time"
+            },
+            {
+              "name": "active_time",
+              "type": "gauge",
+              "description": "pg_stat_database_active_time"
+            },
+            {
+              "name": "idle_in_transaction_time",
+              "type": "gauge",
+              "description": "pg_stat_database_idle_in_transaction_time"
+            },
+            {
+              "name": "sessions",
+              "type": "gauge",
+              "description": "pg_stat_database_sessions"
+            },
+            {
+              "name": "sessions_abandoned",
+              "type": "gauge",
+              "description": "pg_stat_database_sessions_abandoned"
+            },
+            {
+              "name": "sessions_fatal",
+              "type": "gauge",
+              "description": "pg_stat_database_sessions_fatal"
+            },
+            {
+              "name": "sessions_killed",
+              "type": "gauge",
+              "description": "pg_stat_database_sessions_killed"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_stat_database",
+      "collector": "stat_db"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT FLOOR( EXTRACT( EPOCH FROM (now() - stats_reset) ) ) FROM pg_stat_recovery_prefetch;",
+          "columns": [
+            {
+              "type": "counter",
+              "description": "Seconds from last WAL prefetch stats reset."
+            }
+          ]
+        }
+      ],
+      "tag": "pg_wal_prefetch_reset",
+      "collector": "wal_prefetch_reset"
+    }
+  ]
+}
