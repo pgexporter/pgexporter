@@ -200,10 +200,10 @@ prometheus_metric_string_cb(uintptr_t data, int32_t format, char* tag, int inden
 
    if (m != NULL)
    {
-      pgexporter_art_insert(a, (unsigned char*)"Name", strlen("Name"), (uintptr_t)m->name, ValueString);
-      pgexporter_art_insert(a, (unsigned char*)"Help", strlen("Help"), (uintptr_t)m->help, ValueString);
-      pgexporter_art_insert(a, (unsigned char*)"Type", strlen("Type"), (uintptr_t)m->type, ValueString);
-      pgexporter_art_insert_with_config(a, (unsigned char*)"Definitions", strlen("Definitions"), (uintptr_t)m->definitions, &vc);
+      pgexporter_art_insert(a, (char*)"Name", (uintptr_t)m->name, ValueString);
+      pgexporter_art_insert(a, (char*)"Help", (uintptr_t)m->help, ValueString);
+      pgexporter_art_insert(a, (char*)"Type", (uintptr_t)m->type, ValueString);
+      pgexporter_art_insert_with_config(a, (char*)"Definitions", (uintptr_t)m->definitions, &vc);
 
       s = pgexporter_art_to_string(a, format, tag, indent);
    }
@@ -229,7 +229,7 @@ metric_find_create(struct prometheus_bridge* bridge, char* name,
 
    *metric = NULL;
 
-   m = (struct prometheus_metric*)pgexporter_art_search(bridge->metrics, (unsigned char*)name, strlen(name));
+   m = (struct prometheus_metric*)pgexporter_art_search(bridge->metrics, (char*)name);
 
    if (m == NULL)
    {
@@ -246,7 +246,7 @@ metric_find_create(struct prometheus_bridge* bridge, char* name,
       m->name = strdup(name);
       m->definitions = defs;
 
-      if (pgexporter_art_insert_with_config(bridge->metrics, (unsigned char*)name, strlen(name),
+      if (pgexporter_art_insert_with_config(bridge->metrics, (char*)name,
                                             (uintptr_t)m, &vc))
       {
          goto error;
@@ -386,8 +386,8 @@ prometheus_attributes_string_cb(uintptr_t data, int32_t format, char* tag, int i
 
    if (m != NULL)
    {
-      pgexporter_art_insert_with_config(a, (unsigned char*)"Attributes", strlen("Attributes"), (uintptr_t)m->attributes, &vc);
-      pgexporter_art_insert_with_config(a, (unsigned char*)"Values", strlen("Values"), (uintptr_t)m->values, &vc);
+      pgexporter_art_insert_with_config(a, (char*)"Attributes", (uintptr_t)m->attributes, &vc);
+      pgexporter_art_insert_with_config(a, (char*)"Values", (uintptr_t)m->values, &vc);
 
       s = pgexporter_art_to_string(a, format, tag, indent);
    }
@@ -522,8 +522,8 @@ prometheus_value_string_cb(uintptr_t data, int32_t format, char* tag, int indent
 
    if (m != NULL)
    {
-      pgexporter_art_insert(a, (unsigned char*)"Timestamp", strlen("Timestamp"), (uintptr_t)m->timestamp, ValueInt64);
-      pgexporter_art_insert(a, (unsigned char*)"Value", strlen("Value"), (uintptr_t)m->value, ValueString);
+      pgexporter_art_insert(a, (char*)"Timestamp", (uintptr_t)m->timestamp, ValueInt64);
+      pgexporter_art_insert(a, (char*)"Value", (uintptr_t)m->value, ValueString);
 
       s = pgexporter_art_to_string(a, format, tag, indent);
    }
@@ -617,8 +617,8 @@ prometheus_attribute_string_cb(uintptr_t data, int32_t format, char* tag, int in
 
    if (m != NULL)
    {
-      pgexporter_art_insert(a, (unsigned char*)"Key", strlen("Key"), (uintptr_t)m->key, ValueString);
-      pgexporter_art_insert(a, (unsigned char*)"Value", strlen("Value"), (uintptr_t)m->value, ValueString);
+      pgexporter_art_insert(a, (char*)"Key", (uintptr_t)m->key, ValueString);
+      pgexporter_art_insert(a, (char*)"Value", (uintptr_t)m->value, ValueString);
 
       s = pgexporter_art_to_string(a, format, tag, indent);
    }
@@ -698,7 +698,7 @@ add_line(struct prometheus_metric* metric, char* line, int endpoint, time_t time
       goto error;
    }
 
-   line_cpy = strdup(line); /* strtok modifies the string. */
+   line_cpy = strdup(line);  /* strtok modifies the string. */
    if (line_cpy == NULL)
    {
       goto error;
@@ -809,15 +809,15 @@ parse_body_to_bridge(int endpoint, time_t timestamp, char* body, struct promethe
                              .to_string = &prometheus_metric_string_cb};
    struct prometheus_metric* metric = NULL;
 
-   line = strtok_r(body, "\n", &saveptr); /* We ideally should not care if body is modified. */
+   line = strtok_r(body, "\n", &saveptr);  /* We ideally should not care if body is modified. */
 
    while (line != NULL)
    {
       if ((!strcmp(line, "") || !strcmp(line, "\r")) &&
-          metric != NULL && metric->definitions->size > 0) /* Basically empty strings, empty lines, or empty Windows lines. */
+          metric != NULL && metric->definitions->size > 0)  /* Basically empty strings, empty lines, or empty Windows lines. */
       {
          /* Previous metric is over. */
-         pgexporter_art_insert_with_config(bridge->metrics, (unsigned char*) metric->name, strlen(metric->name), (uintptr_t) metric, &vc);
+         pgexporter_art_insert_with_config(bridge->metrics, (char*) metric->name, (uintptr_t) metric, &vc);
 
          metric = NULL;
          continue;

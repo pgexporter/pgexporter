@@ -38,6 +38,9 @@ extern "C" {
 #include <deque.h>
 #include <value.h>
 
+/* System */
+#include <stdarg.h>
+
 enum json_type {
    JSONUnknown,
    JSONItem,
@@ -86,8 +89,40 @@ pgexporter_json_create(struct json** object);
  * @param type The value type
  * @return 0 on success, otherwise 1
  */
+
+/**
+ * Append an entry into the json array
+ * If the entry is put into an empty json object, it will be treated as json array,
+ * otherwise if the json object is an item, it will reject the entry
+ * @param array The json array
+ * @param entry The entry data
+ * @param type The entry value type
+ * @return 0 is successful,
+ * otherwise when the json object is an array, value is null, or value type conflicts with old value, 1 will be returned
+ */
+int
+pgexporter_json_append(struct json* array, uintptr_t entry, enum value_type type);
+
 int
 pgexporter_json_put(struct json* item, char* key, uintptr_t val, enum value_type type);
+
+/**
+ * Remove a key and destroy the associated value within the json item.
+ * If the key does not exist or the json object is an array, the function will be noop.
+ * @param item The json item
+ * @param key The key
+ * @return 0 on success or key not found, otherwise 1
+ */
+int
+pgexporter_json_remove(struct json* item, char* key);
+
+/**
+ * Clear all the entries or key value pairs inside a json object
+ * @param obj The json object
+ * @return 0 on success, otherwise 1
+ */
+int
+pgexporter_json_clear(struct json* obj);
 
 /**
  * Get the value data from json item
@@ -108,19 +143,6 @@ bool
 pgexporter_json_contains_key(struct json* item, char* key);
 
 /**
- * Append an entry into the json array
- * If the entry is put into an empty json object, it will be treated as json array,
- * otherwise if the json object is an item, it will reject the entry
- * @param array The json array
- * @param entry The entry data
- * @param type The entry value type
- * @return 0 is successful,
- * otherwise when the json object is an array, value is null, or value type conflicts with old value, 1 will be returned
- */
-int
-pgexporter_json_append(struct json* array, uintptr_t entry, enum value_type type);
-
-/**
  * Get json array length
  * @param array The json array
  * @return The length
@@ -136,7 +158,6 @@ pgexporter_json_array_length(struct json* array);
  */
 int
 pgexporter_json_iterator_create(struct json* object, struct json_iterator** iter);
-
 /**
  * Get the next kv pair/entry from JSON object
  * @param iter The iterator
@@ -146,7 +167,7 @@ bool
 pgexporter_json_iterator_next(struct json_iterator* iter);
 
 /**
- * Check if the json iterator has next kv pair/entry without advancing it
+ * Check if the JSON object has next kv pair/entry
  * @param iter The iterator
  * @return true if has next, false if otherwise
  */
@@ -205,6 +226,24 @@ pgexporter_json_print(struct json* object, int32_t format);
  */
 int
 pgexporter_json_destroy(struct json* object);
+
+/**
+ * Read a json from disk
+ * @param path The path
+ * @param obj [out] The json object
+ * @return 0 if success, 1 if otherwise
+ */
+int
+pgexporter_json_read_file(char* path, struct json** obj);
+
+/**
+ * Write a json file to disk
+ * @param path The path
+ * @param obj The json object
+ * @return 0 if success, 1 if otherwise
+ */
+int
+pgexporter_json_write_file(char* path, struct json* obj);
 
 #ifdef __cplusplus
 }

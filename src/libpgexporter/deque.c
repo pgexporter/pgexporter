@@ -30,6 +30,7 @@
 #include <deque.h>
 #include <logging.h>
 #include <utils.h>
+#include "value.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -131,6 +132,23 @@ pgexporter_deque_remove(struct deque* deque, char* tag)
    }
    pgexporter_deque_iterator_destroy(iter);
    return cnt;
+}
+
+int
+pgexporter_deque_clear(struct deque* deque)
+{
+   struct deque_iterator* iter = NULL;
+   if (deque == NULL)
+   {
+      return 0;
+   }
+   pgexporter_deque_iterator_create(deque, &iter);
+   while (pgexporter_deque_iterator_next(iter))
+   {
+      pgexporter_deque_iterator_remove(iter);
+   }
+   pgexporter_deque_iterator_destroy(iter);
+   return 0;
 }
 
 int
@@ -269,6 +287,11 @@ pgexporter_deque_get(struct deque* deque, char* tag)
 {
    struct deque_node* n = NULL;
    uintptr_t ret = 0;
+
+#ifdef DEBUG
+   pgexporter_log_trace("pgexporter_deque_get: %s", tag);
+#endif
+
    deque_read_lock(deque);
    n = deque_find(deque, tag);
    if (n == NULL)
@@ -483,6 +506,7 @@ deque_offer(struct deque* deque, char* tag, uintptr_t data, enum value_type type
 {
    struct deque_node* n = NULL;
    struct deque_node* last = NULL;
+
    deque_node_create(data, type, tag, config, &n);
    deque_write_lock(deque);
    deque->size++;
@@ -842,7 +866,6 @@ deque_merge(struct deque_node* node1, struct deque_node* node2)
    }
    return start;
 }
-
 static int
 tag_compare(char* tag1, char* tag2)
 {
