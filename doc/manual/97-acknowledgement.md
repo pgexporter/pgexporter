@@ -7,7 +7,7 @@
 [**pgexporter**][pgexporter] was created by the following authors:
 
 ```
-Jesper Pedersen <jesper.pedersen@comcast.net>
+Jesper Pedersen <jesperpedersen.db@gmail.com>
 David Fetter <david@fetter.org>
 Will Leinweber <will@bitfission.com>
 Nikita Bugrovsky <nbugrovs@redhat.com>
