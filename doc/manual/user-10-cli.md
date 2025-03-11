@@ -59,7 +59,7 @@ Manage the configuration
 Command
 
 ``` sh
-pgmoneta-cli conf [reload | ls | get | set]
+pgexporter-cli conf [reload | ls | get | set]
 ```
 
 Subcommand
@@ -72,10 +72,10 @@ Subcommand
 Example
 
 ``` sh
-pgmoneta-cli conf reload
-pgmoneta-cli conf ls
-pgmoneta-cli conf get primary.host
-pgmoneta-cli conf set encryption aes-256-cbc
+pgexporter-cli conf reload
+pgexporter-cli conf ls
+pgexporter-cli conf get primary.host
+pgexporter-cli conf set encryption aes-256-cbc
 ```
 
 ## clear prometheus
