@@ -29,6 +29,7 @@
 /* pgexporter */
 #include <pgexporter.h>
 #include <connection.h>
+#include <deque.h>
 #include <logging.h>
 #include <message.h>
 #include <network.h>
@@ -45,6 +46,7 @@ static void* data_append(void* orig, size_t orig_size, void* n, size_t n_size);
 static int create_D_tuple(int server, int number_of_columns, struct message* msg, struct tuple** tuple);
 static int get_number_of_columns(struct message* msg);
 static int get_column_name(struct message* msg, int index, char** name);
+static int process_server_parameters(int server, struct deque* server_parameters);
 
 void
 pgexporter_open_connections(void)
@@ -52,6 +54,7 @@ pgexporter_open_connections(void)
    int ret;
    int user;
    struct configuration* config;
+   struct deque* server_parameters;
 
    config = (struct configuration*)shmem;
 
@@ -87,7 +90,11 @@ pgexporter_open_connections(void)
          {
             config->servers[server].new = true;
             pgexporter_server_info(server);
-            pgexporter_server_version(server);
+            if (!pgexporter_extract_server_parameters(&server_parameters))
+            {
+               process_server_parameters(server, server_parameters);
+               pgexporter_deque_destroy(server_parameters);
+            }
          }
          else
          {
@@ -148,38 +155,6 @@ pgexporter_close_connections(void)
          }
       }
    }
-}
-
-int
-pgexporter_server_version(int server)
-{
-   struct query* q = NULL;
-   int ret;
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   ret = query_execute(server, "SELECT split_part(split_part(version(), ' ', 2), '.', 1) AS major, "
-                       "split_part(split_part(version(), ' ', 2), '.', 2) AS minor;", "pg_version",
-                       2, NULL, &q);
-
-   if (q)
-   {
-      struct tuple* t = q->tuples;
-      if (t && t->data[0])
-      {
-         config->servers[server].version = atoi(t->data[0]);
-      }
-
-      if (t && t->data[1])
-      {
-         config->servers[server].minor_version = atoi(t->data[1]);
-      }
-   }
-
-   pgexporter_free_query(q);
-
-   return ret;
 }
 
 int
@@ -866,4 +841,44 @@ get_column_name(struct message* msg, int index, char** name)
    }
 
    return 1;
+}
+
+static int
+process_server_parameters(int server, struct deque* server_parameters)
+{
+   int status = 0;
+   int major = 0;
+   int minor = 0;
+   struct deque_iterator* iter = NULL;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   config->servers[server].version = 0;
+   config->servers[server].minor_version = 0;
+
+   pgexporter_deque_iterator_create(server_parameters, &iter);
+   while (pgexporter_deque_iterator_next(iter))
+   {
+      pgexporter_log_trace("%s/process server_parameter '%s'", config->servers[server].name, iter->tag);
+      if (!strcmp("server_version", iter->tag))
+      {
+         char* server_version = pgexporter_value_to_string(iter->value, FORMAT_TEXT, NULL, 0);
+         if (sscanf(server_version, "%d.%d", &major, &minor) == 2)
+         {
+            config->servers[server].version = major;
+            config->servers[server].minor_version = minor;
+         }
+         else
+         {
+            pgexporter_log_error("Unable to parse server_version '%s' for %s",
+                                 server_version, config->servers[server].name);
+            status = 1;
+         }
+         free(server_version);
+      }
+   }
+
+   pgexporter_deque_iterator_destroy(iter);
+   return status;
 }

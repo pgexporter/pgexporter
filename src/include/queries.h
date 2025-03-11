@@ -93,17 +93,6 @@ int
 pgexporter_query_execute(int server, char* sql, char* tag, struct query** query);
 
 /**
-
- * Extracts the server's version as a char (minimum integral data type), and sets
- * the value of `config->servers[server].version` to it.
- *
- * @param server The server index in config
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_server_version(int server);
-
-/**
  * Query for used disk space
  * @param server The server
  * @param data Data (true) or WAL (false)

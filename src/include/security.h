@@ -34,6 +34,7 @@ extern "C" {
 #endif
 
 #include <pgexporter.h>
+#include <deque.h>
 
 #include <stdlib.h>
 
@@ -94,6 +95,14 @@ pgexporter_tls_valid(void);
  */
 void
 pgexporter_close_ssl(SSL* ssl);
+
+/**
+ * Extract server parameters recevied during the latest authentication
+ * @param server_parameters The resulting non-thread-safe deque
+ * @return 0 on success, otherwise 1
+ */
+int
+pgexporter_extract_server_parameters(struct deque** server_parameters);
 
 #ifdef __cplusplus
 }

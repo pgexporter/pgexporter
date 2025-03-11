@@ -18,6 +18,7 @@ Andreas Wahlen <andreas.wahlen@nerou.de>
 Haoran Zhang <andrewzhr9911@gmail.com>
 Georg Pfuetzenreuter <mail@georg-pfuetzenreuter.net>
 Bassam Adnan <mailbassam@gmail.com>
+Sangkeun J.C. Kim <jchrys@me.com>
 ```
 
 ## Contributing
