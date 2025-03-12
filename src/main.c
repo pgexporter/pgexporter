@@ -388,6 +388,9 @@ main(int argc, char** argv)
    int ret;
    int c;
    int collector_idx = 0;
+   char* os = NULL;
+
+   int kernel_major, kernel_minor, kernel_patch;
 
    argv_ptr = argv;
 
@@ -959,6 +962,10 @@ main(int argc, char** argv)
    pgexporter_log_info("pgexporter: started on %s", config->host);
    pgexporter_log_debug("Management: %d", unix_management_socket);
    pgexporter_log_debug("Transfer: %d", unix_transfer_socket);
+   pgexporter_os_kernel_version(&os, &kernel_major, &kernel_minor, &kernel_patch);
+
+   free(os);
+
    for (int i = 0; i < metrics_fds_length; i++)
    {
       pgexporter_log_debug("Metrics: %d", *(metrics_fds + i));
