@@ -76,6 +76,8 @@ error:
    assert(message != NULL);
    assert(data != NULL);
 #endif
+
+   pgexporter_memory_free();
 }
 
 struct message*

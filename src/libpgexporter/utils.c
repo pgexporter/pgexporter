@@ -2477,6 +2477,8 @@ pgexporter_backtrace(void)
    return 0;
 }
 
+#endif
+
 int
 pgexporter_os_kernel_version(char** os, int* kernel_major, int* kernel_minor, int* kernel_patch)
 {
@@ -2555,5 +2557,3 @@ error:
    return 1;
 #endif
 }
-
-#endif
