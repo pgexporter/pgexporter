@@ -9,64 +9,115 @@ on:
     - main
 
 jobs:
-  build:
-
+  build-ubuntu:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Update system
+        run: sudo apt update -y
+
+      - name: Install dependencies
+        run: |
+          sudo apt install -y libev4 libev-dev libsystemd-dev python3-docutils \
+          libzstd-dev liblz4-dev libbz2-dev graphviz doxygen libyaml-dev clang
+
+      - name: GCC/mkdir
+        run: mkdir build
+        working-directory: /home/runner/work/pgexporter/pgexporter/
+
+      - name: GCC/cmake
+        run: export CC=/usr/bin/gcc && cmake -DCMAKE_BUILD_TYPE=Debug ..
+        working-directory: /home/runner/work/pgexporter/pgexporter/build/
+
+      - name: GCC/make
+        run: make
+        working-directory: /home/runner/work/pgexporter/pgexporter/build/
+
+      - name: rm -Rf
+        run: rm -Rf build/
+        working-directory: /home/runner/work/pgexporter/pgexporter/
+
+      - name: CLANG/mkdir
+        run: mkdir build
+        working-directory: /home/runner/work/pgexporter/pgexporter/
+
+      - name: CLANG/cmake
+        run: export CC=/usr/bin/clang && cmake -DCMAKE_BUILD_TYPE=Debug ..
+        working-directory: /home/runner/work/pgexporter/pgexporter/build/
+
+      - name: CLANG/make
+        run: make
+        working-directory: /home/runner/work/pgexporter/pgexporter/build/
+
+      - name: rm -Rf
+        run: rm -Rf build/
+        working-directory: /home/runner/work/pgexporter/pgexporter/
+
+      - name: CLANG/Release/mkdir
+        run: mkdir build
+        working-directory: /home/runner/work/pgexporter/pgexporter/
+
+      - name: CLANG/Release/cmake
+        run: export CC=/usr/bin/clang && cmake -DCMAKE_BUILD_TYPE=Release ..
+        working-directory: /home/runner/work/pgexporter/pgexporter/build/
+
+      - name: CLANG/Release/make
+        run: make
+        working-directory: /home/runner/work/pgexporter/pgexporter/build/
+
+  build-macos:
+    runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Update system
-      run: sudo apt update -y
-    - name: Install libev
-      run: sudo apt install -y libev4 libev-dev
-    - name: Install systemd
-      run: sudo apt install -y libsystemd-dev
-    - name: Install rst2man
-      run: sudo apt install -y python3-docutils
-    - name: Install zstd
-      run: sudo apt install -y libzstd-dev
-    - name: Install lz4
-      run: sudo apt install -y liblz4-dev
-    - name: Install bzip2
-      run: sudo apt install -y libbz2-dev
-    - name: Install graphviz
-      run: sudo apt install graphviz
-    - name: Install doxygen
-      run: sudo apt install doxygen
-    - name: Install libyaml
-      run: sudo apt install -y libyaml-dev
-    - name: Install clang
-      run: sudo apt install -y clang
-    - name: GCC/mkdir
-      run: mkdir build
-      working-directory: /home/runner/work/pgexporter/pgexporter/
-    - name: GCC/cmake
-      run: export CC=/usr/bin/gcc && cmake -DCMAKE_BUILD_TYPE=Debug ..
-      working-directory: /home/runner/work/pgexporter/pgexporter/build/
-    - name: GCC/make
-      run: make
-      working-directory: /home/runner/work/pgexporter/pgexporter/build/
-    - name: rm -Rf
-      run: rm -Rf build/
-      working-directory: /home/runner/work/pgexporter/pgexporter/
-    - name: CLANG/mkdir
-      run: mkdir build
-      working-directory: /home/runner/work/pgexporter/pgexporter/
-    - name: CLANG/cmake
-      run: export CC=/usr/bin/clang && cmake -DCMAKE_BUILD_TYPE=Debug ..
-      working-directory: /home/runner/work/pgexporter/pgexporter/build/
-    - name: CLANG/make
-      run: make
-      working-directory: /home/runner/work/pgexporter/pgexporter/build/
-    - name: rm -Rf
-      run: rm -Rf build/
-      working-directory: /home/runner/work/pgexporter/pgexporter/
-    - name: CLANG/Release/mkdir
-      run: mkdir build
-      working-directory: /home/runner/work/pgexporter/pgexporter/
-    - name: CLANG/Release/cmake
-      run: export CC=/usr/bin/clang && cmake -DCMAKE_BUILD_TYPE=Release ..
-      working-directory: /home/runner/work/pgexporter/pgexporter/build/
-    - name: CLANG/Release/make
-      run: make
-      working-directory: /home/runner/work/pgexporter/pgexporter/build/
+      - uses: actions/checkout@v3
+
+      - name: Detect Homebrew prefix
+        id: brew-prefix
+        run: |
+          echo "HOMEBREW_PREFIX=$(brew --prefix)" >> $GITHUB_ENV
+          echo "ARCH=$(uname -m)" >> $GITHUB_ENV
+          if [ "$(uname -m)" = "arm64" ]; then
+            echo "Using Apple Silicon (M1/M2) configuration with Homebrew at /opt/homebrew"
+          else
+            echo "Using Intel configuration with Homebrew at /usr/local"
+          fi
+
+      - name: Install dependencies
+        run: |
+          brew update
+          brew upgrade
+          brew install libev zstd lz4 bzip2 graphviz doxygen libyaml cmake docutils
+          brew link --force bzip2
+          brew link --force zstd
+          brew link --force lz4
+
+      - name: Debug Build
+        run: |
+          mkdir -p build
+          cd build
+          export CC=/usr/bin/clang
+
+          # Set library paths based on architecture
+          cmake -DCMAKE_BUILD_TYPE=Debug .. \
+            -DCMAKE_PREFIX_PATH="$HOMEBREW_PREFIX" \
+            -DCMAKE_INCLUDE_PATH="$HOMEBREW_PREFIX/include" \
+            -DCMAKE_LIBRARY_PATH="$HOMEBREW_PREFIX/lib"
+
+          make
+
+      - name: Release Build
+        run: |
+          rm -rf build
+          mkdir -p build
+          cd build
+          export CC=/usr/bin/clang
+
+          # Set library paths based on architecture
+          cmake -DCMAKE_BUILD_TYPE=Release .. \
+            -DCMAKE_C_FLAGS='-D_DARWIN_C_SOURCE' \
+            -DCMAKE_PREFIX_PATH="$HOMEBREW_PREFIX" \
+            -DCMAKE_INCLUDE_PATH="$HOMEBREW_PREFIX/include" \
+            -DCMAKE_LIBRARY_PATH="$HOMEBREW_PREFIX/lib"
+
+          make

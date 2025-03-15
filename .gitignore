@@ -7,3 +7,4 @@ vendor/
 .ccls-cache
 .ccls
 compile_commands.json
+.DS_Store

@@ -52,6 +52,41 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")
 
+  elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+  # macOS specific configuration
+  add_compile_options(-DHAVE_DARWIN)
+  add_compile_options(-D_DARWIN_C_SOURCE)
+  add_compile_options(-D_XOPEN_SOURCE=700)
+  add_compile_options(-D_BSD_SOURCE)
+  add_compile_options(-D_DEFAULT_SOURCE)
+  add_compile_options(-D__BSD_VISIBLE)
+  
+  # Include directories
+  include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${LIBEV_INCLUDE_DIRS}
+    ${OPENSSL_INCLUDE_DIR}
+    ${LIBYAML_INCLUDE_DIRS}
+    ${THREAD_INCLUDE_DIRS}
+    ${ZLIB_INCLUDE_DIRS}
+    ${BZIP2_INCLUDE_DIRS}
+    ${ZSTD_INCLUDE_DIRS}
+    ${LZ4_INCLUDE_DIRS}
+  )
+  
+  # Library directories
+  link_libraries(
+    ${LIBEV_LIBRARIES}
+    ${OPENSSL_CRYPTO_LIBRARY}
+    ${OPENSSL_SSL_LIBRARY}
+    ${LIBYAML_LIBRARIES}
+    ${THREAD_LIBRARY}
+    ${ZLIB_LIBRARIES}
+    ${BZIP2_LIBRARIES}
+    ${ZSTD_LIBRARIES}
+    ${LZ4_LIBRARIES}
+  )
+
 else()
 
   add_compile_options(-D_XOPEN_SOURCE=700)
@@ -197,16 +232,23 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   check_pie_supported()
 endif()
 
-check_c_compiler_flag(-Wl,-z,relro HAS_RELRO)
-if (HAS_RELRO)
-  set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,relro")
-  set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,relro")
-endif()
-
-check_c_compiler_flag(-Wl,-z,now HAS_NOW)
-if (HAS_NOW)
-  set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,now")
-  set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,now")
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+  include(CheckPIESupported)
+  check_pie_supported()
+  
+  check_c_compiler_flag(-Wl,-z,relro HAS_RELRO)
+  if(HAS_RELRO)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,relro")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,relro")
+  endif()
+  
+  check_c_compiler_flag(-Wl,-z,now HAS_NOW)
+  if(HAS_NOW)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,now")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,now")
+  endif()
+elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+  # macOS specific linker flags can be added here if needed
 endif()
 
 #

@@ -26,6 +26,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#if defined(HAVE_DARWIN)
+    #define secure_getenv getenv
+#endif
+
 /* pgexporter */
 #include <pgexporter.h>
 #include <aes.h>
@@ -42,6 +46,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
