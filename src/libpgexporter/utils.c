@@ -888,10 +888,15 @@ pgexporter_set_proc_title(int argc, char** argv, char* s1, char* s2)
    max_process_title_size = size;
 
 #else
-   setproctitle("-pgexporter: %s%s%s",
-                s1 != NULL ? s1 : "",
-                s1 != NULL && s2 != NULL ? "/" : "",
-                s2 != NULL ? s2 : "");
+  #if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||       \
+   defined(__OpenBSD__)
+
+   setproctitle("-pgexporter: %s%s%s", s1 != NULL ? s1 : "",
+                s1 != NULL && s2 != NULL ? "/" : "", s2 != NULL ? s2 : "");
+#else
+   // On macOS, setproctitle is not available
+   pgexporter_log_debug("Process title setting not supported on this platform");
+#endif
 
 #endif
 }

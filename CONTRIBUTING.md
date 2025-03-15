@@ -7,16 +7,16 @@ and documentation.
 
 This document will hopefully help you contribute to pgexporter.
 
-* [Legal](#legal)
-* [Reporting an issue](#reporting-an-issue)
-* [Setup your build environment](#setup-your-build-environment)
-* [Building the main branch](#building-the-main-branch)
-* [Before you contribute](#before-you-contribute)
-* [Code reviews](#code-reviews)
-* [Coding Guidelines](#coding-guidelines)
-* [Discuss a Feature](#discuss-a-feature)
-* [Development](#development)
-* [Code Style](#code-style)
+- [Legal](#legal)
+- [Reporting an issue](#reporting-an-issue)
+- [Setup your build environment](#setup-your-build-environment)
+- [Building the main branch](#building-the-main-branch)
+- [Before you contribute](#before-you-contribute)
+- [Code reviews](#code-reviews)
+- [Coding Guidelines](#coding-guidelines)
+- [Discuss a Feature](#discuss-a-feature)
+- [Development](#development)
+- [Code Style](#code-style)
 
 ## Legal
 
@@ -48,7 +48,11 @@ git clone https://github.com/pgexporter/pgexporter.git
 cd pgexporter
 mkdir build
 cd build
+# Linux
 cmake -DCMAKE_BUILD_TYPE=Debug ..
+# MacOS
+cmake -DCMAKE_BUILD_TYPE=Debug .. -DCMAKE_C_FLAGS='-D_DARWIN_C_SOURCE'
+
 make
 cd src
 cp ../../doc/etc/*.conf .
@@ -79,11 +83,11 @@ for more information.
 
 ## Coding Guidelines
 
-* Discuss the feature
-* Do development
-  + Follow the code style
-* Commits should be atomic and semantic. Therefore, squash your pull request before submission and keep it rebased until merged
-  + If your feature has independent parts submit those as separate pull requests
+- Discuss the feature
+- Do development
+  - Follow the code style
+- Commits should be atomic and semantic. Therefore, squash your pull request before submission and keep it rebased until merged
+  - If your feature has independent parts submit those as separate pull requests
 
 ## Discuss a Feature
 
