@@ -58,3 +58,15 @@ jobs:
     - name: CLANG/make
       run: make
       working-directory: /home/runner/work/pgexporter/pgexporter/build/
+    - name: rm -Rf
+      run: rm -Rf build/
+      working-directory: /home/runner/work/pgexporter/pgexporter/
+    - name: CLANG/Release/mkdir
+      run: mkdir build
+      working-directory: /home/runner/work/pgexporter/pgexporter/
+    - name: CLANG/Release/cmake
+      run: export CC=/usr/bin/clang && cmake -DCMAKE_BUILD_TYPE=Release ..
+      working-directory: /home/runner/work/pgexporter/pgexporter/build/
+    - name: CLANG/Release/make
+      run: make
+      working-directory: /home/runner/work/pgexporter/pgexporter/build/
