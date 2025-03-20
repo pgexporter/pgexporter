@@ -29,6 +29,9 @@ This project uses GitHub issues to manage the issues. Open an issue directly in 
 If you believe you found a bug, and it's likely possible, please indicate a way to reproduce it, what you are seeing and what you would expect to see.
 Don't forget to indicate your pgexporter version.
 
+## Running with docker 
+Follow [this](./doc/DOCKER.md) to build using docker 
+
 ## Setup your build environment
 
 For Red Hat RPM based distributions use the following command:

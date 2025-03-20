@@ -217,6 +217,7 @@ There are some short tutorials available to help you better understand and confi
 - [Grafana Dashboard](https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/03_grafana.md)
 - [Using Transport Level Security](https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/04_tls.md)
 - [Bridge](https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/05_bridge.md)
+- [Docker](https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/06_docker.md)
 
 ## Closing
 

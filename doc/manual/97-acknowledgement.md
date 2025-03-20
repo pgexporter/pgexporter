@@ -20,6 +20,7 @@ Georg Pfuetzenreuter <mail@georg-pfuetzenreuter.net>
 Bassam Adnan <mailbassam@gmail.com>
 Sangkeun J.C. Kim <jchrys@me.com>
 Tejas Tyagi <tejastyagi.tt@gmail.com>
+Arshdeep Singh <balarsh535@gmail.com>
 ```
 
 ## Contributing
