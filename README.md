@@ -16,6 +16,8 @@ See [Metrics](https://pgexporter.github.io/docs/pgexporter/metrics.html) for a l
 * Daemon mode
 * User vault
 
+See [Running with Docker](./doc/DOCKER.md) on how to start pgexporter with docker
+
 See [Getting Started](./doc/GETTING_STARTED.md) on how to get started with `pgexporter`.
 
 See [Configuration](./doc/CONFIGURATION.md) on how to configure `pgexporter`.
