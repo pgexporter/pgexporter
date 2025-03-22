@@ -41,7 +41,12 @@
 #include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>
+#ifdef __APPLE__
 #include <stdlib.h>
+#define secure_getenv getenv
+#else
+#include <stdlib.h>
+#endif
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
