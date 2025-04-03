@@ -33,6 +33,7 @@
 /* pgexporter */
 #include <pgexporter.h>
 #include <aes.h>
+#include <cmd.h>
 #include <logging.h>
 #include <management.h>
 #include <security.h>
@@ -155,13 +156,11 @@ usage(void)
 int
 main(int argc, char** argv)
 {
-   int c;
    char* username = NULL;
    char* password = NULL;
    char* file_path = NULL;
    bool generate_pwd = false;
    int pwd_length = DEFAULT_PASSWORD_LENGTH;
-   int option_index = 0;
    size_t command_count = sizeof(command_table) / sizeof(struct pgexporter_command);
    struct pgexporter_parsed_command parsed = {.cmd = NULL, .args = {0}};
    int32_t output_format = MANAGEMENT_OUTPUT_FORMAT_TEXT;
@@ -169,69 +168,86 @@ main(int argc, char** argv)
    // Disable stdout buffering (i.e. write to stdout immediatelly).
    setbuf(stdout, NULL);
 
-   while (1)
+   char* filepath = NULL;
+   int optind = 0;
+   int num_options = 0;
+   int num_results = 0;
+
+   cli_option options[] = {
+      {"U", "user", true},
+      {"P", "password", true},
+      {"f", "file", true},
+      {"g", "generate", false},
+      {"l", "length", true},
+      {"F", "format", true},
+      {"V", "version", false},
+      {"?", "help", false},
+   };
+
+   num_options = sizeof(options) / sizeof(cli_option);
+   cli_result results[num_options];
+
+   num_results = cmd_parse(argc, argv, options, num_options, results, num_options, false, &filepath, &optind);
+
+   if (num_results < 0)
    {
-      static struct option long_options[] =
-      {
-         {"user", required_argument, 0, 'U'},
-         {"password", required_argument, 0, 'P'},
-         {"file", required_argument, 0, 'f'},
-         {"generate", no_argument, 0, 'g'},
-         {"length", required_argument, 0, 'l'},
-         {"format", required_argument, 0, 'F'},
-         {"version", no_argument, 0, 'V'},
-         {"help", no_argument, 0, '?'}
-      };
+      errx(1, "Error parsing command line\n");
+      return 1;
+   }
 
-      c = getopt_long(argc, argv, "gV?f:U:P:l:F:",
-                      long_options, &option_index);
+   for (int i = 0; i < num_results; i++)
+   {
+      char* optname = results[i].option_name;
+      char* optarg = results[i].argument;
 
-      if (c == -1)
+      if (optname == NULL)
       {
          break;
       }
-
-      switch (c)
+      else if (!strcmp(optname, "user") || !strcmp(optname, "U"))
       {
-         case 'U':
-            username = optarg;
-            break;
-         case 'P':
-            password = optarg;
-            break;
-         case 'f':
-            file_path = optarg;
-            break;
-         case 'g':
-            generate_pwd = true;
-            break;
-         case 'l':
-            pwd_length = atoi(optarg);
-            break;
-         case 'V':
-            version();
-            break;
-         case 'F':
-            if (!strncmp(optarg, "json", MISC_LENGTH))
-            {
-               output_format = MANAGEMENT_OUTPUT_FORMAT_JSON;
-            }
-            else if (!strncmp(optarg, "text", MISC_LENGTH))
-            {
-               output_format = MANAGEMENT_OUTPUT_FORMAT_TEXT;
-            }
-            else
-            {
-               warnx("pgexporter-cli: Format type is not correct");
-               exit(1);
-            }
-            break;
-         case '?':
-            usage();
+         username = optarg;
+      }
+      else if (!strcmp(optname, "password") || !strcmp(optname, "P"))
+      {
+         password = optarg;
+      }
+      else if (!strcmp(optname, "file") || !strcmp(optname, "f"))
+      {
+         file_path = optarg;
+      }
+      else if (!strcmp(optname, "generate") || !strcmp(optname, "g"))
+      {
+         generate_pwd = true;
+      }
+      else if (!strcmp(optname, "length") || !strcmp(optname, "l"))
+      {
+         pwd_length = atoi(optarg);
+      }
+      else if (!strcmp(optname, "version") || !strcmp(optname, "V"))
+      {
+         version();
+      }
+      else if (!strcmp(optname, "format") || !strcmp(optname, "F"))
+      {
+         if (!strncmp(optarg, "json", MISC_LENGTH))
+         {
+            output_format = MANAGEMENT_OUTPUT_FORMAT_JSON;
+         }
+         else if (!strncmp(optarg, "text", MISC_LENGTH))
+         {
+            output_format = MANAGEMENT_OUTPUT_FORMAT_TEXT;
+         }
+         else
+         {
+            warnx("pgexporter-cli: Format type is not correct");
             exit(1);
-            break;
-         default:
-            break;
+         }
+      }
+      else if (!strcmp(optname, "help") || !strcmp(optname, "?"))
+      {
+         usage();
+         exit(1);
       }
    }
 

@@ -29,6 +29,7 @@
 /* pgexporter */
 #include <pgexporter.h>
 #include <bridge.h>
+#include <cmd.h>
 #include <configuration.h>
 #include <connection.h>
 #include <internal.h>
@@ -386,113 +387,125 @@ main(int argc, char** argv)
    size_t bridge_json_cache_shmem_size = 0;
    struct configuration* config = NULL;
    int ret;
-   int c;
    int collector_idx = 0;
    char* os = NULL;
 
    int kernel_major, kernel_minor, kernel_patch;
 
    argv_ptr = argv;
+   char* filepath = NULL;
+   int optind = 0;
+   int num_options = 0;
+   int num_results = 0;
+   cli_option options[] = {
+      {"c", "config", true},
+      {"u", "users", true},
+      {"A", "admins", true},
+      {"Y", "yaml", true},
+      {"J", "json", true},
+      {"d", "daemon", false},
+      {"V", "version", false},
+      {"?", "help", false},
+      {"C", "collectors", true},
+   };
 
-   while (1)
+   num_options = sizeof(options) / sizeof(options[0]);
+   cli_result results[num_options];
+
+   num_results = cmd_parse(argc, argv, options, num_options, results, num_options, false, &filepath, &optind);
+
+   if (num_results < 0)
    {
-      static struct option long_options[] =
-      {
-         {"config", required_argument, 0, 'c'},
-         {"users", required_argument, 0, 'u'},
-         {"admins", required_argument, 0, 'A'},
-         {"yaml", required_argument, 0, 'Y'},
-         {"json", required_argument, 0, 'J'},
-         {"daemon", no_argument, 0, 'd'},
-         {"version", no_argument, 0, 'V'},
-         {"help", no_argument, 0, '?'},
-         {"collectors", required_argument, 0, 'C'},
-         {0, 0, 0, 0}
-      };
-      int option_index = 0;
+      errx(1, "Error parsing command line\n");
+      return 1;
+   }
 
-      c = getopt_long (argc, argv, "dV?c:u:A:Y:J:C:",
-                       long_options, &option_index);
+   for (int i = 0; i < num_results; i++)
+   {
+      char* optname = results[i].option_name;
+      char* optarg = results[i].argument;
 
-      if (c == -1)
+      if (optname == NULL)
       {
          break;
       }
-
-      switch (c)
+      else if (!strcmp(optname, "config") || !strcmp(optname, "c"))
       {
-         case 'c':
-            configuration_path = optarg;
-            break;
-         case 'u':
-            users_path = optarg;
-            break;
-         case 'A':
-            admins_path = optarg;
-            break;
-         case 'Y':
-            yaml_path = optarg;
-            break;
-         case 'J':
-            json_path = optarg;
-            break;
-         case 'd':
-            daemon = true;
-            break;
-         case 'V':
-            version();
-            break;
-         case 'C':
-            memset(collectors, 0, (NUMBER_OF_COLLECTORS * MAX_COLLECTOR_LENGTH) * sizeof(char));
+         configuration_path = optarg;
+      }
+      else if (!strcmp(optname, "users") || !strcmp(optname, "u"))
+      {
+         users_path = optarg;
+      }
+      else if (!strcmp(optname, "admins") || !strcmp(optname, "A"))
+      {
+         admins_path = optarg;
+      }
+      else if (!strcmp(optname, "yaml") || !strcmp(optname, "Y"))
+      {
+         yaml_path = optarg;
+      }
+      else if (!strcmp(optname, "json") || !strcmp(optname, "J"))
+      {
+         json_path = optarg;
+      }
+      else if (!strcmp(optname, "daemon") || !strcmp(optname, "d"))
+      {
+         daemon = true;
+      }
+      else if (!strcmp(optname, "version") || !strcmp(optname, "V"))
+      {
+         version();
+      }
+      else if (!strcmp(optname, "collectors") || !strcmp(optname, "C"))
+      {
+         memset(collectors, 0, (NUMBER_OF_COLLECTORS * MAX_COLLECTOR_LENGTH) * sizeof(char));
 
-            collector_idx = 0;
-            collector = optarg;
-            while (*collector)
+         collector_idx = 0;
+         collector = optarg;
+         while (*collector)
+         {
+            if (*collector == ',')
             {
-               if (*collector == ',')
-               {
-                  collector_idx++;
-               }
-               collector++;
+               collector_idx++;
             }
-            collector_idx++;
+            collector++;
+         }
+         collector_idx++;
 
-            if (collector_idx > NUMBER_OF_COLLECTORS)
-            {
-               warnx("pgexporter: Too many collectors specified.");
-         #ifdef HAVE_SYSTEMD
-               sd_notify(0, "STATUS=pgexporter: Too many collectors specified.");
-         #endif
-               exit(1);
-            }
-
-            collector_idx = 0;
-            while ((collector = strtok_r(optarg, ",", &optarg)))
-            {
-               bool found = false;
-
-               for (int i = 0; i < collector_idx; i++)
-               {
-                  if (!strncmp(collector, collectors[i], MAX_COLLECTOR_LENGTH - 1))
-                  {
-                     found = true;
-                     break;
-                  }
-               }
-
-               if (!found)
-               {
-                  strncpy(collectors[collector_idx++], collector, MAX_COLLECTOR_LENGTH - 1);
-               }
-            }
-
-            break;
-         case '?':
-            usage();
+         if (collector_idx > NUMBER_OF_COLLECTORS)
+         {
+            warnx("pgexporter: Too many collectors specified.");
+      #ifdef HAVE_SYSTEMD
+            sd_notify(0, "STATUS=pgexporter: Too many collectors specified.");
+      #endif
             exit(1);
-            break;
-         default:
-            break;
+         }
+
+         collector_idx = 0;
+         while ((collector = strtok_r(optarg, ",", &optarg)))
+         {
+            bool found = false;
+
+            for (int i = 0; i < collector_idx; i++)
+            {
+               if (!strncmp(collector, collectors[i], MAX_COLLECTOR_LENGTH - 1))
+               {
+                  found = true;
+                  break;
+               }
+            }
+
+            if (!found)
+            {
+               strncpy(collectors[collector_idx++], collector, MAX_COLLECTOR_LENGTH - 1);
+            }
+         }
+      }
+      else if (!strcmp(optname, "help") || !strcmp(optname, "?"))
+      {
+         usage();
+         exit(1);
       }
    }
 
