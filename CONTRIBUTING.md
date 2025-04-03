@@ -30,7 +30,7 @@ If you believe you found a bug, and it's likely possible, please indicate a way 
 Don't forget to indicate your pgexporter version.
 
 ## Running with docker 
-Follow [this](./doc/DOCKER.md) to build using docker 
+Follow [this](./doc/manual/user15-docker.md) to build using docker 
 
 ## Setup your build environment
 
