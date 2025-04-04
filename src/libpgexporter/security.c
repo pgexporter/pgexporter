@@ -2761,7 +2761,7 @@ pgexporter_extract_server_parameters(struct deque** server_parameters)
                value = pgexporter_read_string(msg->data + strlen(name) + 6);
                pgexporter_deque_add(sp, name, (uintptr_t)value, ValueString);
             }
-            pgexporter_free_message(msg);
+            pgexporter_free_copy_message(msg);
          }
       }
    }
