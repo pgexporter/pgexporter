@@ -2,16 +2,18 @@
 
 # Running pgexporter with Docker
 
-You can run `pgexporter` using Docker instead of compiling it manually.
+You can run [**pgexporter**][pgexporter] using Docker instead of compiling it manually.
 
 ## Prerequisites
 
-- **Docker** or **Podman** must be installed on the server where PostgreSQL is running.
-- Ensure PostgreSQL is configured to allow external connections.
+* [**Docker**][docker] or [**Podman**][podman] must be installed on the server where PostgreSQL is running.
+
+* Ensure PostgreSQL is configured to allow external connections.
+
 
 ## Update the configuration file if needed: 
 
-```conf
+```ini
 [pgexporter]
 host = *
 metrics = 5002
@@ -45,19 +47,26 @@ Then, restart PostgreSQL for the changes to take effect:
 sudo systemctl restart postgresql
 ```
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 9c5ceb8 ([#194] Refactor time based config options)
 ## Step 2: Clone the Repository
 ```sh
 git clone https://github.com/pgexporter/pgexporter.git
 cd pgexporter
 ```
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 9c5ceb8 ([#194] Refactor time based config options)
 ## Step 3: Build the Docker Image
 
 There are two Dockerfiles available:
+
 1. **Alpine-based image**  
    **Using Docker**
    ```sh
@@ -83,11 +92,14 @@ There are two Dockerfiles available:
 ## Step 4: Run pgexporter as a Docker Container
 
 Once the image is built, run the container using:
+
 - **Using Docker**
+
    ```sh
    docker run -d --name pgexporter --network host pgexporter:latest
    ```
 - **Using Podman**
+
    ```sh
    podman run -d --name pgexporter --network host pgexporter:latest
    ```
@@ -99,20 +111,25 @@ Once the image is built, run the container using:
 Check if the container is running: 
 
 - **Using Docker**
+
    ```sh
    docker ps | grep pgexporter
    ```
 - **Using Podman**
+
    ```sh
    podman ps | grep pgexporter
    ```
 
 Check logs for any errors: 
+
 - **Using Docker**
+
    ```sh
    docker logs pgexporter
    ```
 - **Using Podman**
+
    ```sh
    podman logs pgexporter
    ```
@@ -124,11 +141,14 @@ http://localhost:5002/metrics
 ```
 
 You can stop the container using
+
 - **Using Docker**
+
    ```sh
    docker stop pgexporter 
    ```
 - **Using Podman**
+
    ```sh
    podman stop pgexporter 
    ```
