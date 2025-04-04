@@ -133,7 +133,7 @@ res:
       if (status == MESSAGE_STATUS_OK)
       {
          response = pgexporter_append(response, (char*)msg_response->data);
-         pgexporter_free_message(msg_response);
+         pgexporter_clear_message(msg_response);
          goto res;
       }
       else

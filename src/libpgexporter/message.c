@@ -82,7 +82,7 @@ pgexporter_write_message(SSL* ssl, int socket, struct message* msg)
 }
 
 void
-pgexporter_free_message(struct message* msg)
+pgexporter_clear_message(struct message* msg)
 {
    pgexporter_memory_free();
 }
@@ -109,7 +109,7 @@ pgexporter_copy_message(struct message* msg)
 }
 
 void
-pgexporter_free_copy_message(struct message* msg)
+pgexporter_free_message(struct message* msg)
 {
    if (msg)
    {
@@ -176,14 +176,14 @@ pgexporter_connection_isvalid(SSL* ssl, int socket)
       goto error;
    }
 
-   pgexporter_free_message(reply);
+   pgexporter_clear_message(reply);
 
    return true;
 
 error:
    if (reply)
    {
-      pgexporter_free_message(reply);
+      pgexporter_clear_message(reply);
    }
 
    return false;
