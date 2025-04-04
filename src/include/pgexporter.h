@@ -83,6 +83,8 @@ extern "C" {
 #define AUTH_ERROR        2
 #define AUTH_TIMEOUT      3
 
+#define DEFAULT_BLOCKING_TIMEOUT 30
+
 #define HUGEPAGE_OFF 0
 #define HUGEPAGE_TRY 1
 #define HUGEPAGE_ON  2

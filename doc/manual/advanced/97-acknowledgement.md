@@ -22,6 +22,7 @@ Sangkeun J.C. Kim <jchrys@me.com>
 Tejas Tyagi<tejastyagi.tt@gmail.com>
 Arshdeep Singh <balarsh535@gmail.com>
 Ahmed Osama Fathy <ahmedosamaft@gmail.com>
+Aryan Arora <aryanarora.w1@gmail.com>
 ```
 
 ## Contributing
