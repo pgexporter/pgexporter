@@ -72,7 +72,6 @@ static int as_logging_mode(char* str);
 static int as_hugepage(char* str);
 static unsigned int as_update_process_title(char* str, unsigned int default_policy);
 static int as_logging_rotation_size(char* str, size_t* size);
-static int as_logging_rotation_age(char* str, int* age);
 static int as_seconds(char* str, int* age, int default_age);
 static int as_bytes(char* str, long* bytes, long default_bytes);
 static int as_endpoints(char* str, struct configuration* config, bool reload);
@@ -110,7 +109,7 @@ pgexporter_init_configuration(void* shm)
 
    config->tls = false;
 
-   config->blocking_timeout = 30;
+   config->blocking_timeout = DEFAULT_BLOCKING_TIMEOUT;
    config->authentication_timeout = 5;
 
    config->keep_alive = true;
@@ -586,7 +585,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                {
                   if (!strcmp(section, "pgexporter"))
                   {
-                     if (as_int(value, &config->blocking_timeout))
+                     if (as_seconds(value, &config->blocking_timeout, DEFAULT_BLOCKING_TIMEOUT))
                      {
                         unknown = true;
                      }
@@ -679,7 +678,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                {
                   if (!strcmp(section, "pgexporter"))
                   {
-                     if (as_logging_rotation_age(value, &config->log_rotation_age))
+                     if (as_seconds(value, &config->log_rotation_age, PGEXPORTER_LOGGING_ROTATION_DISABLED))
                      {
                         unknown = true;
                      }
@@ -1880,7 +1879,7 @@ pgexporter_conf_set(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryp
       }
       else if (!strcmp(key, "blocking_timeout"))
       {
-         if (as_int(config_value, &config->blocking_timeout))
+         if (as_seconds(config_value, &config->blocking_timeout, DEFAULT_BLOCKING_TIMEOUT))
          {
             unknown = true;
          }
@@ -1931,7 +1930,7 @@ pgexporter_conf_set(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryp
       }
       else if (!strcmp(key, "log_rotation_age"))
       {
-         if (as_logging_rotation_age(config_value, &config->log_rotation_age))
+         if (as_seconds(config_value, &config->log_rotation_age, PGEXPORTER_LOGGING_ROTATION_DISABLED))
          {
             unknown = true;
          }
@@ -2587,26 +2586,6 @@ as_logging_rotation_size(char* str, size_t* size)
    *size = (size_t)l;
 
    return ret;
-}
-
-/**
- * Parses the log_rotation_age string.
- * The string accepts
- * - s for seconds
- * - m for minutes
- * - h for hours
- * - d for days
- * - w for weeks
- *
- * The default is expressed in seconds.
- * The function sets the number of rotationg age as minutes.
- * Returns 1 for errors, 0 for correct parsing.
- *
- */
-static int
-as_logging_rotation_age(char* str, int* age)
-{
-   return as_seconds(str, age, PGEXPORTER_LOGGING_ROTATION_DISABLED);
 }
 
 /**

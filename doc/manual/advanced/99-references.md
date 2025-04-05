@@ -33,6 +33,8 @@
   [aes_ni]: https://en.wikipedia.org/wiki/AES_instruction_set
   [ART_paper]: http://www-db.in.tum.de/~leis/papers/ART.pdf
   [libart]: https://github.com/armon/libart
+  [docker]: https://www.docker.com/
+  [podman]: https://podman.io/
 
 <!-- doc/ -->
   [rpm]: https://github.com/pgexporter/pgexporter/blob/main/doc/RPM.md
