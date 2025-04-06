@@ -793,6 +793,18 @@ pgexporter_version_number(void);
 bool
 pgexporter_version_ge(unsigned int major, unsigned int minor, unsigned int patch);
 
+/**
+ * Resolve path.
+ * The function will resolve the path by expanding environment
+ * variables (e.g., $HOME) in subpaths that are either surrounded
+ * by double quotes (") or not surrounded by any quotes.
+ * @param orig_path The original path
+ * @param new_path Reference to the resolved path
+ * @return 0 if success, otherwise 1
+ */
+int
+pgexporter_resolve_path(char* orig_path, char** new_path);
+
 #ifdef DEBUG
 
 /**
