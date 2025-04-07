@@ -54,6 +54,7 @@ dnf install git gcc cmake make libev libev-devel \
             libyaml libyaml-devel
             zlib zlib-devel \
             libzstd libzstd-devel \
+            libasan libasan-static \
             lz4 lz4-devel \
             bzip2 bzip2-devel
 ```

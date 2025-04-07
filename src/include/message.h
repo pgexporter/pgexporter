@@ -86,11 +86,10 @@ int
 pgexporter_write_message(SSL* ssl, int socket, struct message* msg);
 
 /**
- * Clear a message
- * @param msg The resulting message
+ * Clear the current message
  */
 void
-pgexporter_clear_message(struct message* msg);
+pgexporter_clear_message(void);
 
 /**
  * Copy a message

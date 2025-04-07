@@ -641,7 +641,7 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
          goto error;
       }
 
-      pgexporter_clear_message(msg);
+      pgexporter_clear_message();
       msg = NULL;
    }
 
@@ -727,7 +727,7 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
 
 error:
 
-   pgexporter_clear_message(msg);
+   pgexporter_clear_message();
    pgexporter_free_message(tmsg);
    free(content);
    free(data);

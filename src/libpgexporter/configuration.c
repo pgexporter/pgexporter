@@ -1472,7 +1472,7 @@ error:
 }
 
 void
-pgexporter_conf_get(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryption, struct json* payload)
+pgexporter_conf_get(SSL* ssl __attribute__((unused)), int client_fd, uint8_t compression, uint8_t encryption, struct json* payload)
 {
    struct json* response = NULL;
    char* elapsed = NULL;
@@ -1528,7 +1528,7 @@ error:
 }
 
 void
-pgexporter_conf_set(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryption, struct json* payload)
+pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t compression, uint8_t encryption, struct json* payload)
 {
    struct json* response = NULL;
    struct json* request = NULL;
@@ -1574,7 +1574,7 @@ pgexporter_conf_set(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryp
    memset(section, 0, MISC_LENGTH);
    memset(key, 0, MISC_LENGTH);
 
-   for (int i = 0; i < strlen(config_key); i++)
+   for (size_t i = 0; i < strlen(config_key); i++)
    {
       if (config_key[i] == '.')
       {
@@ -2262,7 +2262,7 @@ extract_key_value(char* str, char** key, char** value)
       end = strchr(str, '\n');
       idx = 0;
 
-      for (int i = 0; i < strlen(equal); i++)
+      for (size_t i = 0; i < strlen(equal); i++)
       {
          ptr = equal + i;
          if (ptr != end)
@@ -2764,7 +2764,7 @@ as_seconds(char* str, int* age, int default_age)
    }
 
    index = 0;
-   for (int i = 0; i < strlen(str); i++)
+   for (size_t i = 0; i < strlen(str); i++)
    {
       if (isdigit(str[i]))
       {
@@ -2869,7 +2869,7 @@ as_bytes(char* str, long* bytes, long default_bytes)
    }
 
    index = 0;
-   for (int i = 0; i < strlen(str); i++)
+   for (size_t i = 0; i < strlen(str); i++)
    {
       if (isdigit(str[i]))
       {
@@ -3299,7 +3299,7 @@ is_empty_string(char* s)
       return true;
    }
 
-   for (int i = 0; i < strlen(s); i++)
+   for (size_t i = 0; i < strlen(s); i++)
    {
       if (s[i] == ' ' || s[i] == '\t' || s[i] == '\r' || s[i] == '\n')
       {

@@ -85,7 +85,7 @@ pgexporter_server_info(int srv)
    /* Read directly from the D message fragment */
    state = pgexporter_read_byte(tmsg->data + 54);
 
-   pgexporter_clear_message(tmsg);
+   pgexporter_clear_message();
 
    if (state == 'f')
    {
@@ -96,13 +96,13 @@ pgexporter_server_info(int srv)
       config->servers[srv].state = SERVER_REPLICA;
    }
 
-   pgexporter_clear_message(tmsg);
+   pgexporter_clear_message();
 
    return 0;
 
 error:
 
-   pgexporter_clear_message(tmsg);
+   pgexporter_clear_message();
 
    return 1;
 }
