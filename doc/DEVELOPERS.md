@@ -45,7 +45,7 @@ This will install PostgreSQL 17.
 #### Basic dependencies
 
 ``` sh
-dnf install git gcc cmake make libev libev-devel openssl openssl-devel systemd systemd-devel libyaml libyaml-devel python3-docutils libatomic zlib zlib-devel libzstd libzstd-devel lz4 lz4-devel bzip2 bzip2-devel
+dnf install git gcc cmake make libev libev-devel openssl openssl-devel systemd systemd-devel libyaml libyaml-devel python3-docutils libatomic zlib zlib-devel libzstd libzstd-devel lz4 lz4-devel bzip2 bzip2-devel libasan libasan-static
 ```
 
 #### Generate user and developer guide

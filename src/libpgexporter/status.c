@@ -37,7 +37,7 @@
 #include <utils.h>
 
 void
-pgexporter_status(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryption, struct json* payload)
+pgexporter_status(SSL* ssl __attribute__((unused)), int client_fd, uint8_t compression, uint8_t encryption, struct json* payload)
 {
    char* elapsed = NULL;
    time_t start_time;
@@ -113,7 +113,7 @@ error:
 }
 
 void
-pgexporter_status_details(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryption, struct json* payload)
+pgexporter_status_details(SSL* ssl __attribute__((unused)), int client_fd, uint8_t compression, uint8_t encryption, struct json* payload)
 {
    char* elapsed = NULL;
    time_t start_time;

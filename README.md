@@ -57,7 +57,7 @@ See [Architecture](./doc/ARCHITECTURE.md) for the architecture of `pgexporter`.
 * [libyaml](https://pyyaml.org/wiki/LibYAML)
 
 ```sh
-dnf install git gcc cmake make libev libev-devel openssl openssl-devel systemd systemd-devel python3-docutils libyaml libyaml-devel zlib zlib-devel libzstd libzstd-devel lz4 lz4-devel bzip2 bzip2-devel
+dnf install git gcc cmake make libev libev-devel openssl openssl-devel systemd systemd-devel python3-docutils libyaml libyaml-devel zlib zlib-devel libzstd libzstd-devel lz4 lz4-devel bzip2 bzip2-devel libasan libasan-static
 ```
 
 Alternative [clang 8+](https://clang.llvm.org/) can be used.

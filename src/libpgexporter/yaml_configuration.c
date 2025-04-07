@@ -649,7 +649,7 @@ error:
 }
 
 static int
-parse_queries(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, yaml_config_t* yaml_config, yaml_query_t** queries, int* n_queries)
+parse_queries(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, yaml_config_t* yaml_config __attribute__((unused)), yaml_query_t** queries, int* n_queries)
 {
    yaml_event_delete(event_ptr);
 
@@ -997,7 +997,7 @@ static void
 free_yaml_metrics(yaml_metric_t** metrics, size_t n_metrics)
 {
 
-   for (int i = 0; i < n_metrics; i++)
+   for (size_t i = 0; i < n_metrics; i++)
    {
       if ((*metrics)[i].tag)
       {
@@ -1028,7 +1028,7 @@ free_yaml_metrics(yaml_metric_t** metrics, size_t n_metrics)
 static void
 free_yaml_queries(yaml_query_t** queries, size_t n_queries)
 {
-   for (int i = 0 ; i < n_queries; i++)
+   for (size_t i = 0 ; i < n_queries; i++)
    {
       if ((*queries)[i].query)
       {
@@ -1047,7 +1047,7 @@ free_yaml_queries(yaml_query_t** queries, size_t n_queries)
 static void
 free_yaml_columns(yaml_column_t** columns, size_t n_columns)
 {
-   for (int i = 0; i < n_columns; i++)
+   for (size_t i = 0; i < n_columns; i++)
    {
       if ((*columns)[i].description)
       {

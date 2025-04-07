@@ -90,7 +90,7 @@ pgexporter_write_message(SSL* ssl, int socket, struct message* msg);
  * @param msg The resulting message
  */
 void
-pgexporter_clear_message(struct message* msg);
+pgexporter_clear_message(void);
 
 /**
  * Copy a message

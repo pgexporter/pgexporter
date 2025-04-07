@@ -224,7 +224,7 @@ pgexporter_extract_message(char type, struct message* msg, struct message** extr
 bool
 pgexporter_has_message(char type, void* data, size_t data_size)
 {
-   int offset;
+   size_t offset;
 
    offset = 0;
 
@@ -276,7 +276,7 @@ pgexporter_extract_message_offset(size_t offset, void* data, struct message** ex
 int
 pgexporter_extract_message_from_data(char type, void* data, size_t data_size, struct message** extracted)
 {
-   int offset;
+   size_t offset;
    void* m_data = NULL;
    int m_length;
    struct message* result = NULL;
@@ -1963,7 +1963,7 @@ pgexporter_bytes_to_string(uint64_t bytes)
 
    result = (char*)malloc(sizeof(char) * 20);
 
-   for (int i = 0; i < sizeof(sizes) / sizeof(*(sizes)); i++, multiplier /= 1024)
+   for (unsigned long i = 0; i < sizeof(sizes) / sizeof(*(sizes)); i++, multiplier /= 1024)
    {
       if (bytes < multiplier)
       {
