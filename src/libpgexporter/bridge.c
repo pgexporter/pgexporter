@@ -752,8 +752,8 @@ bridge_cache_invalidate(void)
 static bool
 bridge_cache_append(char* data)
 {
-   int origin_length = 0;
-   int append_length = 0;
+   size_t origin_length = 0;
+   size_t append_length = 0;
    struct prometheus_cache* cache;
 
    cache = (struct prometheus_cache*)bridge_cache_shmem;

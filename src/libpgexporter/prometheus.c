@@ -2113,7 +2113,7 @@ error:
 }
 
 static char*
-get_value(char* tag, char* name, char* val)
+get_value(char* tag __attribute__((unused)), char* name __attribute__((unused)), char* val)
 {
    char* end = NULL;
 
@@ -2182,8 +2182,8 @@ safe_prometheus_key_additional_length(char* key)
 static char*
 safe_prometheus_key(char* key)
 {
-   int i = 0;
-   int j = 0;
+   size_t i = 0;
+   size_t j = 0;
    char* escaped = NULL;
 
    if (key == NULL || strlen(key) == 0)
@@ -2390,8 +2390,8 @@ metrics_cache_invalidate(void)
 static bool
 metrics_cache_append(char* data)
 {
-   int origin_length = 0;
-   int append_length = 0;
+   size_t origin_length = 0;
+   size_t append_length = 0;
    struct prometheus_cache* cache;
 
    cache = (struct prometheus_cache*)prometheus_cache_shmem;

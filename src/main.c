@@ -1352,7 +1352,7 @@ error:
 }
 
 static void
-accept_transfer_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
+accept_transfer_cb(struct ev_loop* loop __attribute__((unused)), struct ev_io* watcher, int revents)
 {
    struct sockaddr_in6 client_addr;
    socklen_t client_addr_length;
@@ -1766,7 +1766,7 @@ accept_management_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 }
 
 static void
-shutdown_cb(struct ev_loop* loop, ev_signal* w, int revents)
+shutdown_cb(struct ev_loop* loop, ev_signal* w __attribute__((unused)), int revents __attribute__((unused)))
 {
    pgexporter_log_debug("pgexporter: shutdown requested");
    ev_break(loop, EVBREAK_ALL);
@@ -1774,14 +1774,14 @@ shutdown_cb(struct ev_loop* loop, ev_signal* w, int revents)
 }
 
 static void
-reload_cb(struct ev_loop* loop, ev_signal* w, int revents)
+reload_cb(struct ev_loop* loop __attribute__((unused)), ev_signal* w __attribute__((unused)), int revents __attribute__((unused)))
 {
    pgexporter_log_debug("pgexporter: reload requested");
    reload_configuration();
 }
 
 static void
-coredump_cb(struct ev_loop* loop, ev_signal* w, int revents)
+coredump_cb(struct ev_loop* loop __attribute__((unused)), ev_signal* w __attribute__((unused)), int revents __attribute__((unused)))
 {
    pgexporter_log_info("pgexporter: core dump requested");
    abort();

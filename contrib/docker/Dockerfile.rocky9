@@ -56,6 +56,8 @@ RUN rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.
         openssl-devel \
         libatomic \
         libyaml-devel \
+        libasan \
+        libasan-static \
         yaml-cpp-devel && \
     dnf clean all
 

@@ -82,7 +82,7 @@ pgexporter_write_message(SSL* ssl, int socket, struct message* msg)
 }
 
 void
-pgexporter_clear_message(struct message* msg)
+pgexporter_clear_message(void)
 {
    pgexporter_memory_free();
 }
@@ -176,14 +176,14 @@ pgexporter_connection_isvalid(SSL* ssl, int socket)
       goto error;
    }
 
-   pgexporter_clear_message(reply);
+   pgexporter_clear_message();
 
    return true;
 
 error:
    if (reply)
    {
-      pgexporter_clear_message(reply);
+      pgexporter_clear_message();
    }
 
    return false;
@@ -827,6 +827,7 @@ ssl_read_message(SSL* ssl, int timeout, struct message** msg)
                   /* Sleep for 100ms */
                   SLEEP(100000000L);
                }
+               __attribute__((fallthrough));
             case SSL_ERROR_WANT_READ:
             case SSL_ERROR_WANT_WRITE:
             case SSL_ERROR_WANT_CONNECT:
