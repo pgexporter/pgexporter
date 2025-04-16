@@ -65,10 +65,10 @@ This process is optional. If you choose not to generate the PDF and HTML files, 
     Download the `Eisvogel` template for `pandoc`, please visit the [pandoc-latex-template](https://github.com/Wandmalfarbe/pandoc-latex-template) repository. For a standard installation, you can follow the steps outlined below.
 
     ```sh
-    wget https://github.com/Wandmalfarbe/pandoc-latex-template/releases/download/2.4.2/Eisvogel-2.4.2.tar.gz
-    tar -xzf Eisvogel-2.4.2.tar.gz
-    mkdir -p $HOME/.local/share/pandoc/templates
-    mv eisvogel.latex $HOME/.local/share/pandoc/templates/
+    wget https://github.com/Wandmalfarbe/pandoc-latex-template/releases/download/v3.1.0/Eisvogel-3.1.0.tar.gz
+    tar -xzf Eisvogel-3.1.0.tar.gz
+    mkdir -p ~/.local/share/pandoc/templates
+    mv Eisvogel-3.1.0/eisvogel.latex ~/.local/share/pandoc/templates/
     ```
 
 3. Add package for LaTeX
@@ -372,9 +372,9 @@ Based on feedback keep making changes, squashing, rebasing and force pushing
 
 ### Undo
 
-Normally you can reset to an earlier commit using `git reset <commit hash> --hard`. 
-But if you accidentally squashed two or more commits, and you want to undo that, 
-you need to know where to reset to, and the commit seems to have lost after you rebased. 
+Normally you can reset to an earlier commit using `git reset <commit hash> --hard`.
+But if you accidentally squashed two or more commits, and you want to undo that,
+you need to know where to reset to, and the commit seems to have lost after you rebased.
 
 But they are not actually lost - using `git reflog`, you can find every commit the HEAD pointer
 has ever pointed to. Find the commit you want to reset to, and do `git reset --hard`.

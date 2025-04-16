@@ -34,10 +34,10 @@ jobs:
             texlive-xetex texlive-fonts-extra wget graphviz doxygen
       - name: Install Eisvogel template for Pandoc
         run: |
-              wget https://github.com/Wandmalfarbe/pandoc-latex-template/releases/download/2.4.2/Eisvogel-2.4.2.tar.gz
-              tar -xzf Eisvogel-2.4.2.tar.gz
+              wget https://github.com/Wandmalfarbe/pandoc-latex-template/releases/download/v3.1.0/Eisvogel-3.1.0.tar.gz
+              tar -xzf Eisvogel-3.1.0.tar.gz
               mkdir -p ~/.local/share/pandoc/templates
-              mv eisvogel.latex ~/.local/share/pandoc/templates/
+              mv Eisvogel-3.1.0/eisvogel.latex ~/.local/share/pandoc/templates/
       - name: Build Project
         run: |
               mkdir build
@@ -47,11 +47,11 @@ jobs:
               else
                 export CC=/usr/bin/clang
               fi
-                   
+
               cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ..
               make -j$(nproc)
         working-directory: /home/runner/work/pgexporter/pgexporter/
-      
+
       - name: Upload Generated Documentation Artifact
         if: matrix.compiler == 'gcc' && matrix.build_type == 'Release'
         uses: actions/upload-artifact@v4
@@ -173,8 +173,8 @@ jobs:
               hs-pandoc \
               texlive-base \
               texlive-texmf \
-              graphviz 
-    
+              graphviz
+
       - name: Build Project
         shell: freebsd {0}
         run: |
