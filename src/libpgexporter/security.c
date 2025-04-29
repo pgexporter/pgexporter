@@ -105,9 +105,7 @@ static int  server_signature(char* password, char* salt, int salt_length, int it
                              char* client_final_message_wo_proof, size_t client_final_message_wo_proof_length,
                              unsigned char** result, size_t* result_length);
 
-static int  create_ssl_ctx(bool client, SSL_CTX** ctx);
 static int  create_ssl_client(SSL_CTX* ctx, char* key, char* cert, char* root, int socket, SSL** ssl);
-static int  create_ssl_server(SSL_CTX* ctx, int socket, SSL** ssl);
 
 int
 pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl)
@@ -146,12 +144,12 @@ pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl
          SSL_CTX* ctx = NULL;
 
          /* We are acting as a server against the client */
-         if (create_ssl_ctx(false, &ctx))
+         if (pgexporter_create_ssl_ctx(false, &ctx))
          {
             goto error;
          }
 
-         if (create_ssl_server(ctx, client_fd, &c_ssl))
+         if (pgexporter_create_ssl_server(ctx, config->tls_key_file, config->tls_cert_file, config->tls_ca_file ,client_fd, &c_ssl))
          {
             goto error;
          }
@@ -375,7 +373,7 @@ pgexporter_remote_management_scram_sha256(char* username, char* password, int se
 
                if (msg->kind == 'S')
                {
-                  if (create_ssl_ctx(true, &ctx))
+                  if (pgexporter_create_ssl_ctx(true, &ctx))
                   {
                      goto error;
                   }
@@ -1074,7 +1072,7 @@ pgexporter_server_authenticate(int server, char* database, char* username, char*
    {
       SSL_CTX* ctx = NULL;
 
-      if (create_ssl_ctx(true, &ctx))
+      if (pgexporter_create_ssl_ctx(true, &ctx))
       {
          goto error;
       }
@@ -2496,8 +2494,8 @@ error:
    return 1;
 }
 
-static int
-create_ssl_ctx(bool client, SSL_CTX** ctx)
+int
+pgexporter_create_ssl_ctx(bool client, SSL_CTX** ctx)
 {
    SSL_CTX* c = NULL;
 
@@ -2626,43 +2624,40 @@ error:
    return 1;
 }
 
-static int
-create_ssl_server(SSL_CTX* ctx, int socket, SSL** ssl)
+int
+pgexporter_create_ssl_server(SSL_CTX* ctx, char *key, char *cert, char *root, int socket, SSL**ssl)
 {
    SSL* s = NULL;
    STACK_OF(X509_NAME) * root_cert_list = NULL;
-   struct configuration* config;
 
-   config = (struct configuration*)shmem;
-
-   if (strlen(config->tls_cert_file) == 0)
+   if (strlen(cert) == 0)
    {
       pgexporter_log_error("No TLS certificate defined");
       goto error;
    }
 
-   if (strlen(config->tls_key_file) == 0)
+   if (strlen(key) == 0)
    {
       pgexporter_log_error("No TLS private key defined");
       goto error;
    }
 
-   if (SSL_CTX_use_certificate_chain_file(ctx, config->tls_cert_file) != 1)
+   if (SSL_CTX_use_certificate_chain_file(ctx, cert) != 1)
    {
       unsigned long err;
 
       err = ERR_get_error();
-      pgexporter_log_error("Couldn't load TLS certificate: %s", config->tls_cert_file);
+      pgexporter_log_error("Couldn't load TLS certificate: %s", cert);
       pgexporter_log_error("Reason: %s", ERR_reason_error_string(err));
       goto error;
    }
 
-   if (SSL_CTX_use_PrivateKey_file(ctx, config->tls_key_file, SSL_FILETYPE_PEM) != 1)
+   if (SSL_CTX_use_PrivateKey_file(ctx, key, SSL_FILETYPE_PEM) != 1)
    {
       unsigned long err;
 
       err = ERR_get_error();
-      pgexporter_log_error("Couldn't load TLS private key: %s", config->tls_key_file);
+      pgexporter_log_error("Couldn't load TLS private key: %s", key);
       pgexporter_log_error("Reason: %s", ERR_reason_error_string(err));
       goto error;
    }
@@ -2672,30 +2667,30 @@ create_ssl_server(SSL_CTX* ctx, int socket, SSL** ssl)
       unsigned long err;
 
       err = ERR_get_error();
-      pgexporter_log_error("TLS private key check failed: %s", config->tls_key_file);
+      pgexporter_log_error("TLS private key check failed: %s", key);
       pgexporter_log_error("Reason: %s", ERR_reason_error_string(err));
       goto error;
    }
 
-   if (strlen(config->tls_ca_file) > 0)
+   if (strlen(root) > 0)
    {
-      if (SSL_CTX_load_verify_locations(ctx, config->tls_ca_file, NULL) != 1)
+      if (SSL_CTX_load_verify_locations(ctx, root, NULL) != 1)
       {
          unsigned long err;
 
          err = ERR_get_error();
-         pgexporter_log_error("Couldn't load TLS CA: %s", config->tls_ca_file);
+         pgexporter_log_error("Couldn't load TLS CA: %s", root);
          pgexporter_log_error("Reason: %s", ERR_reason_error_string(err));
          goto error;
       }
 
-      root_cert_list = SSL_load_client_CA_file(config->tls_ca_file);
+      root_cert_list = SSL_load_client_CA_file(root);
       if (root_cert_list == NULL)
       {
          unsigned long err;
 
          err = ERR_get_error();
-         pgexporter_log_error("Couldn't load TLS CA: %s", config->tls_ca_file);
+         pgexporter_log_error("Couldn't load TLS CA: %s", root);
          pgexporter_log_error("Reason: %s", ERR_reason_error_string(err));
          goto error;
       }

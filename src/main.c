@@ -1427,6 +1427,8 @@ accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    pid_t pid;
    struct accept_io* ai;
    struct configuration* config;
+   SSL_CTX* ctx = NULL;
+   SSL* client_ssl = NULL;
 
    if (EV_ERROR & revents)
    {
@@ -1493,17 +1495,32 @@ accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
       /* We are leaving the socket descriptor valid such that the client won't reuse it */
       shutdown_ports();
+      if (strlen(config->metrics_cert_file) > 0 && strlen(config->metrics_key_file) > 0)
+      {
+         if (pgexporter_create_ssl_ctx(false, &ctx))
+         {
+            pgexporter_log_error("Could not create metrics SSL context");
+            return;
+         }
 
+         if (pgexporter_create_ssl_server(ctx, config->metrics_key_file, config->metrics_cert_file, config->metrics_ca_file, client_fd, &client_ssl))
+         {
+            pgexporter_log_error("Could not create metrics SSL server");
+            return;
+         }
+      }
       pgexporter_set_proc_title(1, ai->argv, "metrics", NULL);
-      pgexporter_prometheus(client_fd);
+      pgexporter_prometheus(client_ssl, client_fd);
    }
 
+   pgexporter_close_ssl(client_ssl);
    pgexporter_disconnect(client_fd);
 
    return;
 
 error:
 
+   pgexporter_close_ssl(client_ssl);
    pgexporter_disconnect(client_fd);
 }
 
