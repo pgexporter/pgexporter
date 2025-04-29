@@ -998,6 +998,31 @@ pgexporter_append(char* orig, char* s)
 }
 
 char*
+pgexporter_format_and_append(char* buf, char* format, ...)
+{
+   va_list args;
+   va_start(args, format);
+
+   // Determine the required buffer size
+   int size_needed = vsnprintf(NULL, 0, format, args) + 1;
+   va_end(args);
+
+   // Allocate buffer to hold the formatted string
+   char* formatted_str = malloc(size_needed);
+
+   va_start(args, format);
+   vsnprintf(formatted_str, size_needed, format, args);
+   va_end(args);
+
+   buf = pgexporter_append(buf, formatted_str);
+
+   free(formatted_str);
+
+   return buf;
+
+}
+
+char*
 pgexporter_append_int(char* orig, int i)
 {
    char number[12];

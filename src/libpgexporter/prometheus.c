@@ -27,6 +27,7 @@
  */
 
 /* pgexporter */
+#include <openssl/crypto.h>
 #include <pgexporter.h>
 #include <logging.h>
 #include <memory.h>
@@ -108,33 +109,34 @@ typedef struct column_store
 } column_store_t;
 
 static int resolve_page(struct message* msg);
-static int badrequest_page(int client_fd);
-static int unknown_page(int client_fd);
-static int home_page(int client_fd);
-static int metrics_page(int client_fd);
-static int bad_request(int client_fd);
+static int badrequest_page(SSL* client_ssl, int client_fd);
+static int unknown_page(SSL* client_ssl, int client_fd);
+static int home_page(SSL* client_ssl, int client_fd);
+static int metrics_page(SSL* client_ssl, int client_fd);
+static int bad_request(SSL* client_ssl, int client_fd);
+static int redirect_page(SSL* client_ssl, int client_fd, char* path);
 
 static bool collector_pass(const char* collector);
 
 static void add_column_to_store(column_store_t* store, int n_store, char* data, int sort_type, struct tuple* current);
 
-static void general_information(int client_fd);
-static void core_information(int client_fd);
-static void extension_information(int client_fd);
-static void extension_function(int client_fd, char* function, int input, char* description, char* type);
-static void server_information(int client_fd);
-static void version_information(int client_fd);
-static void uptime_information(int client_fd);
-static void primary_information(int client_fd);
-static void settings_information(int client_fd);
-static void custom_metrics(int client_fd); // Handles custom metrics provided in YAML format, both internal and external
+static void general_information(SSL* client_ssl, int client_fd);
+static void core_information(SSL* client_ssl, int client_fd);
+static void extension_information(SSL* client_ssl, int client_fd);
+static void extension_function(SSL* client_ssl, int client_fd, char* function, int input, char* description, char* type);
+static void server_information(SSL* client_ssl, int client_fd);
+static void version_information(SSL* client_ssl, int client_fd);
+static void uptime_information(SSL* client_ssl, int client_fd);
+static void primary_information(SSL* client_ssl, int client_fd);
+static void settings_information(SSL* client_ssl, int client_fd);
+static void custom_metrics(SSL* client_ssl, int client_fd); // Handles custom metrics provided in YAML format, both internal and external
 static void append_help_info(char** data, char* tag, char* name, char* description);
 static void append_type_info(char** data, char* tag, char* name, int typeId);
 
 static void handle_histogram(column_store_t* store, int* n_store, query_list_t* temp);
 static void handle_gauge_counter(column_store_t* store, int* n_store, query_list_t* temp);
 
-static int send_chunk(int client_fd, char* data);
+static int send_chunk(SSL* client_ssl, int client_fd, char* data);
 static int parse_list(char* list_str, char** strs, int* n_strs);
 
 static char* get_value(char* tag, char* name, char* val);
@@ -150,7 +152,7 @@ static size_t metrics_cache_size_to_alloc(void);
 static void metrics_cache_invalidate(void);
 
 void
-pgexporter_prometheus(int client_fd)
+pgexporter_prometheus(SSL* client_ssl, int client_fd)
 {
    int status;
    int page;
@@ -161,8 +163,65 @@ pgexporter_prometheus(int client_fd)
    pgexporter_memory_init();
 
    config = (struct configuration*)shmem;
+   if (client_ssl)
+   {
+      char buffer[5] = {0};
 
-   status = pgexporter_read_timeout_message(NULL, client_fd, config->authentication_timeout, &msg);
+      recv(client_fd, buffer, 5, MSG_PEEK);
+
+      if ((unsigned char)buffer[0] == 0x16 || (unsigned char)buffer[0] == 0x80) // SSL/TLS request
+      {
+         if (SSL_accept(client_ssl) <= 0)
+         {
+            pgexporter_log_error("Failed to accept SSL connection");
+            goto error;
+         }
+      }
+      else
+      {
+         char* path = "/";
+         char* base_url = NULL;
+
+         if (pgexporter_read_timeout_message(NULL, client_fd, config->authentication_timeout, &msg) != MESSAGE_STATUS_OK)
+         {
+            pgexporter_log_error("Failed to read message");
+            goto error;
+         }
+
+         char* path_start = strstr(msg->data, " ");
+         if (path_start)
+         {
+            path_start++;
+            char* path_end = strstr(path_start, " ");
+            if (path_end)
+            {
+               *path_end = '\0';
+               path = path_start;
+            }
+         }
+
+         base_url = pgexporter_format_and_append(base_url, "https://localhost:%d%s", config->metrics, path);
+
+         if (redirect_page(NULL, client_fd, base_url) != MESSAGE_STATUS_OK)
+         {
+            pgexporter_log_error("Failed to redirect to: %s", base_url);
+            free(base_url);
+            goto error;
+         }
+
+         pgexporter_close_ssl(client_ssl);
+         pgexporter_disconnect(client_fd);
+
+         pgexporter_memory_destroy();
+         pgexporter_stop_logging();
+
+         free(base_url);
+
+         exit(0);
+      }
+   }
+   status = pgexporter_read_timeout_message(client_ssl, client_fd, config->authentication_timeout, &msg);
+
 
    if (status != MESSAGE_STATUS_OK)
    {
@@ -173,21 +232,22 @@ pgexporter_prometheus(int client_fd)
 
    if (page == PAGE_HOME)
    {
-      home_page(client_fd);
+      home_page(client_ssl, client_fd);
    }
    else if (page == PAGE_METRICS)
    {
-      metrics_page(client_fd);
+      metrics_page(client_ssl, client_fd);
    }
    else if (page == PAGE_UNKNOWN)
    {
-      unknown_page(client_fd);
+      unknown_page(client_ssl, client_fd);
    }
    else
    {
-      bad_request(client_fd);
+      bad_request(client_ssl, client_fd);
    }
 
+   pgexporter_close_ssl(client_ssl);
    pgexporter_disconnect(client_fd);
 
    pgexporter_memory_destroy();
@@ -197,8 +257,9 @@ pgexporter_prometheus(int client_fd)
 
 error:
 
-   badrequest_page(client_fd);
+   badrequest_page(client_ssl, client_fd);
 
+   pgexporter_close_ssl(client_ssl);
    pgexporter_disconnect(client_fd);
 
    pgexporter_memory_destroy();
@@ -264,6 +325,46 @@ pgexporter_prometheus_logging(int type)
 }
 
 static int
+redirect_page(SSL* client_ssl, int client_fd, char* path)
+{
+   char* data = NULL;
+   time_t now;
+   char time_buf[32];
+   int status;
+   struct message msg;
+
+   memset(&msg, 0, sizeof(struct message));
+   memset(&data, 0, sizeof(data));
+
+   now = time(NULL);
+
+   memset(&time_buf, 0, sizeof(time_buf));
+   ctime_r(&now, &time_buf[0]);
+   time_buf[strlen(time_buf) - 1] = 0;
+
+   data = pgexporter_append(data, "HTTP/1.1 301 Moved Permanently\r\n");
+   data = pgexporter_append(data, "Location: ");
+   data = pgexporter_append(data, path);
+   data = pgexporter_append(data, "\r\n");
+   data = pgexporter_append(data, "Date: ");
+   data = pgexporter_append(data, &time_buf[0]);
+   data = pgexporter_append(data, "\r\n");
+   data = pgexporter_append(data, "Content-Length: 0\r\n");
+   data = pgexporter_append(data, "Connection: close\r\n");
+   data = pgexporter_append(data, "\r\n");
+
+   msg.kind = 0;
+   msg.length = strlen(data);
+   msg.data = data;
+
+   status = pgexporter_write_message(client_ssl, client_fd, &msg);
+
+   free(data);
+
+   return status;
+}
+
+static int
 resolve_page(struct message* msg)
 {
    char* from = NULL;
@@ -298,7 +399,7 @@ resolve_page(struct message* msg)
 }
 
 static int
-badrequest_page(int client_fd)
+badrequest_page(SSL* client_ssl, int client_fd)
 {
    char* data = NULL;
    time_t now;
@@ -326,7 +427,7 @@ badrequest_page(int client_fd)
    msg.length = strlen(data);
    msg.data = data;
 
-   status = pgexporter_write_message(NULL, client_fd, &msg);
+   status = pgexporter_write_message(client_ssl, client_fd, &msg);
 
    free(data);
 
@@ -334,7 +435,7 @@ badrequest_page(int client_fd)
 }
 
 static int
-unknown_page(int client_fd)
+unknown_page(SSL* client_ssl, int client_fd)
 {
    char* data = NULL;
    time_t now;
@@ -362,7 +463,7 @@ unknown_page(int client_fd)
    msg.length = strlen(data);
    msg.data = data;
 
-   status = pgexporter_write_message(NULL, client_fd, &msg);
+   status = pgexporter_write_message(client_ssl, client_fd, &msg);
 
    free(data);
 
@@ -370,7 +471,7 @@ unknown_page(int client_fd)
 }
 
 static int
-home_page(int client_fd)
+home_page(SSL* client_ssl, int client_fd)
 {
    char* data = NULL;
    int status;
@@ -401,7 +502,7 @@ home_page(int client_fd)
    msg.length = strlen(data);
    msg.data = data;
 
-   status = pgexporter_write_message(NULL, client_fd, &msg);
+   status = pgexporter_write_message(client_ssl, client_fd, &msg);
    if (status != MESSAGE_STATUS_OK)
    {
       goto error;
@@ -425,7 +526,7 @@ home_page(int client_fd)
                              "  <ul>\n"
                              );
 
-   send_chunk(client_fd, data);
+   send_chunk(client_ssl, client_fd, data);
    free(data);
    data = NULL;
 
@@ -436,7 +537,7 @@ home_page(int client_fd)
                              "  <li>pgexporter_logging_fatal</li>\n"
                              );
 
-   send_chunk(client_fd, data);
+   send_chunk(client_ssl, client_fd, data);
    free(data);
    data = NULL;
 
@@ -464,7 +565,7 @@ home_page(int client_fd)
       }
    }
 
-   send_chunk(client_fd, data);
+   send_chunk(client_ssl, client_fd, data);
    free(data);
    data = NULL;
 
@@ -479,7 +580,7 @@ home_page(int client_fd)
    /* Footer */
    data = pgexporter_append(data, "\r\n\r\n");
 
-   send_chunk(client_fd, data);
+   send_chunk(client_ssl, client_fd, data);
    free(data);
    data = NULL;
 
@@ -493,7 +594,7 @@ error:
 }
 
 static int
-metrics_page(int client_fd)
+metrics_page(SSL* client_ssl, int client_fd)
 {
    char* data = NULL;
    time_t start_time;
@@ -530,7 +631,7 @@ retry_cache_locking:
          msg.length = strlen(cache->data);
          msg.data = cache->data;
 
-         status = pgexporter_write_message(NULL, client_fd, &msg);
+         status = pgexporter_write_message(client_ssl, client_fd, &msg);
          if (status != MESSAGE_STATUS_OK)
          {
             goto error;
@@ -564,7 +665,7 @@ retry_cache_locking:
          msg.length = strlen(data);
          msg.data = data;
 
-         status = pgexporter_write_message(NULL, client_fd, &msg);
+         status = pgexporter_write_message(client_ssl, client_fd, &msg);
          if (status != MESSAGE_STATUS_OK)
          {
             goto error;
@@ -576,16 +677,16 @@ retry_cache_locking:
          pgexporter_open_connections();
 
          /* General Metric Collector */
-         general_information(client_fd);
-         core_information(client_fd);
-         server_information(client_fd);
-         version_information(client_fd);
-         uptime_information(client_fd);
-         primary_information(client_fd);
-         settings_information(client_fd);
-         extension_information(client_fd);
+         general_information(client_ssl, client_fd);
+         core_information(client_ssl, client_fd);
+         server_information(client_ssl, client_fd);
+         version_information(client_ssl, client_fd);
+         uptime_information(client_ssl, client_fd);
+         primary_information(client_ssl, client_fd);
+         settings_information(client_ssl, client_fd);
+         extension_information(client_ssl, client_fd);
 
-         custom_metrics(client_fd);
+         custom_metrics(client_ssl, client_fd);
 
          pgexporter_close_connections();
 
@@ -596,7 +697,7 @@ retry_cache_locking:
          msg.length = strlen(data);
          msg.data = data;
 
-         status = pgexporter_write_message(NULL, client_fd, &msg);
+         status = pgexporter_write_message(client_ssl, client_fd, &msg);
          if (status != MESSAGE_STATUS_OK)
          {
             goto error;
@@ -632,7 +733,7 @@ error:
 }
 
 static int
-bad_request(int client_fd)
+bad_request(SSL* client_ssl, int client_fd)
 {
    char* data = NULL;
    time_t now;
@@ -660,7 +761,7 @@ bad_request(int client_fd)
    msg.length = strlen(data);
    msg.data = data;
 
-   status = pgexporter_write_message(NULL, client_fd, &msg);
+   status = pgexporter_write_message(client_ssl, client_fd, &msg);
 
    free(data);
 
@@ -691,7 +792,7 @@ collector_pass(const char* collector)
 }
 
 static void
-general_information(int client_fd)
+general_information(SSL* client_ssl, int client_fd)
 {
    char* data = NULL;
    struct configuration* config;
@@ -728,7 +829,7 @@ general_information(int client_fd)
 
    if (data != NULL)
    {
-      send_chunk(client_fd, data);
+      send_chunk(client_ssl, client_fd, data);
       metrics_cache_append(data);
       free(data);
       data = NULL;
@@ -736,7 +837,7 @@ general_information(int client_fd)
 }
 
 static void
-server_information(int client_fd)
+server_information(SSL* client_ssl, int client_fd)
 {
    char* data = NULL;
    struct configuration* config;
@@ -769,7 +870,7 @@ server_information(int client_fd)
 
    if (data != NULL)
    {
-      send_chunk(client_fd, data);
+      send_chunk(client_ssl, client_fd, data);
       metrics_cache_append(data);
       free(data);
       data = NULL;
@@ -777,7 +878,7 @@ server_information(int client_fd)
 }
 
 static void
-version_information(int client_fd)
+version_information(SSL* client_ssl, int client_fd)
 {
    int ret;
    int server;
@@ -841,7 +942,7 @@ version_information(int client_fd)
 
          if (data != NULL)
          {
-            send_chunk(client_fd, data);
+            send_chunk(client_ssl, client_fd, data);
             metrics_cache_append(data);
             free(data);
             data = NULL;
@@ -853,7 +954,7 @@ version_information(int client_fd)
 }
 
 static void
-uptime_information(int client_fd)
+uptime_information(SSL* client_ssl, int client_fd)
 {
    int ret;
    int server;
@@ -911,7 +1012,7 @@ uptime_information(int client_fd)
 
          if (data != NULL)
          {
-            send_chunk(client_fd, data);
+            send_chunk(client_ssl, client_fd, data);
             metrics_cache_append(data);
             free(data);
             data = NULL;
@@ -923,7 +1024,7 @@ uptime_information(int client_fd)
 }
 
 static void
-primary_information(int client_fd)
+primary_information(SSL* client_ssl, int client_fd)
 {
    int ret;
    int server;
@@ -986,7 +1087,7 @@ primary_information(int client_fd)
 
          if (data != NULL)
          {
-            send_chunk(client_fd, data);
+            send_chunk(client_ssl, client_fd, data);
             metrics_cache_append(data);
             free(data);
             data = NULL;
@@ -998,7 +1099,7 @@ primary_information(int client_fd)
 }
 
 static void
-core_information(int client_fd)
+core_information(SSL* client_ssl, int client_fd)
 {
    char* data = NULL;
 
@@ -1013,7 +1114,7 @@ core_information(int client_fd)
 
    if (data != NULL)
    {
-      send_chunk(client_fd, data);
+      send_chunk(client_ssl, client_fd, data);
       metrics_cache_append(data);
       free(data);
       data = NULL;
@@ -1021,7 +1122,7 @@ core_information(int client_fd)
 }
 
 static void
-extension_information(int client_fd)
+extension_information(SSL* client_ssl, int client_fd)
 {
    bool cont = true;
    struct query* query = NULL;
@@ -1053,15 +1154,15 @@ extension_information(int client_fd)
                {
                   if (strcmp(tuple->data[0], "pgexporter_get_functions"))
                   {
-                     extension_function(client_fd, tuple->data[0], false, tuple->data[2], tuple->data[3]);
+                     extension_function(client_ssl, client_fd, tuple->data[0], false, tuple->data[2], tuple->data[3]);
                   }
                }
                else
                {
                   if (strcmp(tuple->data[0], "pgexporter_is_supported"))
                   {
-                     extension_function(client_fd, tuple->data[0], INPUT_DATA, tuple->data[2], tuple->data[3]);
-                     extension_function(client_fd, tuple->data[0], INPUT_WAL, tuple->data[2], tuple->data[3]);
+                     extension_function(client_ssl, client_fd, tuple->data[0], INPUT_DATA, tuple->data[2], tuple->data[3]);
+                     extension_function(client_ssl, client_fd, tuple->data[0], INPUT_WAL, tuple->data[2], tuple->data[3]);
                   }
                }
 
@@ -1083,7 +1184,7 @@ extension_information(int client_fd)
 }
 
 static void
-extension_function(int client_fd, char* function, int input, char* description, char* type)
+extension_function(SSL* client_ssl, int client_fd, char* function, int input, char* description, char* type)
 {
    char* data = NULL;
    bool header = false;
@@ -1260,7 +1361,7 @@ extension_function(int client_fd, char* function, int input, char* description, 
 
    if (data != NULL)
    {
-      send_chunk(client_fd, data);
+      send_chunk(client_ssl, client_fd, data);
       metrics_cache_append(data);
       free(data);
       data = NULL;
@@ -1268,7 +1369,7 @@ extension_function(int client_fd, char* function, int input, char* description, 
 }
 
 static void
-settings_information(int client_fd)
+settings_information(SSL* client_ssl, int client_fd)
 {
    int ret;
    char* data = NULL;
@@ -1346,7 +1447,7 @@ data:
          {
             data = pgexporter_append(data, "\n");
 
-            send_chunk(client_fd, data);
+            send_chunk(client_ssl, client_fd, data);
             metrics_cache_append(data);
             free(data);
             data = NULL;
@@ -1358,7 +1459,7 @@ data:
 
    if (data != NULL)
    {
-      send_chunk(client_fd, data);
+      send_chunk(client_ssl, client_fd, data);
       metrics_cache_append(data);
       free(data);
       data = NULL;
@@ -1368,7 +1469,7 @@ data:
 }
 
 static void
-custom_metrics(int client_fd)
+custom_metrics(SSL* client_ssl, int client_fd)
 {
    struct configuration* config = NULL;
    char* data = NULL;
@@ -1501,7 +1602,7 @@ custom_metrics(int client_fd)
 
    if (data)
    {
-      send_chunk(client_fd, data);
+      send_chunk(client_ssl, client_fd, data);
       metrics_cache_append(data);
       free(data);
       data = NULL;
@@ -2073,7 +2174,7 @@ append_type_info(char** data, char* tag, char* name, int typeId)
 }
 
 static int
-send_chunk(int client_fd, char* data)
+send_chunk(SSL* client_ssl, int client_fd, char* data)
 {
    int status;
    char* m = NULL;
@@ -2101,7 +2202,7 @@ send_chunk(int client_fd, char* data)
    msg.length = strlen(m);
    msg.data = m;
 
-   status = pgexporter_write_message(NULL, client_fd, &msg);
+   status = pgexporter_write_message(client_ssl, client_fd, &msg);
 
    free(m);
 

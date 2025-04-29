@@ -421,6 +421,16 @@ char*
 pgexporter_append(char* orig, char* s);
 
 /**
+ * Format a string and append it to the original string
+ * @param buf original string
+ * @param format The string to be formatted and appended to buf
+ * @param ... The arguments to be formatted
+ * @return The resulting string
+ */
+ char*
+ pgexporter_format_and_append(char* buf, char* format, ...);
+
+/**
  * Append an integer
  * @param orig The original string
  * @param i The integer
