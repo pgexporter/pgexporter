@@ -145,22 +145,10 @@ pgexporter_value_create(enum value_type type, uintptr_t data, struct value** val
          val->destroy_data = free_destroy_cb;
          break;
       }
-      case ValueStringRef:
-      {
-         val->data = (uintptr_t)pgexporter_append(NULL, (char*)data);
-         val->destroy_data = noop_destroy_cb;
-         break;
-      }
       case ValueBASE64:
       {
          val->data = (uintptr_t)pgexporter_append(NULL, (char*)data);
          val->destroy_data = free_destroy_cb;
-         break;
-      }
-      case ValueBASE64Ref:
-      {
-         val->data = (uintptr_t)pgexporter_append(NULL, (char*)data);
-         val->destroy_data = noop_destroy_cb;
          break;
       }
       case ValueMem:
@@ -291,6 +279,88 @@ pgexporter_value_to_float(uintptr_t val)
    uni.data = val;
    return uni.val;
 }
+
+enum value_type
+pgexporter_value_to_ref(enum value_type type)
+{
+   switch (type)
+   {
+      case ValueString:
+         return ValueStringRef;
+      case ValueBASE64:
+         return ValueBASE64Ref;
+      case ValueJSON:
+         return ValueJSONRef;
+      case ValueDeque:
+         return ValueDequeRef;
+      case ValueART:
+         return ValueARTRef;
+      case ValueMem:
+         return ValueRef;
+      default:
+         return type;
+   }
+}
+
+#ifdef DEBUG
+char*
+pgexporter_value_type_to_string(enum value_type type)
+{
+   switch (type)
+   {
+      case ValueInt8:
+         return "int8";
+      case ValueUInt8:
+         return "uint8";
+      case ValueInt16:
+         return "int16";
+      case ValueUInt16:
+         return "uint16";
+      case ValueInt32:
+         return "int32";
+      case ValueUInt32:
+         return "uint32";
+      case ValueInt64:
+         return "int64";
+      case ValueUInt64:
+         return "uint64";
+      case ValueChar:
+         return "char";
+      case ValueBool:
+         return "bool";
+      case ValueString:
+         return "string";
+      case ValueStringRef:
+         return "string_ref";
+      case ValueFloat:
+         return "float";
+      case ValueDouble:
+         return "double";
+      case ValueBASE64:
+         return "base64";
+      case ValueBASE64Ref:
+         return "base64_ref";
+      case ValueJSON:
+         return "json";
+      case ValueJSONRef:
+         return "json_ref";
+      case ValueDeque:
+         return "deque";
+      case ValueDequeRef:
+         return "deque_ref";
+      case ValueART:
+         return "art";
+      case ValueARTRef:
+         return "art_ref";
+      case ValueRef:
+         return "ref";
+      case ValueMem:
+         return "mem";
+      default:
+         return "unknown type";
+   }
+}
+#endif
 
 static void
 noop_destroy_cb(uintptr_t data)
