@@ -54,6 +54,7 @@ dnf install git gcc cmake make libev libev-devel \
             libyaml libyaml-devel
             zlib zlib-devel \
             libzstd libzstd-devel \
+            libasan libasan-static \
             lz4 lz4-devel \
             bzip2 bzip2-devel
 ```
@@ -156,11 +157,11 @@ dnf install pandoc texlive-scheme-basic \
 
 You will need the `Eisvogel` template as well which you can install through
 
-```
-wget https://github.com/Wandmalfarbe/pandoc-latex-template/releases/download/2.4.2/Eisvogel-2.4.2.tar.gz
-tar -xzf Eisvogel-2.4.2.tar.gz
-mkdir -p $HOME/.local/share/pandoc/templates
-mv eisvogel.latex $HOME/.local/share/pandoc/templates
+```sh
+wget https://github.com/Wandmalfarbe/pandoc-latex-template/releases/download/v3.2.0/Eisvogel-3.2.0.tar.gz
+tar -xzf Eisvogel-3.2.0.tar.gz
+mkdir -p ~/.local/share/pandoc/templates
+mv Eisvogel-3.2.0/eisvogel.latex ~/.local/share/pandoc/templates/
 ```
 
 where `$HOME` is your home directory.

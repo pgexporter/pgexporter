@@ -30,14 +30,14 @@ If you believe you found a bug, and it's likely possible, please indicate a way 
 Don't forget to indicate your pgexporter version.
 
 ## Running with docker 
-Follow [this](./doc/DOCKER.md) to build using docker 
+Follow [this](./doc/manual/user15-docker.md) to build using docker 
 
 ## Setup your build environment
 
 For Red Hat RPM based distributions use the following command:
 
 ```
-dnf install git gcc cmake make libev libev-devel openssl openssl-devel systemd systemd-devel python3-docutils
+dnf install git gcc cmake make libev libev-devel openssl openssl-devel systemd systemd-devel python3-docutils libyaml libyaml-devel zlib zlib-devel libzstd libzstd-devel lz4 lz4-devel bzip2 bzip2-devel libasan libasan-static
 ```
 
 in order to get the necessary dependencies.

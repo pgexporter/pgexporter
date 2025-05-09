@@ -29,6 +29,7 @@
 #ifndef PGEXPORTER_PROMETHEUS_H
 #define PGEXPORTER_PROMETHEUS_H
 
+#include <openssl/crypto.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -59,10 +60,11 @@ extern "C" {
 
 /**
  * Create a prometheus instance
+ * @param client_ssl The client SSL structure
  * @param fd The client descriptor
  */
 void
-pgexporter_prometheus(int fd);
+pgexporter_prometheus(SSL* client_ssl, int fd);
 
 /**
  * Reset the counters and histograms

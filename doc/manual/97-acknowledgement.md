@@ -21,6 +21,8 @@ Bassam Adnan <mailbassam@gmail.com>
 Sangkeun J.C. Kim <jchrys@me.com>
 Tejas Tyagi <tejastyagi.tt@gmail.com>
 Arshdeep Singh <balarsh535@gmail.com>
+Ahmed Osama Fathy <ahmedosamaft@gmail.com>
+Vanes Angelo <k124k3n@gmail.com>
 ```
 
 ## Contributing

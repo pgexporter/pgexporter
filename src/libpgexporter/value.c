@@ -145,22 +145,10 @@ pgexporter_value_create(enum value_type type, uintptr_t data, struct value** val
          val->destroy_data = free_destroy_cb;
          break;
       }
-      case ValueStringRef:
-      {
-         val->data = (uintptr_t)pgexporter_append(NULL, (char*)data);
-         val->destroy_data = noop_destroy_cb;
-         break;
-      }
       case ValueBASE64:
       {
          val->data = (uintptr_t)pgexporter_append(NULL, (char*)data);
          val->destroy_data = free_destroy_cb;
-         break;
-      }
-      case ValueBASE64Ref:
-      {
-         val->data = (uintptr_t)pgexporter_append(NULL, (char*)data);
-         val->destroy_data = noop_destroy_cb;
          break;
       }
       case ValueMem:
@@ -292,6 +280,88 @@ pgexporter_value_to_float(uintptr_t val)
    return uni.val;
 }
 
+enum value_type
+pgexporter_value_to_ref(enum value_type type)
+{
+   switch (type)
+   {
+      case ValueString:
+         return ValueStringRef;
+      case ValueBASE64:
+         return ValueBASE64Ref;
+      case ValueJSON:
+         return ValueJSONRef;
+      case ValueDeque:
+         return ValueDequeRef;
+      case ValueART:
+         return ValueARTRef;
+      case ValueMem:
+         return ValueRef;
+      default:
+         return type;
+   }
+}
+
+#ifdef DEBUG
+char*
+pgexporter_value_type_to_string(enum value_type type)
+{
+   switch (type)
+   {
+      case ValueInt8:
+         return "int8";
+      case ValueUInt8:
+         return "uint8";
+      case ValueInt16:
+         return "int16";
+      case ValueUInt16:
+         return "uint16";
+      case ValueInt32:
+         return "int32";
+      case ValueUInt32:
+         return "uint32";
+      case ValueInt64:
+         return "int64";
+      case ValueUInt64:
+         return "uint64";
+      case ValueChar:
+         return "char";
+      case ValueBool:
+         return "bool";
+      case ValueString:
+         return "string";
+      case ValueStringRef:
+         return "string_ref";
+      case ValueFloat:
+         return "float";
+      case ValueDouble:
+         return "double";
+      case ValueBASE64:
+         return "base64";
+      case ValueBASE64Ref:
+         return "base64_ref";
+      case ValueJSON:
+         return "json";
+      case ValueJSONRef:
+         return "json_ref";
+      case ValueDeque:
+         return "deque";
+      case ValueDequeRef:
+         return "deque_ref";
+      case ValueART:
+         return "art";
+      case ValueARTRef:
+         return "art_ref";
+      case ValueRef:
+         return "ref";
+      case ValueMem:
+         return "mem";
+      default:
+         return "unknown type";
+   }
+}
+#endif
+
 static void
 noop_destroy_cb(uintptr_t data)
 {
@@ -333,7 +403,7 @@ noop_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 }
 
 static char*
-int8_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+int8_to_string_cb(uintptr_t data, int32_t format __attribute__((unused)), char* tag, int indent)
 {
    char* ret = NULL;
    char buf[MISC_LENGTH];
@@ -346,7 +416,7 @@ int8_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 }
 
 static char*
-uint8_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+uint8_to_string_cb(uintptr_t data, int32_t format __attribute__((unused)), char* tag, int indent)
 {
    char* ret = NULL;
    char buf[MISC_LENGTH];
@@ -358,7 +428,7 @@ uint8_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 }
 
 static char*
-int16_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+int16_to_string_cb(uintptr_t data, int32_t format __attribute__((unused)), char* tag, int indent)
 {
    char* ret = NULL;
    char buf[MISC_LENGTH];
@@ -371,7 +441,7 @@ int16_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 }
 
 static char*
-uint16_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+uint16_to_string_cb(uintptr_t data, int32_t format __attribute__((unused)), char* tag, int indent)
 {
    char* ret = NULL;
    char buf[MISC_LENGTH];
@@ -384,7 +454,7 @@ uint16_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 }
 
 static char*
-int32_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+int32_to_string_cb(uintptr_t data, int32_t format __attribute__((unused)), char* tag, int indent)
 {
    char* ret = NULL;
    char buf[MISC_LENGTH];
@@ -397,7 +467,7 @@ int32_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 }
 
 static char*
-uint32_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+uint32_to_string_cb(uintptr_t data, int32_t format __attribute__((unused)), char* tag, int indent)
 {
    char* ret = NULL;
    char buf[MISC_LENGTH];
@@ -410,7 +480,7 @@ uint32_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 }
 
 static char*
-int64_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+int64_to_string_cb(uintptr_t data, int32_t format __attribute__((unused)), char* tag, int indent)
 {
    char* ret = NULL;
    char buf[MISC_LENGTH];
@@ -423,7 +493,7 @@ int64_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 }
 
 static char*
-uint64_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+uint64_to_string_cb(uintptr_t data, int32_t format __attribute__((unused)), char* tag, int indent)
 {
    char* ret = NULL;
    char buf[MISC_LENGTH];
@@ -436,7 +506,7 @@ uint64_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 }
 
 static char*
-float_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+float_to_string_cb(uintptr_t data, int32_t format __attribute__((unused)), char* tag, int indent)
 {
    char* ret = NULL;
    char buf[MISC_LENGTH];
@@ -449,7 +519,7 @@ float_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 }
 
 static char*
-double_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+double_to_string_cb(uintptr_t data, int32_t format __attribute__((unused)), char* tag, int indent)
 {
    char* ret = NULL;
    char buf[MISC_LENGTH];
@@ -463,7 +533,7 @@ double_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 }
 
 static char*
-string_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+string_to_string_cb(uintptr_t data, int32_t format __attribute__((unused)), char* tag, int indent)
 {
    char* ret = NULL;
    char* str = (char*) data;
@@ -508,7 +578,7 @@ string_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 }
 
 static char*
-bool_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+bool_to_string_cb(uintptr_t data, int32_t format __attribute__((unused)), char* tag, int indent)
 {
    char* ret = NULL;
    bool val = (bool) data;
@@ -518,7 +588,7 @@ bool_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 }
 
 static char*
-char_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+char_to_string_cb(uintptr_t data, int32_t format __attribute__((unused)), char* tag, int indent)
 {
    char* ret = NULL;
    char buf[MISC_LENGTH];
@@ -532,13 +602,13 @@ char_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 }
 
 static char*
-deque_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+deque_to_string_cb(uintptr_t data, int32_t format __attribute__((unused)), char* tag, int indent)
 {
    return pgexporter_deque_to_string((struct deque*)data, format, tag, indent);
 }
 
 static char*
-art_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+art_to_string_cb(uintptr_t data, int32_t format __attribute__((unused)), char* tag, int indent)
 {
    return pgexporter_art_to_string((struct art*) data, format, tag, indent);
 }
@@ -550,7 +620,7 @@ json_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
 }
 
 static char*
-mem_to_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+mem_to_string_cb(uintptr_t data, int32_t format __attribute__((unused)), char* tag, int indent)
 {
    char* ret = NULL;
    char buf[MISC_LENGTH];

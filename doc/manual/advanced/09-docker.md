@@ -1,3 +1,5 @@
+\newpage
+
 # Running pgexporter with Docker
 
 You can run `pgexporter` using Docker instead of compiling it manually.
@@ -7,7 +9,6 @@ You can run `pgexporter` using Docker instead of compiling it manually.
 - **Docker** or **Podman** must be installed on the server where PostgreSQL is running.
 - Ensure PostgreSQL is configured to allow external connections.
 
----
 ## Update the configuration file if needed: 
 
 ```conf
@@ -44,7 +45,7 @@ Then, restart PostgreSQL for the changes to take effect:
 sudo systemctl restart postgresql
 ```
 
----
+
 
 ## Step 2: Clone the Repository
 ```sh
@@ -52,7 +53,7 @@ git clone https://github.com/pgexporter/pgexporter.git
 cd pgexporter
 ```
 
----
+
 
 ## Step 3: Build the Docker Image
 
@@ -77,7 +78,7 @@ There are two Dockerfiles available:
    podman build -t pgexporter:latest -f ./contrib/docker/Dockerfile.rocky9 .
    ```
 
----
+
 
 ## Step 4: Run pgexporter as a Docker Container
 
@@ -91,7 +92,7 @@ Once the image is built, run the container using:
    podman run -d --name pgexporter --network host pgexporter:latest
    ```
 
----
+
 
 ## Step 5: Verify the Container
 
@@ -125,11 +126,11 @@ http://localhost:5002/metrics
 You can stop the container using
 - **Using Docker**
    ```sh
-   docker stop ppgexporter 
+   docker stop pgexporter 
    ```
 - **Using Podman**
    ```sh
-   podman stop ppgexporter 
+   podman stop pgexporter 
    ```
 
 You can exec into the container and run the cli commands as 

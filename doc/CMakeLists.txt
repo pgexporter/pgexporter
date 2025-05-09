@@ -11,39 +11,45 @@ set(PGEXPORTER_ADMIN_DST_FILE "${CMAKE_CURRENT_BINARY_DIR}/pgexporter-admin.1")
 set(PGEXPORTER_CONF_SRC_FILE "${CMAKE_CURRENT_SOURCE_DIR}/man/pgexporter.conf.5.rst")
 set(PGEXPORTER_CONF_DST_FILE "${CMAKE_CURRENT_BINARY_DIR}/pgexporter.conf.5")
 
-# pgexporter.1
+# Generate man pages for pgexporter.1
 add_custom_command(
-  TARGET man
+  OUTPUT ${PGEXPORTER_DST_FILE}
   COMMAND ${RST2MAN_EXECUTABLE} ${PGEXPORTER_SRC_FILE} ${PGEXPORTER_DST_FILE}
-  OUTPUTS ${PGEXPORTER_DST_FILE}
+  DEPENDS ${PGEXPORTER_SRC_FILE}
+  COMMENT "Generating man page: pgexporter.1"
 )
 
-# pgexporter-cli.1
+# Generate man pages for pgexporter-cli.1
 add_custom_command(
-  TARGET man
+  OUTPUT ${PGEXPORTER_CLI_DST_FILE}
   COMMAND ${RST2MAN_EXECUTABLE} ${PGEXPORTER_CLI_SRC_FILE} ${PGEXPORTER_CLI_DST_FILE}
-  OUTPUTS ${PGEXPORTER_CLI_DST_FILE}
+  DEPENDS ${PGEXPORTER_CLI_SRC_FILE}
+  COMMENT "Generating man page: pgexporter-cli.1"
 )
 
-# pgexporter-admin.1
+# Generate man pages for pgexporter-admin.1
 add_custom_command(
-  TARGET man
+  OUTPUT ${PGEXPORTER_ADMIN_DST_FILE}
   COMMAND ${RST2MAN_EXECUTABLE} ${PGEXPORTER_ADMIN_SRC_FILE} ${PGEXPORTER_ADMIN_DST_FILE}
-  OUTPUTS ${PGEXPORTER_ADMIN_DST_FILE}
+  DEPENDS ${PGEXPORTER_ADMIN_SRC_FILE}
+  COMMENT "Generating man page: pgexporter-admin.1"
 )
 
-# pgexporter.conf.5
+# Generate man pages for pgexporter.conf.5
 add_custom_command(
-  TARGET man
+  OUTPUT ${PGEXPORTER_CONF_DST_FILE}
   COMMAND ${RST2MAN_EXECUTABLE} ${PGEXPORTER_CONF_SRC_FILE} ${PGEXPORTER_CONF_DST_FILE}
-  OUTPUTS ${PGEXPORTER_CONF_DST_FILE}
+  DEPENDS ${PGEXPORTER_CONF_SRC_FILE}
+  COMMENT "Generating man page: pgexporter.conf.5"
 )
 
-# man pages
-add_custom_command(
-  TARGET man
+# Define the target to group all man pages
+add_custom_target(manpages ALL
   DEPENDS ${PGEXPORTER_DST_FILE} ${PGEXPORTER_CLI_DST_FILE} ${PGEXPORTER_ADMIN_DST_FILE} ${PGEXPORTER_CONF_DST_FILE}
 )
+
+# Add the 'man' target as a dependency to 'manpages'
+add_dependencies(man manpages)
 
 #
 # Install configuration and documentation
@@ -146,15 +152,22 @@ if (DOXYGEN_FOUND)
   set(DOXYGEN_WARN_AS_ERROR FAIL_ON_WARNINGS)
   set(DOXYFILE_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile.doxygen)
   doxygen_add_docs(doxygen ${PROJECT_SOURCE_DIR}/src/include/)
-  if (${DOXYGEN_VERSION} STREQUAL "1.10.0" OR ${DOXYGEN_VERSION} STREQUAL "1.11.0" OR ${DOXYGEN_VERSION} STREQUAL "1.12.0")
+  if (${DOXYGEN_VERSION} STREQUAL "1.10.0" OR
+      ${DOXYGEN_VERSION} STREQUAL "1.11.0" OR
+      ${DOXYGEN_VERSION} STREQUAL "1.12.0" OR
+      ${DOXYGEN_VERSION} STREQUAL "1.13.0" OR
+      ${DOXYGEN_VERSION} STREQUAL "1.13.1" OR
+      ${DOXYGEN_VERSION} STREQUAL "1.13.2")
     add_custom_command(
       TARGET api
+      POST_BUILD
       COMMAND ${DOXYGEN_EXECUTABLE} -q ${DOXYFILE_OUT}
       COMMENT "Generating API documentation"
     )
   else()
     add_custom_command(
       TARGET api
+      POST_BUILD
       COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_OUT}
       COMMENT "Generating API documentation"
     )

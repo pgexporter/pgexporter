@@ -359,10 +359,14 @@ struct configuration
    char log_line_prefix[MISC_LENGTH]; /**< The logging prefix */
    atomic_schar log_lock;             /**< The logging lock */
 
-   bool tls;                        /**< Is TLS enabled */
-   char tls_cert_file[MISC_LENGTH]; /**< TLS certificate path */
-   char tls_key_file[MISC_LENGTH];  /**< TLS key path */
-   char tls_ca_file[MISC_LENGTH];   /**< TLS CA certificate path */
+   bool tls;                     /**< Is TLS enabled */
+   char tls_cert_file[MAX_PATH]; /**< TLS certificate path */
+   char tls_key_file[MAX_PATH];  /**< TLS key path */
+   char tls_ca_file[MAX_PATH];   /**< TLS CA certificate path */
+
+   char metrics_cert_file[MAX_PATH];  /**< Metrics TLS certificate path */
+   char metrics_key_file[MAX_PATH];   /**< Metrics TLS key path */
+   char metrics_ca_file[MAX_PATH];    /**< Metrics TLS CA certificate path */
 
    int blocking_timeout;       /**< The blocking timeout in seconds */
    int authentication_timeout; /**< The authentication timeout in seconds */

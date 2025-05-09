@@ -62,6 +62,7 @@
 
 #define LINE_LENGTH 512
 
+static int extract_syskey_value(char* str, char** key, char** value);
 static void extract_key_value(char* str, char** key, char** value);
 static int as_int(char* str, int* i);
 static int as_long(char* str, long* l);
@@ -221,7 +222,18 @@ pgexporter_read_configuration(void* shm, char* filename)
          }
          else
          {
-            extract_key_value(line, &key, &value);
+            if (pgexporter_starts_with(line, "unix_socket_dir") || pgexporter_starts_with(line, "metrics_path")
+                || pgexporter_starts_with(line, "log_path") || pgexporter_starts_with(line, "tls_cert_file")
+                || pgexporter_starts_with(line, "tls_key_file") || pgexporter_starts_with(line, "tls_ca_file")
+                || pgexporter_starts_with(line, "metrics_cert_file") || pgexporter_starts_with(line, "metrics_key_file")
+                || pgexporter_starts_with(line, "metrics_ca_file"))
+            {
+               extract_syskey_value(line, &key, &value);
+            }
+            else
+            {
+               extract_key_value(line, &key, &value);
+            }
 
             if (key && value)
             {
@@ -494,24 +506,24 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (!strcmp(section, "pgexporter"))
                   {
                      max = strlen(value);
-                     if (max > MISC_LENGTH - 1)
+                     if (max > MAX_PATH - 1)
                      {
-                        max = MISC_LENGTH - 1;
+                        max = MAX_PATH - 1;
                      }
                      memcpy(config->tls_ca_file, value, max);
                   }
                   else if (strlen(section) > 0)
                   {
                      max = strlen(section);
-                     if (max > MISC_LENGTH - 1)
+                     if (max > MAX_PATH - 1)
                      {
-                        max = MISC_LENGTH - 1;
+                        max = MAX_PATH - 1;
                      }
                      memcpy(&srv.name, section, max);
                      max = strlen(value);
-                     if (max > MISC_LENGTH - 1)
+                     if (max > MAX_PATH - 1)
                      {
-                        max = MISC_LENGTH - 1;
+                        max = MAX_PATH - 1;
                      }
                      memcpy(&srv.tls_ca_file, value, max);
                   }
@@ -525,24 +537,24 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (!strcmp(section, "pgexporter"))
                   {
                      max = strlen(value);
-                     if (max > MISC_LENGTH - 1)
+                     if (max > MAX_PATH - 1)
                      {
-                        max = MISC_LENGTH - 1;
+                        max = MAX_PATH - 1;
                      }
                      memcpy(config->tls_cert_file, value, max);
                   }
                   else if (strlen(section) > 0)
                   {
                      max = strlen(section);
-                     if (max > MISC_LENGTH - 1)
+                     if (max > MAX_PATH - 1)
                      {
-                        max = MISC_LENGTH - 1;
+                        max = MAX_PATH - 1;
                      }
                      memcpy(&srv.name, section, max);
                      max = strlen(value);
-                     if (max > MISC_LENGTH - 1)
+                     if (max > MAX_PATH - 1)
                      {
-                        max = MISC_LENGTH - 1;
+                        max = MAX_PATH - 1;
                      }
                      memcpy(&srv.tls_cert_file, value, max);
                   }
@@ -556,26 +568,74 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (!strcmp(section, "pgexporter"))
                   {
                      max = strlen(value);
-                     if (max > MISC_LENGTH - 1)
+                     if (max > MAX_PATH - 1)
                      {
-                        max = MISC_LENGTH - 1;
+                        max = MAX_PATH - 1;
                      }
                      memcpy(config->tls_key_file, value, max);
                   }
                   else if (strlen(section) > 0)
                   {
                      max = strlen(section);
-                     if (max > MISC_LENGTH - 1)
+                     if (max > MAX_PATH - 1)
                      {
-                        max = MISC_LENGTH - 1;
+                        max = MAX_PATH - 1;
                      }
                      memcpy(&srv.name, section, max);
                      max = strlen(value);
-                     if (max > MISC_LENGTH - 1)
+                     if (max > MAX_PATH - 1)
                      {
-                        max = MISC_LENGTH - 1;
+                        max = MAX_PATH - 1;
                      }
                      memcpy(&srv.tls_key_file, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "metrics_ca_file"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->metrics_ca_file, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "metrics_cert_file"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->metrics_cert_file, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "metrics_key_file"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->metrics_key_file, value, max);
                   }
                   else
                   {
@@ -894,6 +954,11 @@ pgexporter_read_configuration(void* shm, char* filename)
             else
             {
                warnx("Unknown: Section=%s, Line=%s", strlen(section) > 0 ? section : "<unknown>", line);
+
+               free(key);
+               free(value);
+               key = NULL;
+               value = NULL;
             }
          }
       }
@@ -975,6 +1040,39 @@ pgexporter_validate_configuration(void* shm)
    if (config->backlog < 16)
    {
       config->backlog = 16;
+   }
+
+   if (strlen(config->metrics_cert_file) > 0)
+   {
+      if (!pgexporter_exists(config->metrics_cert_file))
+      {
+         pgexporter_log_error("metrics cert file does not exist, falling back to plain HTTP");
+         memset(config->metrics_cert_file, 0, sizeof(config->metrics_cert_file));
+         memset(config->metrics_key_file, 0, sizeof(config->metrics_key_file));
+         memset(config->metrics_ca_file, 0, sizeof(config->metrics_ca_file));
+      }
+   }
+
+   if (strlen(config->metrics_key_file) > 0)
+   {
+      if (!pgexporter_exists(config->metrics_key_file))
+      {
+         pgexporter_log_error("metrics key file does not exist, falling back to plain HTTP");
+         memset(config->metrics_cert_file, 0, sizeof(config->metrics_cert_file));
+         memset(config->metrics_key_file, 0, sizeof(config->metrics_key_file));
+         memset(config->metrics_ca_file, 0, sizeof(config->metrics_ca_file));
+      }
+   }
+
+   if (strlen(config->metrics_ca_file) > 0)
+   {
+      if (!pgexporter_exists(config->metrics_ca_file))
+      {
+         pgexporter_log_error("metrics ca file does not exist, falling back to plain HTTP");
+         memset(config->metrics_cert_file, 0, sizeof(config->metrics_cert_file));
+         memset(config->metrics_key_file, 0, sizeof(config->metrics_key_file));
+         memset(config->metrics_ca_file, 0, sizeof(config->metrics_ca_file));
+      }
    }
 
    if (config->number_of_servers <= 0)
@@ -1457,7 +1555,7 @@ error:
 }
 
 void
-pgexporter_conf_get(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryption, struct json* payload)
+pgexporter_conf_get(SSL* ssl __attribute__((unused)), int client_fd, uint8_t compression, uint8_t encryption, struct json* payload)
 {
    struct json* response = NULL;
    char* elapsed = NULL;
@@ -1513,7 +1611,7 @@ error:
 }
 
 void
-pgexporter_conf_set(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryption, struct json* payload)
+pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t compression, uint8_t encryption, struct json* payload)
 {
    struct json* response = NULL;
    struct json* request = NULL;
@@ -1559,7 +1657,7 @@ pgexporter_conf_set(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryp
    memset(section, 0, MISC_LENGTH);
    memset(key, 0, MISC_LENGTH);
 
-   for (int i = 0; i < strlen(config_key); i++)
+   for (size_t i = 0; i < strlen(config_key); i++)
    {
       if (config_key[i] == '.')
       {
@@ -1878,6 +1976,36 @@ pgexporter_conf_set(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryp
             pgexporter_json_put(response, key, (uintptr_t)config->tls_key_file, ValueString);
          }
       }
+      else if (!strcmp(key, "metrics_ca_file"))
+      {
+            max = strlen(config_value);
+            if (max > MISC_LENGTH - 1)
+            {
+               max = MISC_LENGTH - 1;
+            }
+            memcpy(config->metrics_ca_file, config_value, max);
+            pgexporter_json_put(response, key, (uintptr_t)config->metrics_ca_file, ValueString);
+      }
+      else if (!strcmp(key, "metrics_cert_file"))
+      {
+            max = strlen(config_value);
+            if (max > MISC_LENGTH - 1)
+            {
+               max = MISC_LENGTH - 1;
+            }
+            memcpy(config->metrics_cert_file, config_value, max);
+            pgexporter_json_put(response, key, (uintptr_t)config->metrics_cert_file, ValueString);
+      }
+      else if (!strcmp(key, "metrics_key_file"))
+      {
+            max = strlen(config_value);
+            if (max > MISC_LENGTH - 1)
+            {
+               max = MISC_LENGTH - 1;
+            }
+            memcpy(config->metrics_key_file, config_value, max);
+            pgexporter_json_put(response, key, (uintptr_t)config->metrics_key_file, ValueString);
+      }
       else if (!strcmp(key, "blocking_timeout"))
       {
          if (as_int(config_value, &config->blocking_timeout))
@@ -2144,6 +2272,9 @@ add_configuration_response(struct json* res)
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_TLS_CERT_FILE, (uintptr_t)config->tls_cert_file, ValueString);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_TLS_CA_FILE, (uintptr_t)config->tls_ca_file, ValueString);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_TLS_KEY_FILE, (uintptr_t)config->tls_key_file, ValueString);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_CERT_FILE, (uintptr_t)config->metrics_cert_file, ValueString);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_CA_FILE, (uintptr_t)config->metrics_ca_file, ValueString);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_KEY_FILE, (uintptr_t)config->metrics_key_file, ValueString);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_LIBEV, (uintptr_t)config->libev, ValueString);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_KEEP_ALIVE, (uintptr_t)config->keep_alive, ValueBool);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_NODELAY, (uintptr_t)config->nodelay, ValueBool);
@@ -2247,7 +2378,7 @@ extract_key_value(char* str, char** key, char** value)
       end = strchr(str, '\n');
       idx = 0;
 
-      for (int i = 0; i < strlen(equal); i++)
+      for (size_t i = 0; i < strlen(equal); i++)
       {
          ptr = equal + i;
          if (ptr != end)
@@ -2314,6 +2445,112 @@ extract_key_value(char* str, char** key, char** value)
       *key = k;
       *value = v;
    }
+}
+
+/**
+ * Given a line of text extracts the key part and the value
+ * and expands environment variables in the value (like $HOME).
+ * Valid lines must have the form <key> = <value>.
+ *
+ * The key must be unquoted and cannot have any spaces
+ * in front of it.
+ *
+ * The value will be extracted as it is without trailing and leading spaces.
+ *
+ * Comments on the right side of a value are allowed.
+ *
+ * Example of valid lines are:
+ * <code>
+ * foo = bar
+ * foo=bar
+ * foo=  bar
+ * foo = "bar"
+ * foo = 'bar'
+ * foo = "#bar"
+ * foo = '#bar'
+ * foo = bar # bar set!
+ * foo = bar# bar set!
+ * </code>
+ *
+ * @param str the line of text incoming from the configuration file
+ * @param key the pointer to where to store the key extracted from the line
+ * @param value the pointer to where to store the value (as it is)
+ * @returns 1 if unable to parse the line, 0 if everything is ok
+ */
+static int
+extract_syskey_value(char* str, char** key, char** value)
+{
+   int c = 0;
+   int offset = 0;
+   int length = strlen(str);
+   int d = length - 1;
+   char* k = NULL;
+   char* v = NULL;
+
+   // the key does not allow spaces and is whatever is
+   // on the left of the '='
+   while (str[c] != ' ' && str[c] != '=' && c < length)
+   {
+      c++;
+   }
+
+   if (c >= length)
+   {
+      goto error;
+   }
+
+   for (int i = 0; i < c; i++)
+   {
+      k = pgexporter_append_char(k, str[i]);
+   }
+
+   while (c < length && (str[c] == ' ' || str[c] == '\t' || str[c] == '=' || str[c] == '\r' || str[c] == '\n'))
+   {
+      c++;
+   }
+
+   // empty value
+   if (c == length)
+   {
+      free(k);
+      k = NULL;
+      return 0;
+   }
+
+   offset = c;
+
+   while ((str[d] == ' ' || str[d] == '\t' || str[d] == '\r' || str[d] == '\n') && d > c)
+   {
+      d--;
+   }
+
+   for (int i = offset; i <= d; i++)
+   {
+      v = pgexporter_append_char(v, str[i]);
+   }
+
+   char* resolved_path = NULL;
+
+   if (pgexporter_resolve_path(v, &resolved_path))
+   {
+      free(k);
+      free(v);
+      free(resolved_path);
+      k = NULL;
+      v = NULL;
+      resolved_path = NULL;
+      goto error;
+   }
+
+   free(v);
+   v = resolved_path;
+
+   *key = k;
+   *value = v;
+   return 0;
+
+error:
+   return 1;
 }
 
 static int
@@ -2643,7 +2880,7 @@ as_seconds(char* str, int* age, int default_age)
    }
 
    index = 0;
-   for (int i = 0; i < strlen(str); i++)
+   for (size_t i = 0; i < strlen(str); i++)
    {
       if (isdigit(str[i]))
       {
@@ -2748,7 +2985,7 @@ as_bytes(char* str, long* bytes, long default_bytes)
    }
 
    index = 0;
-   for (int i = 0; i < strlen(str); i++)
+   for (size_t i = 0; i < strlen(str); i++)
    {
       if (isdigit(str[i]))
       {
@@ -3024,6 +3261,9 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    memcpy(config->tls_cert_file, reload->tls_cert_file, MISC_LENGTH);
    memcpy(config->tls_key_file, reload->tls_key_file, MISC_LENGTH);
    memcpy(config->tls_ca_file, reload->tls_ca_file, MISC_LENGTH);
+   memcpy(config->metrics_cert_file, reload->metrics_cert_file, MISC_LENGTH);
+   memcpy(config->metrics_key_file, reload->metrics_key_file, MISC_LENGTH);
+   memcpy(config->metrics_ca_file, reload->metrics_ca_file, MISC_LENGTH);
 
    config->blocking_timeout = reload->blocking_timeout;
    config->authentication_timeout = reload->authentication_timeout;
@@ -3178,7 +3418,7 @@ is_empty_string(char* s)
       return true;
    }
 
-   for (int i = 0; i < strlen(s); i++)
+   for (size_t i = 0; i < strlen(s); i++)
    {
       if (s[i] == ' ' || s[i] == '\t' || s[i] == '\r' || s[i] == '\n')
       {

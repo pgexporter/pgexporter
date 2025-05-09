@@ -421,6 +421,16 @@ char*
 pgexporter_append(char* orig, char* s);
 
 /**
+ * Format a string and append it to the original string
+ * @param buf original string
+ * @param format The string to be formatted and appended to buf
+ * @param ... The arguments to be formatted
+ * @return The resulting string
+ */
+ char*
+ pgexporter_format_and_append(char* buf, char* format, ...);
+
+/**
  * Append an integer
  * @param orig The original string
  * @param i The integer
@@ -792,6 +802,18 @@ pgexporter_version_number(void);
  */
 bool
 pgexporter_version_ge(unsigned int major, unsigned int minor, unsigned int patch);
+
+/**
+ * Resolve path.
+ * The function will resolve the path by expanding environment
+ * variables (e.g., $HOME) in subpaths that are either surrounded
+ * by double quotes (") or not surrounded by any quotes.
+ * @param orig_path The original path
+ * @param new_path Reference to the resolved path
+ * @return 0 if success, otherwise 1
+ */
+int
+pgexporter_resolve_path(char* orig_path, char** new_path);
 
 #ifdef DEBUG
 

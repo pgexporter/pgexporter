@@ -42,7 +42,7 @@ Then the Prometheus service will query your pgexporter metrics every 15 seconds 
 
 ## Grafana Dashboard
 
-Although Prometheus provides capacity of querying and monitoring metrics, we can not customize graphs for each metric and provide a unified view. As a result, we use Grafana to help us manage all graphs together.
+Although Prometheus provides capacity of querying and monitoring metrics, we can not customize graphs for each metric and provide a unified view. As a result, we use Grafana to help us manage all graphs together, we also provide dashboards which can be imported to Grafana.
 
 ### Installation
 
@@ -111,3 +111,31 @@ Then you can explore dashboards with queries in "Expore" (Home -> Explore):
 Then "Run Query":
 
 ![image](../images/grafana_graph.png)
+
+### Importing pgexporter dashboard
+
+You could also use pgexporter dashboards which are available in [contrib/grafana](../../contrib/grafana/) directory. Navigate to Click Home -> Dashboards -> New Dashboard and import a new dashboard.
+
+![image](../images/grafana_import_dashboard.png)
+
+Select "Upload dashboard as JSON file", next select a JSON file based on your Postgres version from [contrib/grafana](../../contrib/grafana/) directory and finally click on "Import".
+
+You will now be able to view important metrics which pgexporter provides.
+
+![image](../images/grafana_pgexporter_dashboard.png)
+
+Based on your Postgres version you will be able to see sections related to
+#### System Health
+Instance Status (Primary/Replica indicator), Database Connections, Database Sizes, Transaction Rates, Database Locks
+
+#### Performance Indicators
+Cache Hit Ratio, Disk Reads, Tuple Operations (Select, Insert, Update, Delete), Background Writer Activity, Deadlocks & Conflicts
+
+#### WAL & Replication
+WAL Generation, Replication Status, WAL Archiving, Database Age (Transaction ID Wraparound)
+
+#### Query Analysis
+Most Executed Queries, Slowest Queries, Highest WAL Usage Queries, Index Usage
+
+#### Advanced Metrics
+I/O Operations by Backend Type , Memory Usage by Context , Wait Events Statistics , Session Workload Statistics , Logical Replication Statistics.

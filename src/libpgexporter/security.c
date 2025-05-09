@@ -105,9 +105,7 @@ static int  server_signature(char* password, char* salt, int salt_length, int it
                              char* client_final_message_wo_proof, size_t client_final_message_wo_proof_length,
                              unsigned char** result, size_t* result_length);
 
-static int  create_ssl_ctx(bool client, SSL_CTX** ctx);
 static int  create_ssl_client(SSL_CTX* ctx, char* key, char* cert, char* root, int socket, SSL** ssl);
-static int  create_ssl_server(SSL_CTX* ctx, int socket, SSL** ssl);
 
 int
 pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl)
@@ -146,12 +144,12 @@ pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl
          SSL_CTX* ctx = NULL;
 
          /* We are acting as a server against the client */
-         if (create_ssl_ctx(false, &ctx))
+         if (pgexporter_create_ssl_ctx(false, &ctx))
          {
             goto error;
          }
 
-         if (create_ssl_server(ctx, client_fd, &c_ssl))
+         if (pgexporter_create_ssl_server(ctx, config->tls_key_file, config->tls_cert_file, config->tls_ca_file ,client_fd, &c_ssl))
          {
             goto error;
          }
@@ -164,7 +162,7 @@ pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl
          {
             goto error;
          }
-         pgexporter_free_message(msg);
+         pgexporter_clear_message();
 
          status = SSL_accept(c_ssl);
          if (status != 1)
@@ -190,7 +188,7 @@ pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl
          {
             goto error;
          }
-         pgexporter_free_message(msg);
+         pgexporter_clear_message();
 
          status = pgexporter_read_timeout_message(NULL, client_fd, config->authentication_timeout, &msg);
          if (status != MESSAGE_STATUS_OK)
@@ -248,7 +246,7 @@ pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl
          goto error;
       }
 
-      pgexporter_free_copy_message(request_msg);
+      pgexporter_free_message(request_msg);
       free(username);
       free(database);
       free(appname);
@@ -269,8 +267,8 @@ pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl
    }
 
 bad_password:
-   pgexporter_free_message(msg);
-   pgexporter_free_copy_message(request_msg);
+   pgexporter_clear_message();
+   pgexporter_free_message(request_msg);
 
    free(username);
    free(database);
@@ -280,8 +278,8 @@ bad_password:
    return AUTH_BAD_PASSWORD;
 
 error:
-   pgexporter_free_message(msg);
-   pgexporter_free_copy_message(request_msg);
+   pgexporter_clear_message();
+   pgexporter_free_message(request_msg);
 
    free(username);
    free(database);
@@ -375,7 +373,7 @@ pgexporter_remote_management_scram_sha256(char* username, char* password, int se
 
                if (msg->kind == 'S')
                {
-                  if (create_ssl_ctx(true, &ctx))
+                  if (pgexporter_create_ssl_ctx(true, &ctx))
                   {
                      goto error;
                   }
@@ -586,13 +584,13 @@ pgexporter_remote_management_scram_sha256(char* username, char* password, int se
    free(server_signature_received);
    free(server_signature_calc);
 
-   pgexporter_free_message(msg);
-   pgexporter_free_copy_message(sslrequest_msg);
-   pgexporter_free_copy_message(startup_msg);
-   pgexporter_free_copy_message(sasl_response);
-   pgexporter_free_copy_message(sasl_continue);
-   pgexporter_free_copy_message(sasl_continue_response);
-   pgexporter_free_copy_message(sasl_final);
+   pgexporter_clear_message();
+   pgexporter_free_message(sslrequest_msg);
+   pgexporter_free_message(startup_msg);
+   pgexporter_free_message(sasl_response);
+   pgexporter_free_message(sasl_continue);
+   pgexporter_free_message(sasl_continue_response);
+   pgexporter_free_message(sasl_final);
 
    pgexporter_memory_destroy();
 
@@ -612,13 +610,13 @@ bad_password:
    free(server_signature_received);
    free(server_signature_calc);
 
-   pgexporter_free_message(msg);
-   pgexporter_free_copy_message(sslrequest_msg);
-   pgexporter_free_copy_message(startup_msg);
-   pgexporter_free_copy_message(sasl_response);
-   pgexporter_free_copy_message(sasl_continue);
-   pgexporter_free_copy_message(sasl_continue_response);
-   pgexporter_free_copy_message(sasl_final);
+   pgexporter_clear_message();
+   pgexporter_free_message(sslrequest_msg);
+   pgexporter_free_message(startup_msg);
+   pgexporter_free_message(sasl_response);
+   pgexporter_free_message(sasl_continue);
+   pgexporter_free_message(sasl_continue_response);
+   pgexporter_free_message(sasl_final);
 
    pgexporter_memory_destroy();
 
@@ -638,13 +636,13 @@ error:
    free(server_signature_received);
    free(server_signature_calc);
 
-   pgexporter_free_message(msg);
-   pgexporter_free_copy_message(sslrequest_msg);
-   pgexporter_free_copy_message(startup_msg);
-   pgexporter_free_copy_message(sasl_response);
-   pgexporter_free_copy_message(sasl_continue);
-   pgexporter_free_copy_message(sasl_continue_response);
-   pgexporter_free_copy_message(sasl_final);
+   pgexporter_clear_message();
+   pgexporter_free_message(sslrequest_msg);
+   pgexporter_free_message(startup_msg);
+   pgexporter_free_message(sasl_response);
+   pgexporter_free_message(sasl_continue);
+   pgexporter_free_message(sasl_continue_response);
+   pgexporter_free_message(sasl_final);
 
    pgexporter_memory_destroy();
 
@@ -788,7 +786,7 @@ generate_md5(char* str, int length, char** md5)
 }
 
 static int
-client_scram256(SSL* c_ssl, int client_fd, char* username, char* password, int slot)
+client_scram256(SSL* c_ssl, int client_fd, char* username __attribute__((unused)), char* password, int slot)
 {
    int status;
    time_t start_time;
@@ -878,7 +876,7 @@ retry:
 
    sasl_continue = pgexporter_copy_message(msg);
 
-   pgexporter_free_copy_message(msg);
+   pgexporter_free_message(msg);
    msg = NULL;
 
    status = pgexporter_write_message(c_ssl, client_fd, sasl_continue);
@@ -937,7 +935,7 @@ retry:
 
    sasl_final = pgexporter_copy_message(msg);
 
-   pgexporter_free_copy_message(msg);
+   pgexporter_free_message(msg);
    msg = NULL;
 
    status = pgexporter_write_message(c_ssl, client_fd, sasl_final);
@@ -962,8 +960,8 @@ retry:
    free(server_signature_calc);
    free(base64_server_signature_calc);
 
-   pgexporter_free_copy_message(sasl_continue);
-   pgexporter_free_copy_message(sasl_final);
+   pgexporter_free_message(sasl_continue);
+   pgexporter_free_message(sasl_final);
 
    return AUTH_SUCCESS;
 
@@ -982,8 +980,8 @@ bad_password:
    free(server_signature_calc);
    free(base64_server_signature_calc);
 
-   pgexporter_free_copy_message(sasl_continue);
-   pgexporter_free_copy_message(sasl_final);
+   pgexporter_free_message(sasl_continue);
+   pgexporter_free_message(sasl_final);
 
    return AUTH_BAD_PASSWORD;
 
@@ -1002,8 +1000,8 @@ error:
    free(server_signature_calc);
    free(base64_server_signature_calc);
 
-   pgexporter_free_copy_message(sasl_continue);
-   pgexporter_free_copy_message(sasl_final);
+   pgexporter_free_message(sasl_continue);
+   pgexporter_free_message(sasl_final);
 
    return AUTH_ERROR;
 }
@@ -1074,7 +1072,7 @@ pgexporter_server_authenticate(int server, char* database, char* username, char*
    {
       SSL_CTX* ctx = NULL;
 
-      if (create_ssl_ctx(true, &ctx))
+      if (pgexporter_create_ssl_ctx(true, &ctx))
       {
          goto error;
       }
@@ -1190,17 +1188,17 @@ pgexporter_server_authenticate(int server, char* database, char* username, char*
    *ssl = c_ssl;
    *fd = server_fd;
 
-   pgexporter_free_copy_message(ssl_msg);
-   pgexporter_free_copy_message(startup_msg);
-   pgexporter_free_message(msg);
+   pgexporter_free_message(ssl_msg);
+   pgexporter_free_message(startup_msg);
+   pgexporter_clear_message();
 
    return AUTH_SUCCESS;
 
 bad_password:
 
-   pgexporter_free_copy_message(ssl_msg);
-   pgexporter_free_copy_message(startup_msg);
-   pgexporter_free_message(msg);
+   pgexporter_free_message(ssl_msg);
+   pgexporter_free_message(startup_msg);
+   pgexporter_clear_message();
 
    pgexporter_close_ssl(c_ssl);
    if (server_fd != -1)
@@ -1212,9 +1210,9 @@ bad_password:
 
 error:
 
-   pgexporter_free_copy_message(ssl_msg);
-   pgexporter_free_copy_message(startup_msg);
-   pgexporter_free_message(msg);
+   pgexporter_free_message(ssl_msg);
+   pgexporter_free_message(startup_msg);
+   pgexporter_clear_message();
 
    pgexporter_close_ssl(c_ssl);
    if (server_fd != -1)
@@ -1311,8 +1309,8 @@ server_password(char* username, char* password, SSL* ssl, int server_fd)
       goto bad_password;
    }
 
-   pgexporter_free_copy_message(password_msg);
-   pgexporter_free_message(auth_msg);
+   pgexporter_free_message(password_msg);
+   pgexporter_clear_message();
 
    return AUTH_SUCCESS;
 
@@ -1320,15 +1318,15 @@ bad_password:
 
    pgexporter_log_warn("Wrong password for user: %s", username);
 
-   pgexporter_free_copy_message(password_msg);
-   pgexporter_free_message(auth_msg);
+   pgexporter_free_message(password_msg);
+   pgexporter_clear_message();
 
    return AUTH_BAD_PASSWORD;
 
 error:
 
-   pgexporter_free_copy_message(password_msg);
-   pgexporter_free_message(auth_msg);
+   pgexporter_free_message(password_msg);
+   pgexporter_clear_message();
 
    return AUTH_ERROR;
 }
@@ -1432,8 +1430,8 @@ server_md5(char* username, char* password, SSL* ssl, int server_fd)
    free(md5);
    free(salt);
 
-   pgexporter_free_copy_message(md5_msg);
-   pgexporter_free_message(auth_msg);
+   pgexporter_free_message(md5_msg);
+   pgexporter_clear_message();
 
    return AUTH_SUCCESS;
 
@@ -1447,8 +1445,8 @@ bad_password:
    free(md5);
    free(salt);
 
-   pgexporter_free_copy_message(md5_msg);
-   pgexporter_free_message(auth_msg);
+   pgexporter_free_message(md5_msg);
+   pgexporter_clear_message();
 
    return AUTH_BAD_PASSWORD;
 
@@ -1460,8 +1458,8 @@ error:
    free(md5);
    free(salt);
 
-   pgexporter_free_copy_message(md5_msg);
-   pgexporter_free_message(auth_msg);
+   pgexporter_free_message(md5_msg);
+   pgexporter_clear_message();
 
    return AUTH_ERROR;
 }
@@ -1641,10 +1639,10 @@ server_scram256(char* username, char* password, SSL* ssl, int server_fd)
    free(server_signature_received);
    free(server_signature_calc);
 
-   pgexporter_free_copy_message(sasl_response);
-   pgexporter_free_copy_message(sasl_continue);
-   pgexporter_free_copy_message(sasl_continue_response);
-   pgexporter_free_copy_message(sasl_final);
+   pgexporter_free_message(sasl_response);
+   pgexporter_free_message(sasl_continue);
+   pgexporter_free_message(sasl_continue_response);
+   pgexporter_free_message(sasl_final);
 
    return AUTH_SUCCESS;
 
@@ -1664,10 +1662,10 @@ bad_password:
    free(server_signature_received);
    free(server_signature_calc);
 
-   pgexporter_free_copy_message(sasl_response);
-   pgexporter_free_copy_message(sasl_continue);
-   pgexporter_free_copy_message(sasl_continue_response);
-   pgexporter_free_copy_message(sasl_final);
+   pgexporter_free_message(sasl_response);
+   pgexporter_free_message(sasl_continue);
+   pgexporter_free_message(sasl_continue_response);
+   pgexporter_free_message(sasl_final);
 
    return AUTH_BAD_PASSWORD;
 
@@ -1685,10 +1683,10 @@ error:
    free(server_signature_received);
    free(server_signature_calc);
 
-   pgexporter_free_copy_message(sasl_response);
-   pgexporter_free_copy_message(sasl_continue);
-   pgexporter_free_copy_message(sasl_continue_response);
-   pgexporter_free_copy_message(sasl_final);
+   pgexporter_free_message(sasl_response);
+   pgexporter_free_message(sasl_continue);
+   pgexporter_free_message(sasl_continue_response);
+   pgexporter_free_message(sasl_final);
 
    return AUTH_ERROR;
 }
@@ -1914,7 +1912,7 @@ sasl_prep(char* password, char** password_prep)
    char* p = NULL;
 
    /* Only support ASCII for now */
-   for (int i = 0; i < strlen(password); i++)
+   for (size_t i = 0; i < strlen(password); i++)
    {
       if ((unsigned char)(*(password + i)) & 0x80)
       {
@@ -2103,7 +2101,7 @@ client_proof(char* password, char* salt, int salt_length, int iterations,
    }
 
    /* ClientProof: ClientKey XOR ClientSignature */
-   for (int i = 0; i < size; i++)
+   for (size_t i = 0; i < size; i++)
    {
       *(r + i) = *(c_k + i) ^ *(c_s + i);
    }
@@ -2213,7 +2211,7 @@ salted_password(char* password, char* salt, int salt_length, int iterations, uns
          goto error;
       }
 
-      for (int j = 0; j < size; j++)
+      for (size_t j = 0; j < size; j++)
       {
          *(r + j) ^= *(Ui + j);
       }
@@ -2496,8 +2494,8 @@ error:
    return 1;
 }
 
-static int
-create_ssl_ctx(bool client, SSL_CTX** ctx)
+int
+pgexporter_create_ssl_ctx(bool client, SSL_CTX** ctx)
 {
    SSL_CTX* c = NULL;
 
@@ -2626,43 +2624,40 @@ error:
    return 1;
 }
 
-static int
-create_ssl_server(SSL_CTX* ctx, int socket, SSL** ssl)
+int
+pgexporter_create_ssl_server(SSL_CTX* ctx, char *key, char *cert, char *root, int socket, SSL**ssl)
 {
    SSL* s = NULL;
    STACK_OF(X509_NAME) * root_cert_list = NULL;
-   struct configuration* config;
 
-   config = (struct configuration*)shmem;
-
-   if (strlen(config->tls_cert_file) == 0)
+   if (strlen(cert) == 0)
    {
       pgexporter_log_error("No TLS certificate defined");
       goto error;
    }
 
-   if (strlen(config->tls_key_file) == 0)
+   if (strlen(key) == 0)
    {
       pgexporter_log_error("No TLS private key defined");
       goto error;
    }
 
-   if (SSL_CTX_use_certificate_chain_file(ctx, config->tls_cert_file) != 1)
+   if (SSL_CTX_use_certificate_chain_file(ctx, cert) != 1)
    {
       unsigned long err;
 
       err = ERR_get_error();
-      pgexporter_log_error("Couldn't load TLS certificate: %s", config->tls_cert_file);
+      pgexporter_log_error("Couldn't load TLS certificate: %s", cert);
       pgexporter_log_error("Reason: %s", ERR_reason_error_string(err));
       goto error;
    }
 
-   if (SSL_CTX_use_PrivateKey_file(ctx, config->tls_key_file, SSL_FILETYPE_PEM) != 1)
+   if (SSL_CTX_use_PrivateKey_file(ctx, key, SSL_FILETYPE_PEM) != 1)
    {
       unsigned long err;
 
       err = ERR_get_error();
-      pgexporter_log_error("Couldn't load TLS private key: %s", config->tls_key_file);
+      pgexporter_log_error("Couldn't load TLS private key: %s", key);
       pgexporter_log_error("Reason: %s", ERR_reason_error_string(err));
       goto error;
    }
@@ -2672,30 +2667,30 @@ create_ssl_server(SSL_CTX* ctx, int socket, SSL** ssl)
       unsigned long err;
 
       err = ERR_get_error();
-      pgexporter_log_error("TLS private key check failed: %s", config->tls_key_file);
+      pgexporter_log_error("TLS private key check failed: %s", key);
       pgexporter_log_error("Reason: %s", ERR_reason_error_string(err));
       goto error;
    }
 
-   if (strlen(config->tls_ca_file) > 0)
+   if (strlen(root) > 0)
    {
-      if (SSL_CTX_load_verify_locations(ctx, config->tls_ca_file, NULL) != 1)
+      if (SSL_CTX_load_verify_locations(ctx, root, NULL) != 1)
       {
          unsigned long err;
 
          err = ERR_get_error();
-         pgexporter_log_error("Couldn't load TLS CA: %s", config->tls_ca_file);
+         pgexporter_log_error("Couldn't load TLS CA: %s", root);
          pgexporter_log_error("Reason: %s", ERR_reason_error_string(err));
          goto error;
       }
 
-      root_cert_list = SSL_load_client_CA_file(config->tls_ca_file);
+      root_cert_list = SSL_load_client_CA_file(root);
       if (root_cert_list == NULL)
       {
          unsigned long err;
 
          err = ERR_get_error();
-         pgexporter_log_error("Couldn't load TLS CA: %s", config->tls_ca_file);
+         pgexporter_log_error("Couldn't load TLS CA: %s", root);
          pgexporter_log_error("Reason: %s", ERR_reason_error_string(err));
          goto error;
       }
@@ -2752,7 +2747,7 @@ pgexporter_extract_server_parameters(struct deque** server_parameters)
          data = &security_messages[i][0];
          offset = 0;
 
-         while (offset < data_length)
+         while (offset < (size_t) data_length)
          {
             offset = pgexporter_extract_message_offset(offset, data, &msg);
             if (msg->kind == 'S')

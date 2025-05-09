@@ -641,7 +641,7 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
          goto error;
       }
 
-      pgexporter_free_message(msg);
+      pgexporter_clear_message();
       msg = NULL;
    }
 
@@ -712,13 +712,13 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
          current = dtuple;
       }
 
-      pgexporter_free_copy_message(msg);
+      pgexporter_free_message(msg);
       msg = NULL;
    }
 
    *query = q;
 
-   pgexporter_free_copy_message(tmsg);
+   pgexporter_free_message(tmsg);
 
    free(content);
    free(data);
@@ -727,8 +727,8 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
 
 error:
 
-   pgexporter_free_message(msg);
-   pgexporter_free_copy_message(tmsg);
+   pgexporter_clear_message();
+   pgexporter_free_message(tmsg);
    free(content);
    free(data);
 

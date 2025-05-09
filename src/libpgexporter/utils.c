@@ -224,7 +224,7 @@ pgexporter_extract_message(char type, struct message* msg, struct message** extr
 bool
 pgexporter_has_message(char type, void* data, size_t data_size)
 {
-   int offset;
+   size_t offset;
 
    offset = 0;
 
@@ -276,7 +276,7 @@ pgexporter_extract_message_offset(size_t offset, void* data, struct message** ex
 int
 pgexporter_extract_message_from_data(char type, void* data, size_t data_size, struct message** extracted)
 {
-   int offset;
+   size_t offset;
    void* m_data = NULL;
    int m_length;
    struct message* result = NULL;
@@ -995,6 +995,31 @@ char*
 pgexporter_append(char* orig, char* s)
 {
    return pgexporter_vappend(orig, 1, s);
+}
+
+char*
+pgexporter_format_and_append(char* buf, char* format, ...)
+{
+   va_list args;
+   va_start(args, format);
+
+   // Determine the required buffer size
+   int size_needed = vsnprintf(NULL, 0, format, args) + 1;
+   va_end(args);
+
+   // Allocate buffer to hold the formatted string
+   char* formatted_str = malloc(size_needed);
+
+   va_start(args, format);
+   vsnprintf(formatted_str, size_needed, format, args);
+   va_end(args);
+
+   buf = pgexporter_append(buf, formatted_str);
+
+   free(formatted_str);
+
+   return buf;
+
 }
 
 char*
@@ -1963,7 +1988,7 @@ pgexporter_bytes_to_string(uint64_t bytes)
 
    result = (char*)malloc(sizeof(char) * 20);
 
-   for (int i = 0; i < sizeof(sizes) / sizeof(*(sizes)); i++, multiplier /= 1024)
+   for (unsigned long i = 0; i < sizeof(sizes) / sizeof(*(sizes)); i++, multiplier /= 1024)
    {
       if (bytes < multiplier)
       {
@@ -2461,6 +2486,119 @@ is_wal_file(char* file)
    }
 
    return true;
+}
+
+int
+pgexporter_resolve_path(char* orig_path, char** new_path)
+{
+   #if defined(HAVE_DARWIN) || defined(HAVE_OSX)
+      #define GET_ENV(name) getenv(name)
+   #else
+      #define GET_ENV(name) secure_getenv(name)
+   #endif
+
+   char* res = NULL;
+   char* env_res = NULL;
+   int len = strlen(orig_path);
+   bool double_quote = false;
+   bool single_quote = false;
+   bool in_env = false;
+
+   *new_path = NULL;
+
+   if (orig_path == NULL)
+   {
+      goto error;
+   }
+
+   for (int idx = 0; idx < len; idx++)
+   {
+      char* ch = NULL;
+
+      bool valid_env_char = orig_path[idx] == '_'
+                            || (orig_path[idx] >= 'A' && orig_path[idx] <= 'Z')
+                            || (orig_path[idx] >= 'a' && orig_path[idx] <= 'z')
+                            || (orig_path[idx] >= '0' && orig_path[idx] <= '9');
+      if (in_env && !valid_env_char)
+      {
+         in_env = false;
+         if (env_res == NULL)
+         {
+            return 1;
+         }
+         char* env_value = GET_ENV(env_res);
+         free(env_res);
+         if (env_value == NULL)
+         {
+            return 1;
+         }
+         res = pgexporter_append(res, env_value);
+         env_res = NULL;
+      }
+
+      if (orig_path[idx] == '\"' && !single_quote)
+      {
+         double_quote = !double_quote;
+         continue;
+      }
+      else if (orig_path[idx] == '\'' && !double_quote)
+      {
+         single_quote = !single_quote;
+         continue;
+      }
+
+      if (orig_path[idx] == '\\')
+      {
+         if (idx + 1 < len)
+         {
+            ch = pgexporter_append_char(ch, orig_path[idx + 1]);
+            idx++;
+         }
+         else
+         {
+            free(ch);
+            return 1;
+         }
+      }
+      else if (orig_path[idx] == '$')
+      {
+         if (single_quote)
+         {
+            ch = pgexporter_append_char(ch, '$');
+         }
+         else
+         {
+            in_env = true;
+            continue;
+         }
+      }
+      else
+      {
+         ch = pgexporter_append_char(ch, orig_path[idx]);
+      }
+
+      if (in_env)
+      {
+         env_res = pgexporter_append(env_res, ch);
+      }
+      else
+      {
+         res = pgexporter_append(res, ch);
+      }
+
+      free(ch);
+   }
+
+   if (strlen(res) > MAX_PATH)
+   {
+      goto error;
+   }
+
+   *new_path = res;
+   return 0;
+
+error:
+   return 1;
 }
 
 #ifdef DEBUG

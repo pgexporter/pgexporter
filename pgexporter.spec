@@ -32,6 +32,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__mkdir} -p %{buildroot}%{_docdir}/%{name}/shell_comp
 %{__mkdir} -p %{buildroot}%{_docdir}/%{name}/tutorial
 %{__mkdir} -p %{buildroot}%{_docdir}/%{name}/yaml
+%{__mkdir} -p %{buildroot}%{_docdir}/%{name}/prometheus_scrape
 %{__mkdir} -p %{buildroot}%{_mandir}/man1
 %{__mkdir} -p %{buildroot}%{_mandir}/man5
 %{__mkdir} -p %{buildroot}%{_sysconfdir}/pgexporter
@@ -53,6 +54,9 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-14.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-14.yaml
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-15.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-15.yaml
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-16.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-16.yaml
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/prometheus_scrape/extra.info %{buildroot}%{_docdir}/%{name}/prometheus_scrape/extra.info
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/prometheus_scrape/prometheus.sh %{buildroot}%{_docdir}/%{name}/prometheus_scrape/prometheus.sh
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/prometheus_scrape/README.md %{buildroot}%{_docdir}/%{name}/prometheus_scrape/README.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/01_install.md %{buildroot}%{_docdir}/%{name}/tutorial/01_install.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/02_custom_metrics.md %{buildroot}%{_docdir}/%{name}/tutorial/02_custom_metrics.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/03_grafana.md %{buildroot}%{_docdir}/%{name}/tutorial/03_grafana.md
@@ -99,6 +103,9 @@ cd %{buildroot}%{_libdir}/
 %{_docdir}/%{name}/yaml/postgresql-14.yaml
 %{_docdir}/%{name}/yaml/postgresql-15.yaml
 %{_docdir}/%{name}/yaml/postgresql-16.yaml
+%{_docdir}/%{name}/prometheus_scrape/extra.info
+%{_docdir}/%{name}/prometheus_scrape/prometheus.sh
+%{_docdir}/%{name}/prometheus_scrape/README.md
 %{_docdir}/%{name}/tutorial/01_install.md
 %{_docdir}/%{name}/tutorial/02_custom_metrics.md
 %{_docdir}/%{name}/tutorial/03_grafana.md

@@ -464,7 +464,7 @@ is_json_file(char* file)
 static void
 free_json_columns(json_column_t** columns, size_t n_columns)
 {
-   for (int i = 0; i < n_columns; i++)
+   for (size_t i = 0; i < n_columns; i++)
    {
       if ((*columns)[i].description)
       {
@@ -487,7 +487,7 @@ free_json_columns(json_column_t** columns, size_t n_columns)
 static void
 free_json_queries(json_query_t** queries, size_t n_queries)
 {
-   for (int i = 0 ; i < n_queries; i++)
+   for (size_t i = 0 ; i < n_queries; i++)
    {
       if ((*queries)[i].query)
       {
@@ -506,7 +506,7 @@ free_json_queries(json_query_t** queries, size_t n_queries)
 static void
 free_json_metrics(json_metric_t** metrics, size_t n_metrics)
 {
-   for (int i = 0; i < n_metrics; i++)
+   for (size_t i = 0; i < n_metrics; i++)
    {
       if ((*metrics)[i].tag)
       {
