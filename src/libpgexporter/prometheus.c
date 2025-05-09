@@ -1443,7 +1443,7 @@ extension_information(SSL* client_ssl, int client_fd)
    }
 
    /* Output the metrics from the ART and clean up */
-   output_metrics_from_art(client_fd, metrics_art);
+   output_metrics_from_art(client_fd, metrics_art, client_ssl);
    cleanup_metrics_art(metrics_art);
 }
 
@@ -1620,7 +1620,7 @@ settings_information(SSL* client_ssl, int client_fd)
    }
 
    /* Send the metrics to the client */
-   output_metrics_from_art(client_fd, metrics_ar, client_ssl);
+   output_metrics_from_art(client_fd, metrics_art, client_ssl);
 
    /* Clean up */
    pgexporter_free_query(all);
@@ -1766,7 +1766,7 @@ custom_metrics(SSL* client_ssl, int client_fd)
     * Now just output all metrics in one pass using our common helper functions,
     * then clean up everything.
     */
-   output_metrics_from_art(client_fd, metrics_art);
+   output_metrics_from_art(client_fd, metrics_art, client_ssl);
 
    /*
     * Free the queries in q_list, then free the list itself.
