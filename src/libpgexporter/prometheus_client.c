@@ -121,13 +121,18 @@ pgexporter_prometheus_client_get(int endpoint, struct prometheus_bridge* bridge)
 
    pgexporter_log_debug("Endpoint http://%s:%d/metrics", config->endpoints[endpoint].host, config->endpoints[endpoint].port);
 
-   if (pgexporter_http_create(endpoint, &http))
+   if (pgexporter_http_connect(config->endpoints[endpoint].host, config->endpoints[endpoint].port, false, &http))
    {
-      pgexporter_log_error("Failed to create HTTP interaction for endpoint %d", endpoint);
+      pgexporter_log_error("Failed to connect to HTTP endpoint %d (%s:%d)",
+                           endpoint,
+                           config->endpoints[endpoint].host,
+                           config->endpoints[endpoint].port);
       goto error;
    }
 
-   if (pgexporter_http_get(http))
+   http->endpoint = endpoint;
+
+   if (pgexporter_http_get(http, config->endpoints[endpoint].host, "/metrics"))
    {
       pgexporter_log_error("Failed to execute HTTP/GET interaction with http://%s:%d/metrics",
                            config->endpoints[endpoint].host,
@@ -142,13 +147,16 @@ pgexporter_prometheus_client_get(int endpoint, struct prometheus_bridge* bridge)
       goto error;
    }
 
-   pgexporter_http_destroy(http);
+   pgexporter_http_disconnect(http);
 
    return 0;
 
 error:
 
-   pgexporter_http_destroy(http);
+   if (http != NULL)
+   {
+      pgexporter_http_disconnect(http);
+   }
 
    return 1;
 }
