@@ -294,9 +294,9 @@ pgexporter_remote_management_scram_sha256(char* username, char* password, int se
 {
    int status = MESSAGE_STATUS_ERROR;
    SSL* ssl = NULL;
-   char key_file[MISC_LENGTH];
-   char cert_file[MISC_LENGTH];
-   char root_file[MISC_LENGTH];
+   char key_file[MAX_PATH];
+   char cert_file[MAX_PATH];
+   char root_file[MAX_PATH];
    struct stat st = {0};
    char* salt = NULL;
    size_t salt_length = 0;

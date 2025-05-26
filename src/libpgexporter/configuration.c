@@ -661,9 +661,9 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (!strcmp(section, "pgexporter"))
                   {
                      max = strlen(value);
-                     if (max > MISC_LENGTH - 1)
+                     if (max > MAX_PATH - 1)
                      {
-                        max = MISC_LENGTH - 1;
+                        max = MAX_PATH - 1;
                      }
                      memcpy(config->pidfile, value, max);
                   }
@@ -925,9 +925,9 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (!strcmp(section, "pgexporter"))
                   {
                      max = strlen(value);
-                     if (max > MISC_LENGTH - 1)
+                     if (max > MAX_PATH - 1)
                      {
-                        max = MISC_LENGTH - 1;
+                        max = MAX_PATH - 1;
                      }
                      memcpy(config->metrics_path, value, max);
                   }
@@ -1812,9 +1812,9 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       else if (!strcmp(key, "metrics_path"))
       {
          max = strlen(config_value);
-         if (max > MISC_LENGTH - 1)
+         if (max > MAX_PATH - 1)
          {
-            max = MISC_LENGTH - 1;
+            max = MAX_PATH - 1;
          }
          memcpy(config->metrics_path, config_value, max);
          pgexporter_json_put(response, key, (uintptr_t)config->metrics_path, ValueString);
@@ -1909,9 +1909,9 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
          if (strlen(section) > 0)
          {
             max = strlen(config_value);
-            if (max > MISC_LENGTH - 1)
+            if (max > MAX_PATH - 1)
             {
-               max = MISC_LENGTH - 1;
+               max = MAX_PATH - 1;
             }
             memcpy(&config->servers[server_index].tls_ca_file, config_value, max);
             pgexporter_json_put(server_j, key, (uintptr_t)config->servers[server_index].tls_ca_file, ValueString);
@@ -1933,9 +1933,9 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
          if (strlen(section) > 0)
          {
             max = strlen(config_value);
-            if (max > MISC_LENGTH - 1)
+            if (max > MAX_PATH - 1)
             {
-               max = MISC_LENGTH - 1;
+               max = MAX_PATH - 1;
             }
             memcpy(&config->servers[server_index].tls_cert_file, config_value, max);
             pgexporter_json_put(server_j, key, (uintptr_t)config->servers[server_index].tls_cert_file, ValueString);
@@ -1957,9 +1957,9 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
          if (strlen(section) > 0)
          {
             max = strlen(config_value);
-            if (max > MISC_LENGTH - 1)
+            if (max > MAX_PATH - 1)
             {
-               max = MISC_LENGTH - 1;
+               max = MAX_PATH - 1;
             }
             memcpy(&config->servers[server_index].tls_key_file, config_value, max);
             pgexporter_json_put(server_j, key, (uintptr_t)config->servers[server_index].tls_key_file, ValueString);
@@ -1979,9 +1979,9 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       else if (!strcmp(key, "metrics_ca_file"))
       {
             max = strlen(config_value);
-            if (max > MISC_LENGTH - 1)
+            if (max > MAX_PATH - 1)
             {
-               max = MISC_LENGTH - 1;
+               max = MAX_PATH - 1;
             }
             memcpy(config->metrics_ca_file, config_value, max);
             pgexporter_json_put(response, key, (uintptr_t)config->metrics_ca_file, ValueString);
@@ -1989,9 +1989,9 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       else if (!strcmp(key, "metrics_cert_file"))
       {
             max = strlen(config_value);
-            if (max > MISC_LENGTH - 1)
+            if (max > MAX_PATH - 1)
             {
-               max = MISC_LENGTH - 1;
+               max = MAX_PATH - 1;
             }
             memcpy(config->metrics_cert_file, config_value, max);
             pgexporter_json_put(response, key, (uintptr_t)config->metrics_cert_file, ValueString);
@@ -1999,9 +1999,9 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       else if (!strcmp(key, "metrics_key_file"))
       {
             max = strlen(config_value);
-            if (max > MISC_LENGTH - 1)
+            if (max > MAX_PATH - 1)
             {
-               max = MISC_LENGTH - 1;
+               max = MAX_PATH - 1;
             }
             memcpy(config->metrics_key_file, config_value, max);
             pgexporter_json_put(response, key, (uintptr_t)config->metrics_key_file, ValueString);
@@ -2017,9 +2017,9 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       else if (!strcmp(key, "pidfile"))
       {
          max = strlen(config_value);
-         if (max > MISC_LENGTH - 1)
+         if (max > MAX_PATH - 1)
          {
-            max = MISC_LENGTH - 1;
+            max = MAX_PATH - 1;
          }
          memcpy(config->pidfile, config_value, max);
          pgexporter_json_put(response, key, (uintptr_t)config->pidfile, ValueString);
@@ -3258,12 +3258,12 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    /* log_lock */
 
    config->tls = reload->tls;
-   memcpy(config->tls_cert_file, reload->tls_cert_file, MISC_LENGTH);
-   memcpy(config->tls_key_file, reload->tls_key_file, MISC_LENGTH);
-   memcpy(config->tls_ca_file, reload->tls_ca_file, MISC_LENGTH);
-   memcpy(config->metrics_cert_file, reload->metrics_cert_file, MISC_LENGTH);
-   memcpy(config->metrics_key_file, reload->metrics_key_file, MISC_LENGTH);
-   memcpy(config->metrics_ca_file, reload->metrics_ca_file, MISC_LENGTH);
+   memcpy(config->tls_cert_file, reload->tls_cert_file, MAX_PATH);
+   memcpy(config->tls_key_file, reload->tls_key_file, MAX_PATH);
+   memcpy(config->tls_ca_file, reload->tls_ca_file, MAX_PATH);
+   memcpy(config->metrics_cert_file, reload->metrics_cert_file, MAX_PATH);
+   memcpy(config->metrics_key_file, reload->metrics_key_file, MAX_PATH);
+   memcpy(config->metrics_ca_file, reload->metrics_ca_file, MAX_PATH);
 
    config->blocking_timeout = reload->blocking_timeout;
    config->authentication_timeout = reload->authentication_timeout;
@@ -3319,7 +3319,7 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    config->number_of_admins = reload->number_of_admins;
 
    /* prometheus */
-   memcpy(config->metrics_path, reload->metrics_path, MISC_LENGTH);
+   memcpy(config->metrics_path, reload->metrics_path, MAX_PATH);
    for (int i = 0; i < reload->number_of_metrics; i++)
    {
       copy_promethus(&config->prometheus[i], &reload->prometheus[i]);

@@ -231,9 +231,9 @@ struct server
    int state;                          /**< The state of the server */
    int version;                        /**< The major version of the server*/
    int minor_version;                  /**< The minor version of the server*/
-   char tls_cert_file[MISC_LENGTH];    /**< TLS certificate path */
-   char tls_key_file[MISC_LENGTH];     /**< TLS key path */
-   char tls_ca_file[MISC_LENGTH];      /**< TLS CA certificate path */
+   char tls_cert_file[MAX_PATH];       /**< TLS certificate path */
+   char tls_key_file[MAX_PATH];        /**< TLS key path */
+   char tls_ca_file[MAX_PATH];         /**< TLS CA certificate path */
 } __attribute__ ((aligned (64)));
 
 /** @struct user
@@ -370,7 +370,7 @@ struct configuration
 
    int blocking_timeout;       /**< The blocking timeout in seconds */
    int authentication_timeout; /**< The authentication timeout in seconds */
-   char pidfile[MISC_LENGTH];  /**< File containing the PID */
+   char pidfile[MAX_PATH];     /**< File containing the PID */
 
    unsigned int update_process_title;  /**< Behaviour for updating the process title */
 
