@@ -222,7 +222,6 @@ pgexporter_prometheus(SSL* client_ssl, int client_fd)
    }
    status = pgexporter_read_timeout_message(client_ssl, client_fd, config->authentication_timeout, &msg);
 
-
    if (status != MESSAGE_STATUS_OK)
    {
       goto error;

@@ -113,16 +113,16 @@ pgexporter_extract_server_parameters(struct deque** server_parameters);
 int
 pgexporter_create_ssl_ctx(bool client, SSL_CTX** ctx);
 
- /**
-  * Create a SSL server
-  * @param ctx The SSL context
-  * @param key The key file path
-  * @param cert The certificate file path
-  * @param root The root file path
-  * @param socket The socket
-  * @param ssl The SSL structure
-  * @return 0 upon success, otherwise 1
-  */
+/**
+ * Create a SSL server
+ * @param ctx The SSL context
+ * @param key The key file path
+ * @param cert The certificate file path
+ * @param root The root file path
+ * @param socket The socket
+ * @param ssl The SSL structure
+ * @return 0 upon success, otherwise 1
+ */
 int
 pgexporter_create_ssl_server(SSL_CTX* ctx, char* key, char* cert, char* root, int socket, SSL** ssl);
 

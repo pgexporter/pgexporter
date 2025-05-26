@@ -149,7 +149,7 @@ pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl
             goto error;
          }
 
-         if (pgexporter_create_ssl_server(ctx, config->tls_key_file, config->tls_cert_file, config->tls_ca_file ,client_fd, &c_ssl))
+         if (pgexporter_create_ssl_server(ctx, config->tls_key_file, config->tls_cert_file, config->tls_ca_file, client_fd, &c_ssl))
          {
             goto error;
          }
@@ -2625,7 +2625,7 @@ error:
 }
 
 int
-pgexporter_create_ssl_server(SSL_CTX* ctx, char *key, char *cert, char *root, int socket, SSL**ssl)
+pgexporter_create_ssl_server(SSL_CTX* ctx, char* key, char* cert, char* root, int socket, SSL** ssl)
 {
    SSL* s = NULL;
    STACK_OF(X509_NAME) * root_cert_list = NULL;
