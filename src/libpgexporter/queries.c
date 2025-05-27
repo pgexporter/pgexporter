@@ -47,6 +47,7 @@ static int create_D_tuple(int server, int number_of_columns, struct message* msg
 static int get_number_of_columns(struct message* msg);
 static int get_column_name(struct message* msg, int index, char** name);
 static int process_server_parameters(int server, struct deque* server_parameters);
+static int pgexporter_detect_extensions(int server);
 
 void
 pgexporter_open_connections(void)
@@ -95,6 +96,7 @@ pgexporter_open_connections(void)
                process_server_parameters(server, server_parameters);
                pgexporter_deque_destroy(server_parameters);
             }
+            pgexporter_detect_extensions(server);
          }
          else
          {
@@ -286,6 +288,17 @@ pgexporter_query_database_size(int server, struct query** query)
 {
    return query_execute(server, "SELECT datname, pg_database_size(datname) FROM pg_database;",
                         "pg_database", 2, NULL, query);
+}
+
+int
+pgexporter_query_extensions_list(int server, struct query** query)
+{
+   return query_execute(server, "SELECT name, installed_version, comment "
+                        "FROM pg_available_extensions "
+                        "WHERE installed_version IS NOT NULL "
+                        "ORDER BY name;",
+                        "pg_extensions_list",
+                        3, NULL, query);
 }
 
 int
@@ -881,4 +894,71 @@ process_server_parameters(int server, struct deque* server_parameters)
 
    pgexporter_deque_iterator_destroy(iter);
    return status;
+}
+
+static int
+pgexporter_detect_extensions(int server)
+{
+   int ret;
+   struct query* query = NULL;
+   struct tuple* current = NULL;
+   struct configuration* config;
+   int extension_idx;
+
+   config = (struct configuration*)shmem;
+
+   config->servers[server].number_of_extensions = 0;
+
+   ret = pgexporter_query_extensions_list(server, &query);
+   if (ret != 0)
+   {
+      pgexporter_log_warn("Failed to detect extensions for server %s", config->servers[server].name);
+      return 1;
+   }
+
+   current = query->tuples;
+   while (current != NULL)
+   {
+      if (config->servers[server].number_of_extensions >= NUMBER_OF_EXTENSIONS)
+      {
+         pgexporter_log_warn("Maximum number of extensions reached for server %s (%d)",
+                             config->servers[server].name, NUMBER_OF_EXTENSIONS);
+         pgexporter_free_query(query);
+         return 1;
+      }
+
+      extension_idx = config->servers[server].number_of_extensions;
+
+      strncpy(config->servers[server].extensions[extension_idx].name,
+              pgexporter_get_column(0, current),
+              MISC_LENGTH - 1);
+      config->servers[server].extensions[extension_idx].name[MISC_LENGTH - 1] = '\0';
+
+      strncpy(config->servers[server].extensions[extension_idx].installed_version,
+              pgexporter_get_column(1, current),
+              MISC_LENGTH - 1);
+      config->servers[server].extensions[extension_idx].installed_version[MISC_LENGTH - 1] = '\0';
+
+      strncpy(config->servers[server].extensions[extension_idx].comment,
+              pgexporter_get_column(2, current),
+              MISC_LENGTH - 1);
+      config->servers[server].extensions[extension_idx].comment[MISC_LENGTH - 1] = '\0';
+
+      config->servers[server].extensions[extension_idx].enabled = true;
+
+      config->servers[server].number_of_extensions++;
+      current = current->next;
+   }
+
+   pgexporter_log_debug("Server %s: Detected extensions:", config->servers[server].name);
+   for (int i = 0; i < config->servers[server].number_of_extensions; i++)
+   {
+      pgexporter_log_debug("  - %s (version %s) - %s",
+                           config->servers[server].extensions[i].name,
+                           config->servers[server].extensions[i].installed_version,
+                           config->servers[server].extensions[i].comment);
+   }
+
+   pgexporter_free_query(query);
+   return 0;
 }

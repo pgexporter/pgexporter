@@ -159,6 +159,15 @@ int
 pgexporter_query_database_size(int server, struct query** query);
 
 /**
+ * Query for installed extensions
+ * @param server The server
+ * @param query The resulting query
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_query_extensions_list(int server, struct query** query);
+
+/**
  * Query pg_replication_slot for active
  * @param server The server
  * @param query The resulting query

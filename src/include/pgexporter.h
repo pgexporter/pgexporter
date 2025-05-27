@@ -70,6 +70,7 @@ extern "C" {
 #define NUMBER_OF_METRICS     256
 #define NUMBER_OF_COLLECTORS  256
 #define NUMBER_OF_ENDPOINTS    32
+#define NUMBER_OF_EXTENSIONS   64
 
 #define STATE_FREE        0
 #define STATE_IN_USE      1
@@ -213,27 +214,41 @@ extern void* bridge_cache_shmem;
  */
 extern void* bridge_json_cache_shmem;
 
+/** @struct extension_info
+ * Defines information about a PostgreSQL extension
+ */
+struct extension_info
+{
+   char name[MISC_LENGTH];              /**< The extension name */
+   char installed_version[MISC_LENGTH]; /**< The installed version */
+   char comment[MISC_LENGTH];           /**< The extension description/comment */
+   int server;                          /**< The server index */
+   bool enabled;                        /**< Is extension enabled */
+} __attribute__ ((aligned (64)));
+
 /** @struct server
  * Defines a server
  */
 struct server
 {
-   char name[MISC_LENGTH];             /**< The name of the server */
-   char host[MISC_LENGTH];             /**< The host name of the server */
-   int port;                           /**< The port of the server */
-   char username[MAX_USERNAME_LENGTH]; /**< The user name */
-   char data[MISC_LENGTH];             /**< The data directory */
-   char wal[MISC_LENGTH];              /**< The WAL directory */
-   SSL* ssl;                           /**< The SSL structure */
-   int fd;                             /**< The socket descriptor */
-   bool new;                           /**< Is the connection new */
-   bool extension;                     /**< Is the pgexporter_ext extension installed */
-   int state;                          /**< The state of the server */
-   int version;                        /**< The major version of the server*/
-   int minor_version;                  /**< The minor version of the server*/
-   char tls_cert_file[MAX_PATH];       /**< TLS certificate path */
-   char tls_key_file[MAX_PATH];        /**< TLS key path */
-   char tls_ca_file[MAX_PATH];         /**< TLS CA certificate path */
+   char name[MISC_LENGTH];                                      /**< The name of the server */
+   char host[MISC_LENGTH];                                      /**< The host name of the server */
+   int port;                                                    /**< The port of the server */
+   char username[MAX_USERNAME_LENGTH];                          /**< The user name */
+   char data[MISC_LENGTH];                                      /**< The data directory */
+   char wal[MISC_LENGTH];                                       /**< The WAL directory */
+   SSL* ssl;                                                    /**< The SSL structure */
+   int fd;                                                      /**< The socket descriptor */
+   bool new;                                                    /**< Is the connection new */
+   bool extension;                                              /**< Is the pgexporter_ext extension installed */
+   int state;                                                   /**< The state of the server */
+   int version;                                                 /**< The major version of the server*/
+   int minor_version;                                           /**< The minor version of the server*/
+   int number_of_extensions;                                    /**< The number of extensions */
+   char tls_cert_file[MAX_PATH];                                /**< TLS certificate path */
+   char tls_key_file[MAX_PATH];                                 /**< TLS key path */
+   char tls_ca_file[MAX_PATH];                                  /**< TLS CA certificate path */
+   struct extension_info extensions[NUMBER_OF_EXTENSIONS];      /**< The extensions */
 } __attribute__ ((aligned (64)));
 
 /** @struct user
