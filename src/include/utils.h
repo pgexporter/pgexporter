@@ -427,8 +427,8 @@ pgexporter_append(char* orig, char* s);
  * @param ... The arguments to be formatted
  * @return The resulting string
  */
- char*
- pgexporter_format_and_append(char* buf, char* format, ...);
+char*
+pgexporter_format_and_append(char* buf, char* format, ...);
 
 /**
  * Append an integer

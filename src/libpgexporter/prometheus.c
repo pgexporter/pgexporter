@@ -93,6 +93,7 @@ static bool collector_pass(const char* collector);
 static void general_information(SSL* client_ssl, int client_fd);
 static void core_information(SSL* client_ssl, int client_fd);
 static void extension_information(SSL* client_ssl, int client_fd);
+static void extension_list_information(SSL* client_ssl, int client_fd);
 static void extension_function(SSL* client_ssl, int client_fd, char* function, int input, char* description, char* type);
 static void server_information(SSL* client_ssl, int client_fd);
 static void version_information(SSL* client_ssl, int client_fd);
@@ -216,7 +217,6 @@ pgexporter_prometheus(SSL* client_ssl, int client_fd)
       }
    }
    status = pgexporter_read_timeout_message(client_ssl, client_fd, config->authentication_timeout, &msg);
-
 
    if (status != MESSAGE_STATUS_OK)
    {
@@ -680,6 +680,7 @@ retry_cache_locking:
          primary_information(client_ssl, client_fd);
          settings_information(client_ssl, client_fd);
          extension_information(client_ssl, client_fd);
+         extension_list_information(client_ssl, client_fd);
 
          custom_metrics(client_ssl, client_fd);
 

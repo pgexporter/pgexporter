@@ -963,6 +963,11 @@ pgexporter_vappend(char* orig, unsigned int n_str, ...)
    }
 
    strings = (char**) malloc(n_str * sizeof(char*));
+   if (strings == NULL)
+   {
+      pgexporter_log_error("malloc failed for strings array");
+      return orig;
+   }
 
    va_start(args, n_str);
 
@@ -972,7 +977,16 @@ pgexporter_vappend(char* orig, unsigned int n_str, ...)
       fin_len += strlen(strings[i]);
    }
 
-   str = (char*) realloc(orig, fin_len + 1);
+   char* new_str = (char*) realloc(orig, fin_len + 1);
+   if (new_str == NULL)
+   {
+      pgexporter_log_error("realloc failed for appended string");
+      free(strings);
+      va_end(args);
+      return orig;
+   }
+
+   str = new_str;
    ptr = str + orig_len;
 
    for (unsigned int i = 0; i < n_str; i++)

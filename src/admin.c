@@ -320,7 +320,7 @@ static int
 master_key(char* password, bool generate_pwd, int pwd_length, int32_t output_format)
 {
    FILE* file = NULL;
-   char buf[MISC_LENGTH];
+   char buf[MAX_PATH];
    char* encoded = NULL;
    size_t encoded_length;
    struct stat st = {0};
@@ -786,7 +786,7 @@ update_user(char* users_path, char* username, char* password, bool generate_pwd,
 {
    FILE* users_file = NULL;
    FILE* users_file_tmp = NULL;
-   char tmpfilename[MISC_LENGTH];
+   char tmpfilename[MAX_PATH];
    char line[MISC_LENGTH];
    char line_copy[MISC_LENGTH];
    char* entry = NULL;
@@ -1051,7 +1051,7 @@ remove_user(char* users_path, char* username, int32_t output_format)
 {
    FILE* users_file = NULL;
    FILE* users_file_tmp = NULL;
-   char tmpfilename[MISC_LENGTH];
+   char tmpfilename[MAX_PATH];
    char line[MISC_LENGTH];
    char line_copy[MISC_LENGTH];
    char* ptr = NULL;
