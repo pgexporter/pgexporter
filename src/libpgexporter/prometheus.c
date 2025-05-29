@@ -29,6 +29,7 @@
 /* pgexporter */
 #include <openssl/crypto.h>
 #include <pgexporter.h>
+#include <art.h>
 #include <logging.h>
 #include <memory.h>
 #include <message.h>
@@ -61,6 +62,35 @@
 #define INPUT_NO   0
 #define INPUT_DATA 1
 #define INPUT_WAL  2
+
+/**
+ * ART-based metric value with timestamp
+ */
+typedef struct prometheus_metric_value
+{
+   time_t timestamp;
+   char* value;
+   char* help;
+   char* type;
+   int sort_type;
+} prometheus_metric_value_t;
+
+/**
+ * ART-based metrics container for each category
+ */
+typedef struct prometheus_metrics_container
+{
+   struct art* general_metrics;
+   struct art* server_metrics;
+   struct art* version_metrics;
+   struct art* uptime_metrics;
+   struct art* primary_metrics;
+   struct art* core_metrics;
+   struct art* extension_metrics;
+   struct art* extension_list_metrics;
+   struct art* settings_metrics;
+   struct art* custom_metrics;
+} prometheus_metrics_container_t;
 
 /**
  * This is a linked list of queries with the data received from the server
@@ -118,29 +148,29 @@ static int redirect_page(SSL* client_ssl, int client_fd, char* path);
 
 static bool collector_pass(const char* collector);
 
-static void add_column_to_store(column_store_t* store, int n_store, char* data, int sort_type, struct tuple* current);
+// ART-based metric handling functions
+static int create_metrics_container(prometheus_metrics_container_t** container);
+static void destroy_metrics_container(prometheus_metrics_container_t* container);
+static int add_metric_to_art(struct art* art_tree, char* key, char* value, char* help, char* type, time_t timestamp, int sort_type);
+static void output_art_metrics(SSL* client_ssl, int client_fd, struct art* art_tree, char* category_name);
+static void output_all_metrics(SSL* client_ssl, int client_fd, prometheus_metrics_container_t* container);
+static void prometheus_metric_value_destroy_cb(uintptr_t data);
+static char* prometheus_metric_value_string_cb(uintptr_t data, int32_t format, char* tag, int indent);
 
-static void general_information(SSL* client_ssl, int client_fd);
-static void core_information(SSL* client_ssl, int client_fd);
-static void extension_information(SSL* client_ssl, int client_fd);
-static void extension_list_information(SSL* client_ssl, int client_fd);
-static void extension_function(SSL* client_ssl, int client_fd, char* function, int input, char* description, char* type);
-static void server_information(SSL* client_ssl, int client_fd);
-static void version_information(SSL* client_ssl, int client_fd);
-static void uptime_information(SSL* client_ssl, int client_fd);
-static void primary_information(SSL* client_ssl, int client_fd);
-static void settings_information(SSL* client_ssl, int client_fd);
-static void custom_metrics(SSL* client_ssl, int client_fd); // Handles custom metrics provided in YAML format, both internal and external
-static void append_help_info(char** data, char* tag, char* name, char* description);
-static void append_type_info(char** data, char* tag, char* name, int typeId);
-
-static void handle_histogram(column_store_t* store, int* n_store, query_list_t* temp);
-static void handle_gauge_counter(column_store_t* store, int* n_store, query_list_t* temp);
+static void general_information(prometheus_metrics_container_t* container);
+static void core_information(prometheus_metrics_container_t* container);
+static void extension_information(prometheus_metrics_container_t* container);
+static void extension_list_information(prometheus_metrics_container_t* container);
+static void extension_function(char* function, int input, char* description, char* type, prometheus_metrics_container_t* container);
+static void server_information(prometheus_metrics_container_t* container);
+static void version_information(prometheus_metrics_container_t* container);
+static void uptime_information(prometheus_metrics_container_t* container);
+static void primary_information(prometheus_metrics_container_t* container);
+static void settings_information(prometheus_metrics_container_t* container);
+static void custom_metrics(prometheus_metrics_container_t* container);
 
 static int send_chunk(SSL* client_ssl, int client_fd, char* data);
-static int parse_list(char* list_str, char** strs, int* n_strs);
 
-static char* get_value(char* tag, char* name, char* val);
 static int safe_prometheus_key_additional_length(char* key);
 static char* safe_prometheus_key(char* key);
 static void safe_prometheus_key_free(char* key);
@@ -676,18 +706,27 @@ retry_cache_locking:
 
          pgexporter_open_connections();
 
-         /* General Metric Collector */
-         general_information(client_ssl, client_fd);
-         core_information(client_ssl, client_fd);
-         server_information(client_ssl, client_fd);
-         version_information(client_ssl, client_fd);
-         uptime_information(client_ssl, client_fd);
-         primary_information(client_ssl, client_fd);
-         settings_information(client_ssl, client_fd);
-         extension_information(client_ssl, client_fd);
-         extension_list_information(client_ssl, client_fd);
+         /* ART-based Metric Collection */
+         prometheus_metrics_container_t* container = NULL;
 
-         custom_metrics(client_ssl, client_fd);
+         if (create_metrics_container(&container) == 0)
+         {
+            /* General Metric Collector */
+            general_information(container);
+            core_information(container);
+            server_information(container);
+            version_information(container);
+            uptime_information(container);
+            primary_information(container);
+            settings_information(container);
+            extension_information(container);
+            extension_list_information(container);
+
+            custom_metrics(container);
+
+            output_all_metrics(client_ssl, client_fd, container);
+            destroy_metrics_container(container);
+         }
 
          pgexporter_close_connections();
 
@@ -793,103 +832,116 @@ collector_pass(const char* collector)
 }
 
 static void
-general_information(SSL* client_ssl, int client_fd)
+general_information(prometheus_metrics_container_t* container)
 {
-   char* data = NULL;
-   struct configuration* config;
+   time_t current_time = time(NULL);
+   struct configuration* config = (struct configuration*)shmem;
+   char value_buffer[256];
 
-   config = (struct configuration*)shmem;
-
-   data = pgexporter_vappend(data, 4,
-                             "#HELP pgexporter_state The state of pgexporter\n",
-                             "#TYPE pgexporter_state gauge\n",
-                             "pgexporter_state 1\n",
-                             "\n"
-                             );
-
-   data = pgexporter_append(data, "#HELP pgexporter_logging_info The number of INFO logging statements\n");
-   data = pgexporter_append(data, "#TYPE pgexporter_logging_info gauge\n");
-   data = pgexporter_append(data, "pgexporter_logging_info ");
-   data = pgexporter_append_ulong(data, atomic_load(&config->logging_info));
-   data = pgexporter_append(data, "\n\n");
-   data = pgexporter_append(data, "#HELP pgexporter_logging_warn The number of WARN logging statements\n");
-   data = pgexporter_append(data, "#TYPE pgexporter_logging_warn gauge\n");
-   data = pgexporter_append(data, "pgexporter_logging_warn ");
-   data = pgexporter_append_ulong(data, atomic_load(&config->logging_warn));
-   data = pgexporter_append(data, "\n\n");
-   data = pgexporter_append(data, "#HELP pgexporter_logging_error The number of ERROR logging statements\n");
-   data = pgexporter_append(data, "#TYPE pgexporter_logging_error gauge\n");
-   data = pgexporter_append(data, "pgexporter_logging_error ");
-   data = pgexporter_append_ulong(data, atomic_load(&config->logging_error));
-   data = pgexporter_append(data, "\n\n");
-   data = pgexporter_append(data, "#HELP pgexporter_logging_fatal The number of FATAL logging statements\n");
-   data = pgexporter_append(data, "#TYPE pgexporter_logging_fatal gauge\n");
-   data = pgexporter_append(data, "pgexporter_logging_fatal ");
-   data = pgexporter_append_ulong(data, atomic_load(&config->logging_fatal));
-   data = pgexporter_append(data, "\n\n");
-
-   if (data != NULL)
+   if (container == NULL || container->general_metrics == NULL)
    {
-      send_chunk(client_ssl, client_fd, data);
-      metrics_cache_append(data);
-      free(data);
-      data = NULL;
+      return;
    }
+
+   add_metric_to_art(container->general_metrics,
+                     "pgexporter_state",
+                     "1",
+                     "The state of pgexporter",
+                     "gauge",
+                     current_time,
+                     SORT_NAME);
+
+   snprintf(value_buffer, sizeof(value_buffer), "%lu", atomic_load(&config->logging_info));
+   add_metric_to_art(container->general_metrics,
+                     "pgexporter_logging_info",
+                     value_buffer,
+                     "The number of INFO logging statements",
+                     "gauge",
+                     current_time,
+                     SORT_NAME);
+
+   snprintf(value_buffer, sizeof(value_buffer), "%lu", atomic_load(&config->logging_warn));
+   add_metric_to_art(container->general_metrics,
+                     "pgexporter_logging_warn",
+                     value_buffer,
+                     "The number of WARN logging statements",
+                     "gauge",
+                     current_time,
+                     SORT_NAME);
+
+   snprintf(value_buffer, sizeof(value_buffer), "%lu", atomic_load(&config->logging_error));
+   add_metric_to_art(container->general_metrics,
+                     "pgexporter_logging_error",
+                     value_buffer,
+                     "The number of ERROR logging statements",
+                     "gauge",
+                     current_time,
+                     SORT_NAME);
+
+   snprintf(value_buffer, sizeof(value_buffer), "%lu", atomic_load(&config->logging_fatal));
+   add_metric_to_art(container->general_metrics,
+                     "pgexporter_logging_fatal",
+                     value_buffer,
+                     "The number of FATAL logging statements",
+                     "gauge",
+                     current_time,
+                     SORT_NAME);
 }
 
 static void
-server_information(SSL* client_ssl, int client_fd)
+server_information(prometheus_metrics_container_t* container)
 {
-   char* data = NULL;
-   struct configuration* config;
+   time_t current_time = time(NULL);
+   struct configuration* config = (struct configuration*)shmem;
+   char metric_name[512];
+   char value_buffer[256];
 
-   config = (struct configuration*)shmem;
-
-   data = pgexporter_vappend(data, 2,
-                             "#HELP pgexporter_postgresql_active The state of PostgreSQL\n",
-                             "#TYPE pgexporter_postgresql_active gauge\n"
-                             );
+   if (container == NULL || container->server_metrics == NULL)
+   {
+      return;
+   }
 
    for (int server = 0; server < config->number_of_servers; server++)
    {
-      data = pgexporter_vappend(data, 3,
-                                "pgexporter_postgresql_active{server=\"",
-                                &config->servers[server].name[0],
-                                "\"} "
-                                );
+      snprintf(metric_name, sizeof(metric_name), "pgexporter_postgresql_active{server=\"%s\"}", config->servers[server].name);
+
       if (config->servers[server].fd != -1)
       {
-         data = pgexporter_append(data, "1");
+         strcpy(value_buffer, "1");
       }
       else
       {
-         data = pgexporter_append(data, "0");
+         strcpy(value_buffer, "0");
       }
-      data = pgexporter_append(data, "\n");
-   }
-   data = pgexporter_append(data, "\n");
 
-   if (data != NULL)
-   {
-      send_chunk(client_ssl, client_fd, data);
-      metrics_cache_append(data);
-      free(data);
-      data = NULL;
+      add_metric_to_art(container->server_metrics,
+                        metric_name,
+                        value_buffer,
+                        "The state of PostgreSQL",
+                        "gauge",
+                        current_time,
+                        SORT_NAME);
    }
 }
 
 static void
-version_information(SSL* client_ssl, int client_fd)
+version_information(prometheus_metrics_container_t* container)
 {
    int ret;
    int server;
-   char* data = NULL;
+   time_t current_time = time(NULL);
    char* safe_key1 = NULL;
    char* safe_key2 = NULL;
+   char metric_name[512];
    struct query* all = NULL;
    struct query* query = NULL;
    struct tuple* current = NULL;
    struct configuration* config;
+
+   if (container == NULL || container->version_metrics == NULL)
+   {
+      return;
+   }
 
    config = (struct configuration*)shmem;
 
@@ -911,42 +963,30 @@ version_information(SSL* client_ssl, int client_fd)
       current = all->tuples;
       if (current != NULL)
       {
-         data = pgexporter_vappend(data, 2,
-                                   "#HELP pgexporter_postgresql_version The PostgreSQL version\n",
-                                   "#TYPE pgexporter_postgresql_version gauge\n"
-                                   );
-
          server = 0;
 
          while (current != NULL)
          {
             safe_key1 = safe_prometheus_key(pgexporter_get_column(0, current));
             safe_key2 = safe_prometheus_key(pgexporter_get_column(1, current));
-            data = pgexporter_vappend(data, 8,
-                                      "pgexporter_postgresql_version{server=\"",
-                                      &config->servers[server].name[0],
-                                      "\",version=\"",
-                                      safe_key1,
-                                      "\",minor_version=\"",
-                                      safe_key2,
-                                      "\"} ",
-                                      "1\n"
-                                      );
+
+            snprintf(metric_name, sizeof(metric_name),
+                     "pgexporter_postgresql_version{server=\"%s\",version=\"%s\",minor_version=\"%s\"}",
+                     config->servers[server].name, safe_key1, safe_key2);
+
+            add_metric_to_art(container->version_metrics,
+                              metric_name,
+                              "1",
+                              "The PostgreSQL version",
+                              "gauge",
+                              current_time,
+                              SORT_NAME);
+
             safe_prometheus_key_free(safe_key1);
             safe_prometheus_key_free(safe_key2);
 
             server++;
             current = current->next;
-         }
-
-         data = pgexporter_append(data, "\n");
-
-         if (data != NULL)
-         {
-            send_chunk(client_ssl, client_fd, data);
-            metrics_cache_append(data);
-            free(data);
-            data = NULL;
          }
       }
    }
@@ -955,16 +995,22 @@ version_information(SSL* client_ssl, int client_fd)
 }
 
 static void
-uptime_information(SSL* client_ssl, int client_fd)
+uptime_information(prometheus_metrics_container_t* container)
 {
    int ret;
    int server;
-   char* data = NULL;
+   time_t current_time = time(NULL);
    char* safe_key = NULL;
+   char metric_name[512];
    struct query* all = NULL;
    struct query* query = NULL;
    struct tuple* current = NULL;
    struct configuration* config;
+
+   if (container == NULL || container->uptime_metrics == NULL)
+   {
+      return;
+   }
 
    config = (struct configuration*)shmem;
 
@@ -986,37 +1032,28 @@ uptime_information(SSL* client_ssl, int client_fd)
       current = all->tuples;
       if (current != NULL)
       {
-         data = pgexporter_vappend(data, 2,
-                                   "#HELP pgexporter_postgresql_uptime The PostgreSQL uptime in seconds\n",
-                                   "#TYPE pgexporter_postgresql_uptime counter\n"
-                                   );
-
          server = 0;
 
          while (current != NULL)
          {
             safe_key = safe_prometheus_key(pgexporter_get_column(0, current));
-            data = pgexporter_vappend(data, 5,
-                                      "pgexporter_postgresql_uptime{server=\"",
-                                      &config->servers[server].name[0],
-                                      "\"} ",
-                                      safe_key,
-                                      "\n"
-                                      );
+
+            snprintf(metric_name, sizeof(metric_name),
+                     "pgexporter_postgresql_uptime{server=\"%s\"}",
+                     config->servers[server].name);
+
+            add_metric_to_art(container->uptime_metrics,
+                              metric_name,
+                              safe_key,
+                              "The PostgreSQL uptime in seconds",
+                              "gauge",
+                              current_time,
+                              SORT_NAME);
+
             safe_prometheus_key_free(safe_key);
 
             server++;
             current = current->next;
-         }
-
-         data = pgexporter_append(data, "\n");
-
-         if (data != NULL)
-         {
-            send_chunk(client_ssl, client_fd, data);
-            metrics_cache_append(data);
-            free(data);
-            data = NULL;
          }
       }
    }
@@ -1025,15 +1062,21 @@ uptime_information(SSL* client_ssl, int client_fd)
 }
 
 static void
-primary_information(SSL* client_ssl, int client_fd)
+primary_information(prometheus_metrics_container_t* container)
 {
    int ret;
    int server;
-   char* data = NULL;
+   time_t current_time = time(NULL);
+   char metric_name[512];
    struct query* all = NULL;
    struct query* query = NULL;
    struct tuple* current = NULL;
    struct configuration* config;
+
+   if (container == NULL || container->primary_metrics == NULL)
+   {
+      return;
+   }
 
    config = (struct configuration*)shmem;
 
@@ -1055,43 +1098,30 @@ primary_information(SSL* client_ssl, int client_fd)
       current = all->tuples;
       if (current != NULL)
       {
-         data = pgexporter_vappend(data, 2,
-                                   "#HELP pgexporter_postgresql_primary Is the PostgreSQL instance the primary\n",
-                                   "#TYPE pgexporter_postgresql_primary gauge\n"
-                                   );
-
          server = 0;
 
          while (current != NULL)
          {
-            data = pgexporter_vappend(data, 3,
-                                      "pgexporter_postgresql_primary{server=\"",
-                                      &config->servers[server].name[0],
-                                      "\"} "
-                                      );
+            snprintf(metric_name, sizeof(metric_name),
+                     "pgexporter_postgresql_primary{server=\"%s\"}",
+                     config->servers[server].name);
 
+            const char* value = "0";
             if (!strcmp("t", pgexporter_get_column(0, current)))
             {
-               data = pgexporter_append(data, "1");
+               value = "1";
             }
-            else
-            {
-               data = pgexporter_append(data, "0");
-            }
-            data = pgexporter_append(data, "\n");
+
+            add_metric_to_art(container->primary_metrics,
+                              metric_name,
+                              (char*)value,
+                              "Is the PostgreSQL instance the primary",
+                              "gauge",
+                              current_time,
+                              SORT_NAME);
 
             server++;
             current = current->next;
-         }
-
-         data = pgexporter_append(data, "\n");
-
-         if (data != NULL)
-         {
-            send_chunk(client_ssl, client_fd, data);
-            metrics_cache_append(data);
-            free(data);
-            data = NULL;
          }
       }
    }
@@ -1100,35 +1130,39 @@ primary_information(SSL* client_ssl, int client_fd)
 }
 
 static void
-core_information(SSL* client_ssl, int client_fd)
+core_information(prometheus_metrics_container_t* container)
 {
-   char* data = NULL;
+   time_t current_time = time(NULL);
+   char metric_name[512];
 
-   data = pgexporter_vappend(data, 6,
-                             "#HELP pgexporter_version The pgexporter version\n",
-                             "#TYPE pgexporter_version counter\n",
-                             "pgexporter_version{pgexporter_version=\"",
-                             VERSION,
-                             "\"} 1\n",
-                             "\n"
-                             );
-
-   if (data != NULL)
+   if (container == NULL || container->core_metrics == NULL)
    {
-      send_chunk(client_ssl, client_fd, data);
-      metrics_cache_append(data);
-      free(data);
-      data = NULL;
+      return;
    }
+
+   snprintf(metric_name, sizeof(metric_name), "pgexporter_version{pgexporter_version=\"%s\"}", VERSION);
+
+   add_metric_to_art(container->core_metrics,
+                     metric_name,
+                     "1",
+                     "The pgexporter version",
+                     "counter",
+                     current_time,
+                     SORT_NAME);
 }
 
 static void
-extension_information(SSL* client_ssl, int client_fd)
+extension_information(prometheus_metrics_container_t* container)
 {
    bool cont = true;
    struct query* query = NULL;
    struct tuple* tuple = NULL;
    struct configuration* config;
+
+   if (container == NULL || container->extension_metrics == NULL)
+   {
+      return;
+   }
 
    config = (struct configuration*)shmem;
 
@@ -1155,15 +1189,15 @@ extension_information(SSL* client_ssl, int client_fd)
                {
                   if (strcmp(tuple->data[0], "pgexporter_get_functions"))
                   {
-                     extension_function(client_ssl, client_fd, tuple->data[0], false, tuple->data[2], tuple->data[3]);
+                     extension_function(tuple->data[0], false, tuple->data[2], tuple->data[3], container);
                   }
                }
                else
                {
                   if (strcmp(tuple->data[0], "pgexporter_is_supported"))
                   {
-                     extension_function(client_ssl, client_fd, tuple->data[0], INPUT_DATA, tuple->data[2], tuple->data[3]);
-                     extension_function(client_ssl, client_fd, tuple->data[0], INPUT_WAL, tuple->data[2], tuple->data[3]);
+                     extension_function(tuple->data[0], INPUT_DATA, tuple->data[2], tuple->data[3], container);
+                     extension_function(tuple->data[0], INPUT_WAL, tuple->data[2], tuple->data[3], container);
                   }
                }
 
@@ -1185,13 +1219,19 @@ extension_information(SSL* client_ssl, int client_fd)
 }
 
 static void
-extension_list_information(SSL* client_ssl, int client_fd)
+extension_list_information(prometheus_metrics_container_t* container)
 {
-   char* data = NULL;
+   time_t current_time = time(NULL);
    char* safe_key1 = NULL;
    char* safe_key2 = NULL;
    char* safe_key3 = NULL;
+   char metric_name[512];
    struct configuration* config;
+
+   if (container == NULL || container->extension_list_metrics == NULL)
+   {
+      return;
+   }
 
    config = (struct configuration*)shmem;
 
@@ -1199,11 +1239,6 @@ extension_list_information(SSL* client_ssl, int client_fd)
    {
       return;
    }
-
-   data = pgexporter_vappend(data, 2,
-                             "#HELP pgexporter_postgresql_extension_info Information about installed PostgreSQL extensions\n",
-                             "#TYPE pgexporter_postgresql_extension_info gauge\n"
-                             );
 
    for (int server = 0; server < config->number_of_servers; server++)
    {
@@ -1215,18 +1250,17 @@ extension_list_information(SSL* client_ssl, int client_fd)
             safe_key2 = safe_prometheus_key(config->servers[server].extensions[i].installed_version);
             safe_key3 = safe_prometheus_key(config->servers[server].extensions[i].comment);
 
-            data = pgexporter_vappend(data, 10,
-                                      "pgexporter_postgresql_extension_info{server=\"",
-                                      &config->servers[server].name[0],
-                                      "\",extension=\"",
-                                      safe_key1,
-                                      "\",version=\"",
-                                      safe_key2,
-                                      "\",comment=\"",
-                                      safe_key3,
-                                      "\"} ",
-                                      "1\n"
-                                      );
+            snprintf(metric_name, sizeof(metric_name),
+                     "pgexporter_postgresql_extension_info{server=\"%s\",extension=\"%s\",version=\"%s\",comment=\"%s\"}",
+                     config->servers[server].name, safe_key1, safe_key2, safe_key3);
+
+            add_metric_to_art(container->extension_list_metrics,
+                              metric_name,
+                              "1",
+                              "Information about installed PostgreSQL extensions",
+                              "gauge",
+                              current_time,
+                              SORT_NAME);
 
             safe_prometheus_key_free(safe_key1);
             safe_prometheus_key_free(safe_key2);
@@ -1234,27 +1268,22 @@ extension_list_information(SSL* client_ssl, int client_fd)
          }
       }
    }
-
-   data = pgexporter_append(data, "\n");
-
-   if (data != NULL)
-   {
-      send_chunk(client_ssl, client_fd, data);
-      metrics_cache_append(data);
-      free(data);
-      data = NULL;
-   }
 }
 
 static void
-extension_function(SSL* client_ssl, int client_fd, char* function, int input, char* description, char* type)
+extension_function(char* function, int input, char* description, char* type, prometheus_metrics_container_t* container)
 {
-   char* data = NULL;
-   bool header = false;
+   time_t current_time = time(NULL);
+   char metric_name[512];
    char* sql = NULL;
    struct query* query = NULL;
    struct tuple* tuple = NULL;
    struct configuration* config;
+
+   if (container == NULL || container->extension_metrics == NULL)
+   {
+      return;
+   }
 
    config = (struct configuration*)shmem;
 
@@ -1304,106 +1333,59 @@ extension_function(SSL* client_ssl, int client_fd, char* function, int input, ch
             continue;
          }
 
-         if (!header)
-         {
-            data = pgexporter_append(data, "#HELP ");
-            data = pgexporter_append(data, function);
-
-            if (input == INPUT_DATA)
-            {
-               data = pgexporter_append(data, "_data");
-            }
-            else if (input == INPUT_WAL)
-            {
-               data = pgexporter_append(data, "_wal");
-            }
-
-            data = pgexporter_vappend(data, 3,
-                                      " ",
-                                      description,
-                                      "\n");
-
-            data = pgexporter_append(data, "#TYPE ");
-            data = pgexporter_append(data, function);
-
-            if (input == INPUT_DATA)
-            {
-               data = pgexporter_append(data, "_data");
-            }
-            else if (input == INPUT_WAL)
-            {
-               data = pgexporter_append(data, "_wal");
-            }
-
-            data = pgexporter_vappend(data, 3,
-                                      " ",
-                                      type,
-                                      "\n");
-
-            header = true;
-         }
-
          config->servers[server].extension = true;
 
          tuple = query->tuples;
 
          while (tuple != NULL)
          {
-            data = pgexporter_append(data, function);
+            char base_metric_name[256];
+            strcpy(base_metric_name, function);
 
             if (input == INPUT_DATA)
             {
-               data = pgexporter_append(data, "_data");
+               strcat(base_metric_name, "_data");
             }
             else if (input == INPUT_WAL)
             {
-               data = pgexporter_append(data, "_wal");
-            }
-
-            data = pgexporter_vappend(data, 3,
-                                      "{server=\"",
-                                      &config->servers[server].name[0],
-                                      "\"");
-
-            if (query->number_of_columns > 0)
-            {
-               data = pgexporter_append(data, ", ");
+               strcat(base_metric_name, "_wal");
             }
 
             if (input == INPUT_NO)
             {
-               for (int col = 0; col < query->number_of_columns; col++)
-               {
-                  data = pgexporter_vappend(data, 4,
-                                            query->names[col],
-                                            "=\"",
-                                            tuple->data[col],
-                                            "\"");
+               snprintf(metric_name, sizeof(metric_name), "%s{server=\"%s\"}",
+                        base_metric_name, config->servers[server].name);
 
-                  if (col < query->number_of_columns - 1)
-                  {
-                     data = pgexporter_append(data, ", ");
-                  }
-               }
-
-               data = pgexporter_append(data, "} 1\n");
+               add_metric_to_art(container->extension_metrics,
+                                 metric_name,
+                                 "1",
+                                 description,
+                                 type,
+                                 current_time,
+                                 SORT_NAME);
             }
             else
             {
-               data = pgexporter_append(data, "location=\"");
-
+               const char* location = "";
                if (input == INPUT_DATA)
                {
-                  data = pgexporter_append(data, config->servers[server].data);
+                  location = config->servers[server].data;
                }
                else if (input == INPUT_WAL)
                {
-                  data = pgexporter_append(data, config->servers[server].wal);
+                  location = config->servers[server].wal;
                }
 
-               data = pgexporter_append(data, "\"} ");
-               data = pgexporter_append(data, tuple->data[0]);
-               data = pgexporter_append(data, "\n");
+               snprintf(metric_name, sizeof(metric_name), "%s{server=\"%s\",location=\"%s\"}",
+                        base_metric_name, config->servers[server].name, location);
+
+               add_metric_to_art(container->extension_metrics,
+                                 metric_name,
+                                 tuple->data[0],
+                                 description,
+                                 type,
+                                 current_time,
+                                 SORT_NAME);
             }
 
             tuple = tuple->next;
@@ -1416,31 +1398,24 @@ extension_function(SSL* client_ssl, int client_fd, char* function, int input, ch
          query = NULL;
       }
    }
-
-   if (header)
-   {
-      data = pgexporter_append(data, "\n");
-   }
-
-   if (data != NULL)
-   {
-      send_chunk(client_ssl, client_fd, data);
-      metrics_cache_append(data);
-      free(data);
-      data = NULL;
-   }
 }
 
 static void
-settings_information(SSL* client_ssl, int client_fd)
+settings_information(prometheus_metrics_container_t* container)
 {
    int ret;
-   char* data = NULL;
+   time_t current_time = time(NULL);
    char* safe_key = NULL;
+   char metric_name[512];
    struct query* all = NULL;
    struct query* query = NULL;
    struct tuple* current = NULL;
    struct configuration* config;
+
+   if (container == NULL || container->settings_metrics == NULL)
+   {
+      return;
+   }
 
    config = (struct configuration*)shmem;
 
@@ -1469,73 +1444,36 @@ settings_information(SSL* client_ssl, int client_fd)
       while (current != NULL)
       {
          safe_key = safe_prometheus_key(pgexporter_get_column(0, current));
-         data = pgexporter_vappend(data, 12,
-                                   "#HELP pgexporter_",
-                                   &all->tag[0],
-                                   "_",
-                                   safe_key,
-                                   " ",
-                                   pgexporter_get_column(2, current),
-                                   "\n",
-                                   "#TYPE pgexporter_",
-                                   &all->tag[0],
-                                   "_",
-                                   safe_key,
-                                   " gauge\n"
-                                   );
+
+         snprintf(metric_name, sizeof(metric_name), "pgexporter_%s_%s", all->tag, safe_key);
+
+         add_metric_to_art(container->settings_metrics,
+                           metric_name,
+                           pgexporter_get_column(1, current),
+                           pgexporter_get_column(2, current),
+                           "gauge",
+                           current_time,
+                           SORT_DATA0);
+
          safe_prometheus_key_free(safe_key);
-
-data:
-         safe_key = safe_prometheus_key(pgexporter_get_column(0, current));
-         data = pgexporter_vappend(data, 9,
-                                   "pgexporter_",
-                                   &all->tag[0],
-                                   "_",
-                                   safe_key,
-                                   "{server=\"",
-                                   &config->servers[current->server].name[0],
-                                   "\"} ",
-                                   get_value(&all->tag[0], pgexporter_get_column(0, current), pgexporter_get_column(1, current)),
-                                   "\n"
-                                   );
-         safe_prometheus_key_free(safe_key);
-
-         if (current->next != NULL && !strcmp(pgexporter_get_column(0, current), pgexporter_get_column(0, current->next)))
-         {
-            current = current->next;
-            goto data;
-         }
-
-         if (data != NULL)
-         {
-            data = pgexporter_append(data, "\n");
-
-            send_chunk(client_ssl, client_fd, data);
-            metrics_cache_append(data);
-            free(data);
-            data = NULL;
-         }
 
          current = current->next;
       }
-   }
-
-   if (data != NULL)
-   {
-      send_chunk(client_ssl, client_fd, data);
-      metrics_cache_append(data);
-      free(data);
-      data = NULL;
    }
 
    pgexporter_free_query(all);
 }
 
 static void
-custom_metrics(SSL* client_ssl, int client_fd)
+custom_metrics(prometheus_metrics_container_t* container)
 {
    struct configuration* config = NULL;
-   char* data = NULL;
+   time_t current_time = time(NULL);
+
+   if (container == NULL || container->custom_metrics == NULL)
+   {
+      return;
+   }
 
    config = (struct configuration*)shmem;
 
@@ -1624,616 +1562,49 @@ custom_metrics(SSL* client_ssl, int client_fd)
       }
    }
 
-   /* Tuples */
+   /* Process queries and add to ART */
    temp = q_list;
-   column_store_t store[MISC_LENGTH] = {0};
-   int n_store = 0;
-
    while (temp)
    {
-      if (temp->error || (temp->query != NULL && temp->query->tuples != NULL))
+      if (!temp->error && temp->query != NULL && temp->query->tuples != NULL)
       {
-         if (temp->query_alt->is_histogram)
+         struct tuple* current_tuple = temp->query->tuples;
+         while (current_tuple != NULL)
          {
-            handle_histogram(store, &n_store, temp);
-         }
-         else
-         {
-            handle_gauge_counter(store, &n_store, temp);
+            char metric_name[512];
+
+            if (temp->query->number_of_columns > 0)
+            {
+               // For custom metrics, use the tag as the base metric name
+               snprintf(metric_name, sizeof(metric_name), "pgexporter_%s", temp->tag);
+
+               // Use the first column as the value
+               add_metric_to_art(container->custom_metrics,
+                                 metric_name,
+                                 pgexporter_get_column(0, current_tuple),
+                                 "Custom metric",
+                                 "gauge",
+                                 current_time,
+                                 temp->sort_type);
+            }
+
+            current_tuple = current_tuple->next;
          }
       }
       temp = temp->next;
    }
 
-   for (int i = 0; i < n_store; i++)
-   {
-      column_node_t* temp = store[i].columns,
-                   * last = NULL;
-
-      while (temp)
-      {
-         data = pgexporter_append(data, temp->data);
-         last = temp;
-         temp = temp->next;
-
-         // Free it
-         free(last->data);
-         free(last);
-      }
-      data = pgexporter_append(data, "\n");
-   }
-
-   if (data)
-   {
-      send_chunk(client_ssl, client_fd, data);
-      metrics_cache_append(data);
-      free(data);
-      data = NULL;
-   }
-
+   // Clean up
    temp = q_list;
    query_list_t* last = NULL;
    while (temp)
    {
       pgexporter_free_query(temp->query);
-      // temp->query_alt // Not freed here, but when program ends
-
       last = temp;
       temp = temp->next;
-      last->next = NULL;
-
       free(last);
    }
    q_list = NULL;
-}
-
-static int
-parse_list(char* list_str, char** strs, int* n_strs)
-{
-   int idx = 0;
-   char* data = NULL;
-   char* p = NULL;
-   int len = strlen(list_str);
-
-   /**
-    * If the `list_str` is `{c1,c2,c3,...,cn}`, and if the `strlen(list_str)`
-    * is `x`, then it takes `x + 1` bytes in memory including the null character.
-    *
-    * `data` will have `list_str` without the first and last bracket (so `data` will
-    * just be `c1,c2,c3,...,cn`) and thus `strlen(data)` will be `x - 2`, and
-    * so will take `x - 1` bytes in memory including the null character.
-    */
-   data = (char*) malloc((len - 1) * sizeof(char));
-   memset(data, 0, (len - 1) * sizeof(char));
-
-   /**
-    * If list_str is `{c1,c2,c3,...,cn}`, then and if `len(list_str)` is `len`
-    * then this starts from `c1`, and goes for `len - 2`, so till `cn`, so the
-    * `data` string becomes `c1,c2,c3,...,cn`
-    */
-   strncpy(data, list_str + 1, len - 2);
-
-   p = strtok(data, ",");
-   while (p)
-   {
-      strs[idx] = NULL;
-      strs[idx] = pgexporter_append(strs[idx], p);
-      idx++;
-      p = strtok(NULL, ",");
-   }
-
-   *n_strs = idx;
-   free(data);
-   return 0;
-}
-
-static void
-add_column_to_store(column_store_t* store, int store_idx, char* data, int sort_type, struct tuple* current)
-{
-   column_node_t* new_node = malloc(sizeof(column_node_t));
-   memset(new_node, 0, sizeof(column_node_t));
-
-   new_node->data = data;
-   new_node->tuple = current;
-
-   if (!store[store_idx].columns)
-   {
-      store[store_idx].columns = new_node;
-      store[store_idx].last_column = new_node;
-      return;
-   }
-
-   if (sort_type == SORT_DATA0)
-   {
-      // SORT_DATA0 means sorting according to the first data (data[0]) in a tuple.
-      // Usually it is the application/database column, so tuples with same such column values
-      // are grouped together.
-      column_node_t* temp = store[store_idx].columns;
-
-      // first node is for help/type info
-      if (!temp->next)
-      {
-         temp->next = new_node;
-         store[store_idx].last_column = new_node;
-      }
-      else
-      {
-         while (temp->next)
-         {
-            if (!strcmp(temp->next->tuple->data[0], current->data[0]))
-            {
-               break;
-            }
-            temp = temp->next;
-         }
-
-         if (!temp->next)
-         {
-            temp->next = new_node;
-            store[store_idx].last_column = new_node;
-         }
-         else
-         {
-            new_node->next = temp->next;
-            temp->next = new_node;
-         }
-      }
-
-   }
-   else
-   {
-      // Current can be null for SORT_NAME
-      // Default sort as SORT_NAME
-      store[store_idx].last_column->next = new_node;
-      store[store_idx].last_column = new_node;
-   }
-}
-
-static void
-handle_histogram(column_store_t* store, int* n_store, query_list_t* temp)
-{
-   char* data = NULL;
-   char* safe_key = NULL;
-   struct configuration* config;
-   int n_bounds = 0;
-   int n_buckets = 0;
-   char* bounds_arr[MAX_ARR_LENGTH] = {0};
-   char* buckets_arr[MAX_ARR_LENGTH] = {0};
-   int idx = 0;
-
-   config = (struct configuration*)shmem;
-
-   int h_idx = 0;
-   for (; h_idx < temp->query_alt->n_columns; h_idx++)
-   {
-      if (temp->query_alt->columns[h_idx].type == HISTOGRAM_TYPE)
-      {
-         break;
-      }
-   }
-
-   if (!temp || !temp->query || !temp->query->tuples)
-   {
-      return;
-   }
-
-   struct tuple* tp = temp->query->tuples;
-
-   if (!tp)
-   {
-      return;
-   }
-
-   char* names[4] = {0};
-
-   /* generate column names X_sum, X_count, X, X_bucket*/
-   names[0] = pgexporter_vappend(names[0], 2,
-                                 temp->query_alt->columns[h_idx].name,
-                                 "_sum"
-                                 );
-   names[1] = pgexporter_vappend(names[1], 2,
-                                 temp->query_alt->columns[h_idx].name,
-                                 "_count"
-                                 );
-   names[2] = pgexporter_vappend(names[2], 1,
-                                 temp->query_alt->columns[h_idx].name
-                                 );
-   names[3] = pgexporter_vappend(names[3], 2,
-                                 temp->query_alt->columns[h_idx].name,
-                                 "_bucket"
-                                 );
-
-   for (; idx < *n_store; idx++)
-   {
-      if (store[idx].type == HISTOGRAM_TYPE &&
-          store[idx].sort_type == temp->sort_type &&
-          !strcmp(store[idx].tag, temp->tag) &&
-          !strcmp(store[idx].name, temp->query_alt->columns[h_idx].name))
-      {
-         break;
-      }
-   }
-
-append:
-   if (idx < (*n_store))
-   {
-      struct tuple* current = temp->query->tuples;
-
-      while (current)
-      {
-         data = NULL;
-
-         /* bucket */
-         char* bounds_str = pgexporter_get_column_by_name(names[2], temp->query, current);
-         parse_list(bounds_str, bounds_arr, &n_bounds);
-
-         char* buckets_str = pgexporter_get_column_by_name(names[3], temp->query, current);
-         parse_list(buckets_str, buckets_arr, &n_buckets);
-
-         for (int i = 0; i < n_bounds; i++)
-         {
-            data = pgexporter_vappend(data, 8,
-                                      "pgexporter_",
-                                      temp->tag,
-                                      "_bucket{le=\"",
-                                      bounds_arr[i],
-                                      "\",",
-                                      "server=\"",
-                                      &config->servers[current->server].name[0],
-                                      "\""
-                                      );
-
-            for (int j = 0; j < h_idx; j++)
-            {
-               safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
-               data = pgexporter_vappend(data, 5,
-                                         ",",
-                                         temp->query_alt->columns[j].name,
-                                         "=\"",
-                                         safe_key,
-                                         "\""
-                                         );
-               safe_prometheus_key_free(safe_key);
-            }
-
-            data = pgexporter_vappend(data, 3,
-                                      "} ",
-                                      buckets_arr[i],
-                                      "\n"
-                                      );
-         }
-
-         data = pgexporter_vappend(data, 6,
-                                   "pgexporter_",
-                                   temp->tag,
-                                   "_bucket{le=\"+Inf\",",
-                                   "server=\"",
-                                   &config->servers[current->server].name[0],
-                                   "\""
-                                   );
-
-         for (int j = 0; j < h_idx; j++)
-         {
-            safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
-            data = pgexporter_vappend(data, 5,
-                                      ",",
-                                      temp->query_alt->columns[j].name,
-                                      "=\"",
-                                      safe_key,
-                                      "\""
-                                      );
-            safe_prometheus_key_free(safe_key);
-         }
-
-         data = pgexporter_vappend(data, 3,
-                                   "} ",
-                                   pgexporter_get_column_by_name(names[1], temp->query, current),
-                                   "\n"
-                                   );
-
-         /* sum */
-         data = pgexporter_vappend(data, 6,
-                                   "pgexporter_",
-                                   temp->tag,
-                                   "_sum",
-                                   "{server=\"",
-                                   &config->servers[current->server].name[0],
-                                   "\""
-                                   );
-
-         for (int j = 0; j < h_idx; j++)
-         {
-            safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
-            data = pgexporter_vappend(data, 5,
-                                      ",",
-                                      temp->query_alt->columns[j].name,
-                                      "=\"",
-                                      safe_key,
-                                      "\""
-                                      );
-            safe_prometheus_key_free(safe_key);
-         }
-
-         data = pgexporter_vappend(data, 3,
-                                   "} ",
-                                   pgexporter_get_column_by_name(names[0], temp->query, current),
-                                   "\n"
-                                   );
-
-         /* count */
-         data = pgexporter_vappend(data, 6,
-                                   "pgexporter_",
-                                   temp->tag,
-                                   "_count",
-                                   "{server=\"",
-                                   &config->servers[current->server].name[0],
-                                   "\""
-                                   );
-
-         for (int j = 0; j < h_idx; j++)
-         {
-            safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
-            data = pgexporter_vappend(data, 5,
-                                      ",",
-                                      temp->query_alt->columns[j].name,
-                                      "=\"",
-                                      safe_key,
-                                      "\""
-                                      );
-            safe_prometheus_key_free(safe_key);
-         }
-
-         data = pgexporter_vappend(data, 3,
-                                   "} ",
-                                   pgexporter_get_column_by_name(names[1], temp->query, current),
-                                   "\n"
-                                   );
-
-         add_column_to_store(store, idx, data, temp->sort_type, current);
-
-         current = current->next;
-      }
-
-      for (int i = 0; i < n_bounds; i++)
-      {
-         free(bounds_arr[i]);
-      }
-
-      for (int i = 0; i < n_buckets; i++)
-      {
-         free(buckets_arr[i]);
-      }
-   }
-   else
-   {
-
-      /* New Column */
-      if (!temp->query->tuples)
-      {
-         /* Skip */
-         return;
-      }
-
-      (*n_store)++;
-
-      store[idx].type = HISTOGRAM_TYPE;
-      store[idx].sort_type = temp->sort_type;
-      memcpy(store[idx].tag, temp->tag, MISC_LENGTH);
-      memcpy(store[idx].name, temp->query_alt->columns[h_idx].name, MISC_LENGTH);
-
-      data = NULL;
-      append_help_info(&data, store[idx].tag, "", temp->query_alt->columns[h_idx].description);
-      append_type_info(&data, store[idx].tag, "", temp->query_alt->columns[h_idx].type);
-
-      add_column_to_store(store, idx, data, SORT_NAME, NULL);
-
-      data = NULL;
-
-      // Inserted help and type info above, and then go to append label to insert the rest of the information as usual.
-      // (*n_store)++ ensures this time it fulfills the condition for the if-statement.
-      goto append;
-   }
-
-   free(names[0]);
-   free(names[1]);
-   free(names[2]);
-   free(names[3]);
-
-}
-
-static void
-handle_gauge_counter(column_store_t* store, int* n_store, query_list_t* temp)
-{
-   char* data = NULL;
-   char* safe_key = NULL;
-   struct configuration* config;
-   config = (struct configuration*)shmem;
-
-   for (int i = 0; i < temp->query_alt->n_columns; i++)
-   {
-      if (temp->query_alt->columns[i].type == LABEL_TYPE)
-      {
-         /* Dealt with later */
-         continue;
-      }
-
-      int idx = 0;
-      for (; idx < (*n_store); idx++)
-      {
-         if (!strcmp(store[idx].tag, temp->tag) &&
-             ((strlen(store[idx].name) == 0 && strlen(temp->query_alt->columns[i].name) == 0) ||
-              !strcmp(store[idx].name, temp->query_alt->columns[i].name)) &&
-             store[idx].type == temp->query_alt->columns[i].type
-             )
-         {
-            break;
-         }
-      }
-
-append:
-      if (!temp || !temp->query || !temp->query->tuples)
-      {
-         /* Skip */
-         continue;
-      }
-
-      if (idx < (*n_store))
-      {
-         /* Found Match */
-
-         struct tuple* tuple = temp->query->tuples;
-
-         while (tuple)
-         {
-            data = NULL;
-
-            data = pgexporter_vappend(data, 2,
-                                      "pgexporter_",
-                                      store[idx].tag
-                                      );
-
-            if (strlen(store[idx].name) > 0)
-            {
-               data = pgexporter_vappend(data, 2,
-                                         "_",
-                                         store[idx].name
-                                         );
-
-            }
-
-            data = pgexporter_vappend(data, 3,
-                                      "{server=\"",
-                                      config->servers[temp->query->tuples->server].name,
-                                      "\""
-                                      );
-
-            /* Labels */
-            for (int j = 0; j < temp->query_alt->n_columns; j++)
-            {
-               if (temp->query_alt->columns[j].type != LABEL_TYPE)
-               {
-                  continue;
-               }
-
-               safe_key = safe_prometheus_key(pgexporter_get_column(j, tuple));
-               data = pgexporter_vappend(data, 5,
-                                         ",",
-                                         temp->query_alt->columns[j].name,
-                                         "=\"",
-                                         safe_key,
-                                         "\""
-                                         );
-               safe_prometheus_key_free(safe_key);
-
-            }
-
-            data = pgexporter_vappend(data, 3,
-                                      "} ",
-                                      get_value(store[idx].tag, store[idx].name, pgexporter_get_column(i, tuple)),
-                                      "\n"
-                                      );
-
-            add_column_to_store(store, idx, data, temp->sort_type, tuple);
-
-            tuple = tuple->next;
-         }
-
-      }
-      else
-      {
-         /* New Column */
-         (*n_store)++;
-
-         memcpy(store[idx].name, temp->query_alt->columns[i].name, MISC_LENGTH);
-         store[idx].type = temp->query_alt->columns[i].type;
-         memcpy(store[idx].tag, temp->tag, MISC_LENGTH);
-
-         data = NULL;
-         append_help_info(&data, store[idx].tag, store[idx].name, temp->query_alt->columns[i].description);
-         append_type_info(&data, store[idx].tag, store[idx].name, temp->query_alt->columns[i].type);
-
-         add_column_to_store(store, idx, data, SORT_NAME, NULL);
-
-         data = NULL;
-
-         // Inserted help and type info above, and then go to append label to insert the rest of the information as usual.
-         // (*n_store)++ ensures this time it fulfills the condition for the if-statement.
-         goto append;
-      }
-   }
-}
-
-static void
-append_help_info(char** data, char* tag, char* name, char* description)
-{
-   *data = pgexporter_vappend(*data, 2,
-                              "#HELP pgexporter_",
-                              tag
-                              );
-
-   if (strlen(name) > 0)
-   {
-      *data = pgexporter_vappend(*data, 2,
-                                 "_",
-                                 name
-                                 );
-   }
-
-   *data = pgexporter_append(*data, " ");
-
-   if (description != NULL && strcmp("", description))
-   {
-      *data = pgexporter_append(*data, description);
-   }
-   else
-   {
-      *data = pgexporter_vappend(*data, 2,
-                                 "pgexporter_",
-                                 tag
-                                 );
-
-      if (strlen(name) > 0)
-      {
-         *data = pgexporter_vappend(*data, 2,
-                                    "_",
-                                    name
-                                    );
-      }
-   }
-
-   *data = pgexporter_append(*data, "\n");
-}
-
-static void
-append_type_info(char** data, char* tag, char* name, int typeId)
-{
-   *data = pgexporter_vappend(*data, 2,
-                              "#TYPE pgexporter_",
-                              tag
-                              );
-
-   if (strlen(name) > 0)
-   {
-      *data = pgexporter_vappend(*data, 2,
-                                 "_",
-                                 name
-                                 );
-   }
-
-   if (typeId == GAUGE_TYPE)
-   {
-      *data = pgexporter_append(*data, " gauge");
-   }
-   else if (typeId == COUNTER_TYPE)
-   {
-      *data = pgexporter_append(*data, " counter");
-   }
-   else if (typeId == HISTOGRAM_TYPE)
-   {
-      *data = pgexporter_append(*data, " histogram");
-   }
-
-   *data = pgexporter_append(*data, "\n");
 }
 
 static int
@@ -2274,54 +1645,6 @@ send_chunk(SSL* client_ssl, int client_fd, char* data)
 error:
 
    return MESSAGE_STATUS_ERROR;
-}
-
-static char*
-get_value(char* tag __attribute__((unused)), char* name __attribute__((unused)), char* val)
-{
-   char* end = NULL;
-
-   /* Empty to 0 */
-   if (val == NULL || !strcmp(val, ""))
-   {
-      return "0";
-   }
-
-   /* Bool */
-   if (!strcmp(val, "off") || !strcmp(val, "f") || !strcmp(val, "(disabled)"))
-   {
-      return "0";
-   }
-   else if (!strcmp(val, "on") || !strcmp(val, "t"))
-   {
-      return "1";
-   }
-
-   if (!strcmp(val, "NaN"))
-   {
-      return val;
-   }
-
-   /* long */
-   strtol(val, &end, 10);
-   if (*end == '\0')
-   {
-      return val;
-   }
-   errno = 0;
-
-   /* double */
-   strtod(val, &end);
-   if (*end == '\0')
-   {
-      return val;
-   }
-   errno = 0;
-
-   /* pgexporter_log_trace("get_value(%s/%s): %s", tag, name, val); */
-
-   /* Map general strings to 1 */
-   return "1";
 }
 
 static int
@@ -2613,4 +1936,233 @@ metrics_cache_finalize(void)
    now = time(NULL);
    cache->valid_until = now + config->metrics_cache_max_age;
    return cache->valid_until > now;
+}
+
+/**
+ * ART-based metric value destructor callback
+ */
+static void
+prometheus_metric_value_destroy_cb(uintptr_t data)
+{
+   prometheus_metric_value_t* metric = (prometheus_metric_value_t*)data;
+   if (metric != NULL)
+   {
+      free(metric->value);
+      free(metric->help);
+      free(metric->type);
+      free(metric);
+   }
+}
+
+/**
+ * ART-based metric value to string callback
+ */
+static char*
+prometheus_metric_value_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+{
+   prometheus_metric_value_t* metric = (prometheus_metric_value_t*)data;
+   char* result = NULL;
+
+   (void)format;
+   (void)tag;
+   (void)indent;
+
+   if (metric != NULL)
+   {
+      result = pgexporter_append(result, metric->value);
+   }
+
+   return result;
+}
+
+/**
+ * Create metrics container with ART for each category
+ */
+static int
+create_metrics_container(prometheus_metrics_container_t** container)
+{
+   prometheus_metrics_container_t* c = NULL;
+
+   if (container == NULL)
+   {
+      return 1;
+   }
+
+   c = malloc(sizeof(prometheus_metrics_container_t));
+   if (c == NULL)
+   {
+      return 1;
+   }
+
+   memset(c, 0, sizeof(prometheus_metrics_container_t));
+
+   // Create ART for each category
+   if (pgexporter_art_create(&c->general_metrics) ||
+       pgexporter_art_create(&c->server_metrics) ||
+       pgexporter_art_create(&c->version_metrics) ||
+       pgexporter_art_create(&c->uptime_metrics) ||
+       pgexporter_art_create(&c->primary_metrics) ||
+       pgexporter_art_create(&c->core_metrics) ||
+       pgexporter_art_create(&c->extension_metrics) ||
+       pgexporter_art_create(&c->extension_list_metrics) ||
+       pgexporter_art_create(&c->settings_metrics) ||
+       pgexporter_art_create(&c->custom_metrics))
+   {
+      destroy_metrics_container(c);
+      return 1;
+   }
+
+   *container = c;
+   return 0;
+}
+
+/**
+ * Destroy metrics container and all ART structures
+ */
+static void
+destroy_metrics_container(prometheus_metrics_container_t* container)
+{
+   if (container == NULL)
+   {
+      return;
+   }
+
+   pgexporter_art_destroy(container->general_metrics);
+   pgexporter_art_destroy(container->server_metrics);
+   pgexporter_art_destroy(container->version_metrics);
+   pgexporter_art_destroy(container->uptime_metrics);
+   pgexporter_art_destroy(container->primary_metrics);
+   pgexporter_art_destroy(container->core_metrics);
+   pgexporter_art_destroy(container->extension_metrics);
+   pgexporter_art_destroy(container->extension_list_metrics);
+   pgexporter_art_destroy(container->settings_metrics);
+   pgexporter_art_destroy(container->custom_metrics);
+
+   free(container);
+}
+
+/**
+ * Add metric to ART with timestamp
+ */
+static int
+add_metric_to_art(struct art* art_tree, char* key, char* value, char* help, char* type, time_t timestamp, int sort_type)
+{
+   prometheus_metric_value_t* metric_value = NULL;
+   struct value_config vc = {.destroy_data = &prometheus_metric_value_destroy_cb,
+                             .to_string = &prometheus_metric_value_string_cb};
+
+   if (art_tree == NULL || key == NULL || value == NULL)
+   {
+      return 1;
+   }
+
+   // Create metric value with timestamp
+   metric_value = malloc(sizeof(prometheus_metric_value_t));
+   if (metric_value == NULL)
+   {
+      return 1;
+   }
+
+   metric_value->timestamp = timestamp;
+   metric_value->value = pgexporter_append(NULL, value);
+   metric_value->help = help ? pgexporter_append(NULL, help) : NULL;
+   metric_value->type = type ? pgexporter_append(NULL, type) : pgexporter_append(NULL, "gauge");
+   metric_value->sort_type = sort_type;
+
+   // Insert into ART (will replace if key exists)
+   if (pgexporter_art_insert_with_config(art_tree, key, (uintptr_t)metric_value, &vc))
+   {
+      free(metric_value->value);
+      free(metric_value->help);
+      free(metric_value->type);
+      free(metric_value);
+      return 1;
+   }
+
+   return 0;
+}
+
+/**
+ * Output metrics from ART in sorted order
+ */
+static void
+output_art_metrics(SSL* client_ssl, int client_fd, struct art* art_tree, char* category_name)
+{
+   struct art_iterator* iter = NULL;
+   char* data = NULL;
+
+   (void)category_name;
+
+   if (art_tree == NULL || pgexporter_art_iterator_create(art_tree, &iter))
+   {
+      return;
+   }
+
+   while (pgexporter_art_iterator_next(iter))
+   {
+      prometheus_metric_value_t* metric = (prometheus_metric_value_t*)iter->value->data;
+      char* metric_key = iter->key;
+
+      // Output HELP line
+      if (metric->help != NULL)
+      {
+         data = pgexporter_append(data, "# HELP ");
+         data = pgexporter_append(data, metric_key);
+         data = pgexporter_append_char(data, ' ');
+         data = pgexporter_append(data, metric->help);
+         data = pgexporter_append_char(data, '\n');
+      }
+
+      // Output TYPE line
+      data = pgexporter_append(data, "# TYPE ");
+      data = pgexporter_append(data, metric_key);
+      data = pgexporter_append_char(data, ' ');
+      data = pgexporter_append(data, metric->type);
+      data = pgexporter_append_char(data, '\n');
+
+      // Output metric value with timestamp
+      data = pgexporter_append(data, metric_key);
+      data = pgexporter_append_char(data, ' ');
+      data = pgexporter_append(data, metric->value);
+      data = pgexporter_append_char(data, ' ');
+
+      // Add timestamp in milliseconds
+      char timestamp_str[32];
+      snprintf(timestamp_str, sizeof(timestamp_str), "%ld000", metric->timestamp);
+      data = pgexporter_append(data, timestamp_str);
+      data = pgexporter_append_char(data, '\n');
+
+      // Send chunk and cache
+      send_chunk(client_ssl, client_fd, data);
+      metrics_cache_append(data);
+
+      free(data);
+      data = NULL;
+   }
+
+   pgexporter_art_iterator_destroy(iter);
+}
+
+/**
+ * Output all metrics from container in category order
+ */
+static void
+output_all_metrics(SSL* client_ssl, int client_fd, prometheus_metrics_container_t* container)
+{
+   if (container == NULL)
+   {
+      return;
+   }
+
+   // Output metrics from each category ART in sorted order
+   output_art_metrics(client_ssl, client_fd, container->general_metrics, "general");
+   output_art_metrics(client_ssl, client_fd, container->server_metrics, "server");
+   output_art_metrics(client_ssl, client_fd, container->version_metrics, "version");
+   output_art_metrics(client_ssl, client_fd, container->uptime_metrics, "uptime");
+   output_art_metrics(client_ssl, client_fd, container->primary_metrics, "primary");
+   output_art_metrics(client_ssl, client_fd, container->core_metrics, "core");
+   output_art_metrics(client_ssl, client_fd, container->extension_metrics, "extension");
+   output_art_metrics(client_ssl, client_fd, container->extension_list_metrics, "extension_list");
+   output_art_metrics(client_ssl, client_fd, container->settings_metrics, "settings");
+   output_art_metrics(client_ssl, client_fd, container->custom_metrics, "custom");
 }
