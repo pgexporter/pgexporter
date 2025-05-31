@@ -28,9 +28,11 @@
 
 /* pgexporter */
 #include <pgexporter.h>
+#include <extension.h>
+#include <ext_query_alts.h>
 #include <internal.h>
 #include <logging.h>
-#include <query_alts.h>
+#include <pg_query_alts.h>
 #include <shmem.h>
 #include <utils.h>
 #include <yaml_configuration.h>
@@ -64,6 +66,9 @@ typedef struct yaml_query
    char version;
    yaml_column_t* columns;
    int n_columns;
+
+   // For extensions
+   char* version_str;
 } __attribute__ ((aligned (64))) yaml_query_t;
 
 // Metric's Value's Structure
@@ -83,6 +88,10 @@ typedef struct yaml_config
    yaml_metric_t* metrics;
    int n_metrics;
    char default_version;
+
+   // For extensions
+   bool is_extension;
+   char* extension_name;
 } __attribute__ ((aligned (64))) yaml_config_t;
 
 // Possible states of YAML parser (for additional check over libyaml's state)
@@ -138,6 +147,10 @@ static void free_yaml_columns(yaml_column_t** columns, size_t n_columns);
 
 // Extract the meaning of the `yaml_config` and load the metrics into `prometheus`
 static int semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t* yaml_config);
+
+// Extension helper functions
+static struct extension_metrics* search_or_add_extension(struct configuration* config, char* extension_name);
+static int semantics_extension_yaml(struct configuration* config, yaml_config_t* yaml_config);
 
 int
 pgexporter_read_metrics_configuration(void* shmem)
@@ -251,6 +264,7 @@ pgexporter_read_yaml_from_file_pointer(struct prometheus* prometheus, int promet
 {
    int ret = 0;
    yaml_config_t yaml_config;
+   struct configuration* config = (struct configuration*)shmem;
 
    memset(&yaml_config, 0, sizeof(yaml_config_t));
 
@@ -262,13 +276,28 @@ pgexporter_read_yaml_from_file_pointer(struct prometheus* prometheus, int promet
 
    *number_of_metrics += yaml_config.n_metrics;
 
-   if (semantics_yaml(prometheus, prometheus_idx, &yaml_config))
+   if (yaml_config.is_extension)
    {
-      ret = 1;
-      goto end;
+      if (semantics_extension_yaml(config, &yaml_config))
+      {
+         ret = 1;
+         goto end;
+      }
+   }
+   else
+   {
+      if (semantics_yaml(prometheus, prometheus_idx, &yaml_config))
+      {
+         ret = 1;
+         goto end;
+      }
    }
 
 end:
+   if (yaml_config.extension_name)
+   {
+      free(yaml_config.extension_name);
+   }
    free_yaml_config(&yaml_config);
 
    return ret;
@@ -418,7 +447,15 @@ parse_yaml(FILE* file, yaml_config_t* yaml_config)
 
             buf = strdup((char*) event.data.scalar.value);
 
-            if (!strcmp(buf, "version"))
+            if (!strcmp(buf, "extension"))
+            {
+               yaml_config->is_extension = true;
+               if (parse_string(&parser, &event, &state, &yaml_config->extension_name))
+               {
+                  goto error;
+               }
+            }
+            else if (!strcmp(buf, "version"))
             {
                if (parse_itoc(&parser, &event, &state, &yaml_config->default_version))
                {
@@ -565,6 +602,13 @@ parse_metrics(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
                   goto error;
                }
             }
+            else if (!strcmp(buf, "metric"))
+            {
+               if (parse_string(parser_ptr, event_ptr, state_ptr, &(*metrics)[*n_metrics].tag))
+               {
+                  goto error;
+               }
+            }
             else if (!strcmp(buf, "sort"))
             {
                if (parse_string(parser_ptr, event_ptr, state_ptr, &(*metrics)[*n_metrics].sort))
@@ -649,7 +693,7 @@ error:
 }
 
 static int
-parse_queries(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, yaml_config_t* yaml_config __attribute__((unused)), yaml_query_t** queries, int* n_queries)
+parse_queries(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, yaml_config_t* yaml_config, yaml_query_t** queries, int* n_queries)
 {
    yaml_event_delete(event_ptr);
 
@@ -713,9 +757,19 @@ parse_queries(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
             }
             else if (!strcmp(buf, "version"))
             {
-               if (parse_int(parser_ptr, event_ptr, state_ptr, (int*) &(*queries)[*n_queries].version))
+               if (yaml_config->is_extension)
                {
-                  goto error;
+                  if (parse_string(parser_ptr, event_ptr, state_ptr, &(*queries)[*n_queries].version_str))
+                  {
+                     goto error;
+                  }
+               }
+               else
+               {
+                  if (parse_int(parser_ptr, event_ptr, state_ptr, (int*) &(*queries)[*n_queries].version))
+                  {
+                     goto error;
+                  }
                }
             }
             else if (!strcmp(buf, "columns"))
@@ -1034,6 +1088,10 @@ free_yaml_queries(yaml_query_t** queries, size_t n_queries)
       {
          free((*queries)[i].query);
       }
+      if ((*queries)[i].version_str)
+      {
+         free((*queries)[i].version_str);
+      }
       if ((*queries)[i].columns)
       {
          free_yaml_columns(&(*queries)[i].columns, (*queries)[i].n_columns);
@@ -1139,50 +1197,50 @@ semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t*
       for (int j = 0; j < yaml_config->metrics[i].n_queries; j++)
       {
 
-         struct query_alts* new_query = NULL;
+         struct pg_query_alts* new_query = NULL;
          void* new_query_shmem = NULL;
 
-         pgexporter_create_shared_memory(sizeof(struct query_alts), HUGEPAGE_OFF, &new_query_shmem);
-         new_query = (struct query_alts*) new_query_shmem;
+         pgexporter_create_shared_memory(sizeof(struct pg_query_alts), HUGEPAGE_OFF, &new_query_shmem);
+         new_query = (struct pg_query_alts*) new_query_shmem;
 
-         new_query->n_columns = MIN(yaml_config->metrics[i].queries[j].n_columns, MAX_NUMBER_OF_COLUMNS);
+         new_query->node.n_columns = MIN(yaml_config->metrics[i].queries[j].n_columns, MAX_NUMBER_OF_COLUMNS);
 
-         memcpy(new_query->query, yaml_config->metrics[i].queries[j].query, MIN(MAX_QUERY_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].query)));
-         new_query->version = yaml_config->metrics[i].queries[j].version;
+         memcpy(new_query->node.query, yaml_config->metrics[i].queries[j].query, MIN(MAX_QUERY_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].query)));
+         new_query->pg_version = yaml_config->metrics[i].queries[j].version;
 
          // Columns
-         for (int k = 0; k < new_query->n_columns; k++)
+         for (int k = 0; k < new_query->node.n_columns; k++)
          {
 
             // Name
             if (yaml_config->metrics[i].queries[j].columns[k].name)
             {
-               memcpy(new_query->columns[k].name, yaml_config->metrics[i].queries[j].columns[k].name, MIN(MISC_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].columns[k].name)));
+               memcpy(new_query->node.columns[k].name, yaml_config->metrics[i].queries[j].columns[k].name, MIN(MISC_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].columns[k].name)));
             }
 
             // Description
             if (yaml_config->metrics[i].queries[j].columns[k].description)
             {
-               memcpy(new_query->columns[k].description, yaml_config->metrics[i].queries[j].columns[k].description, MIN(MISC_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].columns[k].description)));
+               memcpy(new_query->node.columns[k].description, yaml_config->metrics[i].queries[j].columns[k].description, MIN(MISC_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].columns[k].description)));
             }
 
             // Type
             if (!strcmp(yaml_config->metrics[i].queries[j].columns[k].type, "label"))
             {
-               new_query->columns[k].type = LABEL_TYPE;
+               new_query->node.columns[k].type = LABEL_TYPE;
             }
             else if (!strcmp(yaml_config->metrics[i].queries[j].columns[k].type, "counter"))
             {
-               new_query->columns[k].type = COUNTER_TYPE;
+               new_query->node.columns[k].type = COUNTER_TYPE;
             }
             else if (!strcmp(yaml_config->metrics[i].queries[j].columns[k].type, "gauge"))
             {
-               new_query->columns[k].type = GAUGE_TYPE;
+               new_query->node.columns[k].type = GAUGE_TYPE;
             }
             else if (!strcmp(yaml_config->metrics[i].queries[j].columns[k].type, "histogram"))
             {
-               new_query->columns[k].type = HISTOGRAM_TYPE;
-               new_query->is_histogram = true;
+               new_query->node.columns[k].type = HISTOGRAM_TYPE;
+               new_query->node.is_histogram = true;
             }
             else
             {
@@ -1195,11 +1253,171 @@ semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t*
 
          if (yaml_config->metrics[i].queries[j].version == 0)
          {
-            new_query->version = yaml_config->default_version;
+            new_query->pg_version = yaml_config->default_version;
          }
 
-         prom->root = pgexporter_insert_node_avl(prom->root, &new_query);
+         prom->pg_root = pgexporter_insert_pg_node_avl(prom->pg_root, &new_query);
       }
+   }
+
+   return 0;
+}
+
+static struct extension_metrics*
+search_or_add_extension(struct configuration* config, char* extension_name)
+{
+   for (int i = 0; i < config->number_of_extensions; i++)
+   {
+      if (!strcmp(config->extensions[i].extension_name, extension_name))
+      {
+         return &config->extensions[i];
+      }
+   }
+
+   if (config->number_of_extensions >= NUMBER_OF_EXTENSIONS)
+   {
+      pgexporter_log_error("Maximum number of extensions exceeded");
+      return NULL;
+   }
+
+   struct extension_metrics* ext = &config->extensions[config->number_of_extensions];
+   memcpy(ext->extension_name, extension_name, MIN(MISC_LENGTH - 1, strlen(extension_name)));
+   ext->number_of_metrics = 0;
+   config->number_of_extensions++;
+
+   return ext;
+}
+
+static int
+semantics_extension_yaml(struct configuration* config, yaml_config_t* yaml_config)
+{
+   struct extension_metrics* ext = search_or_add_extension(config, yaml_config->extension_name);
+   if (!ext)
+   {
+      return 1;
+   }
+
+   for (int i = 0; i < yaml_config->n_metrics; i++)
+   {
+      if (ext->number_of_metrics >= NUMBER_OF_METRICS)
+      {
+         pgexporter_log_error("Maximum metrics per extension exceeded for %s", yaml_config->extension_name);
+         return 1;
+      }
+
+      struct prometheus* prom = &ext->metrics[ext->number_of_metrics];
+
+      if (yaml_config->metrics[i].tag)
+      {
+         snprintf(prom->tag, MISC_LENGTH, "pgexporter_%s_%s",
+                  yaml_config->extension_name, yaml_config->metrics[i].tag);
+      }
+
+      if (yaml_config->metrics[i].collector)
+      {
+         memcpy(prom->collector, yaml_config->metrics[i].collector,
+                MIN(MAX_COLLECTOR_LENGTH - 1, strlen(yaml_config->metrics[i].collector)));
+      }
+      else
+      {
+         memcpy(prom->collector, yaml_config->extension_name,
+                MIN(MAX_COLLECTOR_LENGTH - 1, strlen(yaml_config->extension_name)));
+      }
+
+      if (!yaml_config->metrics[i].sort || !strcmp(yaml_config->metrics[i].sort, "name"))
+      {
+         prom->sort_type = SORT_NAME;
+      }
+      else if (!strcmp(yaml_config->metrics[i].sort, "data"))
+      {
+         prom->sort_type = SORT_DATA0;
+      }
+      else
+      {
+         pgexporter_log_error("pgexporter: unexpected sort_type %s", yaml_config->metrics[i].sort);
+         return 1;
+      }
+
+      if (!yaml_config->metrics[i].server || !strcmp(yaml_config->metrics[i].server, "both"))
+      {
+         prom->server_query_type = SERVER_QUERY_BOTH;
+      }
+      else if (!strcmp(yaml_config->metrics[i].server, "primary"))
+      {
+         prom->server_query_type = SERVER_QUERY_PRIMARY;
+      }
+      else if (!strcmp(yaml_config->metrics[i].server, "replica"))
+      {
+         prom->server_query_type = SERVER_QUERY_REPLICA;
+      }
+      else
+      {
+         pgexporter_log_error("pgexporter: unexpected server %s", yaml_config->metrics[i].server);
+         return 1;
+      }
+
+      for (int j = 0; j < yaml_config->metrics[i].n_queries; j++)
+      {
+         struct ext_query_alts* new_query = NULL;
+         void* new_query_shmem = NULL;
+
+         pgexporter_create_shared_memory(sizeof(struct ext_query_alts), HUGEPAGE_OFF, &new_query_shmem);
+         new_query = (struct ext_query_alts*) new_query_shmem;
+
+         new_query->node.n_columns = MIN(yaml_config->metrics[i].queries[j].n_columns, MAX_NUMBER_OF_COLUMNS);
+
+         memcpy(new_query->node.query, yaml_config->metrics[i].queries[j].query,
+                MIN(MAX_QUERY_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].query)));
+
+         if (pgexporter_parse_extension_version(yaml_config->metrics[i].queries[j].version_str, &new_query->ext_version))
+         {
+            pgexporter_log_error("Failed to parse extension version '%s'",
+                                 yaml_config->metrics[i].queries[j].version_str);
+            return 1;
+         }
+
+         for (int k = 0; k < new_query->node.n_columns; k++)
+         {
+            if (yaml_config->metrics[i].queries[j].columns[k].name)
+            {
+               memcpy(new_query->node.columns[k].name, yaml_config->metrics[i].queries[j].columns[k].name,
+                      MIN(MISC_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].columns[k].name)));
+            }
+
+            if (yaml_config->metrics[i].queries[j].columns[k].description)
+            {
+               memcpy(new_query->node.columns[k].description, yaml_config->metrics[i].queries[j].columns[k].description,
+                      MIN(MISC_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].columns[k].description)));
+            }
+
+            if (!strcmp(yaml_config->metrics[i].queries[j].columns[k].type, "label"))
+            {
+               new_query->node.columns[k].type = LABEL_TYPE;
+            }
+            else if (!strcmp(yaml_config->metrics[i].queries[j].columns[k].type, "counter"))
+            {
+               new_query->node.columns[k].type = COUNTER_TYPE;
+            }
+            else if (!strcmp(yaml_config->metrics[i].queries[j].columns[k].type, "gauge"))
+            {
+               new_query->node.columns[k].type = GAUGE_TYPE;
+            }
+            else if (!strcmp(yaml_config->metrics[i].queries[j].columns[k].type, "histogram"))
+            {
+               new_query->node.columns[k].type = HISTOGRAM_TYPE;
+               new_query->node.is_histogram = true;
+            }
+            else
+            {
+               pgexporter_log_error("pgexporter: unexpected type %s", yaml_config->metrics[i].queries[j].columns[k].type);
+               return 1;
+            }
+         }
+
+         prom->ext_root = pgexporter_insert_extension_node_avl(prom->ext_root, &new_query);
+      }
+
+      ext->number_of_metrics++;
    }
 
    return 0;

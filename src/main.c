@@ -32,6 +32,8 @@
 #include <cmd.h>
 #include <configuration.h>
 #include <connection.h>
+#include <extension.h>
+#include <ext_query_alts.h>
 #include <internal.h>
 #include <json.h>
 #include <logging.h>
@@ -39,8 +41,8 @@
 #include <memory.h>
 #include <network.h>
 #include <prometheus.h>
+#include <pg_query_alts.h>
 #include <queries.h>
-#include <query_alts.h>
 #include <remote.h>
 #include <security.h>
 #include <server.h>
@@ -376,6 +378,7 @@ main(int argc, char** argv)
    char* admins_path = NULL;
    char* yaml_path = NULL;
    char* json_path = NULL;
+   char* bin_path = NULL;
    char* collector = NULL;
    char collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];
    bool daemon = false;
@@ -751,6 +754,16 @@ main(int argc, char** argv)
       pgexporter_log_debug("Reading : %d metrics from path", config->number_of_metrics);
    }
 
+   /* Extension path */
+   if (pgexporter_setup_extensions_path(config, argv[0], &bin_path))
+   {
+      warnx("pgexporter: Failed to setup extensions path");
+   #ifdef HAVE_SYSTEMD
+      sd_notify(0, "STATUS=Failed to setup extensions path");
+   #endif
+      exit(1);
+   }
+
    if (daemon)
    {
       if (config->log_type == PGEXPORTER_LOGGING_TYPE_CONSOLE)
@@ -1041,6 +1054,15 @@ main(int argc, char** argv)
       }
    }
 
+   /* Extension metrics */
+   if (pgexporter_load_extension_yamls(config))
+   {
+      warnx("pgexporter: Failed to load extension YAMLs");
+   #ifdef HAVE_SYSTEMD
+      sd_notify(0, "STATUS=Failed to load extension YAMLs");
+   #endif
+      exit(1);
+   }
    while (keep_running)
    {
       ev_loop(main_loop, 0);
@@ -1090,7 +1112,8 @@ main(int argc, char** argv)
 
    pgexporter_stop_logging();
 
-   pgexporter_free_query_alts(config);
+   pgexporter_free_pg_query_alts(config);
+   pgexporter_free_extension_query_alts(config);
 
    pgexporter_destroy_shared_memory(shmem, shmem_size);
    pgexporter_destroy_shared_memory(prometheus_cache_shmem,

@@ -36,6 +36,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__mkdir} -p %{buildroot}%{_mandir}/man1
 %{__mkdir} -p %{buildroot}%{_mandir}/man5
 %{__mkdir} -p %{buildroot}%{_sysconfdir}/pgexporter
+%{__mkdir} -p %{buildroot}%{_datadir}/%{name}/extensions
 
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/LICENSE %{buildroot}%{_docdir}/%{name}/LICENSE
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/CODE_OF_CONDUCT.md %{buildroot}%{_docdir}/%{name}/CODE_OF_CONDUCT.md
@@ -49,7 +50,6 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/etc/pgexporter.service %{buildroot}%{_docdir}/%{name}/etc/pgexporter.service
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/shell_comp/pgexporter_comp.bash %{buildroot}%{_docdir}/%{name}/shell_comp/pgexporter_comp.bash
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/shell_comp/pgexporter_comp.zsh %{buildroot}%{_docdir}/%{name}/shell_comp/pgexporter_comp.zsh
-%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-12.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-12.yaml
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-13.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-13.yaml
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-14.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-14.yaml
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-15.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-15.yaml
@@ -63,6 +63,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/04_tls.md %{buildroot}%{_docdir}/%{name}/tutorial/04_tls.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/05_bridge.md %{buildroot}%{_docdir}/%{name}/tutorial/05_bridge.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/06_docker.md %{buildroot}%{_docdir}/%{name}/tutorial/06_docker.md
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/extensions/pg_stat_statements.yaml %{buildroot}%{_datadir}/%{name}/extensions/pg_stat_statements.yaml
 
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/etc/pgexporter.conf %{buildroot}%{_sysconfdir}/pgexporter/pgexporter.conf
 
@@ -98,7 +99,6 @@ cd %{buildroot}%{_libdir}/
 %{_docdir}/%{name}/etc/pgexporter.service
 %{_docdir}/%{name}/shell_comp/pgexporter_comp.bash
 %{_docdir}/%{name}/shell_comp/pgexporter_comp.zsh
-%{_docdir}/%{name}/yaml/postgresql-12.yaml
 %{_docdir}/%{name}/yaml/postgresql-13.yaml
 %{_docdir}/%{name}/yaml/postgresql-14.yaml
 %{_docdir}/%{name}/yaml/postgresql-15.yaml
@@ -112,6 +112,7 @@ cd %{buildroot}%{_libdir}/
 %{_docdir}/%{name}/tutorial/04_tls.md
 %{_docdir}/%{name}/tutorial/05_bridge.md
 %{_docdir}/%{name}/tutorial/06_docker.md
+%{_datadir}/%{name}/extensions/pg_stat_statements.yaml
 %{_mandir}/man1/pgexporter.1*
 %{_mandir}/man1/pgexporter-admin.1*
 %{_mandir}/man1/pgexporter-cli.1*

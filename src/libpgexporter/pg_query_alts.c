@@ -27,23 +27,23 @@
  */
 
 #include <pgexporter.h>
-#include <query_alts.h>
+#include <pg_query_alts.h>
 #include <shmem.h>
 
 // Get height of AVL Tree Node
-static int height(struct query_alts* A);
+static int height(struct pg_query_alts* A);
 
 // Get balance of AVL Tree Node
-static int get_node_balance(struct query_alts* A);
+static int get_node_balance(struct pg_query_alts* A);
 
 // Right rotate a node, and left child, such that left child is new root, and root is new right child
-static struct query_alts* node_right_rotate(struct query_alts* root);
+static struct pg_query_alts* node_right_rotate(struct pg_query_alts* root);
 
 // Right rotate a node, and right child, such that right child is new root, and root is new left child
-static struct query_alts* node_left_rotate(struct query_alts* root);
+static struct pg_query_alts* node_left_rotate(struct pg_query_alts* root);
 
 void
-pgexporter_copy_query_alts(struct query_alts** dst, struct query_alts* src)
+pgexporter_copy_pg_query_alts(struct pg_query_alts** dst, struct pg_query_alts* src)
 {
 
    if (!src)
@@ -53,35 +53,35 @@ pgexporter_copy_query_alts(struct query_alts** dst, struct query_alts* src)
 
    void* new_query_alt = NULL;
 
-   pgexporter_create_shared_memory(sizeof(struct query_alts), HUGEPAGE_OFF, &new_query_alt);
-   *dst = (struct query_alts*) new_query_alt;
+   pgexporter_create_shared_memory(sizeof(struct pg_query_alts), HUGEPAGE_OFF, &new_query_alt);
+   *dst = (struct pg_query_alts*) new_query_alt;
 
    (*dst)->height = src->height;
-   (*dst)->is_histogram = src->is_histogram;
-   (*dst)->n_columns = src->n_columns;
-   (*dst)->version = src->version;
+   (*dst)->node.is_histogram = src->node.is_histogram;
+   (*dst)->node.n_columns = src->node.n_columns;
+   (*dst)->pg_version = src->pg_version;
 
-   memcpy((*dst)->query, src->query, MAX_QUERY_LENGTH);
-   memcpy((*dst)->columns, src->columns, MAX_NUMBER_OF_COLUMNS * sizeof(struct column));
+   memcpy((*dst)->node.query, src->node.query, MAX_QUERY_LENGTH);
+   memcpy((*dst)->node.columns, src->node.columns, MAX_NUMBER_OF_COLUMNS * sizeof(struct column));
 
-   pgexporter_copy_query_alts(&(*dst)->left, src->left);
-   pgexporter_copy_query_alts(&(*dst)->right, src->right);
+   pgexporter_copy_pg_query_alts(&(*dst)->left, src->left);
+   pgexporter_copy_pg_query_alts(&(*dst)->right, src->right);
 }
 
 static int
-height(struct query_alts* A)
+height(struct pg_query_alts* A)
 {
    return A ? A->height : 0;
 }
 
 static int
-get_node_balance(struct query_alts* A)
+get_node_balance(struct pg_query_alts* A)
 {
    return A ? height(A->left) - height(A->right) : 0;
 }
 
-static struct query_alts*
-node_right_rotate(struct query_alts* root)
+static struct pg_query_alts*
+node_right_rotate(struct pg_query_alts* root)
 {
 
    if (!root || !root->left)
@@ -89,7 +89,7 @@ node_right_rotate(struct query_alts* root)
       return root;
    }
 
-   struct query_alts* A, * B;
+   struct pg_query_alts* A, * B;
 
    A = root, B = root->left;
 
@@ -102,8 +102,8 @@ node_right_rotate(struct query_alts* root)
    return B;
 }
 
-static struct query_alts*
-node_left_rotate(struct query_alts* root)
+static struct pg_query_alts*
+node_left_rotate(struct pg_query_alts* root)
 {
 
    if (!root || !root->right)
@@ -111,7 +111,7 @@ node_left_rotate(struct query_alts* root)
       return root;
    }
 
-   struct query_alts* A, * B;
+   struct pg_query_alts* A, * B;
 
    A = root, B = root->right;
 
@@ -124,26 +124,26 @@ node_left_rotate(struct query_alts* root)
    return B;
 }
 
-struct query_alts*
-pgexporter_insert_node_avl(struct query_alts* root, struct query_alts** new_node)
+struct pg_query_alts*
+pgexporter_insert_pg_node_avl(struct pg_query_alts* root, struct pg_query_alts** new_node)
 {
    if (!root)
    {
       return (*new_node);
    }
-   else if (root->version == (*new_node)->version)
+   else if (root->pg_version == (*new_node)->pg_version)
    {
       // Free New Node, as no need to insert it
-      pgexporter_free_node_avl(new_node);
+      pgexporter_free_pg_node_avl(new_node);
       return root;
    }
-   else if (root->version > (*new_node)->version)
+   else if (root->pg_version > (*new_node)->pg_version)
    {
-      root->left = pgexporter_insert_node_avl(root->left, new_node);
+      root->left = pgexporter_insert_pg_node_avl(root->left, new_node);
    }
    else
    {
-      root->right = pgexporter_insert_node_avl(root->right, new_node);
+      root->right = pgexporter_insert_pg_node_avl(root->right, new_node);
    }
 
    root->height = MAX(height(root->left), height(root->right)) + 1;
@@ -175,12 +175,12 @@ pgexporter_insert_node_avl(struct query_alts* root, struct query_alts** new_node
    return root;
 }
 
-struct query_alts*
-pgexporter_get_query_alt(struct query_alts* root, int server)
+struct pg_query_alts*
+pgexporter_get_pg_query_alt(struct pg_query_alts* root, int server)
 {
    struct configuration* config = NULL;
-   struct query_alts* temp = root;
-   struct query_alts* last = NULL;
+   struct pg_query_alts* temp = root;
+   struct pg_query_alts* last = NULL;
    int ver;
 
    config = (struct configuration*)shmem;
@@ -189,13 +189,13 @@ pgexporter_get_query_alt(struct query_alts* root, int server)
    // Traversing the AVL tree
    while (temp)
    {
-      if (temp->version <= ver &&
-          (!last || temp->version > last->version))
+      if (temp->pg_version <= ver &&
+          (!last || temp->pg_version > last->pg_version))
       {
          last = temp;
       }
 
-      if (temp->version > ver)
+      if (temp->pg_version > ver)
       {
          temp = temp->left;
       }
@@ -205,7 +205,7 @@ pgexporter_get_query_alt(struct query_alts* root, int server)
       }
    }
 
-   if (!last || last->version > ver)
+   if (!last || last->pg_version > ver)
    {
       return NULL;
    }
@@ -217,16 +217,16 @@ pgexporter_get_query_alt(struct query_alts* root, int server)
 }
 
 void
-pgexporter_free_query_alts(struct configuration* config)
+pgexporter_free_pg_query_alts(struct configuration* config)
 {
    for (int i = 0; i < config->number_of_metrics; i++)
    {
-      pgexporter_free_node_avl(&config->prometheus[i].root);
+      pgexporter_free_pg_node_avl(&config->prometheus[i].pg_root);
    }
 }
 
 void
-pgexporter_free_node_avl(struct query_alts** root)
+pgexporter_free_pg_node_avl(struct pg_query_alts** root)
 {
 
    if (!root || !(*root))
@@ -234,8 +234,8 @@ pgexporter_free_node_avl(struct query_alts** root)
       return;
    }
 
-   pgexporter_free_node_avl(&(*root)->left);
-   pgexporter_free_node_avl(&(*root)->right);
+   pgexporter_free_pg_node_avl(&(*root)->left);
+   pgexporter_free_pg_node_avl(&(*root)->right);
 
-   pgexporter_destroy_shared_memory(&root, sizeof(struct query_alts*));
+   pgexporter_destroy_shared_memory(&root, sizeof(struct pg_query_alts*));
 }

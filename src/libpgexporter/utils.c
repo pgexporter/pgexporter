@@ -384,7 +384,6 @@ pgexporter_read_int64(void* data)
    }
 }
 
-
 void
 pgexporter_write_byte(void* data, signed char b)
 {
@@ -410,7 +409,6 @@ pgexporter_write_uint16(void* data, uint16_t i)
    uint16_t n = htons(i);
    memcpy(data, &n, sizeof(n));
 }
-
 
 void
 pgexporter_write_int32(void* data, int32_t i)

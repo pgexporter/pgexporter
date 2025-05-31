@@ -31,11 +31,12 @@
 #include <aes.h>
 #include <bridge.h>
 #include <configuration.h>
+#include <ext_query_alts.h>
 #include <logging.h>
 #include <management.h>
 #include <network.h>
+#include <pg_query_alts.h>
 #include <prometheus.h>
-#include <query_alts.h>
 #include <security.h>
 #include <shmem.h>
 #include <utils.h>
@@ -1530,8 +1531,9 @@ pgexporter_reload_configuration(bool* r)
    /* Free Old Query Alts AVL Tree */
    for (int i = 0; reload != NULL && i < reload->number_of_metrics; i++)
    {
-      pgexporter_free_query_alts(reload);
+      pgexporter_free_pg_query_alts(reload);
    }
+   pgexporter_free_extension_query_alts(reload);
 
    pgexporter_destroy_shared_memory((void*)reload, reload_size);
 
@@ -1544,8 +1546,9 @@ error:
    /* Free Old Query Alts AVL Tree */
    for (int i = 0; reload != NULL && i < reload->number_of_metrics; i++)
    {
-      pgexporter_free_query_alts(reload);
+      pgexporter_free_pg_query_alts(reload);
    }
+   pgexporter_free_extension_query_alts(reload);
 
    pgexporter_destroy_shared_memory((void*)reload, reload_size);
 
@@ -3371,7 +3374,8 @@ copy_promethus(struct prometheus* dst, struct prometheus* src)
    dst->sort_type = src->sort_type;
    dst->server_query_type = src->server_query_type;
 
-   pgexporter_copy_query_alts(&dst->root, src->root);
+   pgexporter_copy_pg_query_alts(&dst->pg_root, src->pg_root);
+   pgexporter_copy_extension_query_alts(src->ext_root, &dst->ext_root);
 }
 
 static void

@@ -168,3 +168,4 @@ file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/")
 
 add_subdirectory(doc)
 add_subdirectory(src)
+add_subdirectory(extensions)

@@ -30,6 +30,7 @@
 #include <pgexporter.h>
 #include <connection.h>
 #include <deque.h>
+#include <extension.h>
 #include <logging.h>
 #include <message.h>
 #include <network.h>
@@ -934,17 +935,24 @@ pgexporter_detect_extensions(int server)
               MISC_LENGTH - 1);
       config->servers[server].extensions[extension_idx].name[MISC_LENGTH - 1] = '\0';
 
-      strncpy(config->servers[server].extensions[extension_idx].installed_version,
-              pgexporter_get_column(1, current),
-              MISC_LENGTH - 1);
-      config->servers[server].extensions[extension_idx].installed_version[MISC_LENGTH - 1] = '\0';
+      if (pgexporter_parse_extension_version(pgexporter_get_column(1, current),
+                                             &config->servers[server].extensions[extension_idx].installed_version))
+      {
+         pgexporter_log_warn("Failed to parse extension version '%s' for %s on server %s",
+                             pgexporter_get_column(1, current),
+                             config->servers[server].extensions[extension_idx].name,
+                             config->servers[server].name);
+         config->servers[server].extensions[extension_idx].enabled = false;
+      }
+      else
+      {
+         config->servers[server].extensions[extension_idx].enabled = true;
+      }
 
       strncpy(config->servers[server].extensions[extension_idx].comment,
               pgexporter_get_column(2, current),
               MISC_LENGTH - 1);
       config->servers[server].extensions[extension_idx].comment[MISC_LENGTH - 1] = '\0';
-
-      config->servers[server].extensions[extension_idx].enabled = true;
 
       config->servers[server].number_of_extensions++;
       current = current->next;
@@ -953,9 +961,11 @@ pgexporter_detect_extensions(int server)
    pgexporter_log_debug("Server %s: Detected extensions:", config->servers[server].name);
    for (int i = 0; i < config->servers[server].number_of_extensions; i++)
    {
-      pgexporter_log_debug("  - %s (version %s) - %s",
+      pgexporter_log_debug("  - %s (version %d.%d.%d) - %s",
                            config->servers[server].extensions[i].name,
-                           config->servers[server].extensions[i].installed_version,
+                           config->servers[server].extensions[i].installed_version.major,
+                           config->servers[server].extensions[i].installed_version.minor,
+                           config->servers[server].extensions[i].installed_version.patch,
                            config->servers[server].extensions[i].comment);
    }
 

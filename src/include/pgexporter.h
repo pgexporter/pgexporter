@@ -88,6 +88,11 @@ extern "C" {
 #define HUGEPAGE_TRY 1
 #define HUGEPAGE_ON  2
 
+#define VERSION_GREATER  1
+#define VERSION_EQUAL    0
+#define VERSION_LESS    -1
+#define VERSION_ERROR   -2
+
 #define MAX_QUERY_LENGTH      2048
 #define MAX_COLLECTOR_LENGTH  1024
 
@@ -214,16 +219,27 @@ extern void* bridge_cache_shmem;
  */
 extern void* bridge_json_cache_shmem;
 
+/**
+ * @struct version
+ * Semantic version structure for extensions (major.minor.patch format)
+ */
+struct version
+{
+   int major;     /**< Major version number */
+   int minor;     /**< Minor version number (-1 if not specified) */
+   int patch;     /**< Patch version number (-1 if not specified) */
+} __attribute__ ((aligned (64)));
+
 /** @struct extension_info
  * Defines information about a PostgreSQL extension
  */
 struct extension_info
 {
    char name[MISC_LENGTH];              /**< The extension name */
-   char installed_version[MISC_LENGTH]; /**< The installed version */
    char comment[MISC_LENGTH];           /**< The extension description/comment */
    int server;                          /**< The server index */
    bool enabled;                        /**< Is extension enabled */
+   struct version installed_version;    /**< The installed version */
 } __attribute__ ((aligned (64)));
 
 /** @struct server
@@ -292,35 +308,6 @@ struct column
    char description[MISC_LENGTH];   /**< Description of column */
 } __attribute__ ((aligned (64)));
 
-/**
- * @struct query_alts
- * A node in an AVL tree. This structure holds information about a query
- * alternative.
- *
- * Query Alternatives are alternative versions of queries with a PostgreSQL
- * version attached that will support the entire query. Ideally it should be the
- * **minimum** version that supports the entire query, but it can be any version
- * that supports the entire query.
- *
- * A query alternative node with version 'v' is chosen to provide the query if
- * the requesting server with version 'u' if 'u' >= 'v' and there doesn't exist
- * another node in the same AVL tree with a version 'w' where 'u' >= 'w'.
- */
-struct query_alts
-{
-   char version;                                   /**< Minimum required version to run query */
-   char query[MAX_QUERY_LENGTH];                   /**< Query String */
-   struct column columns[MAX_NUMBER_OF_COLUMNS];   /**< Columns of query */
-   int n_columns;                                  /**< No. of columns */
-   bool is_histogram;                              /**< Is the query for a histogram metric */
-
-   /* AVL Tree */
-   unsigned int height;       /**< Node's height, 1 if leaf, 0 if NULL */
-   struct query_alts* left;   /**< Left child node */
-   struct query_alts* right;  /**< Right child node */
-
-} __attribute__ ((aligned (64)));
-
 /** @struct prometheus
  * Defines the Prometheus metrics
  */
@@ -330,7 +317,18 @@ struct prometheus
    int sort_type;                                  /**< Sorting type of multi queries 0--SORT_NAME 1--SORT_DATA0 */
    int server_query_type;                          /**< Query type 0--SERVER_QUERY_BOTH 1--SERVER_QUERY_PRIMARY 2--SERVER_QUERY_REPLICA */
    char collector[MAX_COLLECTOR_LENGTH];           /**< Collector Tag for query */
-   struct query_alts* root;                        /**< Root of the Query Alternatives' AVL Tree */
+   struct pg_query_alts* pg_root;                  /**< Root of the Query Alternatives' AVL Tree for PostgreSQL core queries*/
+   struct ext_query_alts* ext_root;                /**< Root of the Query Alternatives' AVL Tree for PostgreSQL extension queries*/
+} __attribute__ ((aligned (64)));
+
+/** @struct extension_metrics
+ * Metrics for a single extension
+ */
+struct extension_metrics
+{
+   char extension_name[MISC_LENGTH];                            /**< Extension name (e.g., "pg_stat_statements") */
+   int number_of_metrics;                                       /**< Number of metrics for this extension */
+   struct prometheus metrics[NUMBER_OF_METRICS];                /**< The actual metrics for this extension */
 } __attribute__ ((aligned (64)));
 
 /** @struct endpoint
@@ -350,6 +348,7 @@ struct configuration
    char configuration_path[MAX_PATH]; /**< The configuration path */
    char users_path[MAX_PATH];         /**< The users path */
    char admins_path[MAX_PATH];        /**< The admins path */
+   char extensions_path[MAX_PATH];    /**< The extensions path, containing metric files */
 
    char host[MISC_LENGTH];        /**< The host */
    int metrics;                   /**< The metrics port */
@@ -404,6 +403,7 @@ struct configuration
    int number_of_metrics;        /**< The number of metrics*/
    int number_of_collectors;     /**< Number of total collectors */
    int number_of_endpoints;      /**< The number of endpoints */
+   int number_of_extensions;     /**< Number of loaded extensions */
 
    char metrics_path[MAX_PATH]; /**< The metrics path */
 
@@ -418,6 +418,7 @@ struct configuration
    struct user admins[NUMBER_OF_ADMINS];                        /**< The admins */
    struct prometheus prometheus[NUMBER_OF_METRICS];             /**< The Prometheus metrics */
    struct endpoint endpoints[NUMBER_OF_ENDPOINTS];              /**< The Prometheus metrics */
+   struct extension_metrics extensions[NUMBER_OF_EXTENSIONS];   /**< Extension metrics by extension */
 } __attribute__((aligned(64)));
 
 #ifdef __cplusplus

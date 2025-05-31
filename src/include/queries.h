@@ -61,6 +61,29 @@ struct query
 } __attribute__ ((aligned (64)));
 
 /**
+ * @struct query_alts_base
+ * Base structure containing common fields for query alternatives.
+ * Shared by both PostgreSQL and extension query types.
+ *
+ * Query Alternatives are alternative versions of queries with a PostgreSQL
+ * version attached that will support the entire query. Ideally it should be the
+ * **minimum** version that supports the entire query, but it can be any version
+ * that supports the entire query.
+ *
+ * A query alternative node with version 'v' is chosen to provide the query if
+ * the requesting server with version 'u' if 'u' >= 'v' and there doesn't exist
+ * another node in the same AVL tree with a version 'w' where 'u' >= 'w'.
+ */
+struct query_alts_base
+{
+   char query[MAX_QUERY_LENGTH];                   /**< Query String */
+   struct column columns[MAX_NUMBER_OF_COLUMNS];   /**< Columns of query */
+   int n_columns;                                  /**< No. of columns */
+   bool is_histogram;                              /**< Is the query for a histogram metric */
+
+} __attribute__ ((aligned (64)));
+
+/**
  * Open database connections
  */
 void

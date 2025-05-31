@@ -30,7 +30,7 @@
 #include <pgexporter.h>
 #include <internal.h>
 #include <logging.h>
-#include <query_alts.h>
+#include <pg_query_alts.h>
 #include <shmem.h>
 #include <utils.h>
 #include <json_configuration.h>
@@ -614,49 +614,49 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
       // Queries
       for (int j = 0; j < json_config->metrics[i].n_queries; j++)
       {
-         struct query_alts* new_query = NULL;
+         struct pg_query_alts* new_query = NULL;
          void* new_query_shmem = NULL;
 
-         pgexporter_create_shared_memory(sizeof(struct query_alts), HUGEPAGE_OFF, &new_query_shmem);
-         new_query = (struct query_alts*) new_query_shmem;
+         pgexporter_create_shared_memory(sizeof(struct pg_query_alts), HUGEPAGE_OFF, &new_query_shmem);
+         new_query = (struct pg_query_alts*) new_query_shmem;
 
-         new_query->n_columns = MIN(json_config->metrics[i].queries[j].n_columns, MAX_NUMBER_OF_COLUMNS);
+         new_query->node.n_columns = MIN(json_config->metrics[i].queries[j].n_columns, MAX_NUMBER_OF_COLUMNS);
 
-         memcpy(new_query->query, json_config->metrics[i].queries[j].query, MIN(MAX_QUERY_LENGTH - 1, strlen(json_config->metrics[i].queries[j].query)));
-         new_query->version = json_config->metrics[i].queries[j].version;
+         memcpy(new_query->node.query, json_config->metrics[i].queries[j].query, MIN(MAX_QUERY_LENGTH - 1, strlen(json_config->metrics[i].queries[j].query)));
+         new_query->pg_version = json_config->metrics[i].queries[j].version;
 
          // Columns
-         for (int k = 0; k < new_query->n_columns; k++)
+         for (int k = 0; k < new_query->node.n_columns; k++)
          {
             // Name
             if (json_config->metrics[i].queries[j].columns[k].name)
             {
-               memcpy(new_query->columns[k].name, json_config->metrics[i].queries[j].columns[k].name, MIN(MISC_LENGTH - 1, strlen(json_config->metrics[i].queries[j].columns[k].name)));
+               memcpy(new_query->node.columns[k].name, json_config->metrics[i].queries[j].columns[k].name, MIN(MISC_LENGTH - 1, strlen(json_config->metrics[i].queries[j].columns[k].name)));
             }
 
             // Description
             if (json_config->metrics[i].queries[j].columns[k].description)
             {
-               memcpy(new_query->columns[k].description, json_config->metrics[i].queries[j].columns[k].description, MIN(MISC_LENGTH - 1, strlen(json_config->metrics[i].queries[j].columns[k].description)));
+               memcpy(new_query->node.columns[k].description, json_config->metrics[i].queries[j].columns[k].description, MIN(MISC_LENGTH - 1, strlen(json_config->metrics[i].queries[j].columns[k].description)));
             }
 
             // Type
             if (!strcmp(json_config->metrics[i].queries[j].columns[k].type, "label"))
             {
-               new_query->columns[k].type = LABEL_TYPE;
+               new_query->node.columns[k].type = LABEL_TYPE;
             }
             else if (!strcmp(json_config->metrics[i].queries[j].columns[k].type, "counter"))
             {
-               new_query->columns[k].type = COUNTER_TYPE;
+               new_query->node.columns[k].type = COUNTER_TYPE;
             }
             else if (!strcmp(json_config->metrics[i].queries[j].columns[k].type, "gauge"))
             {
-               new_query->columns[k].type = GAUGE_TYPE;
+               new_query->node.columns[k].type = GAUGE_TYPE;
             }
             else if (!strcmp(json_config->metrics[i].queries[j].columns[k].type, "histogram"))
             {
-               new_query->columns[k].type = HISTOGRAM_TYPE;
-               new_query->is_histogram = true;
+               new_query->node.columns[k].type = HISTOGRAM_TYPE;
+               new_query->node.is_histogram = true;
             }
             else
             {
@@ -667,10 +667,10 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
 
          if (json_config->metrics[i].queries[j].version == 0)
          {
-            new_query->version = json_config->default_version;
+            new_query->pg_version = json_config->default_version;
          }
 
-         prom->root = pgexporter_insert_node_avl(prom->root, &new_query);
+         prom->pg_root = pgexporter_insert_pg_node_avl(prom->pg_root, &new_query);
       }
    }
 
