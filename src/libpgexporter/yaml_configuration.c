@@ -1309,7 +1309,7 @@ semantics_extension_yaml(struct configuration* config, yaml_config_t* yaml_confi
 
       if (yaml_config->metrics[i].tag)
       {
-         snprintf(prom->tag, MISC_LENGTH, "pgexporter_%s_%s",
+         snprintf(prom->tag, MISC_LENGTH, "%s_%s",
                   yaml_config->extension_name, yaml_config->metrics[i].tag);
       }
 
