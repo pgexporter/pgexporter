@@ -676,6 +676,9 @@ password:
    {
       if ((unsigned char)(*(password + i)) & 0x80)
       {
+         warnx("Illegal character(s) in password");
+         free(password);
+         password = NULL;
          goto password;
       }
    }
@@ -694,7 +697,10 @@ password:
       printf("\n");
 
       if (strlen(password) != strlen(verify) || memcmp(password, verify, strlen(password)) != 0)
-      {
+      {  
+         free(password);
+         password = NULL;
+         warnx("Passwords do not match");
          goto password;
       }
    }
@@ -911,6 +917,9 @@ password:
          {
             if ((unsigned char)(*(password + i)) & 0x80)
             {
+               free(password);
+               password = NULL;
+               warnx("Illegal character(s) in password");
                goto password;
             }
          }
@@ -930,6 +939,9 @@ password:
 
             if (strlen(password) != strlen(verify) || memcmp(password, verify, strlen(password)) != 0)
             {
+               free(password);
+               password = NULL;
+               warnx("Passwords do not match");
                goto password;
             }
          }
