@@ -1105,6 +1105,8 @@ main(int argc, char** argv)
    free(bridge_json_fds);
    free(management_fds);
 
+   free(bin_path);
+
    remove_pidfile();
    remove_lockfile(config->metrics);
    remove_lockfile(config->bridge);

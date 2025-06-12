@@ -147,7 +147,13 @@ pgexporter_prometheus_client_get(int endpoint, struct prometheus_bridge* bridge)
       goto error;
    }
 
-   pgexporter_http_disconnect(http);
+   if (pgexporter_http_disconnect(http))
+   {
+      pgexporter_log_error("Failed to disconnect HTTP");
+      goto error;
+   }
+
+   pgexporter_http_destroy(http);
 
    return 0;
 
@@ -156,6 +162,7 @@ error:
    if (http != NULL)
    {
       pgexporter_http_disconnect(http);
+      pgexporter_http_destroy(http);
    }
 
    return 1;

@@ -894,7 +894,25 @@ pgexporter_http_disconnect(struct http* http)
          }
          http->socket = -1;
       }
+   }
 
+   if (status != 0)
+   {
+      goto error;
+   }
+
+   return 0;
+
+error:
+   return 1;
+}
+
+int
+pgexporter_http_destroy(struct http* http)
+{
+
+   if (http != NULL)
+   {
       if (http->headers != NULL)
       {
          free(http->headers);
@@ -912,15 +930,8 @@ pgexporter_http_disconnect(struct http* http)
          free(http->request_headers);
          http->request_headers = NULL;
       }
-   }
-
-   if (status != 0)
-   {
-      goto error;
+      free(http);
    }
 
    return 0;
-
-error:
-   return 1;
 }

@@ -126,7 +126,8 @@ pgexporter_parse_extension_version(char* version_str, struct version* version)
 
    if (!version_str || !version)
    {
-      return 1;
+      pgexporter_log_error("Invalid parameters for version parsing");
+      goto error;
    }
 
    version->major = -1;
@@ -136,7 +137,8 @@ pgexporter_parse_extension_version(char* version_str, struct version* version)
    str_copy = strdup(version_str);
    if (!str_copy)
    {
-      return 1;
+      pgexporter_log_error("Failed to allocate memory for version string copy");
+      goto error;
    }
 
    token = strtok_r(str_copy, ".", &saveptr);
@@ -166,10 +168,16 @@ pgexporter_parse_extension_version(char* version_str, struct version* version)
    // Must have at least major version
    if (version->major == -1)
    {
-      return 1;
+      pgexporter_log_error("No major version found in version string");
+      goto error;
    }
 
    return 0;
+
+error:
+   free(str_copy);
+
+   return 1;
 }
 
 int
@@ -224,7 +232,8 @@ pgexporter_version_to_string(struct version* version, char* buffer, size_t buffe
 {
    if (!version || !buffer || buffer_size == 0)
    {
-      return 1;
+      pgexporter_log_error("Invalid parameters for version to string conversion");
+      goto error;
    }
 
    int major = (version->major == -1) ? 0 : version->major;
@@ -251,10 +260,14 @@ pgexporter_version_to_string(struct version* version, char* buffer, size_t buffe
 
    if (result >= buffer_size)
    {
-      return 1;
+      pgexporter_log_error("Buffer too small for version string");
+      goto error;
    }
 
    return 0;
+
+error:
+   return 1;
 }
 
 int
@@ -263,7 +276,7 @@ pgexporter_load_extension_yamls(struct configuration* config)
    if (!config)
    {
       pgexporter_log_debug("Invalid configuration for extension YAML loading");
-      return 1;
+      goto error;
    }
 
    pgexporter_log_debug("Loading extension YAMLs for %d servers", config->number_of_servers);
@@ -305,6 +318,9 @@ pgexporter_load_extension_yamls(struct configuration* config)
    }
 
    return 0;
+
+error:
+   return 1;
 }
 
 int

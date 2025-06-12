@@ -740,7 +740,10 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
    return 0;
 
 error:
-
+   if (q != NULL)
+   {
+      pgexporter_free_query(q);
+   }
    pgexporter_clear_message();
    pgexporter_free_message(tmsg);
    free(content);
@@ -914,7 +917,7 @@ pgexporter_detect_extensions(int server)
    if (ret != 0)
    {
       pgexporter_log_warn("Failed to detect extensions for server %s", config->servers[server].name);
-      return 1;
+      goto error;
    }
 
    current = query->tuples;
@@ -924,8 +927,7 @@ pgexporter_detect_extensions(int server)
       {
          pgexporter_log_warn("Maximum number of extensions reached for server %s (%d)",
                              config->servers[server].name, NUMBER_OF_EXTENSIONS);
-         pgexporter_free_query(query);
-         return 1;
+         goto error;
       }
 
       extension_idx = config->servers[server].number_of_extensions;
@@ -971,4 +973,8 @@ pgexporter_detect_extensions(int server)
 
    pgexporter_free_query(query);
    return 0;
+
+error:
+   pgexporter_free_query(query);
+   return 1;
 }
