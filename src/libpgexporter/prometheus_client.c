@@ -753,7 +753,7 @@ add_line(struct prometheus_metric* metric, char* line, int endpoint, time_t time
             goto error;
          }
       }
-      else if (*saveptr == '\0')
+      else if (saveptr == NULL || (saveptr != NULL && *saveptr == '\0'))
       {
          /* Final token. */
          line_value = strdup(token);
