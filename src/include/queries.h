@@ -36,7 +36,6 @@ extern "C" {
 #include <pgexporter.h>
 
 #include <stdbool.h>
-#include <stdlib.h>
 
 /** @struct tuple
  * Defines a tuple
@@ -308,6 +307,14 @@ pgexporter_query_debug(struct query* query);
  */
 char*
 pgexporter_get_column_by_name(char* name, struct query* query, struct tuple* tuple);
+
+/**
+ * Change connection to a database
+ * @param server Server
+ * @param database Database name (default: postgres)
+ */
+int
+pgexporter_switch_db(int server, char* database);
 
 #ifdef __cplusplus
 }
