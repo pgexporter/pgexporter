@@ -585,10 +585,10 @@ extern "C" {
         "          name: success_time_elapsed_ms\n" \
         "          description: Milliseconds since successful archived WAL file.\n" \
         "        - type: counter\n" \
-        "          name: archived_count\n" \
+        "          name: failed_count\n" \
         "          description: Number of failed archival operation on WAL files.\n" \
         "        - type: counter\n" \
-        "          name: archived_count\n" \
+        "          name: failure_time_elapsed_ms\n" \
         "          description: Milliseconds since last failed archival operation on WAL files.\n" \
         "    tag: pg_stat_archiver\n" \
         "    sort: data\n" \

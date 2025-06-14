@@ -533,10 +533,10 @@ metrics:
           name: success_time_elapsed_ms
           description: Milliseconds since successful archived WAL file.
         - type: counter
-          name: archived_count
+          name: failed_count
           description: Number of failed archival operation on WAL files.
         - type: counter
-          name: archived_count
+          name: failure_time_elapsed_ms
           description: Milliseconds since last failed archival operation on WAL files.
     tag: pg_stat_archiver
     sort: data
