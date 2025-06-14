@@ -64,6 +64,7 @@ extern "C" {
 
 #define MAX_PATH             1024
 #define MISC_LENGTH           128
+#define DB_NAME_LENGTH         64
 #define NUMBER_OF_SERVERS      64
 #define NUMBER_OF_USERS        64
 #define NUMBER_OF_ADMINS        8
@@ -71,6 +72,7 @@ extern "C" {
 #define NUMBER_OF_COLLECTORS  256
 #define NUMBER_OF_ENDPOINTS    32
 #define NUMBER_OF_EXTENSIONS   64
+#define NUMBER_OF_DATABASES    64
 
 #define STATE_FREE        0
 #define STATE_IN_USE      1
@@ -260,10 +262,12 @@ struct server
    int state;                                                   /**< The state of the server */
    int version;                                                 /**< The major version of the server*/
    int minor_version;                                           /**< The minor version of the server*/
+   int number_of_databases;                                     /**< The number of databases */
    int number_of_extensions;                                    /**< The number of extensions */
    char tls_cert_file[MAX_PATH];                                /**< TLS certificate path */
    char tls_key_file[MAX_PATH];                                 /**< TLS key path */
    char tls_ca_file[MAX_PATH];                                  /**< TLS CA certificate path */
+   char databases[NUMBER_OF_EXTENSIONS][DB_NAME_LENGTH];        /**< Databases in the server */
    struct extension_info extensions[NUMBER_OF_EXTENSIONS];      /**< The extensions */
 } __attribute__ ((aligned (64)));
 
@@ -316,6 +320,7 @@ struct prometheus
    char tag[MISC_LENGTH];                          /**< The metric name */
    int sort_type;                                  /**< Sorting type of multi queries 0--SORT_NAME 1--SORT_DATA0 */
    int server_query_type;                          /**< Query type 0--SERVER_QUERY_BOTH 1--SERVER_QUERY_PRIMARY 2--SERVER_QUERY_REPLICA */
+   bool exec_on_all_dbs;                           /**< Execute on all databases */
    char collector[MAX_COLLECTOR_LENGTH];           /**< Collector Tag for query */
    struct pg_query_alts* pg_root;                  /**< Root of the Query Alternatives' AVL Tree for PostgreSQL core queries*/
    struct ext_query_alts* ext_root;                /**< Root of the Query Alternatives' AVL Tree for PostgreSQL extension queries*/
