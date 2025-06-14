@@ -1311,7 +1311,7 @@
           "version": 10
         },
         {
-          "query": "SELECT SUM(idx_scan) AS idx_scans, SUM(idx_tup_read) AS idx_tup_reads, SUM(idx_tup_fetch) AS idx_tup_fetchs, COALESCE(MIN((EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_idx_scan)) * 1000)::bigint), 0) AS time_elapsed_ms, relname FROM pg_stat_all_indexes GROUP BY relname;",
+          "query": "SELECT SUM(idx_scan) AS idx_scans, SUM(idx_tup_read) AS idx_tup_reads, SUM(idx_tup_fetch) AS idx_tup_fetchs, COALESCE(MIN((EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_idx_scan)) * 1000)::bigint), 0) AS time_elapsed_ms, relname FROM pg_stat_all_indexes WHERE (current_database() = 'postgres' OR schemaname NOT LIKE 'pg_%') GROUP BY relname;",
           "columns": [
             {
               "type": "counter",
@@ -1342,7 +1342,8 @@
       ],
       "tag": "pg_stat_all_indexes",
       "sort": "data",
-      "collector": "stat_all_indexes"
+      "collector": "stat_all_indexes",
+      "database": "all"
     }
   ]
 }

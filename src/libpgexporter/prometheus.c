@@ -76,6 +76,7 @@ typedef struct query_list
    char tag[MISC_LENGTH];
    int sort_type;
    bool error;
+   char database[DB_NAME_LENGTH];
 } query_list_t;
 
 /**
@@ -1718,6 +1719,7 @@ custom_metrics(SSL* client_ssl, int client_fd)
 {
    struct configuration* config = NULL;
    char* data = NULL;
+   int ret = 0;
 
    config = (struct configuration*)shmem;
 
@@ -1738,71 +1740,96 @@ custom_metrics(SSL* client_ssl, int client_fd)
       // Iterate through each server and send appropriate query to PostgreSQL server
       for (int server = 0; server < config->number_of_servers; server++)
       {
-         if (config->servers[server].fd == -1)
+         // Database execution
+         int n_db = config->servers[server].number_of_databases;
+         if (prom->exec_on_all_dbs)
          {
-            /* Skip */
-            continue;
-         }
-
-         if ((prom->server_query_type == SERVER_QUERY_PRIMARY && config->servers[server].state != SERVER_PRIMARY) ||
-             (prom->server_query_type == SERVER_QUERY_REPLICA && config->servers[server].state != SERVER_REPLICA))
-         {
-            /* Skip */
-            continue;
-         }
-
-         struct pg_query_alts* query_alt = pgexporter_get_pg_query_alt(prom->pg_root, server);
-
-         if (!query_alt)
-         {
-            /* Skip */
-            continue;
-         }
-
-         // Setting Temp's value
-         query_list_t* next = malloc(sizeof(query_list_t));
-         memset(next, 0, sizeof(query_list_t));
-
-         if (!q_list)
-         {
-            q_list = next;
-            temp = q_list;
-         }
-         else if (temp && temp->query)
-         {
-            temp->next = next;
-            temp = next;
-         }
-         else if (temp && !temp->query)
-         {
-            free(next);
-            next = NULL;
-            memset(temp, 0, sizeof(query_list_t));
-         }
-
-         /* Names */
-         char** names = malloc(query_alt->node.n_columns * sizeof(char*));
-         for (int j = 0; j < query_alt->node.n_columns; j++)
-         {
-            names[j] = query_alt->node.columns[j].name;
-         }
-         memcpy(temp->tag, prom->tag, MISC_LENGTH);
-         temp->query_alt = query_alt;
-
-         // Gather all the queries in a linked list, with each query's result (linked list of tuples in it) as a node.
-         if (query_alt->node.is_histogram)
-         {
-            temp->error = pgexporter_custom_query(server, query_alt->node.query, prom->tag, -1, NULL, &temp->query);
-            temp->sort_type = prom->sort_type;
+            pgexporter_log_debug("Querying on all databases for tag %s: ENABLED", prom->tag);
          }
          else
          {
-            temp->error = pgexporter_custom_query(server, query_alt->node.query, prom->tag, query_alt->node.n_columns, names, &temp->query);
-            temp->sort_type = prom->sort_type;
+            pgexporter_log_debug("Querying on all databases for tag %s: DISABLED", prom->tag);
          }
 
-         free(names);
-         names = NULL;
+         for (int db_idx = prom->exec_on_all_dbs ? 0 : n_db - 1; db_idx < n_db; db_idx++)
+         {
+            if (config->servers[server].fd == -1)
+            {
+               /* Skip */
+               continue;
+            }
+
+            if ((prom->server_query_type == SERVER_QUERY_PRIMARY && config->servers[server].state != SERVER_PRIMARY) ||
+                (prom->server_query_type == SERVER_QUERY_REPLICA && config->servers[server].state != SERVER_REPLICA))
+            {
+               /* Skip */
+               continue;
+            }
+
+            struct pg_query_alts* query_alt = pgexporter_get_pg_query_alt(prom->pg_root, server);
+
+            if (!query_alt)
+            {
+               /* Skip */
+               continue;
+            }
+
+            // Setting Temp's value
+            query_list_t* next = malloc(sizeof(query_list_t));
+            memset(next, 0, sizeof(query_list_t));
+
+            if (!q_list)
+            {
+               q_list = next;
+               temp = q_list;
+            }
+            else if (temp && temp->query)
+            {
+               temp->next = next;
+               temp = next;
+            }
+            else if (temp && !temp->query)
+            {
+               free(next);
+               next = NULL;
+               memset(temp, 0, sizeof(query_list_t));
+            }
+
+            /* Names */
+            char** names = malloc(query_alt->node.n_columns * sizeof(char*));
+            for (int j = 0; j < query_alt->node.n_columns; j++)
+            {
+               names[j] = query_alt->node.columns[j].name;
+            }
+            memcpy(temp->tag, prom->tag, MISC_LENGTH);
+            temp->query_alt = query_alt;
+            pgexporter_log_debug("Querying db: %d / %d", db_idx + 1, n_db);
+
+            char* database = config->servers[server].databases[db_idx];
+            ret = pgexporter_switch_db(server, database);
+            if (ret != 0)
+            {
+               pgexporter_log_warn("Error connecting to server: %d, database: %d", database, server);
+               break;
+            }
+
+            // Gather all the queries in a linked list, with each query's result (linked list of tuples in it) as a node.
+            if (query_alt->node.is_histogram)
+            {
+               temp->error = pgexporter_custom_query(server, query_alt->node.query, prom->tag, -1, NULL, &temp->query);
+               temp->sort_type = prom->sort_type;
+            }
+            else
+            {
+               temp->error = pgexporter_custom_query(server, query_alt->node.query, prom->tag, query_alt->node.n_columns, names, &temp->query);
+               temp->sort_type = prom->sort_type;
+            }
+
+            strncpy(temp->database, database, DB_NAME_LENGTH - 1);
+
+            free(names);
+            names = NULL;
+         }
       }
    }
 
@@ -1982,6 +2009,7 @@ handle_histogram(column_store_t* store, int* n_store, query_list_t* temp)
    char* bounds_arr[MAX_ARR_LENGTH] = {0};
    char* buckets_arr[MAX_ARR_LENGTH] = {0};
    int idx = 0;
+   bool db_key_present = false;
 
    config = (struct configuration*)shmem;
 
@@ -2065,8 +2093,14 @@ append:
                                       "\""
                                       );
 
+            db_key_present = false;
             for (int j = 0; j < h_idx; j++)
             {
+               if (!db_key_present && !strcmp("database", temp->query_alt->node.columns[j].name))
+               {
+                  db_key_present = true;
+               }
+
                safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
                data = pgexporter_vappend(data, 5,
                                          ",",
@@ -2076,6 +2110,16 @@ append:
                                          "\""
                                          );
                safe_prometheus_key_free(safe_key);
+            }
+
+            // Database
+            if (!db_key_present)
+            {
+               data = pgexporter_vappend(data, 3,
+                                         ", database=\"",
+                                         temp->database,
+                                         "\""
+                                         );
             }
 
             data = pgexporter_vappend(data, 3,
@@ -2094,8 +2138,14 @@ append:
                                    "\""
                                    );
 
+         db_key_present = false;
          for (int j = 0; j < h_idx; j++)
          {
+            if (!db_key_present && !strcmp("database", temp->query_alt->node.columns[j].name))
+            {
+               db_key_present = true;
+            }
+
             safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
             data = pgexporter_vappend(data, 5,
                                       ",",
@@ -2105,6 +2155,16 @@ append:
                                       "\""
                                       );
             safe_prometheus_key_free(safe_key);
+         }
+
+         // Database
+         if (!db_key_present)
+         {
+            data = pgexporter_vappend(data, 3,
+                                      ", database=\"",
+                                      temp->database,
+                                      "\""
+                                      );
          }
 
          data = pgexporter_vappend(data, 3,
@@ -2123,8 +2183,14 @@ append:
                                    "\""
                                    );
 
+         db_key_present = false;
          for (int j = 0; j < h_idx; j++)
          {
+            if (!db_key_present && !strcmp("database", temp->query_alt->node.columns[j].name))
+            {
+               db_key_present = true;
+            }
+
             safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
             data = pgexporter_vappend(data, 5,
                                       ",",
@@ -2134,6 +2200,16 @@ append:
                                       "\""
                                       );
             safe_prometheus_key_free(safe_key);
+         }
+
+         // Database
+         if (!db_key_present)
+         {
+            data = pgexporter_vappend(data, 3,
+                                      ", database=\"",
+                                      temp->database,
+                                      "\""
+                                      );
          }
 
          data = pgexporter_vappend(data, 3,
@@ -2152,8 +2228,14 @@ append:
                                    "\""
                                    );
 
+         db_key_present = false;
          for (int j = 0; j < h_idx; j++)
          {
+            if (!db_key_present && !strcmp("database", temp->query_alt->node.columns[j].name))
+            {
+               db_key_present = true;
+            }
+
             safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
             data = pgexporter_vappend(data, 5,
                                       ",",
@@ -2163,6 +2245,16 @@ append:
                                       "\""
                                       );
             safe_prometheus_key_free(safe_key);
+         }
+
+         // Database
+         if (!db_key_present)
+         {
+            data = pgexporter_vappend(data, 3,
+                                      ", database=\"",
+                                      temp->database,
+                                      "\""
+                                      );
          }
 
          data = pgexporter_vappend(data, 3,
@@ -2229,6 +2321,7 @@ handle_gauge_counter(column_store_t* store, int* n_store, query_list_t* temp)
    char* data = NULL;
    char* safe_key = NULL;
    struct configuration* config;
+   bool db_key_present = false;
    config = (struct configuration*)shmem;
 
    for (int i = 0; i < temp->query_alt->node.n_columns; i++)
@@ -2297,6 +2390,11 @@ append:
                   continue;
                }
 
+               if (!db_key_present && !strcmp("database", temp->query_alt->node.columns[j].name))
+               {
+                  db_key_present = true;
+               }
+
                safe_key = safe_prometheus_key(pgexporter_get_column(j, tuple));
                data = pgexporter_vappend(data, 5,
                                          ",",
@@ -2309,11 +2407,23 @@ append:
 
             }
 
+            // Database
+            if (!db_key_present)
+            {
+               data = pgexporter_vappend(data, 3,
+                                         ", database=\"",
+                                         temp->database,
+                                         "\""
+                                         );
+            }
+
+            safe_key = safe_prometheus_key(pgexporter_get_column(i, tuple));
             data = pgexporter_vappend(data, 3,
                                       "} ",
-                                      get_value(store[idx].tag, store[idx].name, pgexporter_get_column(i, tuple)),
+                                      get_value(store[idx].tag, store[idx].name, safe_key),
                                       "\n"
                                       );
+            safe_prometheus_key_free(safe_key);
 
             add_column_to_store(store, idx, data, temp->sort_type, tuple);
 

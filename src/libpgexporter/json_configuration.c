@@ -37,7 +37,7 @@
 
 /* system */
 #include <json.h>
-#include <errno.h>
+#include <string.h>
 
 /* JSON Parsing */
 
@@ -70,6 +70,7 @@ typedef struct json_metric
    char* sort;
    char* collector;
    char* server;
+   bool exec_on_all_dbs;
 } __attribute__ ((aligned (64))) json_metric_t;
 
 // Config's Structure
@@ -386,6 +387,26 @@ parse_metrics(struct json* metrics_array, json_config_t* config)
          current_metric->server = strdup("both");     // default
       }
 
+      if (pgexporter_json_contains_key(metric, "database"))
+      {
+         char* database = (char*) pgexporter_json_get(metric, "database");
+         if (!strcmp("all", database))
+         {
+            pgexporter_log_debug("Executing metric \"%s\" on all databases: ENABLED", iter->key);
+            current_metric->exec_on_all_dbs = true;
+         }
+         else
+         {
+            pgexporter_log_debug("Executing metric \"%s\" on all databases: DISABLED", iter->key);
+            current_metric->exec_on_all_dbs = false;
+         }
+      }
+      else
+      {
+         pgexporter_log_debug("Executing metric \"%s\" on all databases: DISABLED", iter->key);
+         current_metric->exec_on_all_dbs = false;
+      }
+
       if (pgexporter_json_contains_key(metric, "queries"))
       {
          struct json* queries = (struct json*)pgexporter_json_get(metric, "queries");
@@ -610,6 +631,9 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
          pgexporter_log_error("pgexporter: unexpected server %s", json_config->metrics[i].server);
          return 1;
       }
+
+      // Execute on all databases
+      prom->exec_on_all_dbs = json_config->metrics[i].exec_on_all_dbs;
 
       // Queries
       for (int j = 0; j < json_config->metrics[i].n_queries; j++)

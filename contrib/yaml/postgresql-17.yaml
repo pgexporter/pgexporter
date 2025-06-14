@@ -1131,6 +1131,7 @@ metrics:
                 COALESCE(MIN((EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_idx_scan)) * 1000)::bigint), 0) AS time_elapsed_ms,
                 relname
               FROM pg_stat_all_indexes
+              WHERE (current_database() = 'postgres' OR schemaname NOT LIKE 'pg_%')
               GROUP BY relname;
       columns:
         - type: counter
@@ -1150,6 +1151,7 @@ metrics:
     tag: pg_stat_all_indexes
     sort: data
     collector: stat_all_indexes
+    database: all
 #
 # PostgreSQL 17
 #

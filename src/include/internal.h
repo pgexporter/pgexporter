@@ -1214,6 +1214,7 @@ extern "C" {
         "                COALESCE(MIN((EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_idx_scan)) * 1000)::bigint), 0) AS time_elapsed_ms,\n" \
         "                relname\n" \
         "              FROM pg_stat_all_indexes\n" \
+        "              WHERE (current_database() = 'postgres' OR schemaname NOT LIKE 'pg_%')\n" \
         "              GROUP BY relname;\n" \
         "      columns:\n" \
         "        - type: counter\n" \
@@ -1234,6 +1235,7 @@ extern "C" {
         "    tag: pg_stat_all_indexes\n" \
         "    sort: data\n" \
         "    collector: stat_all_indexes\n" \
+        "    database: all\n" \
         "\n" \
         "#\n" \
         "# PostgreSQL 17\n" \

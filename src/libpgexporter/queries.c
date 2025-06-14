@@ -37,6 +37,7 @@
 #include <queries.h>
 #include <security.h>
 #include <server.h>
+#include <string.h>
 #include <utils.h>
 
 /* system */
@@ -48,7 +49,9 @@ static int create_D_tuple(int server, int number_of_columns, struct message* msg
 static int get_number_of_columns(struct message* msg);
 static int get_column_name(struct message* msg, int index, char** name);
 static int process_server_parameters(int server, struct deque* server_parameters);
+static int pgexporter_detect_databases(int server);
 static int pgexporter_detect_extensions(int server);
+static int pgexporter_connect_db(int server, char* database);
 
 void
 pgexporter_open_connections(void)
@@ -97,6 +100,8 @@ pgexporter_open_connections(void)
                process_server_parameters(server, server_parameters);
                pgexporter_deque_destroy(server_parameters);
             }
+
+            pgexporter_detect_databases(server);
             pgexporter_detect_extensions(server);
          }
          else
@@ -289,6 +294,16 @@ pgexporter_query_database_size(int server, struct query** query)
 {
    return query_execute(server, "SELECT datname, pg_database_size(datname) FROM pg_database;",
                         "pg_database", 2, NULL, query);
+}
+
+int
+pgexporter_query_database_list(int server, struct query** query)
+{
+   return query_execute(server, "SELECT datname "
+                        "FROM pg_database "
+                        "WHERE datistemplate = false AND datname != 'postgres';",
+                        "pg_db_list",
+                        1, NULL, query);
 }
 
 int
@@ -977,4 +992,109 @@ pgexporter_detect_extensions(int server)
 error:
    pgexporter_free_query(query);
    return 1;
+}
+
+static int
+pgexporter_detect_databases(int server)
+{
+   int ret;
+   struct query* query = NULL;
+   struct tuple* current = NULL;
+   struct configuration* config;
+   int db_idx;
+
+   config = (struct configuration*)shmem;
+
+   config->servers[server].number_of_databases = 0;
+
+   ret = pgexporter_query_database_list(server, &query);
+   if (ret != 0)
+   {
+      pgexporter_log_warn("Failed to detect databases for server %s", config->servers[server].name);
+      goto error;
+   }
+
+   db_idx = config->servers[server].number_of_databases;
+
+   current = query->tuples;
+   while (current != NULL)
+   {
+      if (config->servers[server].number_of_databases >= NUMBER_OF_DATABASES)
+      {
+         pgexporter_log_warn("Maximum number of databases reached for server %s (%d)",
+                             config->servers[server].name, NUMBER_OF_DATABASES);
+         goto error;
+      }
+
+      db_idx = config->servers[server].number_of_databases;
+
+      strncpy((char*) &config->servers[server].databases[db_idx],
+              pgexporter_get_column(0, current), DB_NAME_LENGTH - 1);
+      config->servers[server].databases[db_idx][DB_NAME_LENGTH - 1] = '\0';
+
+      config->servers[server].number_of_databases++;
+      current = current->next;
+   }
+
+   db_idx = config->servers[server].number_of_databases;
+   strcpy((char*) &config->servers[server].databases[db_idx], "postgres");
+   config->servers[server].number_of_databases++;
+
+   pgexporter_log_debug("Server %s: Detected databases:", config->servers[server].name);
+   for (int i = 0; i < config->servers[server].number_of_databases; i++)
+   {
+      pgexporter_log_debug("  - %s", config->servers[server].databases[i]);
+   }
+
+   pgexporter_free_query(query);
+   return 0;
+
+error:
+   pgexporter_free_query(query);
+   return 1;
+}
+
+static int
+pgexporter_connect_db(int server, char* database)
+{
+   int user;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   user = -1;
+   for (int usr = 0; user == -1 && usr < config->number_of_users; usr++)
+   {
+      if (!strcmp(&config->users[usr].username[0], &config->servers[server].username[0]))
+      {
+         user = usr;
+      }
+   }
+
+   return pgexporter_server_authenticate(server, database == NULL ? "postgres" : database,
+                                         &config->users[user].username[0], &config->users[user].password[0],
+                                         &config->servers[server].ssl,
+                                         &config->servers[server].fd);
+}
+
+int
+pgexporter_switch_db(int server, char* database)
+{
+   int ret;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   pgexporter_disconnect(config->servers[server].fd);
+   ret = pgexporter_connect_db(server, database);
+   if (ret != 0)
+   {
+      pgexporter_log_fatal("Can not connect to database: %s.", database == NULL ? "postgres": database);
+      goto error;
+   }
+
+   return 0;
+
+error:
+   return ret;
 }

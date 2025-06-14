@@ -34,6 +34,8 @@
 #include <logging.h>
 #include <pg_query_alts.h>
 #include <shmem.h>
+#include <stdlib.h>
+#include <string.h>
 #include <utils.h>
 #include <yaml_configuration.h>
 
@@ -80,6 +82,7 @@ typedef struct yaml_metric
    char* sort;
    char* collector;
    char* server;
+   bool exec_on_all_dbs;
 } __attribute__ ((aligned (64))) yaml_metric_t;
 
 // Config's Structure
@@ -129,6 +132,9 @@ static int parse_int(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_
 
 // Parse a string scalar in YAML
 static int parse_string(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, char** dest);
+
+// Parse 'database' key in YAML
+static int parse_exec_all_dbs(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, bool* exec_on_all_dbs);
 
 // Parse a scalar value in YAML
 static int parse_value(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr);
@@ -637,6 +643,13 @@ parse_metrics(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
                   goto error;
                }
             }
+            else if (!strcmp(buf, "database"))
+            {
+               if (parse_exec_all_dbs(parser_ptr, event_ptr, state_ptr, &(*metrics)[*n_metrics].exec_on_all_dbs))
+               {
+                  goto error;
+               }
+            }
             else
             {
                goto error;
@@ -1011,6 +1024,35 @@ parse_string(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t*
 }
 
 static int
+parse_exec_all_dbs(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, bool* exec_on_all_dbs)
+{
+   char* dest = NULL;
+   bool eoad = false;
+
+   if (parse_string(parser_ptr, event_ptr, state_ptr, &dest))
+   {
+      goto error;
+   }
+
+   if (!strcmp(dest, "all"))
+   {
+      eoad = true;
+   }
+   else
+   {
+      eoad = false;
+   }
+
+   free(dest);
+   *exec_on_all_dbs = eoad;
+   return 0;
+
+error:
+   free(dest);
+   return 1;
+}
+
+static int
 parse_value(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr)
 {
    yaml_event_delete(event_ptr);
@@ -1192,6 +1234,8 @@ semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t*
          pgexporter_log_error("pgexporter: unexpected server %s", yaml_config->metrics[i].server);
          return 1;
       }
+
+      prom->exec_on_all_dbs = yaml_config->metrics[i].exec_on_all_dbs;
 
       // Queries
       for (int j = 0; j < yaml_config->metrics[i].n_queries; j++)
