@@ -37,6 +37,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 message(STATUS "pgexporter ${VERSION_STRING}")
 
 set(generation TRUE)
+set(check TRUE)
 
 include(CheckCCompilerFlag)
 include(CheckCSourceCompiles)
@@ -61,6 +62,34 @@ endif ()
 CHECK_C_COMPILER_FLAG("-std=c17" COMPILER_SUPPORTS_C17)
 if(NOT COMPILER_SUPPORTS_C17)
   message(FATAL_ERROR "The compiler ${CMAKE_C_COMPILER} has no C17 support. Please use a different C compiler.")
+endif()
+
+if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+    set(HOMEBREW_PREFIX "/opt/homebrew")
+  else()
+    set(HOMEBREW_PREFIX "/usr/local")
+  endif()
+  
+  message(STATUS "Detected macOS with Homebrew prefix: ${HOMEBREW_PREFIX}")
+  
+  set(CMAKE_PREFIX_PATH "${HOMEBREW_PREFIX}" ${CMAKE_PREFIX_PATH})
+  include_directories("${HOMEBREW_PREFIX}/include")
+  link_directories("${HOMEBREW_PREFIX}/lib")
+  
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_DARWIN_C_SOURCE -I${HOMEBREW_PREFIX}/include")
+endif()
+
+find_package(Check)
+if (CHECK_FOUND)
+  message(STATUS "check found")
+  add_library(Check::check SHARED IMPORTED)
+  set_target_properties(Check::check PROPERTIES
+    IMPORTED_LOCATION ${CHECK_LIBRARY}
+    INTERFACE_INCLUDE_DIRECTORIES ${CHECK_INCLUDE_DIR})
+else ()
+  set(check FALSE)
+  message(STATUS "check needed. The test suite process will be skipped.")
 endif()
 
 find_package(ZLIB)
@@ -169,3 +198,4 @@ file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/")
 add_subdirectory(doc)
 add_subdirectory(src)
 add_subdirectory(extensions)
+add_subdirectory(test)
