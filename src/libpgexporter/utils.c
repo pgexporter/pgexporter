@@ -240,6 +240,11 @@ pgexporter_has_message(char type, void* data, size_t data_size)
       else
       {
          offset += 1;
+         if (offset + sizeof(int32_t) > data_size)
+         {
+            pgexporter_log_debug("Not enough bytes left for int32_t");
+            break;
+         }
          offset += pgexporter_read_int32(data + offset);
       }
    }
