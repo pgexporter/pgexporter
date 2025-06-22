@@ -521,38 +521,6 @@ extern "C" {
         "    sort: data\n" \
         "    collector: stat_user_functions\n" \
         "\n" \
-        "# Top 10 most executed SQL query per server\n" \
-        "  - queries:\n" \
-        "    - query: SELECT calls, query\n" \
-        "              FROM pg_stat_statements\n" \
-        "              ORDER BY calls DESC\n" \
-        "              LIMIT 10;\n" \
-        "      version: 10\n" \
-        "      columns:\n" \
-        "        - type: counter\n" \
-        "          description: Number of times the SQL query is executed.\n" \
-        "        - name: query\n" \
-        "          type: label\n" \
-        "    tag: pg_stat_statements_calls\n" \
-        "    sort: data\n" \
-        "    collector: stat_statements_calls\n" \
-        "\n" \
-        "# Top 10 most rows affecting SQL queries\n" \
-        "  - queries:\n" \
-        "    - query: SELECT rows, query\n" \
-        "              FROM pg_stat_statements\n" \
-        "              ORDER BY rows DESC\n" \
-        "              LIMIT 10;\n" \
-        "      version: 10\n" \
-        "      columns:\n" \
-        "        - type: counter\n" \
-        "          description: Number of rows the SQL query affects.\n" \
-        "        - name: query\n" \
-        "          type: label\n" \
-        "    tag: pg_stat_statements_rows\n" \
-        "    sort: data\n" \
-        "    collector: stat_statements_rows\n" \
-        "\n" \
         "# Number of streaming WAL connections per application.\n" \
         "  - queries:\n" \
         "    - query: SELECT COUNT(*), application_name\n" \
@@ -709,53 +677,6 @@ extern "C" {
         "          description: Histogram of shared memory sizes.\n" \
         "    tag: pg_shmem_allocations\n" \
         "    collector: shmem_size\n" \
-        "\n" \
-        "# Top 10 slowest executing queries\n" \
-        "  - queries:\n" \
-        "    - query: SELECT total_exec_time, query\n" \
-        "              FROM pg_stat_statements\n" \
-        "              ORDER BY total_exec_time DESC\n" \
-        "              LIMIT 10;\n" \
-        "      version: 13\n" \
-        "      columns:\n" \
-        "        - type: gauge\n" \
-        "          description: Milliseconds taken by the sql query to execute.\n" \
-        "        - name: query\n" \
-        "          type: label\n" \
-        "    tag: pg_stat_statements_total_exec_time\n" \
-        "    collector: stat_statements_total_exec_time\n" \
-        "\n" \
-        "# Top 10 planned queries\n" \
-        "  - queries:\n" \
-        "    - query: SELECT plans, query\n" \
-        "              FROM pg_stat_statements\n" \
-        "              ORDER BY plans desc\n" \
-        "              LIMIT 10;\n" \
-        "      version: 13\n" \
-        "      columns:\n" \
-        "        - type: counter\n" \
-        "          description: Number of times the sql query is planned.\n" \
-        "        - name: query\n" \
-        "          type: label\n" \
-        "    tag: pg_stat_statements_plans\n" \
-        "    sort: data\n" \
-        "    collector: stat_statements_plans\n" \
-        "\n" \
-        "# Top 10 queries taking up most WAL space\n" \
-        "  - queries:\n" \
-        "    - query: SELECT wal_bytes, query\n" \
-        "              FROM pg_stat_statements\n" \
-        "              ORDER BY wal_bytes desc\n" \
-        "              LIMIT 10;\n" \
-        "      version: 13\n" \
-        "      columns:\n" \
-        "        - type: counter\n" \
-        "          description: Bytes occupied in WAL.\n" \
-        "        - name: query\n" \
-        "          type: label\n" \
-        "    tag: pg_stat_statements_wal_bytes\n" \
-        "    sort: data\n" \
-        "    collector: stat_statements_wal_bytes\n" \
         "\n" \
         "#\n" \
         "# PostgreSQL 14\n" \

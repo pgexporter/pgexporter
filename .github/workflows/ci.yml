@@ -235,6 +235,7 @@ jobs:
               texlive-texmf \
               graphviz \
               pkgconf
+            dot -c
 
       - name: Build Project
         shell: freebsd {0}

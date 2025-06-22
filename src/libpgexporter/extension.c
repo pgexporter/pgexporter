@@ -311,8 +311,8 @@ pgexporter_load_extension_yamls(struct configuration* config)
          }
          else
          {
-            pgexporter_log_debug("Skipping disabled extension: %s",
-                                 config->servers[server].extensions[i].name);
+            pgexporter_log_info("Extension %s not enabled for metrics on: %s",
+                                config->servers[server].extensions[i].name, config->servers[server].name);
          }
       }
    }

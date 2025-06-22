@@ -503,38 +503,6 @@ metrics:
     sort: data
     collector: stat_user_functions
 
-# Top 10 most executed SQL query per server
-  - queries:
-    - query: SELECT calls, query
-              FROM pg_stat_statements
-              ORDER BY calls DESC
-              LIMIT 10;
-      version: 10
-      columns:
-        - type: counter
-          description: Number of times the SQL query is executed.
-        - name: query
-          type: label
-    tag: pg_stat_statements_calls
-    sort: data
-    collector: stat_statements_calls
-
-# Top 10 most rows affecting SQL queries
-  - queries:
-    - query: SELECT rows, query
-              FROM pg_stat_statements
-              ORDER BY rows DESC
-              LIMIT 10;
-      version: 10
-      columns:
-        - type: counter
-          description: Number of rows the SQL query affects.
-        - name: query
-          type: label
-    tag: pg_stat_statements_rows
-    sort: data
-    collector: stat_statements_rows
-
 # Number of streaming WAL connections per application.
   - queries:
     - query: SELECT COUNT(*), application_name
@@ -716,53 +684,6 @@ metrics:
           description: Histogram of shared memory sizes.
     tag: pg_shmem_allocations
     collector: shmem_size
-
-# Top 10 slowest executing queries
-  - queries:
-    - query: SELECT total_exec_time, query
-              FROM pg_stat_statements
-              ORDER BY total_exec_time DESC
-              LIMIT 10;
-      version: 13
-      columns:
-        - type: gauge
-          description: Milliseconds taken by the sql query to execute.
-        - name: query
-          type: label
-    tag: pg_stat_statements_total_exec_time
-    collector: stat_statements_total_exec_time
-
-# Top 10 planned queries
-  - queries:
-    - query: SELECT plans, query
-              FROM pg_stat_statements
-              ORDER BY plans desc
-              LIMIT 10;
-      version: 13
-      columns:
-        - type: counter
-          description: Number of times the sql query is planned.
-        - name: query
-          type: label
-    tag: pg_stat_statements_plans
-    sort: data
-    collector: stat_statements_plans
-
-# Top 10 queries taking up most WAL space
-  - queries:
-    - query: SELECT wal_bytes, query
-              FROM pg_stat_statements
-              ORDER BY wal_bytes desc
-              LIMIT 10;
-      version: 13
-      columns:
-        - type: counter
-          description: Bytes occupied in WAL.
-        - name: query
-          type: label
-    tag: pg_stat_statements_wal_bytes
-    sort: data
-    collector: stat_statements_wal_bytes
 
 #
 # PostgreSQL 14
