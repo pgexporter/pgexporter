@@ -79,14 +79,6 @@ jobs:
           $(which bash) ./testsuite.sh
         working-directory: /home/runner/work/pgexporter/pgexporter/build
 
-      - name: Upload pgexporter log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pgexporter-log-ubuntu-${{ matrix.compiler }}-${{ matrix.build_type }}
-          path: /home/runner/work/pgexporter/pgexporter/build/log/pgexporter.log
-          retention-days: 7
-
       - name: Upload Build and Run Logs as Artifacts
         if: always()
         uses: actions/upload-artifact@v4
