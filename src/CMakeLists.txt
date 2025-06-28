@@ -5,6 +5,8 @@ FILE(GLOB SOURCE_FILES "libpgexporter/*.c")
 FILE(GLOB HEADER_FILES "include/*.h")
 
 set(SOURCES ${SOURCE_FILES} ${HEADER_FILES})
+# Always default to OFF
+set(ENABLE_COVERAGE OFF)
 
 #
 # OS
@@ -149,6 +151,25 @@ add_compile_options(-D__USE_ISOC11)
 add_compile_options(-D_GNU_SOURCE)
 add_compile_options(-Wno-deprecated)
 add_compile_options(-Wno-deprecated-declarations)
+
+
+find_program(GCOV_PATH gcov)
+find_program(GCOVR_PATH gcovr)
+# Enable coverage only if both gcov and gcovr are found, compiler is GCC, and build type is Debug
+if(GCOV_PATH AND GCOVR_PATH AND CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+  set(ENABLE_COVERAGE ON)
+  message(STATUS "Coverage tools (gcov and gcovr) found, compiler is GCC, and build type is Debug: Code coverage ENABLED")
+else()
+  message(STATUS "Coverage tools not found, compiler is not GCC, or build type is not Debug: Code coverage SKIPPED")
+endif()
+
+if(ENABLE_COVERAGE)
+  add_compile_options(--coverage -O0 -g)
+  add_link_options(--coverage)
+  message(STATUS "Building with coverage enabled")
+else()
+  message(STATUS "Building without coverage")
+endif()
 
 #
 # version number and string management

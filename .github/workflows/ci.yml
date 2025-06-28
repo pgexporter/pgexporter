@@ -31,7 +31,8 @@ jobs:
             libzstd-dev liblz4-dev bzip2 libbz2-dev pandoc texlive-base \
             texlive-latex-recommended texlive-fonts-recommended texlive-extra-utils \
             texlive-xetex texlive-fonts-extra wget graphviz doxygen \
-            check curl
+            check curl \
+            gcovr
 
       - name: Install PostgreSQL
         run: |
@@ -72,12 +73,49 @@ jobs:
         run: |
           if [ "${{ matrix.compiler }}" = "gcc" ] && [ "${{ matrix.build_type }}" = "Debug" ]; then
             ASAN_LIB=$(gcc -print-file-name=libasan.so)
-              export ASAN_OPTIONS=verify_asan_link_order=0
-              export LD_PRELOAD=$ASAN_LIB
-              export ASAN_OPTIONS=detect_leaks=0,verify_asan_link_order=0
+            export LD_PRELOAD=$ASAN_LIB
+            export ASAN_OPTIONS=detect_leaks=0,verify_asan_link_order=0
           fi
           $(which bash) ./testsuite.sh
         working-directory: /home/runner/work/pgexporter/pgexporter/build
+
+      # === Generate coverage reports ===
+      - name: Generate Detailed HTML Coverage Report
+        if: matrix.compiler == 'gcc' && matrix.build_type == 'Debug'
+        uses: threeal/gcovr-action@v1.1.0
+        with:
+          root: /home/runner/work/pgexporter/pgexporter
+          html-details: true
+          html-out: coverage.html
+
+      - name: Generate Cobertura Report
+        if: matrix.compiler == 'gcc' && matrix.build_type == 'Debug'
+        uses: threeal/gcovr-action@v1.1.0
+        with:
+          xml-out: cobertura.xml
+
+      - name: Generate Coveralls JSON Report and Upload
+        if: matrix.compiler == 'gcc' && matrix.build_type == 'Debug'
+        uses: threeal/gcovr-action@v1.1.0
+        with:
+          root: /home/runner/work/pgexporter/pgexporter
+          coveralls-out: coveralls.json
+
+      - name: Bundle All Coverage Reports
+        if: matrix.compiler == 'gcc' && matrix.build_type == 'Debug'
+        run: |
+          mkdir -p coverage-report
+          mv *.html coverage-report/
+          mv cobertura.xml coverage-report/
+          mv coveralls.json coverage-report/
+
+      - name: Upload All Coverage Reports as Artifact
+        if: matrix.compiler == 'gcc' && matrix.build_type == 'Debug'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports-${{ matrix.compiler }}-${{ matrix.build_type }}
+          path: coverage-report
+          retention-days: 90
 
       - name: Upload Build and Run Logs as Artifacts
         if: always()

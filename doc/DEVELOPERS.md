@@ -89,6 +89,20 @@ Download dependencies
     dnf install graphviz doxygen
     ```
 
+#### Code Coverage
+
+To enable code coverage:
+
+- Build with **GCC** and **Debug** mode (`-DCMAKE_BUILD_TYPE=Debug`)
+- Install both **gcov** (from GCC) and **gcovr**
+
+Download dependencies
+
+```sh
+dnf install gcc gcovr
+```
+For more details and usage instructions, see [doc/manual/dev-05-code_covearge.md](manual/dev-05-code_covearge.md).
+
 ### Build
 
 ``` sh
