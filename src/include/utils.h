@@ -840,6 +840,14 @@ pgexporter_backtrace(void);
 int
 pgexporter_os_kernel_version(char** os, int* kernel_major, int* kernel_minor, int* kernel_patch);
 
+/**
+ * Validate metric name contains only allowed characters
+ * @param name The metric name to validate
+ * @return true if valid, false otherwise
+ */
+bool
+pgexporter_is_valid_metric_name(char* name);
+
 #ifdef __cplusplus
 }
 #endif

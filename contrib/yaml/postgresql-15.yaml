@@ -416,7 +416,7 @@ metrics:
           type: label
         - type: gauge
           description: Number of DB connections with SSL.
-    tag: pg_db_conn
+    tag: pg_db_conn_ssl
     sort: data
     collector: connections
 

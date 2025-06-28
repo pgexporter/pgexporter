@@ -2721,3 +2721,35 @@ error:
    return 1;
 #endif
 }
+
+bool
+pgexporter_is_valid_metric_name(char* name)
+{
+   size_t len;
+   size_t i;
+
+   if (!name)
+   {
+      return false;
+   }
+
+   len = strlen(name);
+   if (len == 0)
+   {
+      return false;
+   }
+
+   for (i = 0; i < len; i++)
+   {
+      char c = name[i];
+      if (!((c >= 'a' && c <= 'z') ||
+            (c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9') ||
+            (c == '_')))
+      {
+         return false;
+      }
+   }
+
+   return true;
+}

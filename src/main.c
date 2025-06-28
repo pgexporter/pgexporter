@@ -28,6 +28,7 @@
 
 /* pgexporter */
 #include <pgexporter.h>
+#include <art.h>
 #include <bridge.h>
 #include <cmd.h>
 #include <configuration.h>
@@ -660,8 +661,29 @@ main(int argc, char** argv)
       exit(1);
    }
 
-   /* Internal Metrics Collectors YAML File */
-   pgexporter_read_internal_yaml_metrics(config, true);
+   /* ART for metrics */
+   if (pgexporter_art_create(&config->metric_names))
+   {
+      warnx("pgexporter: Failed to initialize metric names ART");
+   #ifdef HAVE_SYSTEMD
+      sd_notify(0, "STATUS=Failed to initialize metric names ART");
+   #endif
+      exit(1);
+   }
+
+   /* Internal Metrics Collectors YAML File, not to be used with YAML/JSON  */
+   if (json_path == NULL && yaml_path == NULL)
+   {
+
+      if (pgexporter_read_internal_yaml_metrics(config, true))
+      {
+         pgexporter_art_destroy(config->metric_names);
+#ifdef HAVE_SYSTEMD
+         sd_notify(0, "STATUS=Invalid core metrics");
+#endif
+         exit(1);
+      }
+   }
 
    if (pgexporter_validate_configuration(shmem))
    {
@@ -731,6 +753,7 @@ main(int argc, char** argv)
 
       if (pgexporter_read_metrics_configuration(shmem))
       {
+         pgexporter_art_destroy(config->metric_names);
 #ifdef HAVE_SYSTEMD
          sd_notify(0, "STATUS=Invalid metrics YAML");
 #endif
@@ -743,6 +766,7 @@ main(int argc, char** argv)
 
       if (pgexporter_read_json_metrics_configuration(shmem))
       {
+         pgexporter_art_destroy(config->metric_names);
 #ifdef HAVE_SYSTEMD
          sd_notify(0, "STATUS=Invalid metrics JSON");
 #endif
@@ -1117,6 +1141,7 @@ main(int argc, char** argv)
    pgexporter_free_pg_query_alts(config);
    pgexporter_free_extension_query_alts(config);
 
+   pgexporter_art_destroy(config->metric_names);
    pgexporter_destroy_shared_memory(shmem, shmem_size);
    pgexporter_destroy_shared_memory(prometheus_cache_shmem,
                                     prometheus_cache_shmem_size);

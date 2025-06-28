@@ -28,11 +28,13 @@
 
 /* pgexporter */
 #include <pgexporter.h>
+#include <art.h>
 #include <internal.h>
 #include <logging.h>
 #include <pg_query_alts.h>
 #include <shmem.h>
 #include <utils.h>
+#include <value.h>
 #include <json_configuration.h>
 
 /* system */
@@ -114,6 +116,9 @@ int get_json_files(char* base, int* number_of_json_files, char*** files);
 // Check if given filename has a JSON extension
 bool is_json_file(char* filename);
 
+// Validate JSON before processing it
+static int pgexporter_validate_json_metrics(struct configuration* config, json_config_t* json_config);
+
 int
 pgexporter_read_json_metrics_configuration(void* shmem)
 {
@@ -178,6 +183,171 @@ pgexporter_read_json_metrics_configuration(void* shmem)
    return 0;
 }
 
+static int
+pgexporter_validate_json_metrics(struct configuration* config, json_config_t* json_config)
+{
+   struct art* temp_art = NULL;
+   struct art* metric_columns_art = NULL;
+   struct art* processed_columns = NULL;
+   char column_metric_name[MISC_LENGTH];
+   char final_metric_name[MISC_LENGTH];
+   int i, j, k;
+
+   if (pgexporter_art_create(&temp_art))
+   {
+      pgexporter_log_error("Failed to create temporary ART");
+      goto error;
+   }
+
+   /* temp_art detects duplicate within this file */
+   for (i = 0; i < json_config->n_metrics; i++)
+   {
+      if (json_config->metrics[i].tag == NULL)
+      {
+         pgexporter_log_error("No tag defined for metric %d", i);
+         goto error;
+      }
+
+      /* Collect unique column names for this metric across all query versions */
+      if (pgexporter_art_create(&metric_columns_art))
+      {
+         pgexporter_log_error("Failed to create metric columns ART");
+         goto error;
+      }
+
+      /* Iterate through all queries for this metric to collect unique column names */
+      for (j = 0; j < json_config->metrics[i].n_queries; j++)
+      {
+         for (k = 0; k < json_config->metrics[i].queries[j].n_columns; k++)
+         {
+            if (!strcmp(json_config->metrics[i].queries[j].columns[k].type, "label"))
+            {
+               continue;
+            }
+
+            /* Generate the column-specific metric name */
+            if (json_config->metrics[i].queries[j].columns[k].name &&
+                strlen(json_config->metrics[i].queries[j].columns[k].name) > 0)
+            {
+               snprintf(column_metric_name, sizeof(column_metric_name), "%s",
+                        json_config->metrics[i].queries[j].columns[k].name);
+            }
+            else
+            {
+               /* If no column name, use empty string to represent the base metric */
+               snprintf(column_metric_name, sizeof(column_metric_name), "");
+            }
+
+            /* Add to metric-specific ART to track unique columns for this metric */
+            if (pgexporter_art_insert(metric_columns_art, column_metric_name, 1, ValueInt32))
+            {
+               pgexporter_log_error("Failed to insert column name into metric columns ART");
+               goto error;
+            }
+         }
+      }
+
+      /* Now validate the unique column names for this metric */
+      /* We need to iterate through the unique columns we collected */
+      /* Since we can't easily iterate through an ART, we'll rebuild the final names */
+
+      /* Re-iterate but now only check unique column names */
+      if (pgexporter_art_create(&processed_columns))
+      {
+         pgexporter_log_error("Failed to create processed columns ART");
+         goto error;
+      }
+
+      for (j = 0; j < json_config->metrics[i].n_queries; j++)
+      {
+         for (k = 0; k < json_config->metrics[i].queries[j].n_columns; k++)
+         {
+            if (!strcmp(json_config->metrics[i].queries[j].columns[k].type, "label"))
+            {
+               continue;
+            }
+
+            /* Generate the column-specific metric name */
+            if (json_config->metrics[i].queries[j].columns[k].name &&
+                strlen(json_config->metrics[i].queries[j].columns[k].name) > 0)
+            {
+               snprintf(column_metric_name, sizeof(column_metric_name), "%s",
+                        json_config->metrics[i].queries[j].columns[k].name);
+            }
+            else
+            {
+               snprintf(column_metric_name, sizeof(column_metric_name), "");
+            }
+
+            /* Skip if we already processed this column name for this metric */
+            if (pgexporter_art_contains_key(processed_columns, column_metric_name))
+            {
+               continue;
+            }
+
+            /* Mark this column as processed */
+            if (pgexporter_art_insert(processed_columns, column_metric_name, 1, ValueInt32))
+            {
+               pgexporter_log_error("Failed to insert into processed columns ART");
+               goto error;
+            }
+
+            /* Generate the final metric name - JSON doesn't support extensions currently */
+            snprintf(final_metric_name, sizeof(final_metric_name), "%s",
+                     json_config->metrics[i].tag);
+
+            if (strlen(column_metric_name) > 0)
+            {
+               snprintf(final_metric_name + strlen(final_metric_name),
+                        sizeof(final_metric_name) - strlen(final_metric_name),
+                        "_%s", column_metric_name);
+            }
+
+            if (!pgexporter_is_valid_metric_name(final_metric_name))
+            {
+               pgexporter_log_error("Invalid characters in metric name: pgexporter_%s", final_metric_name);
+               goto error;
+            }
+
+            /* Check for duplicates against global ART */
+            if (pgexporter_art_contains_key(config->metric_names, final_metric_name))
+            {
+               pgexporter_log_error("Duplicate metric name with previously loaded files: pgexporter_%s", final_metric_name);
+               goto error;
+            }
+
+            /* Check for duplicates within this file */
+            if (pgexporter_art_contains_key(temp_art, final_metric_name))
+            {
+               pgexporter_log_error("Duplicate metric name within same file: pgexporter_%s", final_metric_name);
+               goto error;
+            }
+
+            /* Add to temp ART for this file */
+            if (pgexporter_art_insert(temp_art, final_metric_name, 1, ValueInt32))
+            {
+               pgexporter_log_error("Failed to insert metric name into temporary ART");
+               goto error;
+            }
+         }
+      }
+
+      pgexporter_art_destroy(processed_columns);
+      processed_columns = NULL;
+      pgexporter_art_destroy(metric_columns_art);
+      metric_columns_art = NULL;
+   }
+
+   pgexporter_art_destroy(temp_art);
+   return 0;
+
+error:
+   pgexporter_art_destroy(processed_columns);
+   pgexporter_art_destroy(metric_columns_art);
+   pgexporter_art_destroy(temp_art);
+   return 1;
+}
+
 int
 pgexporter_read_json(struct prometheus* prometheus, int prometheus_idx, char* filename, int* number_of_metrics)
 {
@@ -215,6 +385,17 @@ pgexporter_read_json(struct prometheus* prometheus, int prometheus_idx, char* fi
    }
 
    *number_of_metrics += json_config.n_metrics;
+
+   struct configuration* config = (struct configuration*)shmem;
+
+   /* Validate before inserting them */
+   if (pgexporter_validate_json_metrics(config, &json_config))
+   {
+      pgexporter_log_error("JSON contains duplicate metric names");
+      pgexporter_json_destroy(root);
+      free_json_config(&json_config);
+      return 1;
+   }
 
    ret = semantics_json(prometheus, prometheus_idx, &json_config);
 
@@ -696,6 +877,64 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
 
          prom->pg_root = pgexporter_insert_pg_node_avl(prom->pg_root, &new_query);
       }
+      struct art* processed_columns = NULL;
+      if (pgexporter_art_create(&processed_columns))
+      {
+         pgexporter_log_warn("Failed to create processed columns ART for metric insertion");
+         continue;
+      }
+
+      for (int j = 0; j < json_config->metrics[i].n_queries; j++)
+      {
+         for (int k = 0; k < json_config->metrics[i].queries[j].n_columns; k++)
+         {
+            if (!strcmp(json_config->metrics[i].queries[j].columns[k].type, "label"))
+            {
+               continue;
+            }
+
+            char column_metric_name[MISC_LENGTH];
+            if (json_config->metrics[i].queries[j].columns[k].name &&
+                strlen(json_config->metrics[i].queries[j].columns[k].name) > 0)
+            {
+               snprintf(column_metric_name, sizeof(column_metric_name), "%s",
+                        json_config->metrics[i].queries[j].columns[k].name);
+            }
+            else
+            {
+               snprintf(column_metric_name, sizeof(column_metric_name), "");
+            }
+
+            if (pgexporter_art_contains_key(processed_columns, column_metric_name))
+            {
+               continue;
+            }
+
+            if (pgexporter_art_insert(processed_columns, column_metric_name, 1, ValueInt32))
+            {
+               pgexporter_log_warn("Failed to insert into processed columns ART");
+               continue;
+            }
+
+            char final_metric_name[MISC_LENGTH];
+            snprintf(final_metric_name, sizeof(final_metric_name), "%s", json_config->metrics[i].tag);
+
+            if (strlen(column_metric_name) > 0)
+            {
+               snprintf(final_metric_name + strlen(final_metric_name),
+                        sizeof(final_metric_name) - strlen(final_metric_name),
+                        "_%s", column_metric_name);
+            }
+
+            struct configuration* config = (struct configuration*)shmem;
+            if (pgexporter_art_insert(config->metric_names, final_metric_name, 1, ValueInt32))
+            {
+               pgexporter_log_warn("Failed to insert metric name into global ART: %s", final_metric_name);
+            }
+         }
+      }
+
+      pgexporter_art_destroy(processed_columns);
    }
 
    return 0;

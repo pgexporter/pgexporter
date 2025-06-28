@@ -434,7 +434,7 @@ extern "C" {
         "          type: label\n" \
         "        - type: gauge\n" \
         "          description: Number of DB connections with SSL.\n" \
-        "    tag: pg_db_conn\n" \
+        "    tag: pg_db_conn_ssl\n" \
         "    sort: data\n" \
         "    collector: connections\n" \
         "\n" \

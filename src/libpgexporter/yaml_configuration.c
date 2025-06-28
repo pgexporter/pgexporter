@@ -28,6 +28,7 @@
 
 /* pgexporter */
 #include <pgexporter.h>
+#include <art.h>
 #include <extension.h>
 #include <ext_query_alts.h>
 #include <internal.h>
@@ -37,6 +38,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <utils.h>
+#include <value.h>
 #include <yaml_configuration.h>
 
 /* system */
@@ -157,6 +159,7 @@ static int semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yam
 // Extension helper functions
 static struct extension_metrics* search_or_add_extension(struct configuration* config, char* extension_name);
 static int semantics_extension_yaml(struct configuration* config, yaml_config_t* yaml_config);
+static int pgexporter_validate_yaml_metrics(struct configuration* config, yaml_config_t* yaml_config);
 
 int
 pgexporter_read_metrics_configuration(void* shmem)
@@ -265,6 +268,179 @@ pgexporter_read_yaml(struct prometheus* prometheus, int prometheus_idx, char* fi
    return ret;
 }
 
+static int
+pgexporter_validate_yaml_metrics(struct configuration* config, yaml_config_t* yaml_config)
+{
+   struct art* temp_art = NULL;
+   struct art* metric_columns_art = NULL;
+   struct art* processed_columns = NULL;
+   char column_metric_name[MISC_LENGTH];
+   char final_metric_name[MISC_LENGTH];
+   int i, j, k;
+
+   if (pgexporter_art_create(&temp_art))
+   {
+      pgexporter_log_error("Failed to create temporary ART");
+      goto error;
+   }
+
+   /* temp_art detects duplicate within this file */
+   for (i = 0; i < yaml_config->n_metrics; i++)
+   {
+      if (yaml_config->metrics[i].tag == NULL)
+      {
+         pgexporter_log_error("No tag defined for metric %d", i);
+         goto error;
+      }
+
+      /* Collect unique column names for this metric across all query versions */
+      if (pgexporter_art_create(&metric_columns_art))
+      {
+         pgexporter_log_error("Failed to create metric columns ART");
+         goto error;
+      }
+
+      /* Iterate through all queries for this metric to collect unique column names */
+      for (j = 0; j < yaml_config->metrics[i].n_queries; j++)
+      {
+         for (k = 0; k < yaml_config->metrics[i].queries[j].n_columns; k++)
+         {
+            if (!strcmp(yaml_config->metrics[i].queries[j].columns[k].type, "label"))
+            {
+               continue;
+            }
+
+            /* Generate the column-specific metric name */
+            if (yaml_config->metrics[i].queries[j].columns[k].name &&
+                strlen(yaml_config->metrics[i].queries[j].columns[k].name) > 0)
+            {
+               snprintf(column_metric_name, sizeof(column_metric_name), "%s",
+                        yaml_config->metrics[i].queries[j].columns[k].name);
+            }
+            else
+            {
+               /* If no column name, use empty string to represent the base metric */
+               snprintf(column_metric_name, sizeof(column_metric_name), "");
+            }
+
+            /* Add to metric-specific ART to track unique columns for this metric */
+            if (pgexporter_art_insert(metric_columns_art, column_metric_name, 1, ValueInt32))
+            {
+               pgexporter_log_error("Failed to insert column name into metric columns ART");
+               goto error;
+            }
+         }
+      }
+
+      /* Now validate the unique column names for this metric */
+      /* We need to iterate through the unique columns we collected */
+      /* Since we can't easily iterate through an ART, we'll rebuild the final names */
+
+      /* Re-iterate but now only check unique column names */
+      if (pgexporter_art_create(&processed_columns))
+      {
+         pgexporter_log_error("Failed to create processed columns ART");
+         goto error;
+      }
+
+      for (j = 0; j < yaml_config->metrics[i].n_queries; j++)
+      {
+         for (k = 0; k < yaml_config->metrics[i].queries[j].n_columns; k++)
+         {
+            if (!strcmp(yaml_config->metrics[i].queries[j].columns[k].type, "label"))
+            {
+               continue;
+            }
+
+            /* Generate the column-specific metric name */
+            if (yaml_config->metrics[i].queries[j].columns[k].name &&
+                strlen(yaml_config->metrics[i].queries[j].columns[k].name) > 0)
+            {
+               snprintf(column_metric_name, sizeof(column_metric_name), "%s",
+                        yaml_config->metrics[i].queries[j].columns[k].name);
+            }
+            else
+            {
+               snprintf(column_metric_name, sizeof(column_metric_name), "");
+            }
+
+            /* Skip if we already processed this column name for this metric */
+            if (pgexporter_art_contains_key(processed_columns, column_metric_name))
+            {
+               continue;
+            }
+
+            /* Mark this column as processed */
+            if (pgexporter_art_insert(processed_columns, column_metric_name, 1, ValueInt32))
+            {
+               pgexporter_log_error("Failed to insert into processed columns ART");
+               goto error;
+            }
+
+            /* Generate the final metric name */
+            if (yaml_config->is_extension)
+            {
+               snprintf(final_metric_name, sizeof(final_metric_name), "%s_%s",
+                        yaml_config->extension_name, yaml_config->metrics[i].tag);
+            }
+            else
+            {
+               snprintf(final_metric_name, sizeof(final_metric_name), "%s",
+                        yaml_config->metrics[i].tag);
+            }
+
+            if (strlen(column_metric_name) > 0)
+            {
+               snprintf(final_metric_name + strlen(final_metric_name),
+                        sizeof(final_metric_name) - strlen(final_metric_name),
+                        "_%s", column_metric_name);
+            }
+
+            if (!pgexporter_is_valid_metric_name(final_metric_name))
+            {
+               pgexporter_log_error("Invalid characters in metric name: pgexporter_%s", final_metric_name);
+               goto error;
+            }
+
+            /* Check for duplicates against global ART */
+            if (pgexporter_art_contains_key(config->metric_names, final_metric_name))
+            {
+               pgexporter_log_error("Duplicate metric name with previously loaded files: pgexporter_%s", final_metric_name);
+               goto error;
+            }
+
+            /* Check for duplicates within this file */
+            if (pgexporter_art_contains_key(temp_art, final_metric_name))
+            {
+               pgexporter_log_error("Duplicate metric name within same file: pgexporter_%s", final_metric_name);
+               goto error;
+            }
+
+            /* Add to temp ART for this file */
+            if (pgexporter_art_insert(temp_art, final_metric_name, 1, ValueInt32))
+            {
+               pgexporter_log_error("Failed to insert metric name into temporary ART");
+               goto error;
+            }
+         }
+      }
+
+      pgexporter_art_destroy(processed_columns);
+      processed_columns = NULL;
+      pgexporter_art_destroy(metric_columns_art);
+      metric_columns_art = NULL;
+   }
+
+   pgexporter_art_destroy(temp_art);
+   return 0;
+
+error:
+   pgexporter_art_destroy(processed_columns);
+   pgexporter_art_destroy(metric_columns_art);
+   pgexporter_art_destroy(temp_art);
+   return 1;
+}
+
 int
 pgexporter_read_yaml_from_file_pointer(struct prometheus* prometheus, int prometheus_idx, int* number_of_metrics, FILE* file)
 {
@@ -281,6 +457,14 @@ pgexporter_read_yaml_from_file_pointer(struct prometheus* prometheus, int promet
    }
 
    *number_of_metrics += yaml_config.n_metrics;
+
+   /* Validate before inserting them */
+   if (pgexporter_validate_yaml_metrics(config, &yaml_config))
+   {
+      pgexporter_log_error("YAML contains duplicate metric names");
+      ret = 1;
+      goto end;
+   }
 
    if (yaml_config.is_extension)
    {
@@ -1171,6 +1355,7 @@ static int
 semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t* yaml_config)
 {
    struct prometheus* prom = NULL;
+   struct configuration* config = (struct configuration*)shmem;
 
    for (int i = 0; i < yaml_config->n_metrics; i++)
    {
@@ -1301,6 +1486,33 @@ semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t*
          }
 
          prom->pg_root = pgexporter_insert_pg_node_avl(prom->pg_root, &new_query);
+      }
+      for (int j = 0; j < yaml_config->metrics[i].n_queries; j++)
+      {
+         for (int k = 0; k < yaml_config->metrics[i].queries[j].n_columns; k++)
+         {
+            if (!strcmp(yaml_config->metrics[i].queries[j].columns[k].type, "label"))
+
+            {
+               continue;
+            }
+
+            char final_metric_name[MISC_LENGTH];
+            snprintf(final_metric_name, sizeof(final_metric_name), "%s", yaml_config->metrics[i].tag);
+
+            if (yaml_config->metrics[i].queries[j].columns[k].name &&
+                strlen(yaml_config->metrics[i].queries[j].columns[k].name) > 0)
+            {
+               snprintf(final_metric_name + strlen(final_metric_name),
+                        sizeof(final_metric_name) - strlen(final_metric_name),
+                        "_%s", yaml_config->metrics[i].queries[j].columns[k].name);
+            }
+
+            if (pgexporter_art_insert(config->metric_names, final_metric_name, 1, ValueInt32))
+            {
+               pgexporter_log_warn("Failed to insert metric name into global ART: %s", final_metric_name);
+            }
+         }
       }
    }
 
@@ -1461,6 +1673,34 @@ semantics_extension_yaml(struct configuration* config, yaml_config_t* yaml_confi
          prom->ext_root = pgexporter_insert_extension_node_avl(prom->ext_root, &new_query);
       }
 
+      for (int j = 0; j < yaml_config->metrics[i].n_queries; j++)
+      {
+         for (int k = 0; k < yaml_config->metrics[i].queries[j].n_columns; k++)
+         {
+            if (!strcmp(yaml_config->metrics[i].queries[j].columns[k].type, "label"))
+
+            {
+               continue;
+            }
+
+            char final_metric_name[MISC_LENGTH];
+            snprintf(final_metric_name, sizeof(final_metric_name), "%s_%s",
+                     yaml_config->extension_name, yaml_config->metrics[i].tag);
+
+            if (yaml_config->metrics[i].queries[j].columns[k].name &&
+                strlen(yaml_config->metrics[i].queries[j].columns[k].name) > 0)
+            {
+               snprintf(final_metric_name + strlen(final_metric_name),
+                        sizeof(final_metric_name) - strlen(final_metric_name),
+                        "_%s", yaml_config->metrics[i].queries[j].columns[k].name);
+            }
+
+            if (pgexporter_art_insert(config->metric_names, final_metric_name, 1, ValueInt32))
+            {
+               pgexporter_log_warn("Failed to insert extension metric name into global ART: %s", final_metric_name);
+            }
+         }
+      }
       ext->number_of_metrics++;
    }
 

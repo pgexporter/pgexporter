@@ -424,6 +424,7 @@ struct configuration
    struct prometheus prometheus[NUMBER_OF_METRICS];             /**< The Prometheus metrics */
    struct endpoint endpoints[NUMBER_OF_ENDPOINTS];              /**< The Prometheus metrics */
    struct extension_metrics extensions[NUMBER_OF_EXTENSIONS];   /**< Extension metrics by extension */
+   struct art* metric_names;                                    /**< Store all the metric names in ART as keys */
 } __attribute__((aligned(64)));
 
 #ifdef __cplusplus
