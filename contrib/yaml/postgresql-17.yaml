@@ -336,7 +336,7 @@ metrics:
           type: label
         - type: gauge
           description: Number of database connections.
-    tag: pg_db_conn
+    tag: pg_db_conn_ssl
     sort: data
     collector: connections
 
