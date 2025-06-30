@@ -78,6 +78,25 @@ pgexporter-cli conf get primary.host
 pgexporter-cli conf set encryption aes-256-cbc
 ```
 
+### conf get
+
+Get the value of a runtime configuration key, or the entire configuration.
+
+- If you provide a `<config_key>`, you get the value for that key.
+  - For main section keys, you can use either just the key (e.g., `host`) or with the section (e.g., `pgexporter.host`).
+  - For server section keys, use the server name as the section (e.g., `server.primary.host`, `server.myserver.port`).
+- If you run `pgexporter-cli conf get` without any key, the complete configuration will be output.
+
+Examples
+
+```sh
+pgexporter-cli conf get
+pgexporter-cli conf get host
+pgexporter-cli conf get pgexporter.host
+pgexporter-cli conf get server.primary.host
+pgexporter-cli conf get server.myserver.port
+```
+
 ## clear prometheus
 Clear the Prometheus statistics
 

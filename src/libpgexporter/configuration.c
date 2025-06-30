@@ -2296,31 +2296,48 @@ add_configuration_response(struct json* res)
 static void
 add_servers_configuration_response(struct json* res)
 {
-   struct configuration* config = NULL;
+   struct configuration* config = (struct configuration*)shmem;
+   struct json* server_section = NULL;
+   struct json* server_conf = NULL;
 
-   config = (struct configuration*)shmem;
+   // Create a server section to hold all server configurations
+   if (pgexporter_json_create(&server_section))
+   {
+      pgexporter_log_error("Failed to create server section JSON");
+      goto error;
+   }
 
-   // JSON of server configuration
    for (int i = 0; i < config->number_of_servers; i++)
    {
-      struct json* server_conf = NULL;
-
       if (pgexporter_json_create(&server_conf))
       {
-         return;
+         pgexporter_log_error("Failed to create server configuration JSON for %s",
+                              config->servers[i].name);
+         goto error;
       }
 
       pgexporter_json_put(server_conf, CONFIGURATION_ARGUMENT_HOST, (uintptr_t)config->servers[i].host, ValueString);
       pgexporter_json_put(server_conf, CONFIGURATION_ARGUMENT_PORT, (uintptr_t)config->servers[i].port, ValueInt64);
+      pgexporter_json_put(server_conf, CONFIGURATION_ARGUMENT_TLS_CERT_FILE, (uintptr_t)config->servers[i].tls_cert_file, ValueString);
+      pgexporter_json_put(server_conf, CONFIGURATION_ARGUMENT_TLS_KEY_FILE, (uintptr_t)config->servers[i].tls_key_file, ValueString);
+      pgexporter_json_put(server_conf, CONFIGURATION_ARGUMENT_TLS_CA_FILE, (uintptr_t)config->servers[i].tls_ca_file, ValueString);
       pgexporter_json_put(server_conf, CONFIGURATION_ARGUMENT_USER, (uintptr_t)config->servers[i].username, ValueString);
       pgexporter_json_put(server_conf, CONFIGURATION_ARGUMENT_DATA_DIR, (uintptr_t)config->servers[i].data, ValueString);
       pgexporter_json_put(server_conf, CONFIGURATION_ARGUMENT_WAL_DIR, (uintptr_t)config->servers[i].wal, ValueString);
-      pgexporter_json_put(server_conf, CONFIGURATION_ARGUMENT_TLS_CERT_FILE, (uintptr_t)config->servers[i].tls_cert_file, ValueString);
-      pgexporter_json_put(server_conf, CONFIGURATION_ARGUMENT_TLS_CA_FILE, (uintptr_t)config->servers[i].tls_ca_file, ValueString);
-      pgexporter_json_put(server_conf, CONFIGURATION_ARGUMENT_TLS_KEY_FILE, (uintptr_t)config->servers[i].tls_key_file, ValueString);
 
-      pgexporter_json_put(res, config->servers[i].name, (uintptr_t)server_conf, ValueJSON);
+      // Add this server to the server section using server name as key
+      pgexporter_json_put(server_section, config->servers[i].name, (uintptr_t)server_conf, ValueJSON);
+      server_conf = NULL; // Prevent double free
    }
+
+   // Add the server section to the main response
+   pgexporter_json_put(res, "server", (uintptr_t)server_section, ValueJSON);
+   return;
+
+error:
+   pgexporter_json_destroy(server_conf);
+   pgexporter_json_destroy(server_section);
+   return;
 }
 
 static void
@@ -2512,11 +2529,11 @@ extract_syskey_value(char* str, char** key, char** value)
       c++;
    }
 
-   // empty value
    if (c == length)
    {
-      free(k);
-      k = NULL;
+      v = calloc(1, 1); // empty string
+      *key = k;
+      *value = v;
       return 0;
    }
 

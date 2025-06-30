@@ -37,6 +37,8 @@ extern "C" {
 
 #include <stdlib.h>
 
+#define PGEXPORTER_MAIN_INI_SECTION                       "pgexporter"
+#define PGEXPORTER_CONF_SERVER_PREFIX                     "server"
 #define CONFIGURATION_ARGUMENT_HOST                       "host"
 #define CONFIGURATION_ARGUMENT_UNIX_SOCKET_DIR            "unix_socket_dir"
 #define CONFIGURATION_ARGUMENT_METRICS                    "metrics"
