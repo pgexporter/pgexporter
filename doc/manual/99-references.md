@@ -55,6 +55,10 @@
   [remote_h]: https://github.com/pgexporter/pgexporter/blob/main/src/include/remote.h
   [prometheus_h]: https://github.com/pgexporter/pgexporter/blob/main/src/include/prometheus.h
   [logging_h]: https://github.com/pgexporter/pgexporter/blob/main/src/include/logging.h
+  [value_h]: https://github.com/pgexporter/pgexporter/blob/main/src/include/value.h
+  [deque_h]: https://github.com/pgexporter/pgexporter/blob/main/src/include/deque.h
+  [art_h]: https://github.com/pgexporter/pgexporter/blob/main/src/include/art.h
+  [json_h]: https://github.com/pgexporter/pgexporter/blob/main/src/include/json.h
 <!-- src/libpgexporter -->
   [message_c]: https://github.com/pgexporter/pgexporter/blob/main/src/libpgexporter/message.c
   [network_c]: https://github.com/pgexporter/pgexporter/blob/main/src/libpgexporter/network.c
@@ -63,7 +67,10 @@
   [remote_c]: https://github.com/pgexporter/pgexporter/blob/main/src/libpgexporter/remote.c
   [prometheus_c]: https://github.com/pgexporter/pgexporter/blob/main/src/libpgexporter/prometheus.c
   [logging_c]: https://github.com/pgexporter/pgexporter/blob/main/src/libpgexporter/logging.c
-
+  [value_c]: https://github.com/pgexporter/pgexporter/blob/main/src/libpgexporter/value.c
+  [deque_c]: https://github.com/pgexporter/pgexporter/blob/main/src/libpgexporter/deque.c
+  [art_c]: https://github.com/pgexporter/pgexporter/blob/main/src/libpgexporter/art.c
+  [json_c]: https://github.com/pgexporter/pgexporter/blob/main/src/libpgexporter/json.c
 <!-- Contributing -->
   [ask]: https://github.com/pgexporter/pgexporter/discussions
   [issue]: https://github.com/pgexporter/pgexporter/issues
