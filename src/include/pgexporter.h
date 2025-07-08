@@ -73,6 +73,7 @@ extern "C" {
 #define NUMBER_OF_ENDPOINTS    32
 #define NUMBER_OF_EXTENSIONS   64
 #define NUMBER_OF_DATABASES    64
+#define NUMBER_OF_METRIC_NAMES 256
 
 #define STATE_FREE        0
 #define STATE_IN_USE      1
@@ -409,6 +410,7 @@ struct configuration
    int number_of_collectors;     /**< Number of total collectors */
    int number_of_endpoints;      /**< The number of endpoints */
    int number_of_extensions;     /**< Number of loaded extensions */
+   int number_of_metric_names;   /**< Number of unique metric names */
 
    char metrics_path[MAX_PATH]; /**< The metrics path */
 
@@ -418,13 +420,13 @@ struct configuration
    atomic_ulong logging_fatal; /**< Logging: FATAL */
 
    char collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH]; /**< List of collectors in total */
+   char metric_names[NUMBER_OF_METRIC_NAMES][MISC_LENGTH];      /**< List of all the metric names */
    struct server servers[NUMBER_OF_SERVERS];                    /**< The servers */
    struct user users[NUMBER_OF_USERS];                          /**< The users */
    struct user admins[NUMBER_OF_ADMINS];                        /**< The admins */
    struct prometheus prometheus[NUMBER_OF_METRICS];             /**< The Prometheus metrics */
    struct endpoint endpoints[NUMBER_OF_ENDPOINTS];              /**< The Prometheus metrics */
    struct extension_metrics extensions[NUMBER_OF_EXTENSIONS];   /**< Extension metrics by extension */
-   struct art* metric_names;                                    /**< Store all the metric names in ART as keys */
 } __attribute__((aligned(64)));
 
 #ifdef __cplusplus

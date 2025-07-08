@@ -103,6 +103,8 @@ pgexporter_init_configuration(void* shm)
 
    config->metrics = -1;
    config->cache = true;
+   config->number_of_metric_names = 0;
+   memset(config->metric_names, 0, sizeof(config->metric_names));
 
    config->bridge = -1;
    config->bridge_cache_max_age = 300;

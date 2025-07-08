@@ -186,12 +186,28 @@ pgexporter_read_json_metrics_configuration(void* shmem)
 static int
 pgexporter_validate_json_metrics(struct configuration* config, json_config_t* json_config)
 {
+   struct art* existing_metrics_art = NULL;
    struct art* temp_art = NULL;
    struct art* metric_columns_art = NULL;
    struct art* processed_columns = NULL;
    char column_metric_name[MISC_LENGTH];
    char final_metric_name[MISC_LENGTH];
    int i, j, k;
+
+   if (pgexporter_art_create(&existing_metrics_art))
+   {
+      pgexporter_log_error("Failed to create temporary ART");
+      goto error;
+   }
+   
+   for (int idx = 0; idx < config->number_of_metric_names; idx++)
+   {
+      if (pgexporter_art_insert(existing_metrics_art, config->metric_names[idx], 1, ValueInt32))
+      {
+         pgexporter_log_error("Failed to insert metric name into temporary ART");
+         goto error;
+      }
+   }
 
    if (pgexporter_art_create(&temp_art))
    {
@@ -310,7 +326,7 @@ pgexporter_validate_json_metrics(struct configuration* config, json_config_t* js
             }
 
             /* Check for duplicates against global ART */
-            if (pgexporter_art_contains_key(config->metric_names, final_metric_name))
+            if (pgexporter_art_contains_key(existing_metrics_art, final_metric_name))
             {
                pgexporter_log_error("Duplicate metric name with previously loaded files: pgexporter_%s", final_metric_name);
                goto error;
@@ -338,10 +354,12 @@ pgexporter_validate_json_metrics(struct configuration* config, json_config_t* js
       metric_columns_art = NULL;
    }
 
+   pgexporter_art_destroy(existing_metrics_art);
    pgexporter_art_destroy(temp_art);
    return 0;
 
 error:
+   pgexporter_art_destroy(existing_metrics_art);
    pgexporter_art_destroy(processed_columns);
    pgexporter_art_destroy(metric_columns_art);
    pgexporter_art_destroy(temp_art);
@@ -927,9 +945,17 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
             }
 
             struct configuration* config = (struct configuration*)shmem;
-            if (pgexporter_art_insert(config->metric_names, final_metric_name, 1, ValueInt32))
+            if (config->number_of_metric_names < NUMBER_OF_METRIC_NAMES)
             {
-               pgexporter_log_warn("Failed to insert metric name into global ART: %s", final_metric_name);
+               strncpy(config->metric_names[config->number_of_metric_names], 
+                     final_metric_name, 
+                     MISC_LENGTH - 1);
+               config->metric_names[config->number_of_metric_names][MISC_LENGTH - 1] = '\0';
+               config->number_of_metric_names++;
+            }
+            else
+            {
+               pgexporter_log_warn("Maximum metric names reached, skipping: %s", final_metric_name);
             }
          }
       }
