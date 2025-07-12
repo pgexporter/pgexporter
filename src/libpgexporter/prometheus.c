@@ -1803,13 +1803,23 @@ custom_metrics(SSL* client_ssl, int client_fd)
             }
             memcpy(temp->tag, prom->tag, MISC_LENGTH);
             temp->query_alt = query_alt;
-            pgexporter_log_debug("Querying db: %d / %d", db_idx + 1, n_db);
 
             char* database = config->servers[server].databases[db_idx];
+
+            if (prom->exec_on_all_dbs)
+            {
+               pgexporter_log_debug("Querying server: %s, db: %s (%d / %d)", config->servers[server].name, database, db_idx + 1, n_db);
+            }
+            else
+            {
+               pgexporter_log_debug("Querying server: %s", config->servers[server].name);
+            }
+
             ret = pgexporter_switch_db(server, database);
             if (ret != 0)
             {
-               pgexporter_log_warn("Error connecting to server: %d, database: %d", database, server);
+               pgexporter_log_info("Error connecting to server: %s, database: %s", config->servers[server].name, database);
+               free(names);
                break;
             }
 

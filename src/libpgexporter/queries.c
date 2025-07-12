@@ -1089,7 +1089,6 @@ pgexporter_switch_db(int server, char* database)
    ret = pgexporter_connect_db(server, database);
    if (ret != 0)
    {
-      pgexporter_log_fatal("Can not connect to database: %s.", database == NULL ? "postgres": database);
       goto error;
    }
 
