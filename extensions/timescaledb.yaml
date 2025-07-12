@@ -1,0 +1,332 @@
+#
+# Copyright (C) 2025 The pgexporter community
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this list
+# of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice, this
+# list of conditions and the following disclaimer in the documentation and/or other
+# materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors may
+# be used to endorse or promote products derived from this software without specific
+# prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+# THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+# OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+# TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+extension: timescaledb
+metrics:
+
+#
+# TimescaleDB: 2.10.0 -> 2.20.0
+#
+
+# Hypertable population overview - tracks total tables and compression adoption across TimescaleDB versions
+# Version history: 2.10.0 included distributed features, 2.14.0 removed multi-node capabilities, 2.20.0 added primary dimension details
+  - metric: hypertable_overview
+    queries:
+      - query: SELECT 
+                  COUNT(*) as total_hypertables,
+                  SUM(num_chunks) as total_chunks,
+                  COUNT(*) FILTER (WHERE compression_enabled = true) as compressed_hypertables,
+                  COUNT(*) FILTER (WHERE is_distributed = true) as distributed_hypertables
+                FROM timescaledb_information.hypertables;
+        version: "2.10.0"
+        columns:
+          - name: total_hypertables
+            type: gauge
+            description: Total number of hypertables
+          - name: total_chunks
+            type: gauge  
+            description: Total number of chunks across all hypertables
+          - name: compressed_hypertables
+            type: gauge
+            description: Number of hypertables with compression enabled
+          - name: distributed_hypertables
+            type: gauge
+            description: Number of distributed hypertables
+      - query: SELECT 
+                  COUNT(*) as total_hypertables,
+                  SUM(num_chunks) as total_chunks,
+                  COUNT(*) FILTER (WHERE compression_enabled = true) as compressed_hypertables
+                FROM timescaledb_information.hypertables;
+        version: "2.14.0"
+        columns:
+          - name: total_hypertables
+            type: gauge
+            description: Total number of hypertables
+          - name: total_chunks
+            type: gauge  
+            description: Total number of chunks across all hypertables
+          - name: compressed_hypertables
+            type: gauge
+            description: Number of hypertables with compression enabled
+      - query: SELECT 
+                  COUNT(*) as total_hypertables,
+                  SUM(num_chunks) as total_chunks,
+                  COUNT(*) FILTER (WHERE compression_enabled = true) as compressed_hypertables,
+                  COUNT(DISTINCT primary_dimension_type) as dimension_types
+                FROM timescaledb_information.hypertables;
+        version: "2.20.0"
+        columns:
+          - name: total_hypertables
+            type: gauge
+            description: Total number of hypertables
+          - name: total_chunks
+            type: gauge  
+            description: Total number of chunks across all hypertables
+          - name: compressed_hypertables
+            type: gauge
+            description: Number of hypertables with compression enabled
+          - name: dimension_types
+            type: gauge
+            description: Number of distinct primary dimension types
+
+# Background job operational health - monitors compression, retention, and refresh jobs critical to TimescaleDB performance
+# Version history: Basic job monitoring available since 2.10.0, no major schema changes across versions
+  - metric: job_health
+    queries:
+      - query: SELECT 
+                  COUNT(*) as total_jobs,
+                  COUNT(*) FILTER (WHERE last_run_status = 'Failed') as failed_jobs,
+                  COUNT(*) FILTER (WHERE job_status = 'Running') as running_jobs,
+                  COUNT(*) FILTER (WHERE job_status = 'Paused') as paused_jobs
+                FROM timescaledb_information.job_stats;
+        version: "2.10.0"
+        columns:
+          - name: total_jobs
+            type: gauge
+            description: Total number of background jobs
+          - name: failed_jobs
+            type: gauge
+            description: Number of jobs that failed on last run
+          - name: running_jobs
+            type: gauge
+            description: Number of currently running jobs
+          - name: paused_jobs
+            type: gauge
+            description: Number of paused jobs
+
+# Job execution history analysis - provides detailed success/failure tracking replacing basic job_errors table
+# Version history: 2.15.0 introduced job_history view with full execution tracking and metadata
+  - metric: job_execution_history
+    queries:
+      - query: SELECT 
+                  COUNT(*) as total_executions,
+                  COUNT(*) FILTER (WHERE succeeded = true) as successful_executions,
+                  COUNT(*) FILTER (WHERE succeeded = false) as failed_executions,
+                  COUNT(*) FILTER (WHERE execution_start > CURRENT_TIMESTAMP - INTERVAL '24 hours') as executions_24h
+                FROM timescaledb_information.job_history;
+        version: "2.15.0"
+        columns:
+          - name: total_executions
+            type: counter
+            description: Total number of job executions recorded
+          - name: successful_executions
+            type: counter
+            description: Number of successful job executions
+          - name: failed_executions
+            type: counter
+            description: Number of failed job executions
+          - name: executions_24h
+            type: gauge
+            description: Job executions in the last 24 hours
+
+# Compression effectiveness tracking - measures storage optimization across all chunks
+# Version history: 2.10.0 basic compression stats, 2.13.0 added chunk_creation_time enabling age-based analysis
+  - metric: compression_effectiveness
+    queries:
+      - query: SELECT 
+                  COUNT(*) as total_chunks,
+                  COUNT(*) FILTER (WHERE is_compressed = true) as compressed_chunks,
+                  ROUND(
+                    COUNT(*) FILTER (WHERE is_compressed = true) * 100.0 / NULLIF(COUNT(*), 0), 2
+                  ) as compression_ratio_pct
+                FROM timescaledb_information.chunks;
+        version: "2.10.0"
+        columns:
+          - name: total_chunks
+            type: gauge
+            description: Total number of chunks
+          - name: compressed_chunks
+            type: gauge
+            description: Number of compressed chunks
+          - name: compression_ratio_pct
+            type: gauge
+            description: Percentage of chunks that are compressed
+      - query: SELECT 
+                  COUNT(*) as total_chunks,
+                  COUNT(*) FILTER (WHERE is_compressed = true) as compressed_chunks,
+                  ROUND(
+                    COUNT(*) FILTER (WHERE is_compressed = true) * 100.0 / NULLIF(COUNT(*), 0), 2
+                  ) as compression_ratio_pct,
+                  ROUND(AVG(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - chunk_creation_time))/86400), 1) as avg_chunk_age_days
+                FROM timescaledb_information.chunks;
+        version: "2.13.0"
+        columns:
+          - name: total_chunks
+            type: gauge
+            description: Total number of chunks
+          - name: compressed_chunks
+            type: gauge
+            description: Number of compressed chunks
+          - name: compression_ratio_pct
+            type: gauge
+            description: Percentage of chunks that are compressed
+          - name: avg_chunk_age_days
+            type: gauge
+            description: Average age of chunks in days
+
+# Multi-node data distribution monitoring - tracks cluster node health and data placement
+# Version history: Available 2.10.0-2.13.x, completely removed in 2.14.0 when distributed features were deprecated
+  - metric: data_node_health
+    queries:
+      - query: SELECT 
+                  COUNT(*) as total_data_nodes,
+                  node_name,
+                  owner
+                FROM timescaledb_information.data_nodes
+                GROUP BY node_name, owner;
+        version: "2.10.0"
+        columns:
+          - name: total_data_nodes
+            type: gauge
+            description: Total number of data nodes
+          - name: node_name
+            type: label
+          - name: owner
+            type: label
+
+# Compression configuration analysis - tracks which hypertables have compression settings defined
+# Version history: 2.10.0 basic compression_settings view, 2.15.0 added dedicated hypertable_compression_settings view
+  - metric: compression_config
+    queries:
+      - query: SELECT 
+                  hypertable_schema,
+                  hypertable_name,
+                  COUNT(*) as compression_settings_count
+                FROM timescaledb_information.compression_settings
+                GROUP BY hypertable_schema, hypertable_name
+                ORDER BY compression_settings_count DESC
+                LIMIT 10;
+        version: "2.10.0"
+        columns:
+          - name: hypertable_schema
+            type: label
+          - name: hypertable_name
+            type: label
+          - name: compression_settings_count
+            type: gauge
+            description: Number of compression settings configured
+      - query: SELECT 
+                  COUNT(*) as total_compressed_hypertables,
+                  COUNT(DISTINCT hypertable) as unique_compressed_hypertables
+                FROM timescaledb_information.hypertable_compression_settings;
+        version: "2.15.0"
+        columns:
+          - name: total_compressed_hypertables
+            type: gauge
+            description: Total hypertables with compression settings
+          - name: unique_compressed_hypertables
+            type: gauge
+            description: Unique hypertables with compression configured
+
+# Columnstore storage engine monitoring - tracks adoption of TimescaleDB's columnar storage for analytical workloads
+# Version history: Introduced in 2.18.0 as part of Hypercore initiative, provides alternative to row-based compression
+  - metric: columnstore_health
+    queries:
+      - query: SELECT 
+                  COUNT(*) as total_columnstore_hypertables,
+                  COUNT(DISTINCT hypertable) as unique_columnstore_hypertables
+                FROM timescaledb_information.hypertable_columnstore_settings;
+        version: "2.18.0"
+        columns:
+          - name: total_columnstore_hypertables
+            type: gauge
+            description: Total hypertables with columnstore settings
+          - name: unique_columnstore_hypertables
+            type: gauge
+            description: Unique hypertables with columnstore configured
+
+# Recent job failure diagnostics - provides actionable information on failed background operations for troubleshooting
+# Version history: 2.10.0 basic job_errors table, 2.15.0 improved with SQL error codes and better error categorization
+  - metric: recent_job_failures
+    queries:
+      - query: SELECT 
+                  job_id,
+                  proc_schema,
+                  proc_name,
+                  EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - start_time))::bigint as seconds_since_failure
+                FROM timescaledb_information.job_errors 
+                WHERE start_time > CURRENT_TIMESTAMP - INTERVAL '24 hours'
+                ORDER BY start_time DESC 
+                LIMIT 10;
+        version: "2.10.0"
+        columns:
+          - name: job_id
+            type: label
+          - name: proc_schema
+            type: label
+          - name: proc_name
+            type: label
+          - name: seconds_since_failure
+            type: gauge
+            description: Seconds since the job failure occurred
+      - query: SELECT 
+                  job_id,
+                  proc_schema,
+                  proc_name,
+                  EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - start_time))::bigint as seconds_since_failure,
+                  sqlerrcode
+                FROM timescaledb_information.job_errors 
+                WHERE start_time > CURRENT_TIMESTAMP - INTERVAL '24 hours'
+                ORDER BY start_time DESC 
+                LIMIT 10;
+        version: "2.15.0"
+        columns:
+          - name: job_id
+            type: label
+          - name: proc_schema
+            type: label
+          - name: proc_name
+            type: label
+          - name: seconds_since_failure
+            type: gauge
+            description: Seconds since the job failure occurred
+          - name: sqlerrcode
+            type: label
+
+# Chunk lifecycle and retention pattern analysis - identifies data retention effectiveness and storage growth patterns
+# Version history: Only available from 2.13.0+ when chunk_creation_time field was added to chunks view
+  - metric: chunk_age_distribution
+    queries:
+      - query: SELECT 
+                  CASE 
+                    WHEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - chunk_creation_time))/86400 < 1 THEN '< 1 day'
+                    WHEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - chunk_creation_time))/86400 < 7 THEN '1-7 days'
+                    WHEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - chunk_creation_time))/86400 < 30 THEN '1-4 weeks'
+                    ELSE '> 1 month'
+                  END as age_bucket,
+                  COUNT(*) as chunk_count
+                FROM timescaledb_information.chunks
+                GROUP BY age_bucket
+                ORDER BY MIN(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - chunk_creation_time))/86400);
+        version: "2.13.0"
+        columns:
+          - name: age_bucket
+            type: label
+          - name: chunk_count
+            type: gauge
+            description: Number of chunks in this age bucket
