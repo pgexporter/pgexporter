@@ -340,6 +340,23 @@ pgexporter_art_search(struct art* t, char* key)
    return pgexporter_value_data(val);
 }
 
+uintptr_t
+pgexporter_art_search_typed(struct art* t, char* key, enum value_type* type)
+{
+   struct value* val = NULL;
+
+   if (t == NULL || key == NULL)
+   {
+      return false;
+   }
+
+   val = art_search(t, (unsigned char*)key, strlen(key) + 1);
+
+   *type = pgexporter_value_type(val);
+
+   return pgexporter_value_data(val);
+}
+
 bool
 pgexporter_art_contains_key(struct art* t, char* key)
 {

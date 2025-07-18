@@ -222,6 +222,16 @@ pgexporter_value_data(struct value* value)
    return value->data;
 }
 
+enum value_type
+pgexporter_value_type(struct value* value)
+{
+   if (value == NULL)
+   {
+      return ValueNone;
+   }
+   return value->type;
+}
+
 char*
 pgexporter_value_to_string(struct value* value, int32_t format, char* tag, int indent)
 {
