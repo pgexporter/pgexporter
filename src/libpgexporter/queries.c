@@ -963,7 +963,12 @@ pgexporter_detect_extensions(int server)
       }
       else
       {
-         config->servers[server].extensions[extension_idx].enabled = true;
+         config->servers[server].extensions[extension_idx].enabled =
+            pgexporter_extension_is_enabled(config, server, config->servers[server].extensions[extension_idx].name);
+         pgexporter_log_debug("Extension '%s' on server '%s': %s",
+                              config->servers[server].extensions[extension_idx].name,
+                              config->servers[server].name,
+                              config->servers[server].extensions[extension_idx].enabled ? "ENABLED" : "DISABLED");
       }
 
       strncpy(config->servers[server].extensions[extension_idx].comment,

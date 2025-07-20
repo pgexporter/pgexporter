@@ -284,7 +284,7 @@ pgexporter_validate_yaml_metrics(struct configuration* config, yaml_config_t* ya
       pgexporter_log_error("Failed to create temporary ART");
       goto error;
    }
-   
+
    for (int idx = 0; idx < config->number_of_metric_names; idx++)
    {
       if (pgexporter_art_insert(existing_metrics_art, config->metric_names[idx], 1, ValueInt32))
@@ -1528,9 +1528,9 @@ semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t*
 
             if (config->number_of_metric_names < NUMBER_OF_METRIC_NAMES)
             {
-               strncpy(config->metric_names[config->number_of_metric_names], 
-                     final_metric_name, 
-                     MISC_LENGTH - 1);
+               strncpy(config->metric_names[config->number_of_metric_names],
+                       final_metric_name,
+                       MISC_LENGTH - 1);
                config->metric_names[config->number_of_metric_names][MISC_LENGTH - 1] = '\0';
                config->number_of_metric_names++;
             }
@@ -1723,9 +1723,9 @@ semantics_extension_yaml(struct configuration* config, yaml_config_t* yaml_confi
 
             if (config->number_of_metric_names < NUMBER_OF_METRIC_NAMES)
             {
-               strncpy(config->metric_names[config->number_of_metric_names], 
-                     final_metric_name, 
-                     MISC_LENGTH - 1);
+               strncpy(config->metric_names[config->number_of_metric_names],
+                       final_metric_name,
+                       MISC_LENGTH - 1);
                config->metric_names[config->number_of_metric_names][MISC_LENGTH - 1] = '\0';
                config->number_of_metric_names++;
             }

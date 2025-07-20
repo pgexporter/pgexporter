@@ -199,7 +199,7 @@ pgexporter_validate_json_metrics(struct configuration* config, json_config_t* js
       pgexporter_log_error("Failed to create temporary ART");
       goto error;
    }
-   
+
    for (int idx = 0; idx < config->number_of_metric_names; idx++)
    {
       if (pgexporter_art_insert(existing_metrics_art, config->metric_names[idx], 1, ValueInt32))
@@ -947,9 +947,9 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
             struct configuration* config = (struct configuration*)shmem;
             if (config->number_of_metric_names < NUMBER_OF_METRIC_NAMES)
             {
-               strncpy(config->metric_names[config->number_of_metric_names], 
-                     final_metric_name, 
-                     MISC_LENGTH - 1);
+               strncpy(config->metric_names[config->number_of_metric_names],
+                       final_metric_name,
+                       MISC_LENGTH - 1);
                config->metric_names[config->number_of_metric_names][MISC_LENGTH - 1] = '\0';
                config->number_of_metric_names++;
             }

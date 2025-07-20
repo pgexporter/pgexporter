@@ -94,6 +94,16 @@ pgexporter_load_extension_yamls(struct configuration* config);
 int
 pgexporter_load_single_extension_yaml(char* extensions_path, char* extension_name, struct configuration* config);
 
+/**
+ * Determine if an extension should be enabled based on configuration
+ * @param config The configuration struct
+ * @param server The server index
+ * @param extension_name The extension name to check
+ * @return true if extension should be enabled, false otherwise
+ */
+bool
+pgexporter_extension_is_enabled(struct configuration* config, int server, char* extension_name);
+
 #ifdef __cplusplus
 }
 #endif

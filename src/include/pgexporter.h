@@ -73,7 +73,7 @@ extern "C" {
 #define NUMBER_OF_ENDPOINTS    32
 #define NUMBER_OF_EXTENSIONS   64
 #define NUMBER_OF_DATABASES    64
-#define NUMBER_OF_METRIC_NAMES 256
+#define NUMBER_OF_METRIC_NAMES 1024
 
 #define STATE_FREE        0
 #define STATE_IN_USE      1
@@ -98,6 +98,7 @@ extern "C" {
 
 #define MAX_QUERY_LENGTH      2048
 #define MAX_COLLECTOR_LENGTH  1024
+#define MAX_EXTENSIONS_CONFIG_LENGTH  2048
 
 #define LABEL_TYPE      0
 #define COUNTER_TYPE    1
@@ -270,6 +271,8 @@ struct server
    char tls_ca_file[MAX_PATH];                                  /**< TLS CA certificate path */
    char databases[NUMBER_OF_EXTENSIONS][DB_NAME_LENGTH];        /**< Databases in the server */
    struct extension_info extensions[NUMBER_OF_EXTENSIONS];      /**< The extensions */
+   char extensions_config[MAX_EXTENSIONS_CONFIG_LENGTH];        /**< Server-specific extensions configuration */
+
 } __attribute__ ((aligned (64)));
 
 /** @struct user
@@ -419,14 +422,15 @@ struct configuration
    atomic_ulong logging_error; /**< Logging: ERROR */
    atomic_ulong logging_fatal; /**< Logging: FATAL */
 
-   char collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH]; /**< List of collectors in total */
-   char metric_names[NUMBER_OF_METRIC_NAMES][MISC_LENGTH];      /**< List of all the metric names */
-   struct server servers[NUMBER_OF_SERVERS];                    /**< The servers */
-   struct user users[NUMBER_OF_USERS];                          /**< The users */
-   struct user admins[NUMBER_OF_ADMINS];                        /**< The admins */
-   struct prometheus prometheus[NUMBER_OF_METRICS];             /**< The Prometheus metrics */
-   struct endpoint endpoints[NUMBER_OF_ENDPOINTS];              /**< The Prometheus metrics */
-   struct extension_metrics extensions[NUMBER_OF_EXTENSIONS];   /**< Extension metrics by extension */
+   char collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];         /**< List of collectors in total */
+   char global_extensions[MAX_EXTENSIONS_CONFIG_LENGTH];                /**< Global extensions configuration */
+   char metric_names[NUMBER_OF_METRIC_NAMES][MISC_LENGTH];              /**< List of all the metric names */
+   struct server servers[NUMBER_OF_SERVERS];                            /**< The servers */
+   struct user users[NUMBER_OF_USERS];                                  /**< The users */
+   struct user admins[NUMBER_OF_ADMINS];                                /**< The admins */
+   struct prometheus prometheus[NUMBER_OF_METRICS];                     /**< The Prometheus metrics */
+   struct endpoint endpoints[NUMBER_OF_ENDPOINTS];                      /**< The Prometheus metrics */
+   struct extension_metrics extensions[MAX_EXTENSIONS_CONFIG_LENGTH];   /**< Extension metrics by extension */
 } __attribute__((aligned(64)));
 
 #ifdef __cplusplus

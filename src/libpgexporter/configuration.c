@@ -112,6 +112,11 @@ pgexporter_init_configuration(void* shm)
    config->bridge_json = -1;
    config->bridge_json_cache_max_size = PROMETHEUS_DEFAULT_BRIDGE_JSON_CACHE_SIZE;
 
+   memset(config->global_extensions, 0, MAX_EXTENSIONS_CONFIG_LENGTH);
+   for (int i = 0; i < NUMBER_OF_SERVERS; i++)
+   {
+      memset(config->servers[i].extensions_config, 0, MAX_EXTENSIONS_CONFIG_LENGTH);
+   }
    config->tls = false;
 
    config->blocking_timeout = 30;
@@ -933,6 +938,39 @@ pgexporter_read_configuration(void* shm, char* filename)
                         max = MAX_PATH - 1;
                      }
                      memcpy(config->metrics_path, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "extensions"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     // Store global extensions config
+                     max = strlen(value);
+                     if (max > MAX_EXTENSIONS_CONFIG_LENGTH - 1)
+                     {
+                        max = MAX_EXTENSIONS_CONFIG_LENGTH - 1;
+                     }
+                     memcpy(config->global_extensions, value, max);
+                  }
+                  else if (strlen(section) > 0)
+                  {
+                     // Store server-specific extensions config
+                     max = strlen(section);
+                     if (max > MAX_EXTENSIONS_CONFIG_LENGTH - 1)
+                     {
+                        max = MAX_EXTENSIONS_CONFIG_LENGTH - 1;
+                     }
+                     memcpy(&srv.name, section, max);
+                     max = strlen(value);
+                     if (max > MAX_EXTENSIONS_CONFIG_LENGTH - 1)
+                     {
+                        max = MAX_EXTENSIONS_CONFIG_LENGTH - 1;
+                     }
+                     memcpy(&srv.extensions_config, value, max);
                   }
                   else
                   {
@@ -3374,6 +3412,7 @@ copy_server(struct server* dst, struct server* src)
    memcpy(&dst->username[0], &src->username[0], MAX_USERNAME_LENGTH);
    memcpy(&dst->data[0], &src->data[0], MISC_LENGTH);
    memcpy(&dst->wal[0], &src->wal[0], MISC_LENGTH);
+   memcpy(&dst->extensions_config[0], &src->extensions_config[0], MAX_EXTENSIONS_CONFIG_LENGTH);
    dst->fd = src->fd;
    dst->extension = true;
 }

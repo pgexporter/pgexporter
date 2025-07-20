@@ -38,6 +38,8 @@
 #include <string.h>
 #include <unistd.h>
 
+static bool extension_in_list(const char* extension_name, const char* extensions_list);
+
 int
 pgexporter_setup_extensions_path(struct configuration* config, const char* argv0, char** bin_path)
 {
@@ -380,4 +382,66 @@ error:
       fclose(file);
    }
    return 1;
+}
+
+static bool
+extension_in_list(const char* extension_name, const char* extensions_list)
+{
+   if (extensions_list == NULL || strlen(extensions_list) == 0)
+   {
+      return false;
+   }
+
+   char* list_copy = strdup(extensions_list);
+   char* token = strtok(list_copy, ",");
+   bool found = false;
+
+   while (token != NULL)
+   {
+      // Remove leading/trailing whitespace from token
+      while (*token == ' ' || *token == '\t')
+         token++;
+
+      char* end = token + strlen(token) - 1;
+      while (end > token && (*end == ' ' || *end == '\t'))
+         end--;
+      *(end + 1) = '\0';
+
+      if (!strcmp(token, extension_name))
+      {
+         found = true;
+         break;
+      }
+
+      token = strtok(NULL, ",");
+   }
+
+   free(list_copy);
+   return found;
+}
+
+bool
+pgexporter_extension_is_enabled(struct configuration* config, int server, char* extension_name)
+{
+   char* extensions_list = NULL;
+
+   // Check server-specific config first
+   if (strlen(config->servers[server].extensions_config) > 0)
+   {
+      extensions_list = config->servers[server].extensions_config;
+   }
+   // Fall back to global config
+   else if (strlen(config->global_extensions) > 0)
+   {
+      extensions_list = config->global_extensions;
+   }
+
+   // If no config specified, enable by default
+   if (extensions_list == NULL)
+   {
+      return true;
+   }
+
+   // If config specified, check if this extension is in the list
+   return extension_in_list(extension_name, extensions_list);
 }
