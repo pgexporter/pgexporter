@@ -251,7 +251,7 @@ pgexporter_validate_json_metrics(struct configuration* config, json_config_t* js
             else
             {
                /* If no column name, use empty string to represent the base metric */
-               snprintf(column_metric_name, sizeof(column_metric_name), "");
+               column_metric_name[0] = '\0';
             }
 
             /* Add to metric-specific ART to track unique columns for this metric */
@@ -292,7 +292,7 @@ pgexporter_validate_json_metrics(struct configuration* config, json_config_t* js
             }
             else
             {
-               snprintf(column_metric_name, sizeof(column_metric_name), "");
+               column_metric_name[0] = '\0';
             }
 
             /* Skip if we already processed this column name for this metric */
@@ -920,7 +920,7 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
             }
             else
             {
-               snprintf(column_metric_name, sizeof(column_metric_name), "");
+               column_metric_name[0] = '\0';
             }
 
             if (pgexporter_art_contains_key(processed_columns, column_metric_name))
