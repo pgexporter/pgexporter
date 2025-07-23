@@ -336,7 +336,7 @@ pgexporter_validate_yaml_metrics(struct configuration* config, yaml_config_t* ya
             else
             {
                /* If no column name, use empty string to represent the base metric */
-               snprintf(column_metric_name, sizeof(column_metric_name), "");
+               column_metric_name[0] = '\0';
             }
 
             /* Add to metric-specific ART to track unique columns for this metric */
@@ -377,7 +377,7 @@ pgexporter_validate_yaml_metrics(struct configuration* config, yaml_config_t* ya
             }
             else
             {
-               snprintf(column_metric_name, sizeof(column_metric_name), "");
+               column_metric_name[0] = '\0';
             }
 
             /* Skip if we already processed this column name for this metric */
