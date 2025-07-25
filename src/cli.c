@@ -87,11 +87,9 @@ static int conf_get(SSL* ssl, int socket, char* config_key, uint8_t compression,
 static int conf_set(SSL* ssl, int socket, char* config_key, char* config_value, uint8_t compression, uint8_t encryption, int32_t output_format);
 
 static int  process_result(SSL* ssl, int socket, int32_t output_format);
-static int process_ls_result(SSL* ssl, int socket, int32_t output_format);
 static int process_get_result(SSL* ssl, int socket, char* config_key, int32_t output_format);
 static int process_set_result(SSL* ssl, int socket, char* config_key, int32_t output_format);
 
-static int get_conf_path_result(struct json* j, uintptr_t* r);
 static int get_config_key_result(char* config_key, struct json* j, uintptr_t* r, int32_t output_format);
 
 static char* translate_command(int32_t cmd_code);
@@ -860,7 +858,7 @@ conf_ls(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t o
       goto error;
    }
 
-   if (process_ls_result(ssl, socket, output_format))
+   if (process_result(ssl, socket, output_format))
    {
       goto error;
    }
@@ -947,52 +945,7 @@ error:
    return 1;
 }
 
-static int
-process_ls_result(SSL* ssl, int socket, int32_t output_format)
-{
-   struct json* read = NULL;
-   struct json* json_res = NULL;
-   uintptr_t res;
 
-   if (pgexporter_management_read_json(ssl, socket, NULL, NULL, &read))
-   {
-      goto error;
-   }
-
-   if (get_conf_path_result(read, &res))
-   {
-      goto error;
-   }
-
-   json_res = (struct json*)res;
-
-   if (MANAGEMENT_OUTPUT_FORMAT_JSON == output_format)
-   {
-      pgexporter_json_print(json_res, FORMAT_JSON_COMPACT);
-   }
-   else
-   {
-      struct json_iterator* iter = NULL;
-      pgexporter_json_iterator_create(json_res, &iter);
-      while (pgexporter_json_iterator_next(iter))
-      {
-         char* value = pgexporter_value_to_string(iter->value, FORMAT_TEXT, NULL, 0);
-         printf("%s\n", value);
-         free(value);
-      }
-      pgexporter_json_iterator_destroy(iter);
-   }
-
-   pgexporter_json_destroy(read);
-   pgexporter_json_destroy(json_res);
-   return 0;
-
-error:
-
-   pgexporter_json_destroy(read);
-   pgexporter_json_destroy(json_res);
-   return 1;
-}
 
 static int
 process_get_result(SSL* ssl, int socket, char* config_key, int32_t output_format)
@@ -1154,46 +1107,6 @@ error:
    }
 
    return 1;
-}
-
-static int
-get_conf_path_result(struct json* j, uintptr_t* r)
-{
-   struct json* conf_path_response = NULL;
-   struct json* response = NULL;
-
-   response = (struct json*)pgexporter_json_get(j, MANAGEMENT_CATEGORY_RESPONSE);
-
-   if (!response)
-   {
-      goto error;
-   }
-
-   if (pgexporter_json_create(&conf_path_response))
-   {
-      goto error;
-   }
-
-   if (pgexporter_json_contains_key(response, CONFIGURATION_ARGUMENT_ADMIN_CONF_PATH))
-   {
-      pgexporter_json_put(conf_path_response, CONFIGURATION_ARGUMENT_ADMIN_CONF_PATH, (uintptr_t)pgexporter_json_get(response, CONFIGURATION_ARGUMENT_ADMIN_CONF_PATH), ValueString);
-   }
-   if (pgexporter_json_contains_key(response, CONFIGURATION_ARGUMENT_MAIN_CONF_PATH))
-   {
-      pgexporter_json_put(conf_path_response, CONFIGURATION_ARGUMENT_MAIN_CONF_PATH, (uintptr_t)pgexporter_json_get(response, CONFIGURATION_ARGUMENT_MAIN_CONF_PATH), ValueString);
-   }
-   if (pgexporter_json_contains_key(response, CONFIGURATION_ARGUMENT_USER_CONF_PATH))
-   {
-      pgexporter_json_put(conf_path_response, CONFIGURATION_ARGUMENT_USER_CONF_PATH, (uintptr_t)pgexporter_json_get(response, CONFIGURATION_ARGUMENT_USER_CONF_PATH), ValueString);
-   }
-
-   *r = (uintptr_t)conf_path_response;
-
-   return 0;
-error:
-
-   return 1;
-
 }
 
 static int
