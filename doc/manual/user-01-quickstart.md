@@ -15,6 +15,7 @@ Options:
   -c, --config CONFIG_FILE                  Set the path to the pgexporter.conf file
   -u, --users USERS_FILE                    Set the path to the pgexporter_users.conf file
   -A, --admins ADMINS_FILE                  Set the path to the pgexporter_admins.conf file
+  -D, --directory DIRECTORY                 Set the configuration directory
   -Y, --yaml METRICS_FILE_DIR               Set the path to YAML file/directory
   -d, --daemon                              Run as a daemon
   -C, --collectors NAME_1,NAME_2,...,NAME_N Enable only specific collectors

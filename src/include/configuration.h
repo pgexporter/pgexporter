@@ -84,6 +84,17 @@ extern "C" {
 #define CONFIGURATION_ARGUMENT_USER_CONF_PATH             "users_configuration_path"
 #define CONFIGURATION_ARGUMENT_ADMIN_CONF_PATH            "admin_configuration_path"
 
+/* Default configuration paths */
+#define PGEXPORTER_DEFAULT_CONFIGURATION_PATH             "/etc/pgexporter"
+#define PGEXPORTER_DEFAULT_CONF_FILE                      "/etc/pgexporter/pgexporter.conf"
+#define PGEXPORTER_DEFAULT_USERS_FILE                     "/etc/pgexporter/pgexporter_users.conf"
+#define PGEXPORTER_DEFAULT_ADMINS_FILE                    "/etc/pgexporter/pgexporter_admins.conf"
+
+/* Configuration filenames */
+#define PGEXPORTER_CONF_FILENAME                          "pgexporter.conf"
+#define PGEXPORTER_USERS_FILENAME                         "pgexporter_users.conf"
+#define PGEXPORTER_ADMINS_FILENAME                        "pgexporter_admins.conf"
+
 /**
  * Initialize the configuration structure
  * @param shmem The shared memory segment

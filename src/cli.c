@@ -945,8 +945,6 @@ error:
    return 1;
 }
 
-
-
 static int
 process_get_result(SSL* ssl, int socket, char* config_key, int32_t output_format)
 {

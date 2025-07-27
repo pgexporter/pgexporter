@@ -362,6 +362,8 @@ usage(void)
    printf("  -A, --admins ADMINS_FILE                    Set the path to the pgexporter_admins.conf file\n");
    printf("  -Y, --yaml METRICS_FILE_DIR                 Set the path to YAML file/directory\n");
    printf("  -J, --json METRICS_FILE_DIR                 Set the path to JSON file/directory\n");
+   printf("  -D, --directory DIRECTORY                   Set the configuration directory path\n");
+   printf("                                              Can also be set via PGEXPORTER_CONFIG_DIR environment variable\n");
    printf("  -d, --daemon                                Run as a daemon\n");
    printf("  -C, --collectors NAME_1,NAME_2,...,NAME_N   Enable only specific collectors\n");
    printf("  -V, --version                               Display version information\n");
@@ -381,6 +383,7 @@ main(int argc, char** argv)
    char* json_path = NULL;
    char* bin_path = NULL;
    char* collector = NULL;
+   char* directory_path = NULL;
    char collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];
    bool daemon = false;
    pid_t pid, sid;
@@ -397,6 +400,11 @@ main(int argc, char** argv)
    int kernel_major, kernel_minor, kernel_patch;
 
    argv_ptr = argv;
+   char config_path_buffer[MAX_PATH];
+   char users_path_buffer[MAX_PATH];
+   char admins_path_buffer[MAX_PATH];
+   struct stat path_stat = {0};
+   char* adjusted_dir_path = NULL;
    char* filepath = NULL;
    int optind = 0;
    int num_options = 0;
@@ -411,6 +419,7 @@ main(int argc, char** argv)
       {"V", "version", false},
       {"?", "help", false},
       {"C", "collectors", true},
+      {"D", "directory", true},
    };
 
    num_options = sizeof(options) / sizeof(options[0]);
@@ -506,6 +515,10 @@ main(int argc, char** argv)
             }
          }
       }
+      else if (!strcmp(optname, "directory") || !strcmp(optname, "D"))
+      {
+         directory_path = optarg;
+      }
       else if (!strcmp(optname, "help") || !strcmp(optname, "?"))
       {
          usage();
@@ -538,6 +551,87 @@ main(int argc, char** argv)
    config = (struct configuration*)shmem;
    memcpy(config->collectors, collectors, (NUMBER_OF_COLLECTORS * MAX_COLLECTOR_LENGTH) * sizeof(char));
    config->number_of_collectors = collector_idx;
+
+   /* Directory processing */
+   if (directory_path == NULL)
+   {
+      // Check for environment variable if no -D flag provided
+      directory_path = getenv("PGEXPORTER_CONFIG_DIR");
+      if (directory_path != NULL)
+      {
+         pgexporter_log_info("Configuration directory set via PGEXPORTER_CONFIG_DIR environment variable: %s", directory_path);
+      }
+   }
+
+   if (directory_path != NULL)
+   {
+      if (!strcmp(directory_path, PGEXPORTER_DEFAULT_CONFIGURATION_PATH))
+      {
+         pgexporter_log_warn("Using the default configuration directory %s, -D can be omitted.", directory_path);
+      }
+
+      if (access(directory_path, F_OK) != 0)
+      {
+#ifdef HAVE_SYSTEMD
+         sd_notifyf(0, "STATUS=Configuration directory not found: %s", directory_path);
+#endif
+         pgexporter_log_error("Configuration directory not found: %s", directory_path);
+         exit(1);
+      }
+
+      if (stat(directory_path, &path_stat) == 0)
+      {
+         if (!S_ISDIR(path_stat.st_mode))
+         {
+#ifdef HAVE_SYSTEMD
+            sd_notifyf(0, "STATUS=Path is not a directory: %s", directory_path);
+#endif
+            pgexporter_log_error("Path is not a directory: %s", directory_path);
+            exit(1);
+         }
+      }
+
+      if (access(directory_path, R_OK | X_OK) != 0)
+      {
+#ifdef HAVE_SYSTEMD
+         sd_notifyf(0, "STATUS=Insufficient permissions for directory: %s", directory_path);
+#endif
+         pgexporter_log_error("Insufficient permissions for directory: %s", directory_path);
+         exit(1);
+      }
+
+      if (directory_path[strlen(directory_path) - 1] != '/')
+      {
+         adjusted_dir_path = pgexporter_append(strdup(directory_path), "/");
+      }
+      else
+      {
+         adjusted_dir_path = strdup(directory_path);
+      }
+
+      if (adjusted_dir_path == NULL)
+      {
+         pgexporter_log_error("Memory allocation failed while copying directory path.");
+         exit(1);
+      }
+
+      if (!configuration_path && pgexporter_normalize_path(adjusted_dir_path, PGEXPORTER_CONF_FILENAME, PGEXPORTER_DEFAULT_CONF_FILE, config_path_buffer, sizeof(config_path_buffer)) == 0 && strlen(config_path_buffer) > 0)
+      {
+         configuration_path = config_path_buffer;
+      }
+
+      if (!users_path && pgexporter_normalize_path(adjusted_dir_path, PGEXPORTER_USERS_FILENAME, PGEXPORTER_DEFAULT_USERS_FILE, users_path_buffer, sizeof(users_path_buffer)) == 0 && strlen(users_path_buffer) > 0)
+      {
+         users_path = users_path_buffer;
+      }
+
+      if (!admins_path && pgexporter_normalize_path(adjusted_dir_path, PGEXPORTER_ADMINS_FILENAME, PGEXPORTER_DEFAULT_ADMINS_FILE, admins_path_buffer, sizeof(admins_path_buffer)) == 0 && strlen(admins_path_buffer) > 0)
+      {
+         admins_path = admins_path_buffer;
+      }
+
+      free(adjusted_dir_path);
+   }
 
    /* Configuration File */
    if (configuration_path != NULL)

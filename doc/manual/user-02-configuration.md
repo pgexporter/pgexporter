@@ -123,3 +123,42 @@ The `pgexporter_admins` configuration defines the administrators known to the sy
 The configuration is loaded from either the path specified by the `-A` flag or `/etc/pgexporter/pgexporter_admins.conf`.
 
 If pgexporter has both Transport Layer Security (TLS) and `management` enabled then `pgexporter-cli` can connect with TLS using the files `~/.pgexporter/pgexporter.key` (must be 0600 permission), `~/.pgexporter/pgexporter.crt` and `~/.pgexporter/root.crt`.
+
+## Configuration Directory
+
+You can specify a directory for all configuration files using the `-D` flag (or `--directory`).
+Alternatively, you can set the `PGEXPORTER_CONFIG_DIR` environment variable to define the configuration directory.
+
+**Behavior:**
+- When the directory flag (`-D`) is set, pgexporter will look for all configuration files in the specified directory.
+- If a required file is not found in the specified directory, pgexporter will look for it in its default location (e.g., `/etc/pgexporter/pgexporter.conf`).
+- If the file is not found in either location:
+  - If the file is mandatory, pgexporter will log an error and fail to start.
+  - If the file is optional, pgexporter will log a warning and continue without it.
+- All file lookup attempts and missing files are logged for troubleshooting.
+
+**Precedence Rules:**
+- Individual file flags (such as `-c`, `-u`, `-A`, etc.) always take precedence over the directory flag and environment variable for their respective files.
+- The directory flag (`-D`) takes precedence over the environment variable (`PGEXPORTER_CONFIG_DIR`).
+- If neither the directory flag nor individual file flags are set, pgexporter uses the default locations for all configuration files.
+
+**Using the Environment Variable:**
+1. Set the environment variable before starting pgexporter:
+``` sh
+export PGEXPORTER_CONFIG_DIR=/path/to/config_dir
+pgexporter -d
+```
+
+2. If both the environment variable and the `-D` flag are set, the flag takes precedence.
+
+**Example:**
+``` sh
+pgexporter -D /custom/config/dir -d
+```
+or
+``` sh
+export PGEXPORTER_CONFIG_DIR=/custom/config/dir
+pgexporter -d
+```
+
+Refer to logs for details about which configuration files were loaded and from which locations.

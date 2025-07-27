@@ -848,6 +848,18 @@ pgexporter_os_kernel_version(char** os, int* kernel_major, int* kernel_minor, in
 bool
 pgexporter_is_valid_metric_name(char* name);
 
+/**
+ * Check and set directory path using caller-provided buffer
+ * @param directory_path Directory to search for path
+ * @param filename Filename to append
+ * @param default_path Default path to use if file not found in directory
+ * @param path_buffer Buffer to store the resulting path
+ * @param buffer_size Size of the path_buffer
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_normalize_path(char* directory_path, char* filename, char* default_path, char* path_buffer, size_t buffer_size);
+
 #ifdef __cplusplus
 }
 #endif
