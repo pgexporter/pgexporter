@@ -1,0 +1,254 @@
+#
+# Copyright (C) 2025 The pgexporter community
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this list
+# of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice, this
+# list of conditions and the following disclaimer in the documentation and/or other
+# materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors may
+# be used to endorse or promote products derived from this software without specific
+# prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+# THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+# OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+# TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+extension: postgis_topology
+metrics:
+
+#
+# PostGIS topology extension metrics - compatible across PostgreSQL 13-17
+#
+
+  # Topology inventory - basic count and details of defined topologies
+  - metric: topology_inventory
+    queries:
+      - query: SELECT COUNT(*) as topology_count FROM topology.topology;
+        version: "3.0"
+        columns:
+          - name: topology_count
+            type: gauge
+            description: Total number of topologies defined in the system
+
+  # Topology details - comprehensive information about each topology
+  - metric: topology_details
+    queries:
+      - query: SELECT id, name, srid, precision, hasz FROM topology.topology ORDER BY id;
+        version: "3.0"
+        columns:
+          - name: id
+            type: label
+            description: Unique topology identifier
+          - name: name
+            type: label
+            description: Topology name
+          - name: srid
+            type: label
+            description: Spatial Reference System ID for the topology
+          - name: precision
+            type: gauge
+            description: Topology coordinate precision
+          - name: hasz
+            type: gauge
+            description: Whether topology supports Z coordinates (1=yes, 0=no)
+
+  # Node counts per topology - monitoring topology node elements
+  - metric: topology_node_counts
+    queries:
+      - query: SELECT t.name as topology_name, t.srid, COALESCE(pst.n_live_tup, 0) as live_node_count, COALESCE(pst.n_tup_ins, 0) as inserted_nodes, COALESCE(pst.n_tup_upd, 0) as updated_nodes, COALESCE(pst.n_tup_del, 0) as deleted_nodes FROM topology.topology t LEFT JOIN pg_stat_user_tables pst ON pst.schemaname = t.name AND pst.relname = 'node' ORDER BY t.id;
+        version: "3.0"
+        columns:
+          - name: topology_name
+            type: label
+            description: Topology name
+          - name: srid
+            type: label
+            description: Spatial Reference System ID
+          - name: live_node_count
+            type: gauge
+            description: Current number of live nodes in topology
+          - name: inserted_nodes
+            type: gauge
+            description: Total number of nodes inserted since statistics reset
+          - name: updated_nodes
+            type: gauge
+            description: Total number of node updates since statistics reset
+          - name: deleted_nodes
+            type: gauge
+            description: Total number of nodes deleted since statistics reset
+
+  # Edge counts per topology - monitoring topology edge elements
+  - metric: topology_edge_counts
+    queries:
+      - query: SELECT t.name as topology_name, t.srid, COALESCE(pst.n_live_tup, 0) as live_edge_count, COALESCE(pst.n_tup_ins, 0) as inserted_edges FROM topology.topology t LEFT JOIN pg_stat_user_tables pst ON pst.schemaname = t.name AND pst.relname = 'edge_data' ORDER BY t.id;
+        version: "3.0"
+        columns:
+          - name: topology_name
+            type: label
+            description: Topology name
+          - name: srid
+            type: label
+            description: Spatial Reference System ID
+          - name: live_edge_count
+            type: gauge
+            description: Current number of live edges in topology
+          - name: inserted_edges
+            type: gauge
+            description: Total number of edges inserted since statistics reset
+
+  # Face counts per topology - monitoring topology face elements
+  - metric: topology_face_counts
+    queries:
+      - query: SELECT t.name as topology_name, t.srid, COALESCE(pst.n_live_tup, 0) as live_face_count, COALESCE(pst.n_tup_ins, 0) as inserted_faces FROM topology.topology t LEFT JOIN pg_stat_user_tables pst ON pst.schemaname = t.name AND pst.relname = 'face' ORDER BY t.id;
+        version: "3.0"
+        columns:
+          - name: topology_name
+            type: label
+            description: Topology name
+          - name: srid
+            type: label
+            description: Spatial Reference System ID
+          - name: live_face_count
+            type: gauge
+            description: Current number of live faces in topology
+          - name: inserted_faces
+            type: gauge
+            description: Total number of faces inserted since statistics reset
+
+  # Combined topology primitives - all topology elements in single query
+  - metric: topology_primitives_summary
+    queries:
+      - query: SELECT t.name as topology_name, t.srid, t.precision, COALESCE(nodes.n_live_tup, 0) as node_count, COALESCE(edges.n_live_tup, 0) as edge_count, COALESCE(faces.n_live_tup, 0) as face_count, COALESCE(nodes.n_live_tup, 0) + COALESCE(edges.n_live_tup, 0) + COALESCE(faces.n_live_tup, 0) as total_primitives FROM topology.topology t LEFT JOIN pg_stat_user_tables nodes ON nodes.schemaname = t.name AND nodes.relname = 'node' LEFT JOIN pg_stat_user_tables edges ON edges.schemaname = t.name AND edges.relname = 'edge_data' LEFT JOIN pg_stat_user_tables faces ON faces.schemaname = t.name AND faces.relname = 'face' ORDER BY t.id;
+        version: "3.0"
+        columns:
+          - name: topology_name
+            type: label
+            description: Topology name
+          - name: srid
+            type: label
+            description: Spatial Reference System ID
+          - name: precision
+            type: gauge
+            description: Topology coordinate precision
+          - name: node_count
+            type: gauge
+            description: Number of nodes in topology
+          - name: edge_count
+            type: gauge
+            description: Number of edges in topology
+          - name: face_count
+            type: gauge
+            description: Number of faces in topology
+          - name: total_primitives
+            type: gauge
+            description: Total number of topology primitives (nodes + edges + faces)
+
+  # System-wide topology statistics - aggregated metrics across all topologies
+  - metric: topology_system_stats
+    queries:
+      - query: SELECT COUNT(*) as total_topologies, COUNT(DISTINCT t.srid) as unique_srids, AVG(t.precision) as avg_precision, SUM(COALESCE(nodes.n_live_tup, 0)) as total_nodes, SUM(COALESCE(edges.n_live_tup, 0)) as total_edges, SUM(COALESCE(faces.n_live_tup, 0)) as total_faces FROM topology.topology t LEFT JOIN pg_stat_user_tables nodes ON nodes.schemaname = t.name AND nodes.relname = 'node' LEFT JOIN pg_stat_user_tables edges ON edges.schemaname = t.name AND edges.relname = 'edge_data' LEFT JOIN pg_stat_user_tables faces ON faces.schemaname = t.name AND faces.relname = 'face';
+        version: "3.0"
+        columns:
+          - name: total_topologies
+            type: gauge
+            description: Total number of topologies in the system
+          - name: unique_srids
+            type: gauge
+            description: Number of unique spatial reference systems used
+          - name: avg_precision
+            type: gauge
+            description: Average coordinate precision across all topologies
+          - name: total_nodes
+            type: gauge
+            description: Total number of nodes across all topologies
+          - name: total_edges
+            type: gauge
+            description: Total number of edges across all topologies
+          - name: total_faces
+            type: gauge
+            description: Total number of faces across all topologies
+
+  # SRID distribution - spatial reference system usage analysis
+  - metric: topology_srid_distribution
+    queries:
+      - query: SELECT t.srid, COUNT(*) as topology_count, SUM(COALESCE(nodes.n_live_tup, 0)) as total_nodes_for_srid, SUM(COALESCE(edges.n_live_tup, 0)) as total_edges_for_srid FROM topology.topology t LEFT JOIN pg_stat_user_tables nodes ON nodes.schemaname = t.name AND nodes.relname = 'node' LEFT JOIN pg_stat_user_tables edges ON edges.schemaname = t.name AND edges.relname = 'edge_data' GROUP BY t.srid ORDER BY topology_count DESC;
+        version: "3.0"
+        columns:
+          - name: srid
+            type: label
+            description: Spatial Reference System ID
+          - name: topology_count
+            type: gauge
+            description: Number of topologies using this SRID
+          - name: total_nodes_for_srid
+            type: gauge
+            description: Total nodes across all topologies using this SRID
+          - name: total_edges_for_srid
+            type: gauge
+            description: Total edges across all topologies using this SRID
+
+  # Topology health and activity status - operational monitoring
+  - metric: topology_health
+    queries:
+      - query: SELECT t.name as topology_name, t.srid, CASE WHEN nodes.relname IS NOT NULL THEN 'YES' ELSE 'NO' END as has_node_table, CASE WHEN edges.relname IS NOT NULL THEN 'YES' ELSE 'NO' END as has_edge_table, CASE WHEN faces.relname IS NOT NULL THEN 'YES' ELSE 'NO' END as has_face_table, COALESCE(nodes.n_live_tup, 0) as current_node_count, COALESCE(edges.n_live_tup, 0) as current_edge_count, CASE WHEN COALESCE(nodes.n_live_tup, 0) + COALESCE(edges.n_live_tup, 0) = 0 THEN 'EMPTY' WHEN COALESCE(nodes.n_live_tup, 0) > 0 AND COALESCE(edges.n_live_tup, 0) = 0 THEN 'NODES_ONLY' WHEN COALESCE(nodes.n_live_tup, 0) > 0 AND COALESCE(edges.n_live_tup, 0) > 0 THEN 'ACTIVE' ELSE 'UNKNOWN' END as topology_status FROM topology.topology t LEFT JOIN pg_stat_user_tables nodes ON nodes.schemaname = t.name AND nodes.relname = 'node' LEFT JOIN pg_stat_user_tables edges ON edges.schemaname = t.name AND edges.relname = 'edge_data' LEFT JOIN pg_stat_user_tables faces ON faces.schemaname = t.name AND faces.relname = 'face' ORDER BY t.id;
+        version: "3.0"
+        columns:
+          - name: topology_name
+            type: label
+            description: Topology name
+          - name: srid
+            type: label
+            description: Spatial Reference System ID
+          - name: has_node_table
+            type: label
+            description: Whether topology has a node table (YES/NO)
+          - name: has_edge_table
+            type: label
+            description: Whether topology has an edge table (YES/NO)
+          - name: has_face_table
+            type: label
+            description: Whether topology has a face table (YES/NO)
+          - name: current_node_count
+            type: gauge
+            description: Current number of nodes in topology
+          - name: current_edge_count
+            type: gauge
+            description: Current number of edges in topology
+          - name: topology_status
+            type: label
+            description: Topology activity status (EMPTY/NODES_ONLY/ACTIVE/UNKNOWN)
+
+  # Topology storage utilization - disk usage monitoring
+  - metric: topology_storage_stats
+    queries:
+      - query: SELECT t.name as topology_name, pg_size_pretty(COALESCE((SELECT pg_total_relation_size(t.name||'.node')), 0) + COALESCE((SELECT pg_total_relation_size(t.name||'.edge_data')), 0) + COALESCE((SELECT pg_total_relation_size(t.name||'.face')), 0)) as total_topology_size, pg_size_pretty(COALESCE((SELECT pg_total_relation_size(t.name||'.node')), 0)) as node_table_size, pg_size_pretty(COALESCE((SELECT pg_total_relation_size(t.name||'.edge_data')), 0)) as edge_table_size, pg_size_pretty(COALESCE((SELECT pg_total_relation_size(t.name||'.face')), 0)) as face_table_size FROM topology.topology t ORDER BY t.id;
+        version: "3.0"
+        columns:
+          - name: topology_name
+            type: label
+            description: Topology name
+          - name: total_topology_size
+            type: label
+            description: Total disk space used by topology (human readable)
+          - name: node_table_size
+            type: label
+            description: Disk space used by node table (human readable)
+          - name: edge_table_size
+            type: label
+            description: Disk space used by edge table (human readable)
+          - name: face_table_size
+            type: label
+            description: Disk space used by face table (human readable)
