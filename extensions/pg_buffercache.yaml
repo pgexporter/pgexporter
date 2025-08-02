@@ -1,0 +1,219 @@
+#
+# Copyright (C) 2025 The pgexporter community
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this list
+# of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice, this
+# list of conditions and the following disclaimer in the documentation and/or other
+# materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors may
+# be used to endorse or promote products derived from this software without specific
+# prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+# THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+# OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+# TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+extension: pg_buffercache
+metrics:
+
+#
+# Extension Version 1.3
+#
+
+  # Buffer cache utilization - fundamental health metric for shared_buffers sizing
+  - metric: buffer_utilization
+    queries:
+      - query: SELECT 
+                  COUNT(*) as total_buffers,
+                  COUNT(*) FILTER (WHERE relfilenode IS NOT NULL) as used_buffers,
+                  ROUND(
+                    (COUNT(*) FILTER (WHERE relfilenode IS NOT NULL)::numeric / COUNT(*)::numeric) * 100, 2
+                  ) as utilization_pct
+                FROM pg_buffercache;
+        version: "1.3"
+        columns:
+          - name: total_buffers
+            type: gauge
+            description: Total number of buffers in shared_buffers
+          - name: used_buffers
+            type: gauge
+            description: Number of buffers currently containing data
+          - name: utilization_pct
+            type: gauge
+            description: Percentage of shared_buffers currently in use
+
+  # Dirty buffer monitoring - checkpoint pressure and write performance indicator
+  - metric: dirty_buffers
+    queries:
+      - query: SELECT 
+                  COUNT(*) FILTER (WHERE isdirty = true) as dirty_buffers,
+                  COUNT(*) FILTER (WHERE relfilenode IS NOT NULL) as used_buffers,
+                  ROUND(
+                    (COUNT(*) FILTER (WHERE isdirty = true)::numeric / 
+                     NULLIF(COUNT(*) FILTER (WHERE relfilenode IS NOT NULL), 0)::numeric) * 100, 2
+                  ) as dirty_pct
+                FROM pg_buffercache;
+        version: "1.3"
+        columns:
+          - name: dirty_buffers
+            type: gauge
+            description: Number of dirty buffers awaiting checkpoint
+          - name: used_buffers
+            type: gauge
+            description: Total number of used buffers
+          - name: dirty_pct
+            type: gauge
+            description: Percentage of used buffers that are dirty
+
+  # Top cached relations - identifies which objects benefit most from buffer cache
+  - metric: top_cached_relations
+    queries:
+      - query: SELECT 
+                  COALESCE(c.relname, 'unknown') as relation_name,
+                  COUNT(*) as buffer_count,
+                  ROUND((COUNT(*)::numeric / SUM(COUNT(*)) OVER ()) * 100, 2) as cache_pct
+                FROM pg_buffercache b
+                LEFT JOIN pg_class c ON (
+                  b.relfilenode = pg_relation_filenode(c.oid) 
+                  AND b.reldatabase = (SELECT oid FROM pg_database WHERE datname = current_database())
+                )
+                WHERE b.relfilenode IS NOT NULL
+                GROUP BY c.relname
+                ORDER BY buffer_count DESC
+                LIMIT 10;
+        version: "1.3"
+        columns:
+          - name: relation_name
+            type: label
+          - name: buffer_count
+            type: gauge
+            description: Number of buffers used by this relation
+          - name: cache_pct
+            type: gauge
+            description: Percentage of total cached buffers used by this relation
+
+  # Cache effectiveness - usage patterns based on access frequency
+  - metric: cache_effectiveness
+    queries:
+      - query: SELECT 
+                  ROUND(AVG(usagecount), 2) as avg_usage_count,
+                  COUNT(*) FILTER (WHERE usagecount >= 3) as high_usage_buffers,
+                  COUNT(*) FILTER (WHERE usagecount = 1) as low_usage_buffers,
+                  COUNT(*) FILTER (WHERE relfilenode IS NOT NULL) as total_used_buffers
+                FROM pg_buffercache
+                WHERE relfilenode IS NOT NULL;
+        version: "1.3"
+        columns:
+          - name: avg_usage_count
+            type: gauge
+            description: Average usage count across all cached buffers
+          - name: high_usage_buffers
+            type: gauge
+            description: Number of frequently accessed buffers (usage_count >= 3)
+          - name: low_usage_buffers
+            type: gauge
+            description: Number of infrequently accessed buffers (usage_count = 1)
+          - name: total_used_buffers
+            type: gauge
+            description: Total number of buffers containing data
+
+  # Cache pressure indicators - memory pressure and allocation effectiveness
+  - metric: cache_pressure
+    queries:
+      - query: SELECT 
+                  COUNT(*) as total_buffers,
+                  COUNT(*) FILTER (WHERE relfilenode IS NOT NULL) as used_buffers,
+                  COUNT(*) FILTER (WHERE isdirty = true) as dirty_buffers,
+                  COUNT(*) FILTER (WHERE pinning_backends > 0) as pinned_buffers,
+                  CASE 
+                    WHEN (COUNT(*) FILTER (WHERE relfilenode IS NOT NULL)::numeric / COUNT(*)::numeric) > 0.9 THEN 'HIGH'
+                    WHEN (COUNT(*) FILTER (WHERE relfilenode IS NOT NULL)::numeric / COUNT(*)::numeric) > 0.7 THEN 'MEDIUM'
+                    ELSE 'LOW'
+                  END as pressure_level
+                FROM pg_buffercache;
+        version: "1.3"
+        columns:
+          - name: total_buffers
+            type: gauge
+            description: Total shared buffer slots available
+          - name: used_buffers
+            type: gauge
+            description: Buffer slots currently in use
+          - name: dirty_buffers
+            type: gauge
+            description: Buffers with uncommitted changes
+          - name: pinned_buffers
+            type: gauge
+            description: Buffers currently pinned by backends
+          - name: pressure_level
+            type: label
+            description: Cache pressure level (LOW/MEDIUM/HIGH)
+
+#
+# Extension Version 1.4
+#
+
+  # Buffer summary statistics using pg_buffercache_summary function
+  - metric: buffer_summary
+    queries:
+      - query: SELECT 
+                  buffers_used,
+                  buffers_unused,
+                  buffers_dirty,
+                  buffers_pinned,
+                  ROUND(usagecount_avg, 2) as avg_usage_count
+                FROM pg_buffercache_summary();
+        version: "1.4"
+        columns:
+          - name: buffers_used
+            type: gauge
+            description: Number of buffers currently in use
+          - name: buffers_unused
+            type: gauge
+            description: Number of unused buffer slots
+          - name: buffers_dirty
+            type: gauge
+            description: Number of dirty buffers
+          - name: buffers_pinned
+            type: gauge
+            description: Number of pinned buffers
+          - name: avg_usage_count
+            type: gauge
+            description: Average usage count across all buffers
+
+  # Usage count distribution - detailed breakdown of buffer access patterns
+  - metric: usage_distribution
+    queries:
+      - query: SELECT 
+                  usage_count,
+                  buffers,
+                  dirty,
+                  pinned
+                FROM pg_buffercache_usage_counts()
+                ORDER BY usage_count;
+        version: "1.4"
+        columns:
+          - name: usage_count
+            type: label
+          - name: buffers
+            type: gauge
+            description: Number of buffers with this usage count
+          - name: dirty
+            type: gauge
+            description: Number of dirty buffers with this usage count
+          - name: pinned
+            type: gauge
+            description: Number of pinned buffers with this usage count
