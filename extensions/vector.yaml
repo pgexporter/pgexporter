@@ -1,0 +1,268 @@
+#
+# Copyright (C) 2025 The pgexporter community
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this list
+# of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice, this
+# list of conditions and the following disclaimer in the documentation and/or other
+# materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors may
+# be used to endorse or promote products derived from this software without specific
+# prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+# THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+# OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+# TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+extension: vector
+metrics:
+
+#
+# Extension Version 0.8.0
+# Compatible: PostgreSQL 13-17
+# Provides vector similarity search with HNSW and IVFFlat indexes
+#
+
+# Vector column inventory - tracks vector column adoption across schemas and tables
+  - metric: vector_column_inventory
+    queries:
+      - query: SELECT 
+                  current_database() as database,
+                  table_schema as schema_name,
+                  table_name,
+                  COUNT(*) as vector_columns
+                FROM information_schema.columns 
+                WHERE data_type = 'USER-DEFINED' AND udt_name = 'vector'
+                GROUP BY current_database(), table_schema, table_name
+                ORDER BY table_schema, table_name;
+        version: "0.8.0"
+        columns:
+          - name: database
+            type: label
+          - name: schema_name
+            type: label
+          - name: table_name
+            type: label
+          - name: vector_columns
+            type: gauge
+            description: Number of vector columns in the table
+
+# HNSW index performance monitoring - tracks Hierarchical Navigable Small World index usage and efficiency
+  - metric: hnsw_index_performance
+    queries:
+      - query: SELECT 
+                  current_database() as database,
+                  pui.schemaname,
+                  pui.relname as tablename,
+                  pui.indexrelname as indexname,
+                  pg_relation_size(pui.indexrelid) as index_size_bytes,
+                  pui.idx_scan,
+                  pui.idx_tup_read,
+                  pui.idx_tup_fetch
+                FROM pg_stat_user_indexes pui
+                WHERE pui.indexrelname IN (
+                  SELECT indexname 
+                  FROM pg_indexes 
+                  WHERE indexdef LIKE '%hnsw%'
+                )
+                ORDER BY pui.idx_scan DESC;
+        version: "0.8.0"
+        columns:
+          - name: database
+            type: label
+          - name: schemaname
+            type: label
+          - name: tablename
+            type: label
+          - name: indexname
+            type: label
+          - name: index_size_bytes
+            type: gauge
+            description: Size of HNSW index in bytes
+          - name: idx_scan
+            type: counter
+            description: Number of index scans initiated on this HNSW index
+          - name: idx_tup_read
+            type: counter
+            description: Number of index entries returned by scans on this HNSW index
+          - name: idx_tup_fetch
+            type: counter
+            description: Number of live table rows fetched by simple HNSW index scans
+
+# IVFFlat index performance monitoring - tracks Inverted File Flat index usage and efficiency
+  - metric: ivfflat_index_performance
+    queries:
+      - query: SELECT 
+                  current_database() as database,
+                  pui.schemaname,
+                  pui.relname as tablename,
+                  pui.indexrelname as indexname,
+                  pg_relation_size(pui.indexrelid) as index_size_bytes,
+                  pui.idx_scan,
+                  pui.idx_tup_read,
+                  pui.idx_tup_fetch
+                FROM pg_stat_user_indexes pui
+                WHERE pui.indexrelname IN (
+                  SELECT indexname 
+                  FROM pg_indexes 
+                  WHERE indexdef LIKE '%ivfflat%'
+                )
+                ORDER BY pui.idx_scan DESC;
+        version: "0.8.0"
+        columns:
+          - name: database
+            type: label
+          - name: schemaname
+            type: label
+          - name: tablename
+            type: label
+          - name: indexname
+            type: label
+          - name: index_size_bytes
+            type: gauge
+            description: Size of IVFFlat index in bytes
+          - name: idx_scan
+            type: counter
+            description: Number of index scans initiated on this IVFFlat index
+          - name: idx_tup_read
+            type: counter
+            description: Number of index entries returned by scans on this IVFFlat index
+          - name: idx_tup_fetch
+            type: counter
+            description: Number of live table rows fetched by simple IVFFlat index scans
+
+# Vector table storage analysis - monitors storage utilization of tables containing vector columns
+  - metric: vector_table_storage
+    queries:
+      - query: SELECT 
+                  current_database() as database,
+                  t.table_schema as schema_name,
+                  t.table_name,
+                  pg_total_relation_size(t.table_schema||'.'||t.table_name) as total_size_bytes,
+                  pg_relation_size(t.table_schema||'.'||t.table_name) as table_size_bytes
+                FROM information_schema.tables t
+                WHERE EXISTS (
+                  SELECT 1 FROM information_schema.columns c 
+                  WHERE c.table_schema = t.table_schema 
+                  AND c.table_name = t.table_name 
+                  AND c.data_type = 'USER-DEFINED' 
+                  AND c.udt_name = 'vector'
+                )
+                ORDER BY total_size_bytes DESC;
+        version: "0.8.0"
+        columns:
+          - name: database
+            type: label
+          - name: schema_name
+            type: label
+          - name: table_name
+            type: label
+          - name: total_size_bytes
+            type: gauge
+            description: Total size of vector table including indexes and TOAST
+          - name: table_size_bytes
+            type: gauge
+            description: Size of vector table excluding indexes
+
+# pgvector configuration monitoring - tracks key performance parameters for HNSW and IVFFlat indexes
+  - metric: pgvector_configuration
+    queries:
+      - query: SELECT 
+                  current_database() as database,
+                  name,
+                  setting,
+                  unit,
+                  category,
+                  short_desc,
+                  context
+                FROM pg_settings
+                WHERE name LIKE 'hnsw.%' OR name LIKE 'ivfflat.%'
+                ORDER BY name;
+        version: "0.8.0"
+        columns:
+          - name: database
+            type: label
+          - name: name
+            type: label
+          - name: setting
+            type: label
+          - name: unit
+            type: label
+          - name: category
+            type: label
+          - name: short_desc
+            type: label
+          - name: context
+            type: label
+
+# Vector operator availability - confirms availability of distance and similarity operators
+  - metric: vector_operators
+    queries:
+      - query: SELECT 
+                  current_database() as database,
+                  o.oprname as operator_name,
+                  lt.typname as left_type,
+                  rt.typname as right_type,
+                  restypename.typname as result_type
+                FROM pg_operator o
+                JOIN pg_type lt ON o.oprleft = lt.oid
+                JOIN pg_type rt ON o.oprright = rt.oid  
+                JOIN pg_type restypename ON o.oprresult = restypename.oid
+                WHERE (lt.typname = 'vector' OR rt.typname = 'vector')
+                  AND o.oprname IN ('<->', '<=>', '<#>', '<+>')
+                ORDER BY o.oprname;
+        version: "0.8.0"
+        columns:
+          - name: database
+            type: label
+          - name: operator_name
+            type: label
+          - name: left_type
+            type: label
+          - name: right_type
+            type: label
+          - name: result_type
+            type: label
+
+# Vector index distribution - provides overview of vector index adoption by access method
+  - metric: vector_index_distribution
+    queries:
+      - query: SELECT 
+                  current_database() as database,
+                  CASE 
+                    WHEN indexdef LIKE '%hnsw%' THEN 'hnsw'
+                    WHEN indexdef LIKE '%ivfflat%' THEN 'ivfflat'
+                    ELSE 'other'
+                  END as index_type,
+                  COUNT(*) as index_count
+                FROM pg_indexes
+                WHERE indexdef LIKE '%vector%'
+                GROUP BY 
+                  current_database(),
+                  CASE 
+                    WHEN indexdef LIKE '%hnsw%' THEN 'hnsw'
+                    WHEN indexdef LIKE '%ivfflat%' THEN 'ivfflat'
+                    ELSE 'other'
+                  END
+                ORDER BY index_count DESC;
+        version: "0.8.0"
+        columns:
+          - name: database
+            type: label
+          - name: index_type
+            type: label
+          - name: index_count
+            type: gauge
+            description: Number of vector indexes by access method type
