@@ -2113,7 +2113,7 @@ append:
 
                safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
                data = pgexporter_vappend(data, 5,
-                                         ",",
+                                         ", ",
                                          temp->query_alt->node.columns[j].name,
                                          "=\"",
                                          safe_key,
@@ -2158,7 +2158,7 @@ append:
 
             safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
             data = pgexporter_vappend(data, 5,
-                                      ",",
+                                      ", ",
                                       temp->query_alt->node.columns[j].name,
                                       "=\"",
                                       safe_key,
@@ -2203,7 +2203,7 @@ append:
 
             safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
             data = pgexporter_vappend(data, 5,
-                                      ",",
+                                      ", ",
                                       temp->query_alt->node.columns[j].name,
                                       "=\"",
                                       safe_key,
@@ -2248,7 +2248,7 @@ append:
 
             safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
             data = pgexporter_vappend(data, 5,
-                                      ",",
+                                      ", ",
                                       temp->query_alt->node.columns[j].name,
                                       "=\"",
                                       safe_key,
@@ -2407,7 +2407,7 @@ append:
 
                safe_key = safe_prometheus_key(pgexporter_get_column(j, tuple));
                data = pgexporter_vappend(data, 5,
-                                         ",",
+                                         ", ",
                                          temp->query_alt->node.columns[j].name,
                                          "=\"",
                                          safe_key,
