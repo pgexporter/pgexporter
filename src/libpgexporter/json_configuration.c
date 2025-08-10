@@ -947,10 +947,10 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
             struct configuration* config = (struct configuration*)shmem;
             if (config->number_of_metric_names < NUMBER_OF_METRIC_NAMES)
             {
-               strncpy(config->metric_names[config->number_of_metric_names],
-                       final_metric_name,
-                       MISC_LENGTH - 1);
-               config->metric_names[config->number_of_metric_names][MISC_LENGTH - 1] = '\0';
+               snprintf(config->metric_names[config->number_of_metric_names],
+                        MISC_LENGTH,
+                        "%s",
+                        final_metric_name);
                config->number_of_metric_names++;
             }
             else

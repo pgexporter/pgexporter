@@ -1528,10 +1528,10 @@ semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t*
 
             if (config->number_of_metric_names < NUMBER_OF_METRIC_NAMES)
             {
-               strncpy(config->metric_names[config->number_of_metric_names],
-                       final_metric_name,
-                       MISC_LENGTH - 1);
-               config->metric_names[config->number_of_metric_names][MISC_LENGTH - 1] = '\0';
+               snprintf(config->metric_names[config->number_of_metric_names],
+                        MISC_LENGTH,
+                        "%s",
+                        final_metric_name);
                config->number_of_metric_names++;
             }
             else
@@ -1723,10 +1723,10 @@ semantics_extension_yaml(struct configuration* config, yaml_config_t* yaml_confi
 
             if (config->number_of_metric_names < NUMBER_OF_METRIC_NAMES)
             {
-               strncpy(config->metric_names[config->number_of_metric_names],
-                       final_metric_name,
-                       MISC_LENGTH - 1);
-               config->metric_names[config->number_of_metric_names][MISC_LENGTH - 1] = '\0';
+               snprintf(config->metric_names[config->number_of_metric_names],
+                        MISC_LENGTH,
+                        "%s",
+                        final_metric_name);
                config->number_of_metric_names++;
             }
             else
