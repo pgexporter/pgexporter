@@ -2142,7 +2142,7 @@ append:
          data = pgexporter_vappend(data, 6,
                                    "pgexporter_",
                                    temp->tag,
-                                   "_bucket{le=\"+Inf\",",
+                                   "_bucket{le=\"+Inf\", ",
                                    "server=\"",
                                    &config->servers[current->server].name[0],
                                    "\""
