@@ -446,7 +446,7 @@ main(int argc, char** argv)
 
          config->log_type = PGEXPORTER_LOGGING_TYPE_FILE;
          memset(&config->log_path[0], 0, MISC_LENGTH);
-         memcpy(&config->log_path[0], logfile, MIN(MISC_LENGTH - 1, strlen(logfile)));
+         snprintf(&config->log_path[0], MISC_LENGTH, "%s", logfile);
       }
 
       if (pgexporter_start_logging())
@@ -477,7 +477,7 @@ main(int argc, char** argv)
 
             config->log_type = PGEXPORTER_LOGGING_TYPE_FILE;
             memset(&config->log_path[0], 0, MISC_LENGTH);
-            memcpy(&config->log_path[0], logfile, MIN(MISC_LENGTH - 1, strlen(logfile)));
+            snprintf(&config->log_path[0], MISC_LENGTH, "%s", logfile);
          }
 
          if (pgexporter_start_logging())
@@ -1191,16 +1191,13 @@ get_config_key_result(char* config_key, struct json* j, uintptr_t* r, int32_t ou
    if (part_count == 1)
    {
       // Single key: config_key
-      strncpy(key, parts[0], MISC_LENGTH - 1);
-      key[MISC_LENGTH - 1] = '\0';
+      snprintf(key, MISC_LENGTH, "%s", parts[0]);
    }
    else if (part_count == 2)
    {
       // Two parts: section.key
-      strncpy(section, parts[0], MISC_LENGTH - 1);
-      section[MISC_LENGTH - 1] = '\0';
-      strncpy(key, parts[1], MISC_LENGTH - 1);
-      key[MISC_LENGTH - 1] = '\0';
+      snprintf(section, MISC_LENGTH, "%s", parts[0]);
+      snprintf(key, MISC_LENGTH, "%s", parts[1]);
 
       // Treat "pgexporter" as the main section (empty)
       if (!strcasecmp(section, PGEXPORTER_MAIN_INI_SECTION))
@@ -1211,12 +1208,9 @@ get_config_key_result(char* config_key, struct json* j, uintptr_t* r, int32_t ou
    else if (part_count == 3)
    {
       // Three parts: section.context.key
-      strncpy(section, parts[0], MISC_LENGTH - 1);
-      section[MISC_LENGTH - 1] = '\0';
-      strncpy(context, parts[1], MISC_LENGTH - 1);
-      context[MISC_LENGTH - 1] = '\0';
-      strncpy(key, parts[2], MISC_LENGTH - 1);
-      key[MISC_LENGTH - 1] = '\0';
+      snprintf(section, MISC_LENGTH, "%s", parts[0]);
+      snprintf(context, MISC_LENGTH, "%s", parts[1]);
+      snprintf(key, MISC_LENGTH, "%s", parts[2]);
    }
 
    response = (struct json*)pgexporter_json_get(j, MANAGEMENT_CATEGORY_RESPONSE);

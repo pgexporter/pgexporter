@@ -697,13 +697,13 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
    memset(q, 0, sizeof(struct query));
 
    q->number_of_columns = cols;
-   memcpy(&q->tag[0], tag, strlen(tag));
+   snprintf(&q->tag[0], MISC_LENGTH, "%s", tag);
 
    for (int i = 0; i < cols; i++)
    {
       if (names != NULL)
       {
-         memcpy(&q->names[i][0], names[i], strlen(names[i]));
+         snprintf(&q->names[i][0], MISC_LENGTH, "%s", names[i]);
       }
       else
       {
@@ -712,7 +712,7 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
             goto error;
          }
 
-         memcpy(&q->names[i][0], name, strlen(name));
+         snprintf(&q->names[i][0], MISC_LENGTH, "%s", name);
 
          free(name);
          name = NULL;
@@ -947,9 +947,8 @@ pgexporter_detect_extensions(int server)
 
       extension_idx = config->servers[server].number_of_extensions;
 
-      strncpy(config->servers[server].extensions[extension_idx].name,
-              pgexporter_get_column(0, current),
-              MISC_LENGTH - 1);
+      snprintf(config->servers[server].extensions[extension_idx].name,
+               MISC_LENGTH, "%s", pgexporter_get_column(0, current));
       config->servers[server].extensions[extension_idx].name[MISC_LENGTH - 1] = '\0';
 
       if (pgexporter_parse_extension_version(pgexporter_get_column(1, current),
@@ -971,9 +970,8 @@ pgexporter_detect_extensions(int server)
                               config->servers[server].extensions[extension_idx].enabled ? "ENABLED" : "DISABLED");
       }
 
-      strncpy(config->servers[server].extensions[extension_idx].comment,
-              pgexporter_get_column(2, current),
-              MISC_LENGTH - 1);
+      snprintf(config->servers[server].extensions[extension_idx].comment,
+               MISC_LENGTH, "%s", pgexporter_get_column(2, current));
       config->servers[server].extensions[extension_idx].comment[MISC_LENGTH - 1] = '\0';
 
       config->servers[server].number_of_extensions++;
@@ -1033,9 +1031,8 @@ pgexporter_detect_databases(int server)
 
       db_idx = config->servers[server].number_of_databases;
 
-      strncpy((char*) &config->servers[server].databases[db_idx],
-              pgexporter_get_column(0, current), DB_NAME_LENGTH - 1);
-      config->servers[server].databases[db_idx][DB_NAME_LENGTH - 1] = '\0';
+      snprintf((char*) &config->servers[server].databases[db_idx],
+               DB_NAME_LENGTH, "%s", pgexporter_get_column(0, current));
 
       config->servers[server].number_of_databases++;
       current = current->next;

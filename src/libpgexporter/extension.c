@@ -53,8 +53,7 @@ pgexporter_setup_extensions_path(struct configuration* config, const char* argv0
    {
       /* Development build - use build/extensions directory */
       char temp_path[MAX_PATH];
-      strncpy(temp_path, local_bin_path, MAX_PATH - 1);
-      temp_path[MAX_PATH - 1] = '\0';
+      snprintf(temp_path, MAX_PATH, "%s", local_bin_path);
 
       /* Remove the executable name to get directory */
       char* last_slash = strrchr(temp_path, '/');

@@ -511,7 +511,7 @@ main(int argc, char** argv)
 
             if (!found)
             {
-               strncpy(collectors[collector_idx++], collector, MAX_COLLECTOR_LENGTH - 1);
+               snprintf(collectors[collector_idx++], MAX_COLLECTOR_LENGTH, "%s", collector);
             }
          }
       }
@@ -657,7 +657,7 @@ main(int argc, char** argv)
       }
       configuration_path = "/etc/pgexporter/pgexporter.conf";
    }
-   memcpy(&config->configuration_path[0], configuration_path, MIN(strlen(configuration_path), MAX_PATH - 1));
+   snprintf(&config->configuration_path[0], MAX_PATH, "%s", configuration_path);
 
    /* Users Configuration File */
    if (users_path != NULL)
@@ -687,7 +687,7 @@ main(int argc, char** argv)
 #endif
          exit(1);
       }
-      memcpy(&config->users_path[0], users_path, MIN(strlen(users_path), MAX_PATH - 1));
+      snprintf(&config->users_path[0], MAX_PATH, "%s", users_path);
    }
    else
    {
@@ -695,7 +695,7 @@ main(int argc, char** argv)
       ret = pgexporter_read_users_configuration(shmem, users_path);
       if (ret == 0)
       {
-         memcpy(&config->users_path[0], users_path, MIN(strlen(users_path), MAX_PATH - 1));
+         snprintf(&config->users_path[0], MAX_PATH, "%s", users_path);
       }
    }
 
@@ -727,7 +727,7 @@ main(int argc, char** argv)
 #endif
          exit(1);
       }
-      memcpy(&config->admins_path[0], admins_path, MIN(strlen(admins_path), MAX_PATH - 1));
+      snprintf(&config->admins_path[0], MAX_PATH, "%s", admins_path);
    }
    else
    {
@@ -735,7 +735,7 @@ main(int argc, char** argv)
       ret = pgexporter_read_admins_configuration(shmem, admins_path);
       if (ret == 0)
       {
-         memcpy(&config->admins_path[0], admins_path, MIN(strlen(admins_path), MAX_PATH - 1));
+         snprintf(&config->admins_path[0], MAX_PATH, "%s", admins_path);
       }
    }
 
@@ -832,7 +832,7 @@ main(int argc, char** argv)
 
    if (yaml_path != NULL)
    {
-      memcpy(config->metrics_path, yaml_path, MIN(strlen(yaml_path), MAX_PATH - 1));
+      snprintf(config->metrics_path, MAX_PATH, "%s", yaml_path);
 
       if (pgexporter_read_metrics_configuration(shmem))
       {
@@ -844,7 +844,7 @@ main(int argc, char** argv)
    }
    else if (json_path != NULL)
    {
-      memcpy(config->metrics_path, json_path, MIN(strlen(json_path), MAX_PATH - 1));
+      snprintf(config->metrics_path, MAX_PATH, "%s", json_path);
 
       if (pgexporter_read_json_metrics_configuration(shmem))
       {
@@ -1899,9 +1899,7 @@ accept_management_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
    if (!fork())
    {
-      char* addr = malloc(strlen(address) + 1);
-      memset(addr, 0, strlen(address) + 1);
-      memcpy(addr, address, strlen(address));
+      char* addr = strdup(address);
 
       ev_loop_fork(loop);
       shutdown_ports();
