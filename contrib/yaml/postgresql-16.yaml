@@ -626,6 +626,60 @@ metrics:
     tag: pg_shmem_allocations
     collector: shmem_size
 
+# Vacuum progress information
+  - queries:
+    - query: SELECT
+                p.pid,
+                a.datname,
+                a.usename,
+                a.query,
+                p.phase,
+                p.heap_blks_total,
+                p.heap_blks_scanned,
+                p.heap_blks_vacuumed,
+                p.index_vacuum_count,
+                p.max_dead_tuples,
+                p.num_dead_tuples,
+                CASE WHEN p.heap_blks_total > 0
+                     THEN round(100 * p.heap_blks_scanned / p.heap_blks_total, 2)
+                     ELSE 0
+                END AS pct_scan_completed
+              FROM pg_stat_progress_vacuum p
+              JOIN pg_stat_activity a USING (pid)
+              ORDER BY p.pid;
+      version: 13
+      columns:
+        - name: pid
+          type: label
+        - name: datname
+          type: label
+        - name: usename
+          type: label
+        - name: query
+          type: label
+        - name: phase
+          type: label
+        - name: heap_blks_total
+          type: gauge
+          description: Total heap blocks in table
+        - name: heap_blks_scanned
+          type: gauge
+          description: Heap blocks scanned
+        - name: heap_blks_vacuumed
+          type: gauge
+          description: Heap blocks vacuumed
+        - name: index_vacuum_count
+          type: gauge
+          description: Number of index vacuum cycles completed
+        - name: max_dead_tuples
+          type: gauge
+          description: Maximum dead tuples
+        - name: num_dead_tuples
+          type: gauge
+          description: Current dead tuples
+        - name: pct_scan_completed
+          type: gauge
+          description: Vacuum scan progress percentage
 #
 # PostgreSQL 14
 #

@@ -678,6 +678,136 @@ extern "C" {
         "    tag: pg_shmem_allocations\n" \
         "    collector: shmem_size\n" \
         "\n" \
+        "# Vacuum progress information\n" \
+        "  - queries:\n" \
+        "    - query: SELECT\n" \
+        "                p.pid,\n" \
+        "                a.datname,\n" \
+        "                a.usename,\n" \
+        "                a.query,\n" \
+        "                p.phase,\n" \
+        "                p.heap_blks_total,\n" \
+        "                p.heap_blks_scanned,\n" \
+        "                p.heap_blks_vacuumed,\n" \
+        "                p.index_vacuum_count,\n" \
+        "                p.max_dead_tuples,\n" \
+        "                p.num_dead_tuples,\n" \
+        "                CASE WHEN p.heap_blks_total > 0\n" \
+        "                     THEN round(100 * p.heap_blks_scanned / p.heap_blks_total, 2)\n" \
+        "                     ELSE 0\n" \
+        "                END AS pct_scan_completed\n" \
+        "              FROM pg_stat_progress_vacuum p\n" \
+        "              JOIN pg_stat_activity a USING (pid)\n" \
+        "              ORDER BY p.pid;\n" \
+        "      version: 13\n" \
+        "      columns:\n" \
+        "        - name: pid\n" \
+        "          type: label\n" \
+        "        - name: datname\n" \
+        "          type: label\n" \
+        "        - name: usename\n" \
+        "          type: label\n" \
+        "        - name: query\n" \
+        "          type: label\n" \
+        "        - name: phase\n" \
+        "          type: label\n" \
+        "        - name: heap_blks_total\n" \
+        "          type: gauge\n" \
+        "          description: Total heap blocks in table\n" \
+        "        - name: heap_blks_scanned\n" \
+        "          type: gauge\n" \
+        "          description: Heap blocks scanned\n" \
+        "        - name: heap_blks_vacuumed\n" \
+        "          type: gauge\n" \
+        "          description: Heap blocks vacuumed\n" \
+        "        - name: index_vacuum_count\n" \
+        "          type: gauge\n" \
+        "          description: Number of index vacuum cycles completed\n" \
+        "        - name: max_dead_tuples\n" \
+        "          type: gauge\n" \
+        "          description: Maximum dead tuples\n" \
+        "        - name: num_dead_tuples\n" \
+        "          type: gauge\n" \
+        "          description: Current dead tuples\n" \
+        "        - name: pct_scan_completed\n" \
+        "          type: gauge\n" \
+        "          description: Vacuum scan progress percentage\n" \
+        "\n" \
+        "    - query: SELECT\n" \
+        "                p.pid,\n" \
+        "                a.datname,\n" \
+        "                a.usename,\n" \
+        "                a.query,\n" \
+        "                p.phase,\n" \
+        "                p.heap_blks_total,\n" \
+        "                p.heap_blks_scanned,\n" \
+        "                p.heap_blks_vacuumed,\n" \
+        "                p.index_vacuum_count,\n" \
+        "                p.max_dead_tuple_bytes,\n" \
+        "                p.dead_tuple_bytes,\n" \
+        "                p.num_dead_item_ids,\n" \
+        "                p.indexes_total,\n" \
+        "                p.indexes_processed,\n" \
+        "                CASE WHEN p.heap_blks_total > 0\n" \
+        "                     THEN round(100 * p.heap_blks_scanned / p.heap_blks_total, 2)\n" \
+        "                     ELSE 0\n" \
+        "                END AS pct_scan_completed,\n" \
+        "                CASE WHEN p.indexes_total > 0\n" \
+        "                     THEN round(100 * p.indexes_processed / p.indexes_total, 2)\n" \
+        "                     ELSE 0\n" \
+        "                END AS pct_index_completed\n" \
+        "              FROM pg_stat_progress_vacuum p\n" \
+        "              JOIN pg_stat_activity a USING (pid)\n" \
+        "              ORDER BY p.pid;\n" \
+        "      version: 17\n" \
+        "      columns:\n" \
+        "        - name: pid\n" \
+        "          type: label\n" \
+        "        - name: datname\n" \
+        "          type: label\n" \
+        "        - name: usename\n" \
+        "          type: label\n" \
+        "        - name: query\n" \
+        "          type: label\n" \
+        "        - name: phase\n" \
+        "          type: label\n" \
+        "        - name: heap_blks_total\n" \
+        "          type: gauge\n" \
+        "          description: Total heap blocks in table\n" \
+        "        - name: heap_blks_scanned\n" \
+        "          type: gauge\n" \
+        "          description: Heap blocks scanned\n" \
+        "        - name: heap_blks_vacuumed\n" \
+        "          type: gauge\n" \
+        "          description: Heap blocks vacuumed\n" \
+        "        - name: index_vacuum_count\n" \
+        "          type: gauge\n" \
+        "          description: Number of index vacuum cycles completed\n" \
+        "        - name: max_dead_tuple_bytes\n" \
+        "          type: gauge\n" \
+        "          description: Maximum dead tuple bytes\n" \
+        "        - name: dead_tuple_bytes\n" \
+        "          type: gauge\n" \
+        "          description: Current dead tuple bytes\n" \
+        "        - name: num_dead_item_ids\n" \
+        "          type: gauge\n" \
+        "          description: Number of dead item identifiers\n" \
+        "        - name: indexes_total\n" \
+        "          type: gauge\n" \
+        "          description: Total number of indexes\n" \
+        "        - name: indexes_processed\n" \
+        "          type: gauge\n" \
+        "          description: Number of indexes processed\n" \
+        "        - name: pct_scan_completed\n" \
+        "          type: gauge\n" \
+        "          description: Vacuum scan progress percentage\n" \
+        "        - name: pct_index_completed\n" \
+        "          type: gauge\n" \
+        "          description: Index processing progress percentage\n" \
+        "    tag: pg_stat_progress_vacuum\n" \
+        "    sort: data\n" \
+        "    collector: vacuum_progress\n" \
+        "\n" \
         "#\n" \
         "# PostgreSQL 14\n" \
         "#\n" \
