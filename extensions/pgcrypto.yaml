@@ -1,0 +1,118 @@
+#
+# Copyright (C) 2025 The pgexporter community
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this list
+# of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice, this
+# list of conditions and the following disclaimer in the documentation and/or other
+# materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors may
+# be used to endorse or promote products derived from this software without specific
+# prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+# THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+# OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+# TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+extension: pgcrypto
+metrics:
+
+#
+# Extension Version 1.3
+# Compatible: PostgreSQL 13-17
+# Provides cryptographic functions for data encryption, hashing, and security operations
+#
+
+# Function usage by category - shows what crypto capabilities are available
+  - metric: function_usage_by_category
+    queries:
+      - query: SELECT 
+                  current_database() as database,
+                  CASE 
+                    WHEN p.proname LIKE '%digest%' OR p.proname LIKE '%hash%' THEN 'digest'
+                    WHEN p.proname LIKE '%encrypt%' OR p.proname LIKE '%decrypt%' THEN 'encryption'
+                    WHEN p.proname LIKE '%hmac%' THEN 'hmac'
+                    WHEN p.proname LIKE '%pgp%' THEN 'pgp'
+                    WHEN p.proname LIKE '%gen_%' THEN 'generation'
+                    WHEN p.proname LIKE '%crypt%' THEN 'crypt'
+                    ELSE 'other'
+                  END as function_category,
+                  COUNT(*) as function_count
+                FROM pg_proc p
+                JOIN pg_depend d ON d.objid = p.oid
+                JOIN pg_extension e ON d.refobjid = e.oid
+                WHERE e.extname = 'pgcrypto' AND d.deptype = 'e'
+                GROUP BY 
+                  current_database(),
+                  CASE 
+                    WHEN p.proname LIKE '%digest%' OR p.proname LIKE '%hash%' THEN 'digest'
+                    WHEN p.proname LIKE '%encrypt%' OR p.proname LIKE '%decrypt%' THEN 'encryption'
+                    WHEN p.proname LIKE '%hmac%' THEN 'hmac'
+                    WHEN p.proname LIKE '%pgp%' THEN 'pgp'
+                    WHEN p.proname LIKE '%gen_%' THEN 'generation'
+                    WHEN p.proname LIKE '%crypt%' THEN 'crypt'
+                    ELSE 'other'
+                  END
+                ORDER BY function_count DESC;
+        version: "1.3"
+        columns:
+          - name: database
+            type: label
+          - name: function_category
+            type: label
+          - name: function_count
+            type: gauge
+            description: Number of pgcrypto functions by category
+
+# User crypto function usage - tracks custom crypto functions
+  - metric: user_crypto_function_usage
+    queries:
+      - query: SELECT 
+                  current_database() as database,
+                  schemaname,
+                  funcname,
+                  calls,
+                  total_time,
+                  self_time,
+                  CASE 
+                    WHEN calls > 0 THEN ROUND((total_time / calls)::numeric, 3)
+                    ELSE 0
+                  END as avg_time_per_call
+                FROM pg_stat_user_functions
+                WHERE funcname LIKE '%crypto%' 
+                   OR funcname LIKE '%encrypt%' 
+                   OR funcname LIKE '%hash%'
+                   OR funcname LIKE '%digest%'
+                ORDER BY calls DESC;
+        version: "1.3"
+        columns:
+          - name: database
+            type: label
+          - name: schemaname
+            type: label
+          - name: funcname
+            type: label
+          - name: calls
+            type: counter
+            description: Number of times function was called
+          - name: total_time
+            type: counter
+            description: Total execution time in milliseconds
+          - name: self_time
+            type: counter
+            description: Self execution time in milliseconds
+          - name: avg_time_per_call
+            type: gauge
+            description: Average execution time per call
