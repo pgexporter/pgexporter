@@ -808,6 +808,192 @@ extern "C" {
         "    sort: data\n" \
         "    collector: vacuum_progress\n" \
         "\n" \
+        "# Table-level vacuum and analyze statistics\n" \
+        "  - queries:\n" \
+        "    - query: SELECT\n" \
+        "                schemaname,\n" \
+        "                relname,\n" \
+        "                n_live_tup,\n" \
+        "                n_dead_tup,\n" \
+        "                CASE \n" \
+        "                  WHEN n_live_tup > 0 \n" \
+        "                  THEN ROUND((n_dead_tup::numeric / n_live_tup::numeric) * 100, 2)\n" \
+        "                  ELSE 0\n" \
+        "                END AS dead_rows_pct,\n" \
+        "                n_mod_since_analyze,\n" \
+        "                n_ins_since_vacuum,\n" \
+        "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_vacuum))::bigint, -1) AS last_vacuum_seconds,\n" \
+        "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_autovacuum))::bigint, -1) AS last_autovacuum_seconds,\n" \
+        "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_analyze))::bigint, -1) AS last_analyze_seconds,\n" \
+        "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_autoanalyze))::bigint, -1) AS last_autoanalyze_seconds,\n" \
+        "                vacuum_count,\n" \
+        "                autovacuum_count,\n" \
+        "                analyze_count,\n" \
+        "                autoanalyze_count\n" \
+        "              FROM pg_stat_user_tables\n" \
+        "              ORDER BY n_dead_tup DESC;\n" \
+        "      version: 13\n" \
+        "      columns:\n" \
+        "        - name: schemaname\n" \
+        "          type: label\n" \
+        "        - name: relname\n" \
+        "          type: label\n" \
+        "        - name: n_live_tup\n" \
+        "          type: gauge\n" \
+        "          description: Estimated number of live rows\n" \
+        "        - name: n_dead_tup\n" \
+        "          type: gauge\n" \
+        "          description: Estimated number of dead rows\n" \
+        "        - name: dead_rows_pct\n" \
+        "          type: gauge\n" \
+        "          description: Percentage of dead rows relative to live rows\n" \
+        "        - name: n_mod_since_analyze\n" \
+        "          type: gauge\n" \
+        "          description: Estimated number of rows modified since last analyze\n" \
+        "        - name: n_ins_since_vacuum\n" \
+        "          type: gauge\n" \
+        "          description: Estimated number of rows inserted since last vacuum\n" \
+        "        - name: last_vacuum_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Seconds since last manual vacuum (-1 if never)\n" \
+        "        - name: last_autovacuum_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Seconds since last autovacuum (-1 if never)\n" \
+        "        - name: last_analyze_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Seconds since last manual analyze (-1 if never)\n" \
+        "        - name: last_autoanalyze_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Seconds since last autoanalyze (-1 if never)\n" \
+        "        - name: vacuum_count\n" \
+        "          type: counter\n" \
+        "          description: Number of times this table has been manually vacuumed\n" \
+        "        - name: autovacuum_count\n" \
+        "          type: counter\n" \
+        "          description: Number of times this table has been vacuumed by autovacuum\n" \
+        "        - name: analyze_count\n" \
+        "          type: counter\n" \
+        "          description: Number of times this table has been manually analyzed\n" \
+        "        - name: autoanalyze_count\n" \
+        "          type: counter\n" \
+        "          description: Number of times this table has been analyzed by autoanalyze\n" \
+        "\n" \
+        "    - query: SELECT\n" \
+        "                schemaname,\n" \
+        "                relname,\n" \
+        "                seq_scan,\n" \
+        "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_seq_scan))::bigint, -1) AS last_seq_scan_seconds,\n" \
+        "                seq_tup_read,\n" \
+        "                idx_scan,\n" \
+        "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_idx_scan))::bigint, -1) AS last_idx_scan_seconds,\n" \
+        "                idx_tup_fetch,\n" \
+        "                n_tup_ins,\n" \
+        "                n_tup_upd,\n" \
+        "                n_tup_del,\n" \
+        "                n_tup_hot_upd,\n" \
+        "                n_tup_newpage_upd,\n" \
+        "                n_live_tup,\n" \
+        "                n_dead_tup,\n" \
+        "                CASE \n" \
+        "                  WHEN n_live_tup > 0 \n" \
+        "                  THEN ROUND((n_dead_tup::numeric / n_live_tup::numeric) * 100, 2)\n" \
+        "                  ELSE 0\n" \
+        "                END AS dead_rows_pct,\n" \
+        "                n_mod_since_analyze,\n" \
+        "                n_ins_since_vacuum,\n" \
+        "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_vacuum))::bigint, -1) AS last_vacuum_seconds,\n" \
+        "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_autovacuum))::bigint, -1) AS last_autovacuum_seconds,\n" \
+        "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_analyze))::bigint, -1) AS last_analyze_seconds,\n" \
+        "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_autoanalyze))::bigint, -1) AS last_autoanalyze_seconds,\n" \
+        "                vacuum_count,\n" \
+        "                autovacuum_count,\n" \
+        "                analyze_count,\n" \
+        "                autoanalyze_count\n" \
+        "              FROM pg_stat_user_tables\n" \
+        "              ORDER BY n_dead_tup DESC;\n" \
+        "      version: 16\n" \
+        "      columns:\n" \
+        "        - name: schemaname\n" \
+        "          type: label\n" \
+        "        - name: relname\n" \
+        "          type: label\n" \
+        "        - name: seq_scan\n" \
+        "          type: counter\n" \
+        "          description: Number of sequential scans initiated on this table\n" \
+        "        - name: last_seq_scan_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Seconds since last sequential scan (-1 if never)\n" \
+        "        - name: seq_tup_read\n" \
+        "          type: counter\n" \
+        "          description: Number of live rows fetched by sequential scans\n" \
+        "        - name: idx_scan\n" \
+        "          type: counter\n" \
+        "          description: Number of index scans initiated on this table\n" \
+        "        - name: last_idx_scan_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Seconds since last index scan (-1 if never)\n" \
+        "        - name: idx_tup_fetch\n" \
+        "          type: counter\n" \
+        "          description: Number of live rows fetched by index scans\n" \
+        "        - name: n_tup_ins\n" \
+        "          type: counter\n" \
+        "          description: Number of rows inserted\n" \
+        "        - name: n_tup_upd\n" \
+        "          type: counter\n" \
+        "          description: Number of rows updated\n" \
+        "        - name: n_tup_del\n" \
+        "          type: counter\n" \
+        "          description: Number of rows deleted\n" \
+        "        - name: n_tup_hot_upd\n" \
+        "          type: counter\n" \
+        "          description: Number of rows HOT updated\n" \
+        "        - name: n_tup_newpage_upd\n" \
+        "          type: counter\n" \
+        "          description: Number of rows updated where successor goes to new heap page\n" \
+        "        - name: n_live_tup\n" \
+        "          type: gauge\n" \
+        "          description: Estimated number of live rows\n" \
+        "        - name: n_dead_tup\n" \
+        "          type: gauge\n" \
+        "          description: Estimated number of dead rows\n" \
+        "        - name: dead_rows_pct\n" \
+        "          type: gauge\n" \
+        "          description: Percentage of dead rows relative to live rows\n" \
+        "        - name: n_mod_since_analyze\n" \
+        "          type: gauge\n" \
+        "          description: Estimated number of rows modified since last analyze\n" \
+        "        - name: n_ins_since_vacuum\n" \
+        "          type: gauge\n" \
+        "          description: Estimated number of rows inserted since last vacuum\n" \
+        "        - name: last_vacuum_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Seconds since last manual vacuum (-1 if never)\n" \
+        "        - name: last_autovacuum_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Seconds since last autovacuum (-1 if never)\n" \
+        "        - name: last_analyze_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Seconds since last manual analyze (-1 if never)\n" \
+        "        - name: last_autoanalyze_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Seconds since last autoanalyze (-1 if never)\n" \
+        "        - name: vacuum_count\n" \
+        "          type: counter\n" \
+        "          description: Number of times this table has been manually vacuumed\n" \
+        "        - name: autovacuum_count\n" \
+        "          type: counter\n" \
+        "          description: Number of times this table has been vacuumed by autovacuum\n" \
+        "        - name: analyze_count\n" \
+        "          type: counter\n" \
+        "          description: Number of times this table has been manually analyzed\n" \
+        "        - name: autoanalyze_count\n" \
+        "          type: counter\n" \
+        "          description: Number of times this table has been analyzed by autoanalyze\n" \
+        "    tag: pg_stat_user_tables_vacuum\n" \
+        "    sort: data\n" \
+        "    collector: stat_user_tables\n" \
+        "    database: all\n" \
+        "\n" \
         "#\n" \
         "# PostgreSQL 14\n" \
         "#\n" \

@@ -1243,6 +1243,93 @@
       ],
       "tag": "pg_wal_prefetch_reset",
       "collector": "wal_prefetch_reset"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT schemaname, relname, n_live_tup, n_dead_tup, CASE WHEN n_live_tup > 0 THEN ROUND((n_dead_tup::numeric / n_live_tup::numeric) * 100, 2) ELSE 0 END AS dead_rows_pct, n_mod_since_analyze, n_ins_since_vacuum, COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_vacuum))::bigint, -1) AS last_vacuum_seconds, COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_autovacuum))::bigint, -1) AS last_autovacuum_seconds, COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_analyze))::bigint, -1) AS last_analyze_seconds, COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_autoanalyze))::bigint, -1) AS last_autoanalyze_seconds, vacuum_count, autovacuum_count, analyze_count, autoanalyze_count FROM pg_stat_user_tables ORDER BY n_dead_tup DESC;",
+          "version": 13,
+          "columns": [
+            {
+              "name": "schemaname",
+              "type": "label"
+            },
+            {
+              "name": "relname",
+              "type": "label"
+            },
+            {
+              "name": "n_live_tup",
+              "type": "gauge",
+              "description": "Estimated number of live rows"
+            },
+            {
+              "name": "n_dead_tup",
+              "type": "gauge",
+              "description": "Estimated number of dead rows"
+            },
+            {
+              "name": "dead_rows_pct",
+              "type": "gauge",
+              "description": "Percentage of dead rows relative to live rows"
+            },
+            {
+              "name": "n_mod_since_analyze",
+              "type": "gauge",
+              "description": "Estimated number of rows modified since last analyze"
+            },
+            {
+              "name": "n_ins_since_vacuum",
+              "type": "gauge",
+              "description": "Estimated number of rows inserted since last vacuum"
+            },
+            {
+              "name": "last_vacuum_seconds",
+              "type": "gauge",
+              "description": "Seconds since last manual vacuum (-1 if never)"
+            },
+            {
+              "name": "last_autovacuum_seconds",
+              "type": "gauge",
+              "description": "Seconds since last autovacuum (-1 if never)"
+            },
+            {
+              "name": "last_analyze_seconds",
+              "type": "gauge",
+              "description": "Seconds since last manual analyze (-1 if never)"
+            },
+            {
+              "name": "last_autoanalyze_seconds",
+              "type": "gauge",
+              "description": "Seconds since last autoanalyze (-1 if never)"
+            },
+            {
+              "name": "vacuum_count",
+              "type": "counter",
+              "description": "Number of times this table has been manually vacuumed"
+            },
+            {
+              "name": "autovacuum_count",
+              "type": "counter",
+              "description": "Number of times this table has been vacuumed by autovacuum"
+            },
+            {
+              "name": "analyze_count",
+              "type": "counter",
+              "description": "Number of times this table has been manually analyzed"
+            },
+            {
+              "name": "autoanalyze_count",
+              "type": "counter",
+              "description": "Number of times this table has been analyzed by autoanalyze"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_stat_user_tables_vacuum",
+      "sort": "data",
+      "collector": "stat_user_tables",
+      "database": "all"
     }
   ]
 }

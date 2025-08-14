@@ -38,6 +38,7 @@
 * `pg_encrypted_conn`
 * `pg_shmem_allocations`
 * `pg_stat_progress_vacuum`
+* `pg_stat_user_tables_vacuum`
 * `pg_stat_statements_total_exec_time`
 * `pg_stat_statements_plans`
 * `pg_stat_statements_wal_bytes`
