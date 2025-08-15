@@ -5,7 +5,7 @@
 Make sure that [**pgexporter**][pgexporter] is installed and in your path by using `pgexporter -?`. You should see
 
 ``` console
-pgexporter 0.6.0
+pgexporter 0.7.0
   Prometheus exporter for PostgreSQL
 
 Usage:
@@ -94,7 +94,7 @@ pgexporter -c pgexporter.conf -u pgexporter_users.conf
 
 If this doesn't give an error, then we are ready to do backups.
 
-[**pgexporter**][pgexporter] is stopped by pressing Ctrl-C (`^C`) in the console where you started it, or by sending the `SIGTERM` signal to the process using `kill <pid>`.
+[**pgexporter**][pgexporter] is stopped by pressing Ctrl-c (`^C`) in the console where you started it, or by sending the `SIGTERM` signal to the process using `kill <pid>`.
 
 ## Run-time administration
 
@@ -103,22 +103,25 @@ If this doesn't give an error, then we are ready to do backups.
 You can see the commands it supports by using `pgexporter-cli -?` which will give
 
 ``` console
-pgexporter-cli 0.6.0
+pgexporter-cli 0.7.0
   Command line utility for pgexporter
 
 Usage:
   pgexporter-cli [ -c CONFIG_FILE ] [ COMMAND ]
 
 Options:
-  -c, --config CONFIG_FILE Set the path to the pgexporter.conf file
-  -h, --host HOST          Set the host name
-  -p, --port PORT          Set the port number
-  -U, --user USERNAME      Set the user name
-  -P, --password PASSWORD  Set the password
-  -L, --logfile FILE       Set the log file
-  -v, --verbose            Output text string of result
-  -V, --version            Display version information
-  -?, --help               Display help
+  -c, --config CONFIG_FILE                       Set the path to the pgexporter.conf file
+  -h, --host HOST                                Set the host name
+  -p, --port PORT                                Set the port number
+  -U, --user USERNAME                            Set the user name
+  -P, --password PASSWORD                        Set the password
+  -L, --logfile FILE                             Set the log file
+  -v, --verbose                                  Output text string of result
+  -V, --version                                  Display version information
+  -F, --format text|json|raw                     Set the output format
+  -C, --compress none|gz|zstd|lz4|bz2            Compress the wire protocol
+  -E, --encrypt none|aes|aes256|aes192|aes128    Encrypt the wire protocol
+  -?, --help                                     Display help
 
 Commands:
   ping                     Check if pgexporter is alive
@@ -126,8 +129,14 @@ Commands:
   status [details]         Status of pgexporter, with optional details
   conf <action>            Manage the configuration, with one of subcommands:
                            - 'reload' to reload the configuration
+                           - 'ls' to print the configurations used
+                           - 'get' to obtain information about a runtime configuration value
+                           - 'set' to modify a configuration value;
   clear <what>             Clear data, with:
                            - 'prometheus' to reset the Prometheus statistics
+
+pgexporter: https://pgexporter.github.io/
+Report bugs: https://github.com/pgexporter/pgexporter/issues
 ```
 
 To shutdown pgexporter you would use
@@ -155,7 +164,7 @@ connect with TLS using the files `~/.pgexporter/pgexporter.key` (must be 0600 pe
 You can see the commands it supports by using `pgexporter-admin -?` which will give
 
 ``` console
-pgexporter-admin 0.6.0
+pgexporter-admin 0.7.0
   Administration utility for pgexporter
 
 Usage:
@@ -177,6 +186,9 @@ Commands:
                           - del  to remove an existing user
                           - edit to change the password for an existing user
                           - ls   to list all available users
+
+pgexporter: https://pgexporter.github.io/
+Report bugs: https://github.com/pgexporter/pgexporter/issues
 ```
 
 In order to set the master key for all users you can use
@@ -191,6 +203,7 @@ The master key must be at least 8 characters.
 
 Next steps in improving pgexporter's configuration could be
 
+* Read the manual
 * Update `pgexporter.conf` with the required settings for your system
 * Enable Transport Layer Security v1.2+ (TLS) for administrator access
 

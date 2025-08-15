@@ -147,6 +147,13 @@ GRANT pg_monitor TO pgexporter;
 We will install [**pgexporter**][pgexporter] from the official [YUM repository][yum] as well,
 
 ```
+dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+```
+
+and do the install via
+
+```
 dnf install -y pgexporter pgexporter_ext
 ```
 
@@ -201,3 +208,42 @@ Lets create the base directory, and start [**pgexporter**][pgexporter] now, by
 ```
 pgexporter -d
 ```
+
+## Shell completions
+
+### Bash
+
+There is a completion script into `contrib/shell_comp/pgexporter_comp.bash` that can be used
+to help you complete the command line while you are typing.
+
+It is required to source the script into your current shell, for instance
+by doing:
+
+``` shell
+source contrib/shell_comp/pgexporter_comp.bash
+```
+
+At this point, the completions should be active, so you can type the name of one the commands between `pgexporter-cli` and `pgexporter-admin` and hit `<TAB>` to help the command line completion.
+
+### Zsh
+
+In order to enable completion into `zsh` you first need to have `compinit` loaded;
+ensure your `.zshrc` file contains the following lines:
+
+``` shell
+autoload -U compinit
+compinit
+```
+
+and add the sourcing of the `contrib/shell_comp/pgexporter_comp.zsh` file into your `~/.zshrc`
+also associating the `_pgexporter_cli` and `_pgexporter_admin` functions
+to completion by means of `compdef`:
+
+``` shell
+source contrib/shell_comp/pgexporter_comp.zsh
+compdef _pgexporter_cli    pgexporter-cli
+compdef _pgexporter_admin  pgexporter-admin
+```
+
+If you want completions only for one command, e.g., `pgexporter-admin`, remove the `compdef` line that references the command you don't want to have automatic completion.
+At this point, digit the name of a `pgexporter-cli` or `pgexporter-admin` command and hit `<TAB>` to trigger the completion system.

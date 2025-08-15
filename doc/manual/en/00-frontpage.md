@@ -1,7 +1,7 @@
 ---
 title: "pgexporter"
+subtitle: "Monitoring of PostgreSQL"
 keywords: [pgexporter, PostgreSQL]
-subtitle: "Developer Guide"
 lang: "en"
 titlepage: true,
 titlepage-color: "0064A5"

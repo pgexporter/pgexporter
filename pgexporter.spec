@@ -30,7 +30,6 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__mkdir} -p %{buildroot}%{_libdir}
 %{__mkdir} -p %{buildroot}%{_docdir}/%{name}/etc
 %{__mkdir} -p %{buildroot}%{_docdir}/%{name}/shell_comp
-%{__mkdir} -p %{buildroot}%{_docdir}/%{name}/tutorial
 %{__mkdir} -p %{buildroot}%{_docdir}/%{name}/yaml
 %{__mkdir} -p %{buildroot}%{_docdir}/%{name}/prometheus_scrape
 %{__mkdir} -p %{buildroot}%{_mandir}/man1
@@ -57,12 +56,6 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/prometheus_scrape/extra.info %{buildroot}%{_docdir}/%{name}/prometheus_scrape/extra.info
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/prometheus_scrape/prometheus.sh %{buildroot}%{_docdir}/%{name}/prometheus_scrape/prometheus.sh
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/prometheus_scrape/README.md %{buildroot}%{_docdir}/%{name}/prometheus_scrape/README.md
-%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/01_install.md %{buildroot}%{_docdir}/%{name}/tutorial/01_install.md
-%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/02_custom_metrics.md %{buildroot}%{_docdir}/%{name}/tutorial/02_custom_metrics.md
-%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/03_grafana.md %{buildroot}%{_docdir}/%{name}/tutorial/03_grafana.md
-%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/04_tls.md %{buildroot}%{_docdir}/%{name}/tutorial/04_tls.md
-%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/05_bridge.md %{buildroot}%{_docdir}/%{name}/tutorial/05_bridge.md
-%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/tutorial/06_docker.md %{buildroot}%{_docdir}/%{name}/tutorial/06_docker.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/extensions/pg_stat_statements.yaml %{buildroot}%{_datadir}/%{name}/extensions/pg_stat_statements.yaml
 
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/etc/pgexporter.conf %{buildroot}%{_sysconfdir}/pgexporter/pgexporter.conf
@@ -106,12 +99,6 @@ cd %{buildroot}%{_libdir}/
 %{_docdir}/%{name}/prometheus_scrape/extra.info
 %{_docdir}/%{name}/prometheus_scrape/prometheus.sh
 %{_docdir}/%{name}/prometheus_scrape/README.md
-%{_docdir}/%{name}/tutorial/01_install.md
-%{_docdir}/%{name}/tutorial/02_custom_metrics.md
-%{_docdir}/%{name}/tutorial/03_grafana.md
-%{_docdir}/%{name}/tutorial/04_tls.md
-%{_docdir}/%{name}/tutorial/05_bridge.md
-%{_docdir}/%{name}/tutorial/06_docker.md
 %{_datadir}/%{name}/extensions/pg_stat_statements.yaml
 %{_mandir}/man1/pgexporter.1*
 %{_mandir}/man1/pgexporter-admin.1*

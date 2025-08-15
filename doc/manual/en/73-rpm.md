@@ -1,22 +1,22 @@
 \newpage
 
-# RPM
+## RPM
 
 [**pgexporter**][pgexporter] can be built into a RPM for [Fedora][fedora] systems.
 
-## Requirements
+**Requirements**
 
 ```sh
 dnf install gcc rpm-build rpm-devel rpmlint make python bash coreutils diffutils patch rpmdevtools chrpath
 ```
 
-## Setup RPM development
+**Setup RPM development**
 
 ```sh
 rpmdev-setuptree
 ```
 
-## Create source package
+**Create source package**
 
 ```sh
 git clone https://github.com/pgexporter/pgexporter.git
@@ -27,7 +27,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 make package_source
 ```
 
-## Create RPM package
+**Create RPM package**
 
 ```sh
 cp pgexporter-$VERSION.tar.gz ~/rpmbuild/SOURCES

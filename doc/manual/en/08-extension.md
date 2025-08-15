@@ -34,7 +34,7 @@ dnf install -y pgexporter_ext_17
 
 for example if your [PostgreSQL][postgresql] version is 17.
 
-### Compiling the source
+## Compiling the source
 
 You can also compile the source code of [**pgexporter_ext**][pgexporter_ext] by
 

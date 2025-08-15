@@ -204,21 +204,11 @@ pgexporter-admin -f pgexporter_users.conf user add
 
 Next steps in improving pgexporter's configuration could be
 
+* Read the manual
 * Update `pgexporter.conf` with the required settings for your system
 * Enable Transport Layer Security v1.2+ (TLS) for administrator access
 
 See [Configuration](./CONFIGURATION.md) for more information on these subjects.
-
-## Tutorials
-
-There are some short tutorials available to help you better understand and configure `pgexporter`:
-
-- [Installing pgexporter](https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/01_install.md)
-- [Custom metrics](https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/02_custom_metrics.md)
-- [Grafana Dashboard](https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/03_grafana.md)
-- [Using Transport Level Security](https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/04_tls.md)
-- [Bridge](https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/05_bridge.md)
-- [Docker](https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/06_docker.md)
 
 ## Closing
 

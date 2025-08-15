@@ -5,17 +5,17 @@
 ## Prometheus Configuration
 
 ### Installation
-First of all, you should install Prometheus in your pgexporter server. Download one of the binaries from the [Prometheus Downloads](https://prometheus.io/download/), say `prometheus-3.1.0.linux-amd64.tar.gz` (may be different for you, but the following instructions are based off of this).
+First of all, you should install Prometheus in your pgexporter server. Download one of the binaries from the [Prometheus Downloads](https://prometheus.io/download/), say `prometheus-3.5.0.linux-amd64.tar.gz` (may be different for you, but the following instructions are based off of this).
 
 Unzip the tarball:
 ```sh
-$ tar -xzvf prometheus-3.1.0.linux-amd64.tar.gz
+$ tar -xzvf prometheus-3.5.0.linux-amd64.tar.gz
 ```
 
 (OPTIONAL) Putting the binaries in a location included in `PATH` so that it's convenient to use `$ prometheus` (choosing `/usr/local/bin` for this):
 ```sh
-$ sudo mv prometheus-3.1.0.linux-amd64/prometheus /usr/local/bin
-$ sudo mv prometheus-3.1.0.linux-amd64/promtool /usr/local/bin
+$ sudo mv prometheus-3.5.0.linux-amd64/prometheus /usr/local/bin
+$ sudo mv prometheus-3.5.0.linux-amd64/promtool /usr/local/bin
 ```
 
 ### Configuration

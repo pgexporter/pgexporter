@@ -1,19 +1,16 @@
-\newpage
 
-# Git guide
+## Git
 
 Here are some links that will help you
 
 * [How to Squash Commits in Git][git_squash]
 * [ProGit book][progit]
 
-## Basic steps
+**Start by forking the repository**
 
-### Start by forking the repository
+This is done by the "Fork** button on GitHub.
 
-This is done by the "Fork" button on GitHub.
-
-## Clone your repository locally
+**Clone your repository locally**
 
 This is done by
 
@@ -21,7 +18,7 @@ This is done by
 git clone git@github.com:<username>/pgexporter.git
 ```
 
-### Add upstream
+**Add upstream**
 
 Do
 
@@ -30,13 +27,13 @@ cd pgexporter
 git remote add upstream https://github.com/pgexporter/pgexporter.git
 ```
 
-### Do a work branch
+**Do a work branch**
 
 ```sh
 git checkout -b mywork main
 ```
 
-### Make the changes
+**Make the changes**
 
 Remember to verify the compile and execution of the code.
 
@@ -49,7 +46,7 @@ Use
 as the commit message where `[#xyz]` is the issue number for the work, and
 `Description` is a short description of the issue in the first line
 
-### Multiple commits
+**Multiple commits**
 
 If you have multiple commits on your branch then squash them
 
@@ -59,7 +56,7 @@ git rebase -i HEAD~2
 
 for example. It is `p` for the first one, then `s` for the rest
 
-### Rebase
+**Rebase**
 
 Always rebase
 
@@ -68,7 +65,7 @@ git fetch upstream
 git rebase -i upstream/main
 ```
 
-### Force push
+**Force push**
 
 When you are done with your changes force push your branch
 
@@ -78,7 +75,7 @@ git push -f origin mywork
 
 and then create a pull request for it
 
-### Format source code
+**Format source code**
 
 Use
 
@@ -88,11 +85,11 @@ Use
 
 to format the source code
 
-### Repeat
+**Repeat**
 
 Based on feedback keep making changes, squashing, rebasing and force pushing
 
-### Undo
+**Undo**
 
 Normally you can reset to an earlier commit using `git reset <commit hash> --hard`.
 

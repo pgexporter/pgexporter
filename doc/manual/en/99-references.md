@@ -38,13 +38,6 @@
   [rpm]: https://github.com/pgexporter/pgexporter/blob/main/doc/RPM.md
   [configuration]: https://github.com/pgexporter/pgexporter/blob/main/doc/CONFIGURATION.md
   [exmaples]: https://github.com/pgexporter/pgexporter/contrib/yaml
-<!-- doc/tutorial -->
-  [t_install]: https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/01_install.md
-  [t_custom_metrics]: https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/02_custom_metrics.md
-  [t_grafana]: https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/03_grafana.md
-  [t_tls]: https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/04_tls.md
-  [t_bridge]: https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/05_bridge.md
-  [t_docker]: https://github.com/pgexporter/pgexporter/blob/main/doc/tutorial/06_docker.md
 <!-- doc/etc -->
   [sample]: https://github.com/pgexporter/pgexporter/blob/main/doc/etc/pgexporter.conf
 

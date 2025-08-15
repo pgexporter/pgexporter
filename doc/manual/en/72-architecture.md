@@ -1,15 +1,15 @@
 \newpage
 
-# Architecture
+## Architecture
 
-## Overview
+### Overview
 
 [**pgexporter**][pgexporter] use a process model (`fork()`), where each process handles one Prometheus request to
 [PostgreSQL][postgresql].
 
 The main process is defined in [main.c][main_c].
 
-## Shared memory
+### Shared memory
 
 A memory segment ([shmem.h][shmem_h]) is shared among all processes which contains the [**pgexporter**][pgexporter]
 state containing the configuration and the list of servers.
@@ -19,7 +19,7 @@ is initialized in this shared memory segment. These structs are all defined in [
 
 The shared memory segment is created using the `mmap()` call.
 
-## Network and messages
+### Network and messages
 
 All communication is abstracted using the `message_t` data type defined in [messge.h][message_h].
 
@@ -28,7 +28,7 @@ files.
 
 Network operations are defined in [network.h][network_h] ([network.c][network_c]).
 
-## Memory
+### Memory
 
 Each process uses a fixed memory block for its network communication, which is allocated upon startup of the process.
 
@@ -36,7 +36,7 @@ That way we don't have to allocate memory for each network message, and more imp
 
 The memory interface is defined in [memory.h][memory_h] ([memory.c][memory_c]).
 
-## Management
+### Management
 
 [**pgexporter**][pgexporter]  has a management interface which defines the administrator abilities that can be performed when it is running.
 This include for example taking a backup. The `pgexporter-cli` program is used for these operations ([cli.c](../src/cli.c)).
@@ -44,7 +44,7 @@ This include for example taking a backup. The `pgexporter-cli` program is used f
 The management interface is defined in [management.h](../src/include/management.h). The management interface
 uses its own protocol which uses JSON as its foundation.
 
-### Write
+#### Write
 
 The client sends a single JSON string to the server,
 
@@ -64,7 +64,7 @@ The server sends a single JSON string to the client,
 | `length`      | uint32 | The length of the JSON document |
 | `json`        | String | The JSON document               |
 
-### Read
+#### Read
 
 The server sends a single JSON string to the client,
 
@@ -84,7 +84,7 @@ The client sends to the server a single JSON documents,
 | `length`      | uint32 | The length of the JSON document |
 | `json`        | String | The JSON document               |
 
-### Remote management
+#### Remote management
 
 The remote management functionality uses the same protocol as the standard management method.
 
@@ -94,7 +94,7 @@ AuthenticationSASLFinal and AuthenticationOk. The SSLRequest message is supporte
 
 The remote management interface is defined in [remote.h][remote_h] ([remote.c][remote_c]).
 
-## libev usage
+### libev
 
 [libev][libev] is used to handle network interactions, which is "activated"
 upon an `EV_READ` event.
@@ -102,7 +102,7 @@ upon an `EV_READ` event.
 Each process has its own event loop, such that the process only gets notified when data related only to that process
 is ready. The main loop handles the system wide "services" such as idle timeout checks and so on.
 
-## Signals
+### Signals
 
 The main process of [**pgexporter**][pgexporter] supports the following signals `SIGTERM`, `SIGINT` and `SIGALRM`
 as a mechanism for shutting down. The `SIGABRT` is used to request a core dump (`abort()`).
@@ -111,7 +111,7 @@ The `SIGHUP` signal will trigger a reload of the configuration.
 It should not be needed to use `SIGKILL` for [**pgexporter**][pgexporter]. Please, consider using `SIGABRT` instead, and share the
 core dump and debug logs with the [**pgexporter**][pgexporter] community.
 
-## Reload
+### Reload
 
 The `SIGHUP` signal will trigger a reload of the configuration.
 
@@ -127,7 +127,7 @@ However, some configuration settings requires a full restart of [**pgexporter**]
 The configuration can also be reloaded using `pgexporter-cli -c pgexporter.conf conf reload`. The command is only supported
 over the local interface, and hence doesn't work remotely.
 
-## Prometheus
+### Prometheus
 
 pgexporter has support for [Prometheus][[prometheus] when the `metrics` port is specified.
 
@@ -143,7 +143,7 @@ The metrics endpoint supports `Transfer-Encoding: chunked` to account for a larg
 The implementation is done in [prometheus.h][prometheus_h] and
 [prometheus.c][prometheus_c].
 
-## Logging
+### Logging
 
 Simple logging implementation based on a `atomic_schar` lock.
 
@@ -160,7 +160,7 @@ The implementation is done in [logging.h][logging_h] and
 | FATAL | We can't recover - display as much information as we can about the problem and `exit(1)` |
 
 
-## Protocol
+### Protocol
 
 The protocol interactions can be debugged using [Wireshark][wireshark] or
 [pgprtdbg][pgprtdbg].
