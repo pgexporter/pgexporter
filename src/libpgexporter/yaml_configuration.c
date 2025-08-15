@@ -275,8 +275,8 @@ pgexporter_validate_yaml_metrics(struct configuration* config, yaml_config_t* ya
    struct art* temp_art = NULL;
    struct art* metric_columns_art = NULL;
    struct art* processed_columns = NULL;
-   char column_metric_name[MISC_LENGTH];
-   char final_metric_name[MISC_LENGTH];
+   char column_metric_name[PROMETHEUS_LENGTH];
+   char final_metric_name[PROMETHEUS_LENGTH];
    int i, j, k;
 
    if (pgexporter_art_create(&existing_metrics_art))
@@ -1401,7 +1401,7 @@ semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t*
 
       prom = &prometheus[prometheus_idx + i];
 
-      memcpy(prom->tag, yaml_config->metrics[i].tag, MIN(MISC_LENGTH - 1, strlen(yaml_config->metrics[i].tag)));
+      memcpy(prom->tag, yaml_config->metrics[i].tag, MIN(PROMETHEUS_LENGTH - 1, strlen(yaml_config->metrics[i].tag)));
       memcpy(prom->collector, yaml_config->metrics[i].collector, MIN(MAX_COLLECTOR_LENGTH - 1, strlen(yaml_config->metrics[i].collector)));
 
       // Sort Type
@@ -1462,13 +1462,13 @@ semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t*
             // Name
             if (yaml_config->metrics[i].queries[j].columns[k].name)
             {
-               memcpy(new_query->node.columns[k].name, yaml_config->metrics[i].queries[j].columns[k].name, MIN(MISC_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].columns[k].name)));
+               memcpy(new_query->node.columns[k].name, yaml_config->metrics[i].queries[j].columns[k].name, MIN(PROMETHEUS_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].columns[k].name)));
             }
 
             // Description
             if (yaml_config->metrics[i].queries[j].columns[k].description)
             {
-               memcpy(new_query->node.columns[k].description, yaml_config->metrics[i].queries[j].columns[k].description, MIN(MISC_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].columns[k].description)));
+               memcpy(new_query->node.columns[k].description, yaml_config->metrics[i].queries[j].columns[k].description, MIN(PROMETHEUS_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].columns[k].description)));
             }
 
             // Type
@@ -1515,7 +1515,7 @@ semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t*
                continue;
             }
 
-            char final_metric_name[MISC_LENGTH];
+            char final_metric_name[PROMETHEUS_LENGTH];
             snprintf(final_metric_name, sizeof(final_metric_name), "%s", yaml_config->metrics[i].tag);
 
             if (yaml_config->metrics[i].queries[j].columns[k].name &&
@@ -1529,7 +1529,7 @@ semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t*
             if (config->number_of_metric_names < NUMBER_OF_METRIC_NAMES)
             {
                snprintf(config->metric_names[config->number_of_metric_names],
-                        MISC_LENGTH,
+                        PROMETHEUS_LENGTH,
                         "%s",
                         final_metric_name);
                config->number_of_metric_names++;
@@ -1563,7 +1563,7 @@ search_or_add_extension(struct configuration* config, char* extension_name)
    }
 
    struct extension_metrics* ext = &config->extensions[config->number_of_extensions];
-   memcpy(ext->extension_name, extension_name, MIN(MISC_LENGTH - 1, strlen(extension_name)));
+   memcpy(ext->extension_name, extension_name, MIN(PROMETHEUS_LENGTH - 1, strlen(extension_name)));
    ext->number_of_metrics = 0;
    config->number_of_extensions++;
 
@@ -1591,7 +1591,7 @@ semantics_extension_yaml(struct configuration* config, yaml_config_t* yaml_confi
 
       if (yaml_config->metrics[i].tag)
       {
-         snprintf(prom->tag, MISC_LENGTH, "%s_%s",
+         snprintf(prom->tag, PROMETHEUS_LENGTH, "%s_%s",
                   yaml_config->extension_name, yaml_config->metrics[i].tag);
       }
 
@@ -1663,13 +1663,13 @@ semantics_extension_yaml(struct configuration* config, yaml_config_t* yaml_confi
             if (yaml_config->metrics[i].queries[j].columns[k].name)
             {
                memcpy(new_query->node.columns[k].name, yaml_config->metrics[i].queries[j].columns[k].name,
-                      MIN(MISC_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].columns[k].name)));
+                      MIN(PROMETHEUS_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].columns[k].name)));
             }
 
             if (yaml_config->metrics[i].queries[j].columns[k].description)
             {
                memcpy(new_query->node.columns[k].description, yaml_config->metrics[i].queries[j].columns[k].description,
-                      MIN(MISC_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].columns[k].description)));
+                      MIN(PROMETHEUS_LENGTH - 1, strlen(yaml_config->metrics[i].queries[j].columns[k].description)));
             }
 
             if (!strcmp(yaml_config->metrics[i].queries[j].columns[k].type, "label"))
@@ -1709,7 +1709,7 @@ semantics_extension_yaml(struct configuration* config, yaml_config_t* yaml_confi
                continue;
             }
 
-            char final_metric_name[MISC_LENGTH];
+            char final_metric_name[PROMETHEUS_LENGTH];
             snprintf(final_metric_name, sizeof(final_metric_name), "%s_%s",
                      yaml_config->extension_name, yaml_config->metrics[i].tag);
 
@@ -1724,7 +1724,7 @@ semantics_extension_yaml(struct configuration* config, yaml_config_t* yaml_confi
             if (config->number_of_metric_names < NUMBER_OF_METRIC_NAMES)
             {
                snprintf(config->metric_names[config->number_of_metric_names],
-                        MISC_LENGTH,
+                        PROMETHEUS_LENGTH,
                         "%s",
                         final_metric_name);
                config->number_of_metric_names++;

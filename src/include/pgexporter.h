@@ -64,6 +64,7 @@ extern "C" {
 
 #define MAX_PATH             1024
 #define MISC_LENGTH           128
+#define PROMETHEUS_LENGTH     256
 #define DB_NAME_LENGTH         64
 #define NUMBER_OF_SERVERS      64
 #define NUMBER_OF_USERS        64
@@ -311,9 +312,9 @@ struct prometheus_cache
  */
 struct column
 {
-   int type;                        /**< Metrics type 0--label 1--counter 2--gauge 3--histogram*/
-   char name[MISC_LENGTH];          /**< Column name */
-   char description[MISC_LENGTH];   /**< Description of column */
+   int type;                              /**< Metrics type 0--label 1--counter 2--gauge 3--histogram*/
+   char name[PROMETHEUS_LENGTH];          /**< Column name */
+   char description[PROMETHEUS_LENGTH];   /**< Description of column */
 } __attribute__ ((aligned (64)));
 
 /** @struct prometheus
@@ -321,7 +322,7 @@ struct column
  */
 struct prometheus
 {
-   char tag[MISC_LENGTH];                          /**< The metric name */
+   char tag[PROMETHEUS_LENGTH];                    /**< The metric name */
    int sort_type;                                  /**< Sorting type of multi queries 0--SORT_NAME 1--SORT_DATA0 */
    int server_query_type;                          /**< Query type 0--SERVER_QUERY_BOTH 1--SERVER_QUERY_PRIMARY 2--SERVER_QUERY_REPLICA */
    bool exec_on_all_dbs;                           /**< Execute on all databases */
@@ -335,7 +336,7 @@ struct prometheus
  */
 struct extension_metrics
 {
-   char extension_name[MISC_LENGTH];                            /**< Extension name (e.g., "pg_stat_statements") */
+   char extension_name[PROMETHEUS_LENGTH];                      /**< Extension name (e.g., "pg_stat_statements") */
    int number_of_metrics;                                       /**< Number of metrics for this extension */
    struct prometheus metrics[NUMBER_OF_METRICS];                /**< The actual metrics for this extension */
 } __attribute__ ((aligned (64)));
@@ -424,7 +425,7 @@ struct configuration
 
    char collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];         /**< List of collectors in total */
    char global_extensions[MAX_EXTENSIONS_CONFIG_LENGTH];                /**< Global extensions configuration */
-   char metric_names[NUMBER_OF_METRIC_NAMES][MISC_LENGTH];              /**< List of all the metric names */
+   char metric_names[NUMBER_OF_METRIC_NAMES][PROMETHEUS_LENGTH];        /**< List of all the metric names */
    struct server servers[NUMBER_OF_SERVERS];                            /**< The servers */
    struct user users[NUMBER_OF_USERS];                                  /**< The users */
    struct user admins[NUMBER_OF_ADMINS];                                /**< The admins */

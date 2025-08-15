@@ -697,13 +697,13 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
    memset(q, 0, sizeof(struct query));
 
    q->number_of_columns = cols;
-   snprintf(&q->tag[0], MISC_LENGTH, "%s", tag);
+   snprintf(&q->tag[0], PROMETHEUS_LENGTH, "%s", tag);
 
    for (int i = 0; i < cols; i++)
    {
       if (names != NULL)
       {
-         snprintf(&q->names[i][0], MISC_LENGTH, "%s", names[i]);
+         snprintf(&q->names[i][0], PROMETHEUS_LENGTH, "%s", names[i]);
       }
       else
       {
@@ -712,7 +712,7 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
             goto error;
          }
 
-         snprintf(&q->names[i][0], MISC_LENGTH, "%s", name);
+         snprintf(&q->names[i][0], PROMETHEUS_LENGTH, "%s", name);
 
          free(name);
          name = NULL;

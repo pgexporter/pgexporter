@@ -73,7 +73,7 @@ typedef struct query_list
    struct query* query;
    struct query_list* next;
    struct pg_query_alts* query_alt;
-   char tag[MISC_LENGTH];
+   char tag[PROMETHEUS_LENGTH];
    int sort_type;
    bool error;
    char database[DB_NAME_LENGTH];
@@ -105,9 +105,9 @@ typedef struct column_store
 {
    column_node_t* columns;
    column_node_t* last_column;
-   char tag[MISC_LENGTH];
+   char tag[PROMETHEUS_LENGTH];
    int type;
-   char name[MISC_LENGTH];
+   char name[PROMETHEUS_LENGTH];
    int sort_type;
 } column_store_t;
 
@@ -1634,7 +1634,7 @@ extension_metrics(SSL* client_ssl, int client_fd)
             {
                names[j] = query_alt->node.columns[j].name;
             }
-            memcpy(ext_temp->tag, prom->tag, MISC_LENGTH);
+            memcpy(ext_temp->tag, prom->tag, PROMETHEUS_LENGTH);
             ext_temp->query_alt = (struct pg_query_alts*)query_alt;
 
             if (query_alt->node.is_histogram)
@@ -1655,7 +1655,7 @@ extension_metrics(SSL* client_ssl, int client_fd)
    }
 
    ext_temp = ext_q_list;
-   column_store_t ext_store[MISC_LENGTH] = {0};
+   column_store_t ext_store[PROMETHEUS_LENGTH] = {0};
    int ext_n_store = 0;
 
    while (ext_temp)
@@ -1801,7 +1801,7 @@ custom_metrics(SSL* client_ssl, int client_fd)
             {
                names[j] = query_alt->node.columns[j].name;
             }
-            memcpy(temp->tag, prom->tag, MISC_LENGTH);
+            memcpy(temp->tag, prom->tag, PROMETHEUS_LENGTH);
             temp->query_alt = query_alt;
 
             char* database = config->servers[server].databases[db_idx];
@@ -1845,7 +1845,7 @@ custom_metrics(SSL* client_ssl, int client_fd)
 
    /* Tuples */
    temp = q_list;
-   column_store_t store[MISC_LENGTH] = {0};
+   column_store_t store[PROMETHEUS_LENGTH] = {0};
    int n_store = 0;
 
    while (temp)
@@ -2302,8 +2302,8 @@ append:
 
       store[idx].type = HISTOGRAM_TYPE;
       store[idx].sort_type = temp->sort_type;
-      memcpy(store[idx].tag, temp->tag, MISC_LENGTH);
-      memcpy(store[idx].name, temp->query_alt->node.columns[h_idx].name, MISC_LENGTH);
+      memcpy(store[idx].tag, temp->tag, PROMETHEUS_LENGTH);
+      memcpy(store[idx].name, temp->query_alt->node.columns[h_idx].name, PROMETHEUS_LENGTH);
 
       data = NULL;
       append_help_info(&data, store[idx].tag, "", temp->query_alt->node.columns[h_idx].description);
@@ -2446,9 +2446,11 @@ append:
          /* New Column */
          (*n_store)++;
 
-         memcpy(store[idx].name, temp->query_alt->node.columns[i].name, MISC_LENGTH);
+         memcpy(store[idx].name, temp->query_alt->node.columns[i].name, MIN(PROMETHEUS_LENGTH - 1, strlen(temp->query_alt->node.columns[i].name)));
+         store[idx].name[MIN(PROMETHEUS_LENGTH - 1, strlen(temp->query_alt->node.columns[i].name))] = '\0';
          store[idx].type = temp->query_alt->node.columns[i].type;
-         memcpy(store[idx].tag, temp->tag, MISC_LENGTH);
+         memcpy(store[idx].tag, temp->tag, MIN(PROMETHEUS_LENGTH - 1, strlen(temp->tag)));
+         store[idx].tag[MIN(PROMETHEUS_LENGTH - 1, strlen(temp->tag))] = '\0';
 
          data = NULL;
          append_help_info(&data, store[idx].tag, store[idx].name, temp->query_alt->node.columns[i].description);

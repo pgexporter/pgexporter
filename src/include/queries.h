@@ -52,11 +52,11 @@ struct tuple
  */
 struct query
 {
-   char tag[MISC_LENGTH];                          /**< The tag */
-   char names[MAX_NUMBER_OF_COLUMNS][MISC_LENGTH]; /**< The column names */
-   int number_of_columns;                          /**< The number of columns */
+   char tag[PROMETHEUS_LENGTH];                             /**< The tag */
+   char names[MAX_NUMBER_OF_COLUMNS][PROMETHEUS_LENGTH];    /**< The column names */
+   int number_of_columns;                                   /**< The number of columns */
 
-   struct tuple* tuples;                           /**< The tuples */
+   struct tuple* tuples;                                    /**< The tuples */
 } __attribute__ ((aligned (64)));
 
 /**

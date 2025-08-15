@@ -190,8 +190,8 @@ pgexporter_validate_json_metrics(struct configuration* config, json_config_t* js
    struct art* temp_art = NULL;
    struct art* metric_columns_art = NULL;
    struct art* processed_columns = NULL;
-   char column_metric_name[MISC_LENGTH];
-   char final_metric_name[MISC_LENGTH];
+   char column_metric_name[PROMETHEUS_LENGTH];
+   char final_metric_name[PROMETHEUS_LENGTH];
    int i, j, k;
 
    if (pgexporter_art_create(&existing_metrics_art))
@@ -794,7 +794,7 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
 
       prom = &prometheus[prometheus_idx + i];
 
-      memcpy(prom->tag, json_config->metrics[i].tag, MIN(MISC_LENGTH - 1, strlen(json_config->metrics[i].tag)));
+      memcpy(prom->tag, json_config->metrics[i].tag, MIN(PROMETHEUS_LENGTH - 1, strlen(json_config->metrics[i].tag)));
       memcpy(prom->collector, json_config->metrics[i].collector, MIN(MAX_COLLECTOR_LENGTH - 1, strlen(json_config->metrics[i].collector)));
 
       // Sort Type
@@ -854,13 +854,13 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
             // Name
             if (json_config->metrics[i].queries[j].columns[k].name)
             {
-               memcpy(new_query->node.columns[k].name, json_config->metrics[i].queries[j].columns[k].name, MIN(MISC_LENGTH - 1, strlen(json_config->metrics[i].queries[j].columns[k].name)));
+               memcpy(new_query->node.columns[k].name, json_config->metrics[i].queries[j].columns[k].name, MIN(PROMETHEUS_LENGTH - 1, strlen(json_config->metrics[i].queries[j].columns[k].name)));
             }
 
             // Description
             if (json_config->metrics[i].queries[j].columns[k].description)
             {
-               memcpy(new_query->node.columns[k].description, json_config->metrics[i].queries[j].columns[k].description, MIN(MISC_LENGTH - 1, strlen(json_config->metrics[i].queries[j].columns[k].description)));
+               memcpy(new_query->node.columns[k].description, json_config->metrics[i].queries[j].columns[k].description, MIN(PROMETHEUS_LENGTH - 1, strlen(json_config->metrics[i].queries[j].columns[k].description)));
             }
 
             // Type
@@ -911,7 +911,7 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
                continue;
             }
 
-            char column_metric_name[MISC_LENGTH];
+            char column_metric_name[PROMETHEUS_LENGTH];
             if (json_config->metrics[i].queries[j].columns[k].name &&
                 strlen(json_config->metrics[i].queries[j].columns[k].name) > 0)
             {
@@ -934,7 +934,7 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
                continue;
             }
 
-            char final_metric_name[MISC_LENGTH];
+            char final_metric_name[PROMETHEUS_LENGTH];
             snprintf(final_metric_name, sizeof(final_metric_name), "%s", json_config->metrics[i].tag);
 
             if (strlen(column_metric_name) > 0)
@@ -948,7 +948,7 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
             if (config->number_of_metric_names < NUMBER_OF_METRIC_NAMES)
             {
                snprintf(config->metric_names[config->number_of_metric_names],
-                        MISC_LENGTH,
+                        PROMETHEUS_LENGTH,
                         "%s",
                         final_metric_name);
                config->number_of_metric_names++;

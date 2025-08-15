@@ -695,8 +695,8 @@ static int
 add_line(struct prometheus_metric* metric, char* line, int endpoint, time_t timestamp)
 {
    char* e = NULL;
-   char key[MISC_LENGTH] = {0};
-   char value[MISC_LENGTH] = {0};
+   char key[PROMETHEUS_LENGTH] = {0};
+   char value[PROMETHEUS_LENGTH] = {0};
    char* token = NULL;
    char* saveptr = NULL;
    char* line_cpy = NULL;
