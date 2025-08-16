@@ -123,6 +123,7 @@ pgexporter_parse_extension_version(char* version_str, struct version* version)
    char* str_copy = NULL;
    char* token = NULL;
    char* saveptr = NULL;
+   char* dash_pos = NULL;
    int part = 0;
 
    if (!version_str || !version)
@@ -142,21 +143,44 @@ pgexporter_parse_extension_version(char* version_str, struct version* version)
       goto error;
    }
 
+   /* remove any suffix (e.g., "1.2.1-rc.2" -> "1.2.1") */
+   dash_pos = strchr(str_copy, '-');
+   if (dash_pos)
+   {
+      *dash_pos = '\0';
+   }
+
    token = strtok_r(str_copy, ".", &saveptr);
    while (token && part < 3)
    {
-      int value = atoi(token);
+      /* Skip empty tokens (e.g., from "1..2") */
+      if (strlen(token) == 0)
+      {
+         token = strtok_r(NULL, ".", &saveptr);
+         continue;
+      }
+
+      /* parse only the numeric part of the token */
+      char* endptr = NULL;
+      long value = strtol(token, &endptr, 10);
+
+      /* conversion was successful and value is non-negative */
+      if (endptr == token || value < 0)
+      {
+         pgexporter_log_error("Invalid version component: %s", token);
+         goto error;
+      }
 
       switch (part)
       {
          case 0:
-            version->major = value;
+            version->major = (int)value;
             break;
          case 1:
-            version->minor = value;
+            version->minor = (int)value;
             break;
          case 2:
-            version->patch = value;
+            version->patch = (int)value;
             break;
       }
 
@@ -164,20 +188,20 @@ pgexporter_parse_extension_version(char* version_str, struct version* version)
       token = strtok_r(NULL, ".", &saveptr);
    }
 
-   free(str_copy);
-
    // Must have at least major version
    if (version->major == -1)
    {
-      pgexporter_log_error("No major version found in version string");
+      pgexporter_log_error("No major version found in version string: %s", version_str);
       goto error;
    }
 
+   free(str_copy);
+   str_copy = NULL;
    return 0;
 
 error:
    free(str_copy);
-
+   str_copy = NULL;
    return 1;
 }
 
@@ -321,65 +345,6 @@ pgexporter_load_extension_yamls(struct configuration* config)
    return 0;
 
 error:
-   return 1;
-}
-
-int
-pgexporter_load_single_extension_yaml(char* extensions_path, char* extension_name, struct configuration* config)
-{
-   char yaml_path[MAX_PATH];
-   FILE* file = NULL;
-   int number_of_metrics = 0;
-   int ret = 0;
-
-   if (!extensions_path || !extension_name || !config)
-   {
-      pgexporter_log_debug("Invalid parameters for loading extension YAML");
-      goto error;
-   }
-
-   /* Construct the YAML file path */
-   ret = snprintf(yaml_path, MAX_PATH, "%s/%s.yaml", extensions_path, extension_name);
-   if (ret >= MAX_PATH)
-   {
-      pgexporter_log_debug("Extension YAML path too long for extension %s", extension_name);
-      goto error;
-   }
-
-   pgexporter_log_debug("Looking for extension YAML at: %s", yaml_path);
-
-   file = fopen(yaml_path, "r");
-   if (file == NULL)
-   {
-      pgexporter_log_debug("Extension YAML file not found: %s (extension: %s)",
-                           yaml_path, extension_name);
-      goto error;
-   }
-
-   pgexporter_log_debug("Found and opened extension YAML: %s", yaml_path);
-
-   ret = pgexporter_read_yaml_from_file_pointer(NULL, 0, &number_of_metrics, file);
-
-   fclose(file);
-   file = NULL;
-
-   if (ret != 0)
-   {
-      pgexporter_log_debug("Failed to parse extension YAML: %s (extension: %s)",
-                           yaml_path, extension_name);
-      goto error;
-   }
-
-   pgexporter_log_debug("Successfully loaded %d metrics from extension YAML: %s",
-                        number_of_metrics, extension_name);
-
-   return 0;
-
-error:
-   if (file != NULL)
-   {
-      fclose(file);
-   }
    return 1;
 }
 

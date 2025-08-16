@@ -85,16 +85,6 @@ int
 pgexporter_load_extension_yamls(struct configuration* config);
 
 /**
- * Find and load a specific extension's YAML file
- * @param extensions_path The base extensions directory path
- * @param extension_name The name of the extension to find
- * @param config The configuration to load into
- * @return 0 on success, 1 on error (file not found or parse error)
- */
-int
-pgexporter_load_single_extension_yaml(char* extensions_path, char* extension_name, struct configuration* config);
-
-/**
  * Determine if an extension should be enabled based on configuration
  * @param config The configuration struct
  * @param server The server index

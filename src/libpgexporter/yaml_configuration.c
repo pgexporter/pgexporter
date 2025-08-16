@@ -1570,6 +1570,81 @@ search_or_add_extension(struct configuration* config, char* extension_name)
    return ext;
 }
 
+int
+pgexporter_load_single_extension_yaml(char* extensions_path, char* extension_name, struct configuration* config)
+{
+   char yaml_path[MAX_PATH];
+   FILE* file = NULL;
+   int number_of_metrics = 0;
+   int ret = 0;
+   yaml_config_t temp_config;
+
+   if (!extensions_path || !extension_name || !config)
+   {
+      pgexporter_log_debug("Invalid parameters for loading extension YAML");
+      goto error;
+   }
+
+   /* Construct the YAML file path */
+   ret = snprintf(yaml_path, MAX_PATH, "%s/%s.yaml", extensions_path, extension_name);
+   if (ret >= MAX_PATH)
+   {
+      pgexporter_log_debug("Extension YAML path too long for extension %s", extension_name);
+      goto error;
+   }
+
+   pgexporter_log_debug("Looking for extension YAML at: %s", yaml_path);
+
+   file = fopen(yaml_path, "r");
+   if (file == NULL)
+   {
+      pgexporter_log_debug("Extension YAML file not found: %s (extension: %s)",
+                           yaml_path, extension_name);
+      goto error;
+   }
+
+   pgexporter_log_debug("Found and opened extension YAML: %s", yaml_path);
+
+   /* parse just enough to check extension name */
+   memset(&temp_config, 0, sizeof(yaml_config_t));
+   if (parse_yaml(file, &temp_config) == 0)
+   {
+      if (temp_config.is_extension && temp_config.extension_name)
+      {
+         if (strcmp(extension_name, temp_config.extension_name) != 0)
+         {
+            pgexporter_log_error("Extension name mismatch: file '%s.yaml' declares extension '%s'",
+                                 extension_name, temp_config.extension_name);
+            free_yaml_config(&temp_config);
+            goto error;
+         }
+      }
+   }
+   free_yaml_config(&temp_config);
+   rewind(file);
+
+   ret = pgexporter_read_yaml_from_file_pointer(NULL, 0, &number_of_metrics, file);
+   if (ret != 0)
+   {
+      pgexporter_log_debug("Failed to parse extension YAML: %s (extension: %s)",
+                           yaml_path, extension_name);
+      goto error;
+   }
+
+   pgexporter_log_debug("Successfully loaded %d metrics from extension YAML: %s",
+                        number_of_metrics, extension_name);
+
+   fclose(file);
+   return 0;
+
+error:
+   if (file != NULL)
+   {
+      fclose(file);
+   }
+   return 1;
+}
+
 static int
 semantics_extension_yaml(struct configuration* config, yaml_config_t* yaml_config)
 {
