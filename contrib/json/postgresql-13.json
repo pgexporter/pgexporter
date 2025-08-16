@@ -1149,6 +1149,61 @@
       "sort": "data",
       "collector": "table_bloat",
       "database": "all"
+    },
+    {
+      "queries": [
+        {
+          "query": "SELECT blocked.pid AS blocked_pid, blocked.datname AS blocked_database, blocked.usename AS blocked_user, blocked.query AS blocked_query, EXTRACT(EPOCH FROM age(now(), blocked.query_start))::bigint AS blocked_duration_seconds, blocking.pid AS blocking_pid, blocking.datname AS blocking_database, blocking.usename AS blocking_user, blocking.query AS blocking_query, EXTRACT(EPOCH FROM age(now(), blocking.query_start))::bigint AS blocking_duration_seconds FROM pg_stat_activity blocked JOIN pg_locks blocked_locks ON blocked.pid = blocked_locks.pid JOIN pg_locks blocking_locks ON blocked_locks.relation = blocking_locks.relation AND blocked_locks.pid != blocking_locks.pid JOIN pg_stat_activity blocking ON blocking.pid = blocking_locks.pid WHERE (blocked.query ILIKE '%VACUUM%' OR blocked.query ILIKE '%AUTOVACUUM%') AND NOT blocked_locks.granted AND blocking_locks.granted ORDER BY blocked_duration_seconds DESC;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "blocked_pid",
+              "type": "label"
+            },
+            {
+              "name": "blocked_database",
+              "type": "label"
+            },
+            {
+              "name": "blocked_user",
+              "type": "label"
+            },
+            {
+              "name": "blocked_query",
+              "type": "label"
+            },
+            {
+              "name": "blocked_duration_seconds",
+              "type": "gauge",
+              "description": "Duration in seconds that the vacuum has been blocked"
+            },
+            {
+              "name": "blocking_pid",
+              "type": "label"
+            },
+            {
+              "name": "blocking_database",
+              "type": "label"
+            },
+            {
+              "name": "blocking_user",
+              "type": "label"
+            },
+            {
+              "name": "blocking_query",
+              "type": "label"
+            },
+            {
+              "name": "blocking_duration_seconds",
+              "type": "gauge",
+              "description": "Duration in seconds that the blocking query has been running"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_blocked_vacuum",
+      "sort": "data",
+      "collector": "blocked_vacuum"
     }
   ]
 }

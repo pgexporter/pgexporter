@@ -598,6 +598,56 @@ extern "C" {
         "    sort: data\n" \
         "    collector: db_vacuum\n" \
         "\n" \
+        "# Blocked vacuum operations\n" \
+        "  - queries:\n" \
+        "    - query: SELECT\n" \
+        "                blocked.pid AS blocked_pid,\n" \
+        "                blocked.datname AS blocked_database,\n" \
+        "                blocked.usename AS blocked_user,\n" \
+        "                blocked.query AS blocked_query,\n" \
+        "                EXTRACT(EPOCH FROM age(now(), blocked.query_start))::bigint AS blocked_duration_seconds,\n" \
+        "                blocking.pid AS blocking_pid,\n" \
+        "                blocking.datname AS blocking_database,\n" \
+        "                blocking.usename AS blocking_user,\n" \
+        "                blocking.query AS blocking_query,\n" \
+        "                EXTRACT(EPOCH FROM age(now(), blocking.query_start))::bigint AS blocking_duration_seconds\n" \
+        "              FROM pg_stat_activity blocked\n" \
+        "              JOIN pg_locks blocked_locks ON blocked.pid = blocked_locks.pid\n" \
+        "              JOIN pg_locks blocking_locks ON blocked_locks.relation = blocking_locks.relation\n" \
+        "                AND blocked_locks.pid != blocking_locks.pid\n" \
+        "              JOIN pg_stat_activity blocking ON blocking.pid = blocking_locks.pid\n" \
+        "              WHERE (blocked.query ILIKE '%VACUUM%' OR blocked.query ILIKE '%AUTOVACUUM%')\n" \
+        "                AND NOT blocked_locks.granted\n" \
+        "                AND blocking_locks.granted\n" \
+        "              ORDER BY blocked_duration_seconds DESC;\n" \
+        "      version: 10\n" \
+        "      columns:\n" \
+        "        - name: blocked_pid\n" \
+        "          type: label\n" \
+        "        - name: blocked_database\n" \
+        "          type: label\n" \
+        "        - name: blocked_user\n" \
+        "          type: label\n" \
+        "        - name: blocked_query\n" \
+        "          type: label\n" \
+        "        - name: blocked_duration_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Duration in seconds that the vacuum has been blocked\n" \
+        "        - name: blocking_pid\n" \
+        "          type: label\n" \
+        "        - name: blocking_database\n" \
+        "          type: label\n" \
+        "        - name: blocking_user\n" \
+        "          type: label\n" \
+        "        - name: blocking_query\n" \
+        "          type: label\n" \
+        "        - name: blocking_duration_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Duration in seconds that the blocking query has been running\n" \
+        "    tag: pg_blocked_vacuum\n" \
+        "    sort: data\n" \
+        "    collector: blocked_vacuum\n" \
+        "\n" \
         "#\n" \
         "# PostgreSQL 11\n" \
         "#\n" \

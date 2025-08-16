@@ -33,6 +33,7 @@
 * `pg_stat_archiver`
 * `pg_db_vacuum`
 * `pg_view_vacuum`
+* `pg_blocked_vacuum`
 * `pg_wal_last_received`
 * `pg_gss_auth`
 * `pg_encrypted_conn`
