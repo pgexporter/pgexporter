@@ -994,6 +994,75 @@ extern "C" {
         "    collector: stat_user_tables\n" \
         "    database: all\n" \
         "\n" \
+        "# Table bloat analysis\n" \
+        "  - queries:\n" \
+        "    - query: SELECT\n" \
+        "                schemaname,\n" \
+        "                tblname,\n" \
+        "                real_size AS table_size,\n" \
+        "                extra_size AS bloat_size,\n" \
+        "                ROUND(extra_ratio::numeric, 2) AS bloat_ratio_pct,\n" \
+        "                tblpages,\n" \
+        "                est_tblpages,\n" \
+        "                bs AS block_size\n" \
+        "              FROM (\n" \
+        "                SELECT\n" \
+        "                  schemaname,\n" \
+        "                  tblname,\n" \
+        "                  bs*tblpages AS real_size,\n" \
+        "                  (tblpages-est_tblpages)*bs AS extra_size,\n" \
+        "                  CASE WHEN tblpages > 0\n" \
+        "                    THEN 100 * (tblpages-est_tblpages)/tblpages::numeric\n" \
+        "                    ELSE 0\n" \
+        "                  END AS extra_ratio,\n" \
+        "                  tblpages,\n" \
+        "                  est_tblpages,\n" \
+        "                  bs\n" \
+        "                FROM (\n" \
+        "                  SELECT\n" \
+        "                    n.nspname AS schemaname,\n" \
+        "                    c.relname AS tblname,\n" \
+        "                    c.relpages AS tblpages,\n" \
+        "                    CEIL(c.reltuples/((current_setting('block_size')::integer-24)/100)) AS est_tblpages,\n" \
+        "                    current_setting('block_size')::integer AS bs\n" \
+        "                  FROM pg_class c\n" \
+        "                  JOIN pg_namespace n ON n.oid = c.relnamespace\n" \
+        "                  WHERE c.relkind = 'r'\n" \
+        "                  AND n.nspname NOT IN ('information_schema', 'pg_catalog', 'pg_toast')\n" \
+        "                  AND n.nspname NOT LIKE 'pg_temp_%'\n" \
+        "                ) AS bloat_calc\n" \
+        "              ) AS bloat_summary\n" \
+        "              WHERE tblpages > 0\n" \
+        "              ORDER BY extra_size DESC;\n" \
+        "      version: 13\n" \
+        "      columns:\n" \
+        "        - name: schemaname\n" \
+        "          type: label\n" \
+        "        - name: tblname\n" \
+        "          type: label\n" \
+        "        - name: table_size\n" \
+        "          type: gauge\n" \
+        "          description: Actual table size in bytes\n" \
+        "        - name: bloat_size\n" \
+        "          type: gauge\n" \
+        "          description: Estimated bloat size in bytes\n" \
+        "        - name: bloat_ratio_pct\n" \
+        "          type: gauge\n" \
+        "          description: Bloat ratio as percentage\n" \
+        "        - name: tblpages\n" \
+        "          type: gauge\n" \
+        "          description: Actual number of pages used by table\n" \
+        "        - name: est_tblpages\n" \
+        "          type: gauge\n" \
+        "          description: Estimated number of pages needed\n" \
+        "        - name: block_size\n" \
+        "          type: gauge\n" \
+        "          description: Database block size in bytes\n" \
+        "    tag: pg_table_bloat\n" \
+        "    sort: data\n" \
+        "    collector: table_bloat\n" \
+        "    database: all\n" \
+        "\n" \
         "#\n" \
         "# PostgreSQL 14\n" \
         "#\n" \

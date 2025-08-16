@@ -814,6 +814,74 @@ metrics:
     sort: data
     collector: stat_user_tables
     database: all
+# Table bloat analysis
+  - queries:
+    - query: SELECT
+                schemaname,
+                tblname,
+                real_size AS table_size,
+                extra_size AS bloat_size,
+                ROUND(extra_ratio::numeric, 2) AS bloat_ratio_pct,
+                tblpages,
+                est_tblpages,
+                bs AS block_size
+              FROM (
+                SELECT
+                  schemaname,
+                  tblname,
+                  bs*tblpages AS real_size,
+                  (tblpages-est_tblpages)*bs AS extra_size,
+                  CASE WHEN tblpages > 0
+                    THEN 100 * (tblpages-est_tblpages)/tblpages::numeric
+                    ELSE 0
+                  END AS extra_ratio,
+                  tblpages,
+                  est_tblpages,
+                  bs
+                FROM (
+                  SELECT
+                    n.nspname AS schemaname,
+                    c.relname AS tblname,
+                    c.relpages AS tblpages,
+                    CEIL(c.reltuples/((current_setting('block_size')::integer-24)/100)) AS est_tblpages,
+                    current_setting('block_size')::integer AS bs
+                  FROM pg_class c
+                  JOIN pg_namespace n ON n.oid = c.relnamespace
+                  WHERE c.relkind = 'r'
+                  AND n.nspname NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
+                  AND n.nspname NOT LIKE 'pg_temp_%'
+                ) AS bloat_calc
+              ) AS bloat_summary
+              WHERE tblpages > 0
+              ORDER BY extra_size DESC;
+      version: 13
+      columns:
+        - name: schemaname
+          type: label
+        - name: tblname
+          type: label
+        - name: table_size
+          type: gauge
+          description: Actual table size in bytes
+        - name: bloat_size
+          type: gauge
+          description: Estimated bloat size in bytes
+        - name: bloat_ratio_pct
+          type: gauge
+          description: Bloat ratio as percentage
+        - name: tblpages
+          type: gauge
+          description: Actual number of pages used by table
+        - name: est_tblpages
+          type: gauge
+          description: Estimated number of pages needed
+        - name: block_size
+          type: gauge
+          description: Database block size in bytes
+    tag: pg_table_bloat
+    sort: data
+    collector: table_bloat
+    database: all
 #
 # PostgreSQL 14
 #
