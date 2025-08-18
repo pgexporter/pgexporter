@@ -36,9 +36,11 @@ metrics:
   # Raster table inventory - basic count of raster tables in the system
   - metric: raster_table_count
     queries:
-      - query: SELECT COUNT(*) as raster_table_count FROM raster_columns;
+      - query: SELECT current_database() as database, COUNT(*) as raster_table_count FROM raster_columns;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: raster_table_count
             type: gauge
             description: Total number of tables containing raster columns
@@ -46,9 +48,11 @@ metrics:
   # Raster columns basic information - core raster metadata
   - metric: raster_columns_info
     queries:
-      - query: SELECT r_table_schema, r_table_name, r_raster_column, srid, num_bands FROM raster_columns ORDER BY r_table_schema, r_table_name;
+      - query: SELECT current_database() as database, r_table_schema, r_table_name, r_raster_column, srid, num_bands FROM raster_columns ORDER BY r_table_schema, r_table_name;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: r_table_schema
             type: label
             description: Schema containing the raster table
@@ -68,9 +72,11 @@ metrics:
   # SRID distribution - spatial reference systems used by rasters
   - metric: raster_srid_distribution
     queries:
-      - query: SELECT srid, COUNT(*) as raster_count FROM raster_columns GROUP BY srid ORDER BY raster_count DESC;
+      - query: SELECT current_database() as database, srid, COUNT(*) as raster_count FROM raster_columns GROUP BY srid ORDER BY raster_count DESC;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: srid
             type: label
             description: Spatial Reference System ID
@@ -81,9 +87,11 @@ metrics:
   # Band count statistics - raster complexity analysis
   - metric: raster_band_stats
     queries:
-      - query: SELECT num_bands, COUNT(*) as table_count FROM raster_columns GROUP BY num_bands ORDER BY num_bands;
+      - query: SELECT current_database() as database, num_bands, COUNT(*) as table_count FROM raster_columns GROUP BY num_bands ORDER BY num_bands;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: num_bands
             type: gauge
             description: Number of bands in raster
@@ -94,9 +102,11 @@ metrics:
   # Pixel type analysis - data type distribution
   - metric: raster_pixel_types
     queries:
-      - query: SELECT unnest(pixel_types) as pixel_type, COUNT(*) as usage_count FROM raster_columns GROUP BY unnest(pixel_types) ORDER BY usage_count DESC;
+      - query: SELECT current_database() as database, unnest(pixel_types) as pixel_type, COUNT(*) as usage_count FROM raster_columns GROUP BY unnest(pixel_types) ORDER BY usage_count DESC;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: pixel_type
             type: label
             description: Pixel data type (8BUI, 16BSI, 32BF, etc.)
@@ -107,9 +117,11 @@ metrics:
   # NoData value statistics - missing data analysis
   - metric: raster_nodata_stats
     queries:
-      - query: SELECT unnest(nodata_values) as nodata_value, COUNT(*) as usage_count FROM raster_columns WHERE nodata_values IS NOT NULL GROUP BY unnest(nodata_values) ORDER BY usage_count DESC;
+      - query: SELECT current_database() as database, unnest(nodata_values) as nodata_value, COUNT(*) as usage_count FROM raster_columns WHERE nodata_values IS NOT NULL GROUP BY unnest(nodata_values) ORDER BY usage_count DESC;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: nodata_value
             type: gauge
             description: NoData value used to represent missing data
@@ -120,9 +132,11 @@ metrics:
   # Raster overview count - pyramid/overview monitoring
   - metric: raster_overview_count
     queries:
-      - query: SELECT COUNT(*) as overview_count FROM raster_overviews;
+      - query: SELECT current_database() as database, COUNT(*) as overview_count FROM raster_overviews;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: overview_count
             type: gauge
             description: Total number of raster overviews/pyramids defined
@@ -130,9 +144,11 @@ metrics:
   # Overview factor distribution - pyramid detail analysis
   - metric: raster_overview_factors
     queries:
-      - query: SELECT overview_factor, COUNT(*) as overview_count FROM raster_overviews GROUP BY overview_factor ORDER BY overview_factor;
+      - query: SELECT current_database() as database, overview_factor, COUNT(*) as overview_count FROM raster_overviews GROUP BY overview_factor ORDER BY overview_factor;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: overview_factor
             type: gauge
             description: Overview reduction factor (2, 4, 8, etc.)
@@ -143,9 +159,11 @@ metrics:
   # Storage type distribution - in-database vs out-of-database analysis
   - metric: raster_storage_types
     queries:
-      - query: SELECT CASE WHEN out_db THEN 'out-of-database' ELSE 'in-database' END as storage_type, COUNT(*) as table_count FROM raster_columns GROUP BY out_db ORDER BY table_count DESC;
+      - query: SELECT current_database() as database, CASE WHEN out_db THEN 'out-of-database' ELSE 'in-database' END as storage_type, COUNT(*) as table_count FROM raster_columns GROUP BY out_db ORDER BY table_count DESC;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: storage_type
             type: label
             description: Raster storage location (in-database or out-of-database)
@@ -156,9 +174,11 @@ metrics:
   # Raster alignment and blocking constraints - data organization analysis
   - metric: raster_constraints
     queries:
-      - query: SELECT same_alignment, regular_blocking, COUNT(*) as table_count FROM raster_columns GROUP BY same_alignment, regular_blocking ORDER BY table_count DESC;
+      - query: SELECT current_database() as database, same_alignment, regular_blocking, COUNT(*) as table_count FROM raster_columns GROUP BY same_alignment, regular_blocking ORDER BY table_count DESC;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: same_alignment
             type: gauge
             description: Whether rasters share same alignment (1=yes, 0=no)
@@ -172,9 +192,11 @@ metrics:
   # Schema-level raster distribution - organizational analysis
   - metric: raster_schema_distribution
     queries:
-      - query: SELECT r_table_schema, COUNT(*) as raster_table_count, COUNT(DISTINCT srid) as unique_srids, AVG(num_bands) as avg_bands FROM raster_columns GROUP BY r_table_schema ORDER BY raster_table_count DESC;
+      - query: SELECT current_database() as database, r_table_schema, COUNT(*) as raster_table_count, COUNT(DISTINCT srid) as unique_srids, AVG(num_bands) as avg_bands FROM raster_columns GROUP BY r_table_schema ORDER BY raster_table_count DESC;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: r_table_schema
             type: label
             description: Database schema name
@@ -191,9 +213,11 @@ metrics:
   # System-wide raster aggregates - overall statistics
   - metric: raster_system_stats
     queries:
-      - query: SELECT COUNT(*) as total_raster_tables, COUNT(DISTINCT srid) as unique_srids, AVG(num_bands) as avg_bands_per_table, COUNT(DISTINCT r_table_schema) as schemas_with_rasters, COUNT(*) FILTER (WHERE NOT out_db) as in_database_tables, COUNT(*) FILTER (WHERE same_alignment) as aligned_tables FROM raster_columns;
+      - query: SELECT current_database() as database, COUNT(*) as total_raster_tables, COUNT(DISTINCT srid) as unique_srids, AVG(num_bands) as avg_bands_per_table, COUNT(DISTINCT r_table_schema) as schemas_with_rasters, COUNT(*) FILTER (WHERE NOT out_db) as in_database_tables, COUNT(*) FILTER (WHERE same_alignment) as aligned_tables FROM raster_columns;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: total_raster_tables
             type: gauge
             description: Total number of raster tables in system
@@ -216,9 +240,11 @@ metrics:
   # Raster scale/resolution analysis - spatial resolution monitoring
   - metric: raster_scale_stats
     queries:
-      - query: SELECT scale_x, scale_y, COUNT(*) as table_count FROM raster_columns WHERE scale_x IS NOT NULL AND scale_y IS NOT NULL GROUP BY scale_x, scale_y ORDER BY table_count DESC;
+      - query: SELECT current_database() as database, scale_x, scale_y, COUNT(*) as table_count FROM raster_columns WHERE scale_x IS NOT NULL AND scale_y IS NOT NULL GROUP BY scale_x, scale_y ORDER BY table_count DESC;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: scale_x
             type: gauge
             description: Pixel width in spatial units
@@ -232,9 +258,11 @@ metrics:
   # Block size distribution - tiling configuration analysis
   - metric: raster_block_sizes
     queries:
-      - query: SELECT blocksize_x, blocksize_y, COUNT(*) as table_count FROM raster_columns WHERE blocksize_x IS NOT NULL AND blocksize_y IS NOT NULL GROUP BY blocksize_x, blocksize_y ORDER BY table_count DESC;
+      - query: SELECT current_database() as database, blocksize_x, blocksize_y, COUNT(*) as table_count FROM raster_columns WHERE blocksize_x IS NOT NULL AND blocksize_y IS NOT NULL GROUP BY blocksize_x, blocksize_y ORDER BY table_count DESC;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: blocksize_x
             type: gauge
             description: Raster tile width in pixels

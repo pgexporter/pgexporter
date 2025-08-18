@@ -36,9 +36,11 @@ metrics:
   # Topology inventory - basic count and details of defined topologies
   - metric: topology_inventory
     queries:
-      - query: SELECT COUNT(*) as topology_count FROM topology.topology;
+      - query: SELECT current_database() as database, COUNT(*) as topology_count FROM topology.topology;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: topology_count
             type: gauge
             description: Total number of topologies defined in the system
@@ -46,9 +48,11 @@ metrics:
   # Topology details - comprehensive information about each topology
   - metric: topology_details
     queries:
-      - query: SELECT id, name, srid, precision, hasz FROM topology.topology ORDER BY id;
+      - query: SELECT current_database() as database, id, name, srid, precision, hasz FROM topology.topology ORDER BY id;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: id
             type: label
             description: Unique topology identifier
@@ -68,9 +72,11 @@ metrics:
   # Node counts per topology - monitoring topology node elements
   - metric: topology_node_counts
     queries:
-      - query: SELECT t.name as topology_name, t.srid, COALESCE(pst.n_live_tup, 0) as live_node_count, COALESCE(pst.n_tup_ins, 0) as inserted_nodes, COALESCE(pst.n_tup_upd, 0) as updated_nodes, COALESCE(pst.n_tup_del, 0) as deleted_nodes FROM topology.topology t LEFT JOIN pg_stat_user_tables pst ON pst.schemaname = t.name AND pst.relname = 'node' ORDER BY t.id;
+      - query: SELECT current_database() as database, t.name as topology_name, t.srid, COALESCE(pst.n_live_tup, 0) as live_node_count, COALESCE(pst.n_tup_ins, 0) as inserted_nodes, COALESCE(pst.n_tup_upd, 0) as updated_nodes, COALESCE(pst.n_tup_del, 0) as deleted_nodes FROM topology.topology t LEFT JOIN pg_stat_user_tables pst ON pst.schemaname = t.name AND pst.relname = 'node' ORDER BY t.id;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: topology_name
             type: label
             description: Topology name
@@ -93,9 +99,11 @@ metrics:
   # Edge counts per topology - monitoring topology edge elements
   - metric: topology_edge_counts
     queries:
-      - query: SELECT t.name as topology_name, t.srid, COALESCE(pst.n_live_tup, 0) as live_edge_count, COALESCE(pst.n_tup_ins, 0) as inserted_edges FROM topology.topology t LEFT JOIN pg_stat_user_tables pst ON pst.schemaname = t.name AND pst.relname = 'edge_data' ORDER BY t.id;
+      - query: SELECT current_database() as database, t.name as topology_name, t.srid, COALESCE(pst.n_live_tup, 0) as live_edge_count, COALESCE(pst.n_tup_ins, 0) as inserted_edges FROM topology.topology t LEFT JOIN pg_stat_user_tables pst ON pst.schemaname = t.name AND pst.relname = 'edge_data' ORDER BY t.id;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: topology_name
             type: label
             description: Topology name
@@ -112,9 +120,11 @@ metrics:
   # Face counts per topology - monitoring topology face elements
   - metric: topology_face_counts
     queries:
-      - query: SELECT t.name as topology_name, t.srid, COALESCE(pst.n_live_tup, 0) as live_face_count, COALESCE(pst.n_tup_ins, 0) as inserted_faces FROM topology.topology t LEFT JOIN pg_stat_user_tables pst ON pst.schemaname = t.name AND pst.relname = 'face' ORDER BY t.id;
+      - query: SELECT current_database() as database, t.name as topology_name, t.srid, COALESCE(pst.n_live_tup, 0) as live_face_count, COALESCE(pst.n_tup_ins, 0) as inserted_faces FROM topology.topology t LEFT JOIN pg_stat_user_tables pst ON pst.schemaname = t.name AND pst.relname = 'face' ORDER BY t.id;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: topology_name
             type: label
             description: Topology name
@@ -131,9 +141,11 @@ metrics:
   # Combined topology primitives - all topology elements in single query
   - metric: topology_primitives_summary
     queries:
-      - query: SELECT t.name as topology_name, t.srid, t.precision, COALESCE(nodes.n_live_tup, 0) as node_count, COALESCE(edges.n_live_tup, 0) as edge_count, COALESCE(faces.n_live_tup, 0) as face_count, COALESCE(nodes.n_live_tup, 0) + COALESCE(edges.n_live_tup, 0) + COALESCE(faces.n_live_tup, 0) as total_primitives FROM topology.topology t LEFT JOIN pg_stat_user_tables nodes ON nodes.schemaname = t.name AND nodes.relname = 'node' LEFT JOIN pg_stat_user_tables edges ON edges.schemaname = t.name AND edges.relname = 'edge_data' LEFT JOIN pg_stat_user_tables faces ON faces.schemaname = t.name AND faces.relname = 'face' ORDER BY t.id;
+      - query: SELECT current_database() as database, t.name as topology_name, t.srid, t.precision, COALESCE(nodes.n_live_tup, 0) as node_count, COALESCE(edges.n_live_tup, 0) as edge_count, COALESCE(faces.n_live_tup, 0) as face_count, COALESCE(nodes.n_live_tup, 0) + COALESCE(edges.n_live_tup, 0) + COALESCE(faces.n_live_tup, 0) as total_primitives FROM topology.topology t LEFT JOIN pg_stat_user_tables nodes ON nodes.schemaname = t.name AND nodes.relname = 'node' LEFT JOIN pg_stat_user_tables edges ON edges.schemaname = t.name AND edges.relname = 'edge_data' LEFT JOIN pg_stat_user_tables faces ON faces.schemaname = t.name AND faces.relname = 'face' ORDER BY t.id;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: topology_name
             type: label
             description: Topology name
@@ -159,9 +171,11 @@ metrics:
   # System-wide topology statistics - aggregated metrics across all topologies
   - metric: topology_system_stats
     queries:
-      - query: SELECT COUNT(*) as total_topologies, COUNT(DISTINCT t.srid) as unique_srids, AVG(t.precision) as avg_precision, SUM(COALESCE(nodes.n_live_tup, 0)) as total_nodes, SUM(COALESCE(edges.n_live_tup, 0)) as total_edges, SUM(COALESCE(faces.n_live_tup, 0)) as total_faces FROM topology.topology t LEFT JOIN pg_stat_user_tables nodes ON nodes.schemaname = t.name AND nodes.relname = 'node' LEFT JOIN pg_stat_user_tables edges ON edges.schemaname = t.name AND edges.relname = 'edge_data' LEFT JOIN pg_stat_user_tables faces ON faces.schemaname = t.name AND faces.relname = 'face';
+      - query: SELECT current_database() as database, COUNT(*) as total_topologies, COUNT(DISTINCT t.srid) as unique_srids, AVG(t.precision) as avg_precision, SUM(COALESCE(nodes.n_live_tup, 0)) as total_nodes, SUM(COALESCE(edges.n_live_tup, 0)) as total_edges, SUM(COALESCE(faces.n_live_tup, 0)) as total_faces FROM topology.topology t LEFT JOIN pg_stat_user_tables nodes ON nodes.schemaname = t.name AND nodes.relname = 'node' LEFT JOIN pg_stat_user_tables edges ON edges.schemaname = t.name AND edges.relname = 'edge_data' LEFT JOIN pg_stat_user_tables faces ON faces.schemaname = t.name AND faces.relname = 'face';
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: total_topologies
             type: gauge
             description: Total number of topologies in the system
@@ -184,9 +198,11 @@ metrics:
   # SRID distribution - spatial reference system usage analysis
   - metric: topology_srid_distribution
     queries:
-      - query: SELECT t.srid, COUNT(*) as topology_count, SUM(COALESCE(nodes.n_live_tup, 0)) as total_nodes_for_srid, SUM(COALESCE(edges.n_live_tup, 0)) as total_edges_for_srid FROM topology.topology t LEFT JOIN pg_stat_user_tables nodes ON nodes.schemaname = t.name AND nodes.relname = 'node' LEFT JOIN pg_stat_user_tables edges ON edges.schemaname = t.name AND edges.relname = 'edge_data' GROUP BY t.srid ORDER BY topology_count DESC;
+      - query: SELECT current_database() as database, t.srid, COUNT(*) as topology_count, SUM(COALESCE(nodes.n_live_tup, 0)) as total_nodes_for_srid, SUM(COALESCE(edges.n_live_tup, 0)) as total_edges_for_srid FROM topology.topology t LEFT JOIN pg_stat_user_tables nodes ON nodes.schemaname = t.name AND nodes.relname = 'node' LEFT JOIN pg_stat_user_tables edges ON edges.schemaname = t.name AND edges.relname = 'edge_data' GROUP BY t.srid ORDER BY topology_count DESC;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: srid
             type: label
             description: Spatial Reference System ID
@@ -203,9 +219,11 @@ metrics:
   # Topology health and activity status - operational monitoring
   - metric: topology_health
     queries:
-      - query: SELECT t.name as topology_name, t.srid, CASE WHEN nodes.relname IS NOT NULL THEN 'YES' ELSE 'NO' END as has_node_table, CASE WHEN edges.relname IS NOT NULL THEN 'YES' ELSE 'NO' END as has_edge_table, CASE WHEN faces.relname IS NOT NULL THEN 'YES' ELSE 'NO' END as has_face_table, COALESCE(nodes.n_live_tup, 0) as current_node_count, COALESCE(edges.n_live_tup, 0) as current_edge_count, CASE WHEN COALESCE(nodes.n_live_tup, 0) + COALESCE(edges.n_live_tup, 0) = 0 THEN 'EMPTY' WHEN COALESCE(nodes.n_live_tup, 0) > 0 AND COALESCE(edges.n_live_tup, 0) = 0 THEN 'NODES_ONLY' WHEN COALESCE(nodes.n_live_tup, 0) > 0 AND COALESCE(edges.n_live_tup, 0) > 0 THEN 'ACTIVE' ELSE 'UNKNOWN' END as topology_status FROM topology.topology t LEFT JOIN pg_stat_user_tables nodes ON nodes.schemaname = t.name AND nodes.relname = 'node' LEFT JOIN pg_stat_user_tables edges ON edges.schemaname = t.name AND edges.relname = 'edge_data' LEFT JOIN pg_stat_user_tables faces ON faces.schemaname = t.name AND faces.relname = 'face' ORDER BY t.id;
+      - query: SELECT current_database() as database, t.name as topology_name, t.srid, CASE WHEN nodes.relname IS NOT NULL THEN 'YES' ELSE 'NO' END as has_node_table, CASE WHEN edges.relname IS NOT NULL THEN 'YES' ELSE 'NO' END as has_edge_table, CASE WHEN faces.relname IS NOT NULL THEN 'YES' ELSE 'NO' END as has_face_table, COALESCE(nodes.n_live_tup, 0) as current_node_count, COALESCE(edges.n_live_tup, 0) as current_edge_count, CASE WHEN COALESCE(nodes.n_live_tup, 0) + COALESCE(edges.n_live_tup, 0) = 0 THEN 'EMPTY' WHEN COALESCE(nodes.n_live_tup, 0) > 0 AND COALESCE(edges.n_live_tup, 0) = 0 THEN 'NODES_ONLY' WHEN COALESCE(nodes.n_live_tup, 0) > 0 AND COALESCE(edges.n_live_tup, 0) > 0 THEN 'ACTIVE' ELSE 'UNKNOWN' END as topology_status FROM topology.topology t LEFT JOIN pg_stat_user_tables nodes ON nodes.schemaname = t.name AND nodes.relname = 'node' LEFT JOIN pg_stat_user_tables edges ON edges.schemaname = t.name AND edges.relname = 'edge_data' LEFT JOIN pg_stat_user_tables faces ON faces.schemaname = t.name AND faces.relname = 'face' ORDER BY t.id;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: topology_name
             type: label
             description: Topology name
@@ -234,9 +252,11 @@ metrics:
   # Topology storage utilization - disk usage monitoring
   - metric: topology_storage_stats
     queries:
-      - query: SELECT t.name as topology_name, pg_size_pretty(COALESCE((SELECT pg_total_relation_size(t.name||'.node')), 0) + COALESCE((SELECT pg_total_relation_size(t.name||'.edge_data')), 0) + COALESCE((SELECT pg_total_relation_size(t.name||'.face')), 0)) as total_topology_size, pg_size_pretty(COALESCE((SELECT pg_total_relation_size(t.name||'.node')), 0)) as node_table_size, pg_size_pretty(COALESCE((SELECT pg_total_relation_size(t.name||'.edge_data')), 0)) as edge_table_size, pg_size_pretty(COALESCE((SELECT pg_total_relation_size(t.name||'.face')), 0)) as face_table_size FROM topology.topology t ORDER BY t.id;
+      - query: SELECT current_database() as database, t.name as topology_name, pg_size_pretty(COALESCE((SELECT pg_total_relation_size(t.name||'.node')), 0) + COALESCE((SELECT pg_total_relation_size(t.name||'.edge_data')), 0) + COALESCE((SELECT pg_total_relation_size(t.name||'.face')), 0)) as total_topology_size, pg_size_pretty(COALESCE((SELECT pg_total_relation_size(t.name||'.node')), 0)) as node_table_size, pg_size_pretty(COALESCE((SELECT pg_total_relation_size(t.name||'.edge_data')), 0)) as edge_table_size, pg_size_pretty(COALESCE((SELECT pg_total_relation_size(t.name||'.face')), 0)) as face_table_size FROM topology.topology t ORDER BY t.id;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: topology_name
             type: label
             description: Topology name

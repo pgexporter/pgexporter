@@ -35,9 +35,11 @@ metrics:
   # Spatial table inventory - core metrics for spatial data monitoring
   - metric: spatial_tables
     queries:
-      - query: SELECT COUNT(*) as geometry_tables, (SELECT COUNT(*) FROM geography_columns) as geography_tables, (SELECT COUNT(*) FROM spatial_ref_sys) as srid_count;
+      - query: SELECT current_database() as database, COUNT(*) as geometry_tables, (SELECT COUNT(*) FROM geography_columns) as geography_tables, (SELECT COUNT(*) FROM spatial_ref_sys) as srid_count;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: geometry_tables
             type: gauge
             description: Number of tables with geometry columns
@@ -51,9 +53,11 @@ metrics:
   # SRID usage statistics - identify most commonly used coordinate systems
   - metric: srid_usage
     queries:
-      - query: SELECT srid, COUNT(*) as usage_count FROM geometry_columns GROUP BY srid ORDER BY usage_count DESC LIMIT 10;
+      - query: SELECT current_database() as database, srid, COUNT(*) as usage_count FROM geometry_columns GROUP BY srid ORDER BY usage_count DESC LIMIT 10;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: srid
             type: label
             description: Spatial Reference System Identifier
@@ -64,9 +68,11 @@ metrics:
   # Geometry column details - comprehensive spatial column information
   - metric: geometry_columns_detail
     queries:
-      - query: SELECT f_table_schema, f_table_name, f_geometry_column, coord_dimension, srid, type as geometry_type FROM geometry_columns ORDER BY f_table_schema, f_table_name LIMIT 50;
+      - query: SELECT current_database() as database, f_table_schema, f_table_name, f_geometry_column, coord_dimension, srid, type as geometry_type FROM geometry_columns ORDER BY f_table_schema, f_table_name LIMIT 50;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: f_table_schema
             type: label
             description: Schema name containing the spatial table
@@ -89,9 +95,11 @@ metrics:
   # Geography column details - geographic coordinate system columns
   - metric: geography_columns_detail
     queries:
-      - query: SELECT f_table_schema, f_table_name, f_geography_column, coord_dimension, srid, type as geography_type FROM geography_columns ORDER BY f_table_schema, f_table_name LIMIT 50;
+      - query: SELECT current_database() as database, f_table_schema, f_table_name, f_geography_column, coord_dimension, srid, type as geography_type FROM geography_columns ORDER BY f_table_schema, f_table_name LIMIT 50;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: f_table_schema
             type: label
             description: Schema name containing the geographic table
@@ -114,9 +122,11 @@ metrics:
   # Spatial index monitoring - critical for PostGIS performance
   - metric: spatial_indexes
     queries:
-      - query: SELECT schemaname, tablename, indexname, indexdef FROM pg_indexes WHERE indexdef LIKE '%gist%' AND (indexdef LIKE '%geometry%' OR indexdef LIKE '%geography%') ORDER BY schemaname, tablename LIMIT 25;
+      - query: SELECT current_database() as database, schemaname, tablename, indexname, indexdef FROM pg_indexes WHERE indexdef LIKE '%gist%' AND (indexdef LIKE '%geometry%' OR indexdef LIKE '%geography%') ORDER BY schemaname, tablename LIMIT 25;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: schemaname
             type: label
             description: Schema containing the spatial index
@@ -133,9 +143,11 @@ metrics:
   # Spatial index count summary - performance monitoring overview
   - metric: spatial_index_summary
     queries:
-      - query: SELECT COUNT(*) as total_spatial_indexes, COUNT(*) FILTER (WHERE indexdef LIKE '%geometry%') as geometry_indexes, COUNT(*) FILTER (WHERE indexdef LIKE '%geography%') as geography_indexes FROM pg_indexes WHERE indexdef LIKE '%gist%' AND (indexdef LIKE '%geometry%' OR indexdef LIKE '%geography%');
+      - query: SELECT current_database() as database, COUNT(*) as total_spatial_indexes, COUNT(*) FILTER (WHERE indexdef LIKE '%geometry%') as geometry_indexes, COUNT(*) FILTER (WHERE indexdef LIKE '%geography%') as geography_indexes FROM pg_indexes WHERE indexdef LIKE '%gist%' AND (indexdef LIKE '%geometry%' OR indexdef LIKE '%geography%');
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: total_spatial_indexes
             type: gauge
             description: Total number of spatial GIST indexes
@@ -149,9 +161,11 @@ metrics:
   # Geometry type distribution - understanding spatial data variety
   - metric: geometry_type_stats
     queries:
-      - query: SELECT type as geometry_type, COUNT(*) as column_count FROM geometry_columns GROUP BY type ORDER BY column_count DESC;
+      - query: SELECT current_database() as database, type as geometry_type, COUNT(*) as column_count FROM geometry_columns GROUP BY type ORDER BY column_count DESC;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: geometry_type
             type: label
             description: Type of geometry (POINT, POLYGON, LINESTRING, etc.)
@@ -162,9 +176,11 @@ metrics:
   # Coordinate dimension analysis - 2D vs 3D spatial data
   - metric: coordinate_dimensions
     queries:
-      - query: SELECT coord_dimension, COUNT(*) as column_count FROM geometry_columns GROUP BY coord_dimension ORDER BY coord_dimension;
+      - query: SELECT current_database() as database, coord_dimension, COUNT(*) as column_count FROM geometry_columns GROUP BY coord_dimension ORDER BY coord_dimension;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: coord_dimension
             type: gauge
             description: Number of coordinate dimensions
@@ -175,9 +191,11 @@ metrics:
   # Schema-level spatial distribution - identify spatial data hotspots
   - metric: schema_spatial_stats
     queries:
-      - query: SELECT f_table_schema, COUNT(*) as geometry_columns, COUNT(DISTINCT f_table_name) as spatial_tables, COUNT(DISTINCT srid) as unique_srids FROM geometry_columns GROUP BY f_table_schema ORDER BY geometry_columns DESC;
+      - query: SELECT current_database() as database, f_table_schema, COUNT(*) as geometry_columns, COUNT(DISTINCT f_table_name) as spatial_tables, COUNT(DISTINCT srid) as unique_srids FROM geometry_columns GROUP BY f_table_schema ORDER BY geometry_columns DESC;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: f_table_schema
             type: label
             description: Database schema name
@@ -194,9 +212,11 @@ metrics:
   # Common SRID reference - identify standard coordinate systems in use
   - metric: common_srids
     queries:
-      - query: SELECT srid, auth_name, auth_srid, CASE WHEN srid = 4326 THEN 'WGS84' WHEN srid = 3857 THEN 'Web Mercator' WHEN srid = 4269 THEN 'NAD83' ELSE 'Other' END as srid_type FROM spatial_ref_sys WHERE srid IN (SELECT DISTINCT srid FROM geometry_columns) ORDER BY srid;
+      - query: SELECT current_database() as database, srid, auth_name, auth_srid, CASE WHEN srid = 4326 THEN 'WGS84' WHEN srid = 3857 THEN 'Web Mercator' WHEN srid = 4269 THEN 'NAD83' ELSE 'Other' END as srid_type FROM spatial_ref_sys WHERE srid IN (SELECT DISTINCT srid FROM geometry_columns) ORDER BY srid;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: srid
             type: label
             description: Spatial Reference System Identifier
@@ -213,9 +233,11 @@ metrics:
   # Spatial data size analysis - storage utilization monitoring
   - metric: spatial_storage_stats
     queries:
-      - query: SELECT gc.f_table_schema, gc.f_table_name, gc.f_geometry_column, gc.type as geometry_type, pg_size_pretty(pg_total_relation_size(quote_ident(gc.f_table_schema)||'.'||quote_ident(gc.f_table_name))) as table_size FROM geometry_columns gc ORDER BY pg_total_relation_size(quote_ident(gc.f_table_schema)||'.'||quote_ident(gc.f_table_name)) DESC LIMIT 10;
+      - query: SELECT current_database() as database, gc.f_table_schema, gc.f_table_name, gc.f_geometry_column, gc.type as geometry_type, pg_size_pretty(pg_total_relation_size(quote_ident(gc.f_table_schema)||'.'||quote_ident(gc.f_table_name))) as table_size FROM geometry_columns gc ORDER BY pg_total_relation_size(quote_ident(gc.f_table_schema)||'.'||quote_ident(gc.f_table_name)) DESC LIMIT 10;
         version: "3.0"
         columns:
+          - name: database
+            type: label
           - name: f_table_schema
             type: label
             description: Schema name

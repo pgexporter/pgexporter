@@ -38,6 +38,7 @@ metrics:
   - metric: hypertable_overview
     queries:
       - query: SELECT 
+                  current_database() as database,
                   COUNT(*) as total_hypertables,
                   SUM(num_chunks) as total_chunks,
                   COUNT(*) FILTER (WHERE compression_enabled = true) as compressed_hypertables,
@@ -45,6 +46,8 @@ metrics:
                 FROM timescaledb_information.hypertables;
         version: "2.10.0"
         columns:
+          - name: database
+            type: label
           - name: total_hypertables
             type: gauge
             description: Total number of hypertables
@@ -58,12 +61,15 @@ metrics:
             type: gauge
             description: Number of distributed hypertables
       - query: SELECT 
+                  current_database() as database,
                   COUNT(*) as total_hypertables,
                   SUM(num_chunks) as total_chunks,
                   COUNT(*) FILTER (WHERE compression_enabled = true) as compressed_hypertables
                 FROM timescaledb_information.hypertables;
         version: "2.14.0"
         columns:
+          - name: database
+            type: label
           - name: total_hypertables
             type: gauge
             description: Total number of hypertables
@@ -74,6 +80,7 @@ metrics:
             type: gauge
             description: Number of hypertables with compression enabled
       - query: SELECT 
+                  current_database() as database,
                   COUNT(*) as total_hypertables,
                   SUM(num_chunks) as total_chunks,
                   COUNT(*) FILTER (WHERE compression_enabled = true) as compressed_hypertables,
@@ -81,6 +88,8 @@ metrics:
                 FROM timescaledb_information.hypertables;
         version: "2.20.0"
         columns:
+          - name: database
+            type: label
           - name: total_hypertables
             type: gauge
             description: Total number of hypertables
@@ -99,6 +108,7 @@ metrics:
   - metric: job_health
     queries:
       - query: SELECT 
+                  current_database() as database,
                   COUNT(*) as total_jobs,
                   COUNT(*) FILTER (WHERE last_run_status = 'Failed') as failed_jobs,
                   COUNT(*) FILTER (WHERE job_status = 'Running') as running_jobs,
@@ -106,6 +116,8 @@ metrics:
                 FROM timescaledb_information.job_stats;
         version: "2.10.0"
         columns:
+          - name: database
+            type: label
           - name: total_jobs
             type: gauge
             description: Total number of background jobs
@@ -124,6 +136,7 @@ metrics:
   - metric: job_execution_history
     queries:
       - query: SELECT 
+                  current_database() as database,
                   COUNT(*) as total_executions,
                   COUNT(*) FILTER (WHERE succeeded = true) as successful_executions,
                   COUNT(*) FILTER (WHERE succeeded = false) as failed_executions,
@@ -131,6 +144,8 @@ metrics:
                 FROM timescaledb_information.job_history;
         version: "2.15.0"
         columns:
+          - name: database
+            type: label
           - name: total_executions
             type: counter
             description: Total number of job executions recorded
@@ -149,6 +164,7 @@ metrics:
   - metric: compression_effectiveness
     queries:
       - query: SELECT 
+                  current_database() as database,
                   COUNT(*) as total_chunks,
                   COUNT(*) FILTER (WHERE is_compressed = true) as compressed_chunks,
                   ROUND(
@@ -157,6 +173,8 @@ metrics:
                 FROM timescaledb_information.chunks;
         version: "2.10.0"
         columns:
+          - name: database
+            type: label
           - name: total_chunks
             type: gauge
             description: Total number of chunks
@@ -167,6 +185,7 @@ metrics:
             type: gauge
             description: Percentage of chunks that are compressed
       - query: SELECT 
+                  current_database() as database,
                   COUNT(*) as total_chunks,
                   COUNT(*) FILTER (WHERE is_compressed = true) as compressed_chunks,
                   ROUND(
@@ -176,6 +195,8 @@ metrics:
                 FROM timescaledb_information.chunks;
         version: "2.13.0"
         columns:
+          - name: database
+            type: label
           - name: total_chunks
             type: gauge
             description: Total number of chunks
@@ -194,6 +215,7 @@ metrics:
   - metric: data_node_health
     queries:
       - query: SELECT 
+                  current_database() as database,
                   COUNT(*) as total_data_nodes,
                   node_name,
                   owner
@@ -201,6 +223,8 @@ metrics:
                 GROUP BY node_name, owner;
         version: "2.10.0"
         columns:
+          - name: database
+            type: label
           - name: total_data_nodes
             type: gauge
             description: Total number of data nodes
@@ -214,6 +238,7 @@ metrics:
   - metric: compression_config
     queries:
       - query: SELECT 
+                  current_database() as database,
                   hypertable_schema,
                   hypertable_name,
                   COUNT(*) as compression_settings_count
@@ -223,6 +248,8 @@ metrics:
                 LIMIT 10;
         version: "2.10.0"
         columns:
+          - name: database
+            type: label
           - name: hypertable_schema
             type: label
           - name: hypertable_name
@@ -231,11 +258,14 @@ metrics:
             type: gauge
             description: Number of compression settings configured
       - query: SELECT 
+                  current_database() as database,
                   COUNT(*) as total_compressed_hypertables,
                   COUNT(DISTINCT hypertable) as unique_compressed_hypertables
                 FROM timescaledb_information.hypertable_compression_settings;
         version: "2.15.0"
         columns:
+          - name: database
+            type: label
           - name: total_compressed_hypertables
             type: gauge
             description: Total hypertables with compression settings
@@ -248,11 +278,14 @@ metrics:
   - metric: columnstore_health
     queries:
       - query: SELECT 
+                  current_database() as database,
                   COUNT(*) as total_columnstore_hypertables,
                   COUNT(DISTINCT hypertable) as unique_columnstore_hypertables
                 FROM timescaledb_information.hypertable_columnstore_settings;
         version: "2.18.0"
         columns:
+          - name: database
+            type: label
           - name: total_columnstore_hypertables
             type: gauge
             description: Total hypertables with columnstore settings
@@ -265,6 +298,7 @@ metrics:
   - metric: recent_job_failures
     queries:
       - query: SELECT 
+                  current_database() as database,
                   job_id,
                   proc_schema,
                   proc_name,
@@ -275,6 +309,8 @@ metrics:
                 LIMIT 10;
         version: "2.10.0"
         columns:
+          - name: database
+            type: label
           - name: job_id
             type: label
           - name: proc_schema
@@ -285,6 +321,7 @@ metrics:
             type: gauge
             description: Seconds since the job failure occurred
       - query: SELECT 
+                  current_database() as database,
                   job_id,
                   proc_schema,
                   proc_name,
@@ -296,6 +333,8 @@ metrics:
                 LIMIT 10;
         version: "2.15.0"
         columns:
+          - name: database
+            type: label
           - name: job_id
             type: label
           - name: proc_schema
@@ -313,6 +352,7 @@ metrics:
   - metric: chunk_age_distribution
     queries:
       - query: SELECT 
+                  current_database() as database,
                   CASE 
                     WHEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - chunk_creation_time))/86400 < 1 THEN '< 1 day'
                     WHEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - chunk_creation_time))/86400 < 7 THEN '1-7 days'
@@ -325,6 +365,8 @@ metrics:
                 ORDER BY MIN(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - chunk_creation_time))/86400);
         version: "2.13.0"
         columns:
+          - name: database
+            type: label
           - name: age_bucket
             type: label
           - name: chunk_count

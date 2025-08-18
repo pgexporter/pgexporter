@@ -37,9 +37,11 @@ metrics:
   # Most executed queries - monitoring query frequency
   - metric: most_executed
     queries:
-      - query: SELECT calls, query FROM pg_stat_statements ORDER BY calls DESC LIMIT 10;
+      - query: SELECT current_database() as database, calls, query FROM pg_stat_statements ORDER BY calls DESC LIMIT 10;
         version: "1.8"
         columns:
+          - name: database
+            type: label
           - name: calls
             type: gauge
             description: Number of times the SQL query is executed
@@ -49,9 +51,11 @@ metrics:
   # Most planned queries
   - metric: most_planned
     queries:
-      - query: SELECT plans, query FROM pg_stat_statements ORDER BY plans DESC LIMIT 10;
+      - query: SELECT current_database() as database, plans, query FROM pg_stat_statements ORDER BY plans DESC LIMIT 10;
         version: "1.8"
         columns:
+          - name: database
+            type: label
           - name: plans
             type: gauge
             description: Number of times the sql query is planned
@@ -61,9 +65,11 @@ metrics:
   # Most row-affecting queries - data volume impact
   - metric: most_rows
     queries:
-      - query: SELECT rows, query FROM pg_stat_statements ORDER BY rows DESC LIMIT 10;
+      - query: SELECT current_database() as database, rows, query FROM pg_stat_statements ORDER BY rows DESC LIMIT 10;
         version: "1.8"
         columns:
+          - name: database
+            type: label
           - name: rows
             type: gauge
             description: Number of rows the SQL query affects
@@ -73,9 +79,11 @@ metrics:
   # Slowest queries by execution time
   - metric: slowest_execution
     queries:
-      - query: SELECT total_exec_time, query FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 10;
+      - query: SELECT current_database() as database, total_exec_time, query FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 10;
         version: "1.8"
         columns:
+          - name: database
+            type: label
           - name: total_exec_time
             type: gauge
             description: Milliseconds taken by the sql query to execute
@@ -85,9 +93,11 @@ metrics:
   # Highest WAL generating queries
   - metric: highest_wal
     queries:
-      - query: SELECT wal_bytes, query FROM pg_stat_statements ORDER BY wal_bytes DESC LIMIT 10;
+      - query: SELECT current_database() as database, wal_bytes, query FROM pg_stat_statements ORDER BY wal_bytes DESC LIMIT 10;
         version: "1.8"
         columns:
+          - name: database
+            type: label
           - name: wal_bytes
             type: gauge
             description: Bytes occupied in WAL
@@ -97,9 +107,11 @@ metrics:
   # Planning statistics with detailed metrics - query optimization insights
   - metric: planning_stats
     queries:
-      - query: SELECT queryid, plans, total_plan_time, mean_plan_time, query FROM pg_stat_statements WHERE plans > 0 ORDER BY total_plan_time DESC LIMIT 10;
+      - query: SELECT current_database() as database, queryid, plans, total_plan_time, mean_plan_time, query FROM pg_stat_statements WHERE plans > 0 ORDER BY total_plan_time DESC LIMIT 10;
         version: "1.8"
         columns:
+          - name: database
+            type: label
           - name: queryid
             type: label
           - name: plans
@@ -117,9 +129,11 @@ metrics:
   # Execution time with detailed metrics - identify performance bottlenecks
   - metric: exec_time_detailed
     queries:
-      - query: SELECT queryid, total_exec_time, mean_exec_time, query FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 10;
+      - query: SELECT current_database() as database, queryid, total_exec_time, mean_exec_time, query FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 10;
         version: "1.8"
         columns:
+          - name: database
+            type: label
           - name: queryid
             type: label
           - name: total_exec_time
@@ -134,9 +148,11 @@ metrics:
   # I/O intensive queries - disk access patterns
   - metric: io_stats
     queries:
-      - query: SELECT queryid, shared_blks_hit, shared_blks_read, shared_blks_written, local_blks_read, local_blks_written, temp_blks_read, temp_blks_written, query FROM pg_stat_statements WHERE shared_blks_read + local_blks_read + temp_blks_read > 0 ORDER BY (shared_blks_read + local_blks_read + temp_blks_read) DESC LIMIT 10;
+      - query: SELECT current_database() as database, queryid, shared_blks_hit, shared_blks_read, shared_blks_written, local_blks_read, local_blks_written, temp_blks_read, temp_blks_written, query FROM pg_stat_statements WHERE shared_blks_read + local_blks_read + temp_blks_read > 0 ORDER BY (shared_blks_read + local_blks_read + temp_blks_read) DESC LIMIT 10;
         version: "1.8"
         columns:
+          - name: database
+            type: label
           - name: queryid
             type: label
           - name: shared_blks_hit
@@ -166,9 +182,11 @@ metrics:
   # Basic I/O timing (generic blk_read_time/blk_write_time)
   - metric: io_timing
     queries:
-      - query: SELECT queryid, blk_read_time, blk_write_time, query FROM pg_stat_statements WHERE blk_read_time + blk_write_time > 0 ORDER BY (blk_read_time + blk_write_time) DESC LIMIT 10;
+      - query: SELECT current_database() as database, queryid, blk_read_time, blk_write_time, query FROM pg_stat_statements WHERE blk_read_time + blk_write_time > 0 ORDER BY (blk_read_time + blk_write_time) DESC LIMIT 10;
         version: "1.8"
         columns:
+          - name: database
+            type: label
           - name: queryid
             type: label
           - name: blk_read_time
@@ -183,9 +201,11 @@ metrics:
   # Query performance summary
   - metric: performance_summary
     queries:
-      - query: SELECT COUNT(*) as total_queries, SUM(calls) as total_calls, SUM(total_exec_time) as total_exec_time, AVG(mean_exec_time) as avg_mean_time FROM pg_stat_statements;
+      - query: SELECT current_database() as database, COUNT(*) as total_queries, SUM(calls) as total_calls, SUM(total_exec_time) as total_exec_time, AVG(mean_exec_time) as avg_mean_time FROM pg_stat_statements;
         version: "1.8"
         columns:
+          - name: database
+            type: label
           - name: total_queries
             type: gauge
             description: Total number of distinct queries tracked
@@ -202,9 +222,11 @@ metrics:
   # Extension metadata - basic tracking
   - metric: extension_info
     queries:
-      - query: SELECT COUNT(*) as tracked_queries FROM pg_stat_statements;
+      - query: SELECT current_database() as database, COUNT(*) as tracked_queries FROM pg_stat_statements;
         version: "1.8"
         columns:
+          - name: database
+            type: label
           - name: tracked_queries
             type: gauge
             description: Number of queries currently tracked by pg_stat_statements
@@ -217,9 +239,11 @@ metrics:
   # Top-level vs nested queries - query hierarchy analysis
   - metric: query_hierarchy
     queries:
-      - query: SELECT toplevel, COUNT(*) as query_count, SUM(calls) as total_calls, SUM(total_exec_time) as total_time FROM pg_stat_statements GROUP BY toplevel;
+      - query: SELECT current_database() as database, toplevel, COUNT(*) as query_count, SUM(calls) as total_calls, SUM(total_exec_time) as total_time FROM pg_stat_statements GROUP BY toplevel;
         version: "1.9"
         columns:
+          - name: database
+            type: label
           - name: toplevel
             type: label
             description: Whether queries are top-level (true) or nested (false)
@@ -236,9 +260,11 @@ metrics:
   # Extension metadata with pg_stat_statements_info
   - metric: extension_metadata
     queries:
-      - query: SELECT dealloc, stats_reset FROM pg_stat_statements_info;
+      - query: SELECT current_database() as database, dealloc, stats_reset FROM pg_stat_statements_info;
         version: "1.9"
         columns:
+          - name: database
+            type: label
           - name: dealloc
             type: gauge
             description: Number of deallocations of query entries
@@ -249,9 +275,11 @@ metrics:
   # Top-level vs nested performance comparison
   - metric: hierarchy_performance
     queries:
-      - query: SELECT toplevel, AVG(mean_exec_time) as avg_mean_exec_time, AVG(mean_plan_time) as avg_mean_plan_time, SUM(wal_bytes) as total_wal_bytes FROM pg_stat_statements GROUP BY toplevel;
+      - query: SELECT current_database() as database, toplevel, AVG(mean_exec_time) as avg_mean_exec_time, AVG(mean_plan_time) as avg_mean_plan_time, SUM(wal_bytes) as total_wal_bytes FROM pg_stat_statements GROUP BY toplevel;
         version: "1.9"
         columns:
+          - name: database
+            type: label
           - name: toplevel
             type: label
           - name: avg_mean_exec_time
@@ -272,9 +300,11 @@ metrics:
   # Detailed I/O timing - separate temp block timing
   - metric: detailed_io_timing
     queries:
-      - query: SELECT queryid, blk_read_time, blk_write_time, temp_blk_read_time, temp_blk_write_time, query FROM pg_stat_statements WHERE blk_read_time + blk_write_time + temp_blk_read_time + temp_blk_write_time > 0 ORDER BY (blk_read_time + blk_write_time + temp_blk_read_time + temp_blk_write_time) DESC LIMIT 10;
+      - query: SELECT current_database() as database, queryid, blk_read_time, blk_write_time, temp_blk_read_time, temp_blk_write_time, query FROM pg_stat_statements WHERE blk_read_time + blk_write_time + temp_blk_read_time + temp_blk_write_time > 0 ORDER BY (blk_read_time + blk_write_time + temp_blk_read_time + temp_blk_write_time) DESC LIMIT 10;
         version: "1.10"
         columns:
+          - name: database
+            type: label
           - name: queryid
             type: label
           - name: blk_read_time
@@ -295,9 +325,11 @@ metrics:
   # JIT compilation statistics
   - metric: jit_stats
     queries:
-      - query: SELECT queryid, jit_functions, jit_generation_time, jit_inlining_count, jit_inlining_time, jit_optimization_count, jit_optimization_time, jit_emission_count, jit_emission_time, query FROM pg_stat_statements WHERE jit_functions > 0 ORDER BY jit_generation_time DESC LIMIT 10;
+      - query: SELECT current_database() as database, queryid, jit_functions, jit_generation_time, jit_inlining_count, jit_inlining_time, jit_optimization_count, jit_optimization_time, jit_emission_count, jit_emission_time, query FROM pg_stat_statements WHERE jit_functions > 0 ORDER BY jit_generation_time DESC LIMIT 10;
         version: "1.10"
         columns:
+          - name: database
+            type: label
           - name: queryid
             type: label
           - name: jit_functions
@@ -330,9 +362,11 @@ metrics:
   # JIT performance summary
   - metric: jit_summary
     queries:
-      - query: SELECT COUNT(*) as jit_enabled_queries, SUM(jit_functions) as total_jit_functions, SUM(jit_generation_time) as total_jit_time, AVG(jit_generation_time) as avg_jit_time FROM pg_stat_statements WHERE jit_functions > 0;
+      - query: SELECT current_database() as database, COUNT(*) as jit_enabled_queries, SUM(jit_functions) as total_jit_functions, SUM(jit_generation_time) as total_jit_time, AVG(jit_generation_time) as avg_jit_time FROM pg_stat_statements WHERE jit_functions > 0;
         version: "1.10"
         columns:
+          - name: database
+            type: label
           - name: jit_enabled_queries
             type: gauge
             description: Number of queries that used JIT compilation
@@ -354,9 +388,11 @@ metrics:
   # Granular I/O timing - separate by storage type
   - metric: granular_io_timing
     queries:
-      - query: SELECT queryid, shared_blk_read_time, shared_blk_write_time, local_blk_read_time, local_blk_write_time, temp_blk_read_time, temp_blk_write_time, query FROM pg_stat_statements WHERE shared_blk_read_time + shared_blk_write_time + local_blk_read_time + local_blk_write_time + temp_blk_read_time + temp_blk_write_time > 0 ORDER BY (shared_blk_read_time + shared_blk_write_time + local_blk_read_time + local_blk_write_time + temp_blk_read_time + temp_blk_write_time) DESC LIMIT 10;
+      - query: SELECT current_database() as database, queryid, shared_blk_read_time, shared_blk_write_time, local_blk_read_time, local_blk_write_time, temp_blk_read_time, temp_blk_write_time, query FROM pg_stat_statements WHERE shared_blk_read_time + shared_blk_write_time + local_blk_read_time + local_blk_write_time + temp_blk_read_time + temp_blk_write_time > 0 ORDER BY (shared_blk_read_time + shared_blk_write_time + local_blk_read_time + local_blk_write_time + temp_blk_read_time + temp_blk_write_time) DESC LIMIT 10;
         version: "1.11"
         columns:
+          - name: database
+            type: label
           - name: queryid
             type: label
           - name: shared_blk_read_time
@@ -383,9 +419,11 @@ metrics:
   # JIT deform statistics - tuple deforming operations
   - metric: jit_deform_stats
     queries:
-      - query: SELECT queryid, jit_deform_count, jit_deform_time, jit_functions, jit_generation_time + jit_inlining_time + jit_optimization_time + jit_emission_time + jit_deform_time as total_jit_time, query FROM pg_stat_statements WHERE jit_deform_count > 0 ORDER BY jit_deform_time DESC LIMIT 10;
+      - query: SELECT current_database() as database, queryid, jit_deform_count, jit_deform_time, jit_functions, jit_generation_time + jit_inlining_time + jit_optimization_time + jit_emission_time + jit_deform_time as total_jit_time, query FROM pg_stat_statements WHERE jit_deform_count > 0 ORDER BY jit_deform_time DESC LIMIT 10;
         version: "1.11"
         columns:
+          - name: database
+            type: label
           - name: queryid
             type: label
           - name: jit_deform_count
@@ -406,9 +444,11 @@ metrics:
   # Statistics reset tracking
   - metric: stats_reset_info
     queries:
-      - query: SELECT queryid, stats_since, minmax_stats_since, EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - stats_since))::bigint as seconds_since_reset, EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - minmax_stats_since))::bigint as seconds_since_minmax_reset, query FROM pg_stat_statements WHERE stats_since IS NOT NULL ORDER BY stats_since DESC LIMIT 10;
+      - query: SELECT current_database() as database, queryid, stats_since, minmax_stats_since, EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - stats_since))::bigint as seconds_since_reset, EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - minmax_stats_since))::bigint as seconds_since_minmax_reset, query FROM pg_stat_statements WHERE stats_since IS NOT NULL ORDER BY stats_since DESC LIMIT 10;
         version: "1.11"
         columns:
+          - name: database
+            type: label
           - name: queryid
             type: label
           - name: stats_since
@@ -429,9 +469,11 @@ metrics:
   # Advanced JIT summary with deform operations
   - metric: advanced_jit_summary
     queries:
-      - query: SELECT COUNT(*) as jit_enabled_queries, SUM(jit_functions) as total_jit_functions, SUM(jit_deform_count) as total_deform_ops, SUM(jit_generation_time + jit_inlining_time + jit_optimization_time + jit_emission_time + jit_deform_time) as total_jit_time FROM pg_stat_statements WHERE jit_functions > 0;
+      - query: SELECT current_database() as database, COUNT(*) as jit_enabled_queries, SUM(jit_functions) as total_jit_functions, SUM(jit_deform_count) as total_deform_ops, SUM(jit_generation_time + jit_inlining_time + jit_optimization_time + jit_emission_time + jit_deform_time) as total_jit_time FROM pg_stat_statements WHERE jit_functions > 0;
         version: "1.11"
         columns:
+          - name: database
+            type: label
           - name: jit_enabled_queries
             type: gauge
             description: Number of queries that used JIT compilation
@@ -448,9 +490,11 @@ metrics:
   # I/O timing summary by storage type
   - metric: io_timing_summary
     queries:
-      - query: SELECT SUM(shared_blk_read_time + shared_blk_write_time) as shared_io_time, SUM(local_blk_read_time + local_blk_write_time) as local_io_time, SUM(temp_blk_read_time + temp_blk_write_time) as temp_io_time, COUNT(*) as queries_with_io FROM pg_stat_statements WHERE shared_blk_read_time + shared_blk_write_time + local_blk_read_time + local_blk_write_time + temp_blk_read_time + temp_blk_write_time > 0;
+      - query: SELECT current_database() as database, SUM(shared_blk_read_time + shared_blk_write_time) as shared_io_time, SUM(local_blk_read_time + local_blk_write_time) as local_io_time, SUM(temp_blk_read_time + temp_blk_write_time) as temp_io_time, COUNT(*) as queries_with_io FROM pg_stat_statements WHERE shared_blk_read_time + shared_blk_write_time + local_blk_read_time + local_blk_write_time + temp_blk_read_time + temp_blk_write_time > 0;
         version: "1.11"
         columns:
+          - name: database
+            type: label
           - name: shared_io_time
             type: gauge
             description: Total time spent on shared block I/O in milliseconds
