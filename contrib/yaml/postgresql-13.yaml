@@ -943,6 +943,10 @@ metrics:
         - name: pct_scan_completed
           type: gauge
           description: Vacuum scan progress percentage
+    tag: pg_stat_progress_vacuum
+    sort: data
+    collector: vacuum_progress
+
 # Table-level vacuum and analyze statistics
   - queries:
     - query: SELECT
