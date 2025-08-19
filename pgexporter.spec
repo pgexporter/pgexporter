@@ -57,6 +57,13 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/prometheus_scrape/prometheus.sh %{buildroot}%{_docdir}/%{name}/prometheus_scrape/prometheus.sh
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/prometheus_scrape/README.md %{buildroot}%{_docdir}/%{name}/prometheus_scrape/README.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/extensions/pg_stat_statements.yaml %{buildroot}%{_datadir}/%{name}/extensions/pg_stat_statements.yaml
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/extensions/pg_buffercache.yaml %{buildroot}%{_datadir}/%{name}/extensions/pg_buffercache.yaml
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/extensions/pgcrypto.yaml %{buildroot}%{_datadir}/%{name}/extensions/pgcrypto.yaml
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/extensions/postgis.yaml %{buildroot}%{_datadir}/%{name}/extensions/postgis.yaml
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/extensions/postgis_raster.yaml %{buildroot}%{_datadir}/%{name}/extensions/postgis_raster.yaml
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/extensions/postgis_topology.yaml %{buildroot}%{_datadir}/%{name}/extensions/postgis_topology.yaml
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/extensions/timescaledb.yaml %{buildroot}%{_datadir}/%{name}/extensions/timescaledb.yaml
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/extensions/vector.yaml %{buildroot}%{_datadir}/%{name}/extensions/vector.yaml
 
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/etc/pgexporter.conf %{buildroot}%{_sysconfdir}/pgexporter/pgexporter.conf
 
@@ -100,6 +107,13 @@ cd %{buildroot}%{_libdir}/
 %{_docdir}/%{name}/prometheus_scrape/prometheus.sh
 %{_docdir}/%{name}/prometheus_scrape/README.md
 %{_datadir}/%{name}/extensions/pg_stat_statements.yaml
+%{_datadir}/%{name}/extensions/pg_buffercache.yaml
+%{_datadir}/%{name}/extensions/pgcrypto.yaml
+%{_datadir}/%{name}/extensions/postgis.yaml
+%{_datadir}/%{name}/extensions/postgis_raster.yaml
+%{_datadir}/%{name}/extensions/postgis_topology.yaml
+%{_datadir}/%{name}/extensions/timescaledb.yaml
+%{_datadir}/%{name}/extensions/vector.yaml
 %{_mandir}/man1/pgexporter.1*
 %{_mandir}/man1/pgexporter-admin.1*
 %{_mandir}/man1/pgexporter-cli.1*

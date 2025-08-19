@@ -79,6 +79,7 @@ cat > "$HTML_OUTPUT" << EOF
       body { font-family: sans-serif; line-height: 1.4; padding: 15px; }
       h1 { border-bottom: 2px solid #ccc; padding-bottom: 5px;}
       h2 { border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 25px;}
+      h3 { border-bottom: 1px solid #f0f0f0; padding-bottom: 3px; margin-top: 20px;}
       table { border-collapse: collapse; width: 100%; margin: 15px 0; border: 1px solid #ccc; }
       th, td { border: 1px solid #ddd; padding: 6px; text-align: left; vertical-align: top; word-wrap: break-word; }
       th { background-color: #f9f9f9; font-weight: bold; }
@@ -90,6 +91,7 @@ cat > "$HTML_OUTPUT" << EOF
       .toc ul { list-style-type: none; padding-left: 0; }
       .toc li a { text-decoration: none; }
       .toc li a:hover { text-decoration: underline; }
+      .extension-section { margin-top: 30px; padding-top: 20px; border-top: 2px solid #ddd; }
     </style>
   </head>
   <body>
@@ -104,42 +106,103 @@ This document contains all available metrics from the pgexporter system.
 
 ## Table of Contents
 
+### Core PostgreSQL Metrics
+
 EOF
 
+# Define extension patterns
+extension_patterns=(
+    "pgexporter_pg_buffercache_"
+    "pgexporter_pgcrypto_"
+    "pgexporter_pg_stat_statements_"
+    "pgexporter_postgis_"
+    "pgexporter_postgis_raster_"
+    "pgexporter_postgis_topology_"
+    "pgexporter_timescaledb_"
+    "pgexporter_vector_"
+)
+
+# Function to check if a metric is an extension metric
+is_extension_metric() {
+    local metric=$1
+    for pattern in "${extension_patterns[@]}"; do
+        if [[ "$metric" == $pattern* ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 metric_count=0
+core_metric_count=0
+extension_metric_count=0
 declare -A toc_metrics
+declare -A core_metrics
+declare -A extension_metrics
+
 while IFS= read -r line; do
     if [[ "$line" =~ ^#HELP ]]; then
         metric=$(echo "$line" | cut -d ' ' -f 2)
         if [[ -z "${toc_metrics[$metric]}" ]]; then
            toc_metrics["$metric"]=1
            ((metric_count++))
+           
+           if is_extension_metric "$metric"; then
+               extension_metrics["$metric"]=1
+               ((extension_metric_count++))
+           else
+               core_metrics["$metric"]=1
+               ((core_metric_count++))
+           fi
         fi
     fi
 done < "$METRICS_FILE"
 
-sorted_keys=($(printf "%s\n" "${!toc_metrics[@]}" | sort))
+# Sort core metrics
+core_sorted_keys=($(printf "%s\n" "${!core_metrics[@]}" | sort))
+extension_sorted_keys=($(printf "%s\n" "${!extension_metrics[@]}" | sort))
 
-for metric in "${sorted_keys[@]}"; do
+# Generate core metrics TOC
+for metric in "${core_sorted_keys[@]}"; do
     echo "- [$metric](#$metric)" >> "$MD_OUTPUT"
 done
 
+echo "" >> "$MD_OUTPUT"
+echo "### Extension Metrics" >> "$MD_OUTPUT"
+echo "" >> "$MD_OUTPUT"
+
+# Generate extension metrics TOC
+for metric in "${extension_sorted_keys[@]}"; do
+    echo "- [$metric](#$metric)" >> "$MD_OUTPUT"
+done
+
+# HTML TOC
 echo "<div class=\"toc\">" >> "$HTML_OUTPUT"
 echo "<h2>Table of Contents</h2>" >> "$HTML_OUTPUT"
+echo "<h3>Core PostgreSQL Metrics</h3>" >> "$HTML_OUTPUT"
 echo "<ul>" >> "$HTML_OUTPUT"
-for metric in "${sorted_keys[@]}"; do
+for metric in "${core_sorted_keys[@]}"; do
     echo "  <li><a href=\"#$metric\">$metric</a></li>" >> "$HTML_OUTPUT"
 done
 echo "</ul>" >> "$HTML_OUTPUT"
-echo "<p>Total unique metrics available: $metric_count</p>" >> "$HTML_OUTPUT"
+
+echo "<h3>Extension Metrics</h3>" >> "$HTML_OUTPUT"
+echo "<ul>" >> "$HTML_OUTPUT"
+for metric in "${extension_sorted_keys[@]}"; do
+    echo "  <li><a href=\"#$metric\">$metric</a></li>" >> "$HTML_OUTPUT"
+done
+echo "</ul>" >> "$HTML_OUTPUT"
+echo "<p>Total metrics: $metric_count (Core: $core_metric_count, Extensions: $extension_metric_count)</p>" >> "$HTML_OUTPUT"
 echo "</div>" >> "$HTML_OUTPUT"
 
 echo "" >> "$MD_OUTPUT"
-echo "**Total unique metrics available: $metric_count**" >> "$MD_OUTPUT"
+echo "**Total metrics: $metric_count (Core: $core_metric_count, Extensions: $extension_metric_count)**" >> "$MD_OUTPUT"
 echo "" >> "$MD_OUTPUT"
 echo "---" >> "$MD_OUTPUT"
-echo "## Metrics Details" >> "$MD_OUTPUT"
+echo "## Core PostgreSQL Metrics" >> "$MD_OUTPUT"
 echo "" >> "$MD_OUTPUT"
+
+echo "<h2>Core PostgreSQL Metrics</h2>" >> "$HTML_OUTPUT"
 
 metric_name=""
 metric_help=""
@@ -231,80 +294,105 @@ process_attributes_and_example() {
     echo "" >> "$HTML_OUTPUT"
 }
 
-while IFS= read -r line; do
-    if [[ "$line" =~ ^#HELP ]]; then
-        if [ ! -z "$metric_name" ]; then
-            echo "$metric_help Type is $metric_type." >> "$MD_OUTPUT"
-            echo "" >> "$MD_OUTPUT"
+extension_section_started=false
 
-            formatted_desc=""
-            if [ ! -z "$extra_desc" ]; then
-                 formatted_desc=$(cat <<< "$extra_desc" | sed 's/^[[:space:]]*+//g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | paste -sd ' ')
-            fi
-            final_desc="${formatted_desc:-$metric_help}"
-            echo "$final_desc" >> "$MD_OUTPUT"
-            echo "" >> "$MD_OUTPUT"
+# Process all metrics (core first, then extensions)
+all_sorted_keys=("${core_sorted_keys[@]}" "${extension_sorted_keys[@]}")
 
-            echo "<p>$metric_help Type is $metric_type.</p>" >> "$HTML_OUTPUT"
-            echo "<p>$final_desc</p>" >> "$HTML_OUTPUT"
-
-            process_attributes_and_example "$metric_name" "$current_best_example_line" "$extra_details"
-        fi
-
-        new_metric_name=$(echo "$line" | cut -d ' ' -f 2)
-        metric_help=$(echo "$line" | cut -d ' ' -f 3-)
-
-        if is_processed "$new_metric_name"; then
-             metric_name=""
-             continue
-        fi
-        processed_metrics+=("$new_metric_name")
-
-        metric_name=$new_metric_name
-        metric_type=""
-        extra_desc=""
-        extra_details=""
-        current_best_example_line=""
-        current_best_example_priority=0
-
-        extra_block=$(awk -v metric="^$metric_name$" '/^METRIC_END$/ { found=0 } $0 ~ metric { found=1 } found' "$EXTRA_INFO_PROCESSED")
-        extra_desc=$(echo "$extra_block" | awk '/^DESCRIPTION_START$/,/^DESCRIPTION_END$/' | sed '1d;$d' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-        extra_details=$(echo "$extra_block" | awk '/^DETAILS_START$/,/^DETAILS_END$/' | sed '1d;$d' )
-
-        echo "<a name=\"$metric_name\"></a>" >> "$MD_OUTPUT"
-        echo "### $metric_name" >> "$MD_OUTPUT"; echo "" >> "$MD_OUTPUT"
-
-        echo "<h2 id=\"$metric_name\">$metric_name</h2>" >> "$HTML_OUTPUT"
-
-    elif [[ "$line" =~ ^#TYPE && "$metric_name" == $(echo "$line" | cut -d ' ' -f 2) ]]; then
-        metric_type=$(echo "$line" | cut -d ' ' -f 3)
-
-    elif [[ ! "$line" =~ ^# ]] && [[ ! -z "$metric_name" ]] && [[ "$line" == $metric_name* ]]; then
-        line_priority=0
-        db_value=""
-        if [[ "$line" =~ database=\"([^\"]+)\" ]]; then
-            db_value="${BASH_REMATCH[1]}"
-            if [[ "$db_value" == "postgres" ]]; then
-                line_priority=2
-            else
-                line_priority=1
-            fi
-        elif [[ "$line" == *"{"* ]]; then
-             line_priority=1
-        else
-             line_priority=1
-        fi
-
-        if [[ "$line_priority" -gt "$current_best_example_priority" ]]; then
-            current_best_example_line="$line"
-            current_best_example_priority="$line_priority"
-        elif [[ "$current_best_example_priority" -eq 0 && "$line_priority" -ge 1 ]]; then
-            current_best_example_line="$line"
-            current_best_example_priority="$line_priority"
-        fi
+for target_metric in "${all_sorted_keys[@]}"; do
+    # Check if we need to start extension section
+    if ! $extension_section_started && is_extension_metric "$target_metric"; then
+        echo "## Extension Metrics" >> "$MD_OUTPUT"
+        echo "" >> "$MD_OUTPUT"
+        echo "<div class=\"extension-section\">" >> "$HTML_OUTPUT"
+        echo "<h2>Extension Metrics</h2>" >> "$HTML_OUTPUT"
+        extension_section_started=true
     fi
-done < "$METRICS_FILE"
+    
+    # Process this specific metric from the metrics file
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^#HELP ]]; then
+            if [ ! -z "$metric_name" ] && [ "$metric_name" == "$target_metric" ]; then
+                echo "$metric_help Type is $metric_type." >> "$MD_OUTPUT"
+                echo "" >> "$MD_OUTPUT"
 
+                formatted_desc=""
+                if [ ! -z "$extra_desc" ]; then
+                     formatted_desc=$(cat <<< "$extra_desc" | sed 's/^[[:space:]]*+//g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | paste -sd ' ')
+                fi
+                final_desc="${formatted_desc:-$metric_help}"
+                echo "$final_desc" >> "$MD_OUTPUT"
+                echo "" >> "$MD_OUTPUT"
+
+                echo "<p>$metric_help Type is $metric_type.</p>" >> "$HTML_OUTPUT"
+                echo "<p>$final_desc</p>" >> "$HTML_OUTPUT"
+
+                process_attributes_and_example "$metric_name" "$current_best_example_line" "$extra_details"
+                break
+            fi
+
+            new_metric_name=$(echo "$line" | cut -d ' ' -f 2)
+            
+            if [ "$new_metric_name" != "$target_metric" ]; then
+                metric_name=""
+                continue
+            fi
+            
+            metric_help=$(echo "$line" | cut -d ' ' -f 3-)
+
+            if is_processed "$new_metric_name"; then
+                 metric_name=""
+                 continue
+            fi
+            processed_metrics+=("$new_metric_name")
+
+            metric_name=$new_metric_name
+            metric_type=""
+            extra_desc=""
+            extra_details=""
+            current_best_example_line=""
+            current_best_example_priority=0
+
+            extra_block=$(awk -v metric="^$metric_name$" '/^METRIC_END$/ { found=0 } $0 ~ metric { found=1 } found' "$EXTRA_INFO_PROCESSED")
+            extra_desc=$(echo "$extra_block" | awk '/^DESCRIPTION_START$/,/^DESCRIPTION_END$/' | sed '1d;$d' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+            extra_details=$(echo "$extra_block" | awk '/^DETAILS_START$/,/^DETAILS_END$/' | sed '1d;$d' )
+
+            echo "<a name=\"$metric_name\"></a>" >> "$MD_OUTPUT"
+            echo "### $metric_name" >> "$MD_OUTPUT"; echo "" >> "$MD_OUTPUT"
+
+            echo "<h3 id=\"$metric_name\">$metric_name</h3>" >> "$HTML_OUTPUT"
+
+        elif [[ "$line" =~ ^#TYPE && ! -z "$metric_name" && "$metric_name" == $(echo "$line" | cut -d ' ' -f 2) ]]; then
+            metric_type=$(echo "$line" | cut -d ' ' -f 3)
+
+        elif [[ ! "$line" =~ ^# ]] && [[ ! -z "$metric_name" ]] && [[ "$line" == $metric_name* ]]; then
+            line_priority=0
+            db_value=""
+            if [[ "$line" =~ database=\"([^\"]+)\" ]]; then
+                db_value="${BASH_REMATCH[1]}"
+                if [[ "$db_value" == "postgres" ]]; then
+                    line_priority=2
+                else
+                    line_priority=1
+                fi
+            elif [[ "$line" == *"{"* ]]; then
+                 line_priority=1
+            else
+                 line_priority=1
+            fi
+
+            if [[ "$line_priority" -gt "$current_best_example_priority" ]]; then
+                current_best_example_line="$line"
+                current_best_example_priority="$line_priority"
+            elif [[ "$current_best_example_priority" -eq 0 && "$line_priority" -ge 1 ]]; then
+                current_best_example_line="$line"
+                current_best_example_priority="$line_priority"
+            fi
+        fi
+    done < "$METRICS_FILE"
+done
+
+# Handle the last metric if it exists
 if [ ! -z "$metric_name" ]; then
     echo "$metric_help Type is $metric_type." >> "$MD_OUTPUT"
     echo "" >> "$MD_OUTPUT"
@@ -321,6 +409,10 @@ if [ ! -z "$metric_name" ]; then
     echo "<p>$final_desc</p>" >> "$HTML_OUTPUT"
 
     process_attributes_and_example "$metric_name" "$current_best_example_line" "$extra_details"
+fi
+
+if $extension_section_started; then
+    echo "</div>" >> "$HTML_OUTPUT"
 fi
 
 echo "  </body>" >> "$HTML_OUTPUT"
