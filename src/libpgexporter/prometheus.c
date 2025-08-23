@@ -139,7 +139,9 @@ static void append_help_info(char** data, char* tag, char* name, char* descripti
 static void append_type_info(char** data, char* tag, char* name, int typeId);
 
 static void handle_histogram(column_store_t* store, int* n_store, query_list_t* temp);
+static void handle_default_histogram(column_store_t* store, int* n_store, query_list_t* temp);
 static void handle_gauge_counter(column_store_t* store, int* n_store, query_list_t* temp);
+static void handle_default_gauge_counter(column_store_t* store, int* n_store, query_list_t* temp);
 
 static int send_chunk(SSL* client_ssl, int client_fd, char* data);
 static int parse_list(char* list_str, char** strs, int* n_strs);
@@ -1660,15 +1662,29 @@ extension_metrics(SSL* client_ssl, int client_fd)
 
    while (ext_temp)
    {
-      if (ext_temp->error || (ext_temp->query != NULL && ext_temp->query->tuples != NULL))
+      if (ext_temp->query != NULL)
       {
-         if (ext_temp->query_alt->node.is_histogram)
+         if (ext_temp->query->tuples == NULL)
          {
-            handle_histogram(ext_store, &ext_n_store, ext_temp);
+            if (ext_temp->query_alt->node.is_histogram)
+            {
+               handle_default_histogram(ext_store, &ext_n_store, ext_temp);
+            }
+            else
+            {
+               handle_default_gauge_counter(ext_store, &ext_n_store, ext_temp);
+            }
          }
          else
          {
-            handle_gauge_counter(ext_store, &ext_n_store, ext_temp);
+            if (ext_temp->query_alt->node.is_histogram)
+            {
+               handle_histogram(ext_store, &ext_n_store, ext_temp);
+            }
+            else
+            {
+               handle_gauge_counter(ext_store, &ext_n_store, ext_temp);
+            }
          }
       }
       ext_temp = ext_temp->next;
@@ -1850,15 +1866,29 @@ custom_metrics(SSL* client_ssl, int client_fd)
 
    while (temp)
    {
-      if (temp->error || (temp->query != NULL && temp->query->tuples != NULL))
+      if (temp->query != NULL)
       {
-         if (temp->query_alt->node.is_histogram)
+         if (temp->query->tuples == NULL)
          {
-            handle_histogram(store, &n_store, temp);
+            if (temp->query_alt->node.is_histogram)
+            {
+               handle_default_histogram(store, &n_store, temp);
+            }
+            else
+            {
+               handle_default_gauge_counter(store, &n_store, temp);
+            }
          }
          else
          {
-            handle_gauge_counter(store, &n_store, temp);
+            if (temp->query_alt->node.is_histogram)
+            {
+               handle_histogram(store, &n_store, temp);
+            }
+            else
+            {
+               handle_gauge_counter(store, &n_store, temp);
+            }
          }
       }
       temp = temp->next;
@@ -1979,7 +2009,7 @@ add_column_to_store(column_store_t* store, int store_idx, char* data, int sort_t
       {
          while (temp->next)
          {
-            if (!strcmp(temp->next->tuple->data[0], current->data[0]))
+            if (temp->next->tuple != NULL && current != NULL && !strcmp(temp->next->tuple->data[0], current->data[0]))
             {
                break;
             }
@@ -2323,6 +2353,287 @@ append:
    free(names[2]);
    free(names[3]);
 
+}
+
+static void
+handle_default_gauge_counter(column_store_t* store, int* n_store, query_list_t* temp)
+{
+   char* data = NULL;
+   struct configuration* config;
+   bool db_key_present = false;
+
+   config = (struct configuration*)shmem;
+
+   for (int i = 0; i < temp->query_alt->node.n_columns; i++)
+   {
+      if (temp->query_alt->node.columns[i].type == LABEL_TYPE)
+      {
+         continue;
+      }
+
+      int idx = 0;
+      for (; idx < (*n_store); idx++)
+      {
+         if (!strcmp(store[idx].tag, temp->tag) &&
+             ((strlen(store[idx].name) == 0 && strlen(temp->query_alt->node.columns[i].name) == 0) ||
+              !strcmp(store[idx].name, temp->query_alt->node.columns[i].name)) &&
+             store[idx].type == temp->query_alt->node.columns[i].type)
+         {
+            break;
+         }
+      }
+
+      if (idx >= (*n_store))
+      {
+         (*n_store)++;
+         memcpy(store[idx].name, temp->query_alt->node.columns[i].name, MISC_LENGTH);
+         store[idx].type = temp->query_alt->node.columns[i].type;
+         memcpy(store[idx].tag, temp->tag, MISC_LENGTH);
+
+         data = NULL;
+         append_help_info(&data, store[idx].tag, store[idx].name, temp->query_alt->node.columns[i].description);
+         append_type_info(&data, store[idx].tag, store[idx].name, temp->query_alt->node.columns[i].type);
+
+         add_column_to_store(store, idx, data, SORT_NAME, NULL);
+      }
+
+      data = NULL;
+      data = pgexporter_append(data, "pgexporter_");
+      data = pgexporter_append(data, store[idx].tag);
+
+      if (strlen(store[idx].name) > 0)
+      {
+         data = pgexporter_append(data, "_");
+         data = pgexporter_append(data, store[idx].name);
+      }
+
+      data = pgexporter_append(data, "{server=\"");
+      if (config->number_of_servers > 0)
+      {
+         data = pgexporter_append(data, config->servers[0].name);
+      }
+      else
+      {
+         data = pgexporter_append(data, "unknown");
+      }
+      data = pgexporter_append(data, "\"");
+
+      db_key_present = false;
+      for (int j = 0; j < temp->query_alt->node.n_columns; j++)
+      {
+         if (temp->query_alt->node.columns[j].type != LABEL_TYPE)
+         {
+            continue;
+         }
+
+         if (!db_key_present && !strcmp("database", temp->query_alt->node.columns[j].name))
+         {
+            db_key_present = true;
+         }
+
+         data = pgexporter_append(data, ", ");
+         data = pgexporter_append(data, temp->query_alt->node.columns[j].name);
+         data = pgexporter_append(data, "=\"n/a\"");
+      }
+
+      if (!db_key_present)
+      {
+         data = pgexporter_append(data, ", database=\"");
+         if (strlen(temp->database) > 0)
+         {
+            data = pgexporter_append(data, temp->database);
+         }
+         else
+         {
+            data = pgexporter_append(data, "unknown");
+         }
+         data = pgexporter_append(data, "\"");
+      }
+
+      data = pgexporter_append(data, "} 0\n");
+
+      add_column_to_store(store, idx, data, temp->sort_type, NULL);
+   }
+}
+
+static void
+handle_default_histogram(column_store_t* store, int* n_store, query_list_t* temp)
+{
+   char* data = NULL;
+   struct configuration* config;
+   bool db_key_present = false;
+
+   config = (struct configuration*)shmem;
+
+   int h_idx = 0;
+   for (; h_idx < temp->query_alt->node.n_columns; h_idx++)
+   {
+      if (temp->query_alt->node.columns[h_idx].type == HISTOGRAM_TYPE)
+      {
+         break;
+      }
+   }
+
+   int idx = 0;
+   for (; idx < *n_store; idx++)
+   {
+      if (store[idx].type == HISTOGRAM_TYPE &&
+          store[idx].sort_type == temp->sort_type &&
+          !strcmp(store[idx].tag, temp->tag) &&
+          !strcmp(store[idx].name, temp->query_alt->node.columns[h_idx].name))
+      {
+         break;
+      }
+   }
+
+   if (idx >= (*n_store))
+   {
+      (*n_store)++;
+
+      store[idx].type = HISTOGRAM_TYPE;
+      store[idx].sort_type = temp->sort_type;
+      memcpy(store[idx].tag, temp->tag, MISC_LENGTH);
+      memcpy(store[idx].name, temp->query_alt->node.columns[h_idx].name, MISC_LENGTH);
+
+      data = NULL;
+      append_help_info(&data, store[idx].tag, "", temp->query_alt->node.columns[h_idx].description);
+      append_type_info(&data, store[idx].tag, "", temp->query_alt->node.columns[h_idx].type);
+
+      add_column_to_store(store, idx, data, SORT_NAME, NULL);
+   }
+
+   data = NULL;
+
+   // +Inf bucket
+   data = pgexporter_append(data, "pgexporter_");
+   data = pgexporter_append(data, temp->tag);
+   data = pgexporter_append(data, "_bucket{le=\"+Inf\", server=\"");
+   if (config->number_of_servers > 0)
+   {
+      data = pgexporter_append(data, config->servers[0].name);
+   }
+   else
+   {
+      data = pgexporter_append(data, "unknown");
+   }
+   data = pgexporter_append(data, "\"");
+
+   db_key_present = false;
+   for (int j = 0; j < h_idx; j++)
+   {
+      if (!db_key_present && !strcmp("database", temp->query_alt->node.columns[j].name))
+      {
+         db_key_present = true;
+      }
+
+      data = pgexporter_append(data, ", ");
+      data = pgexporter_append(data, temp->query_alt->node.columns[j].name);
+      data = pgexporter_append(data, "=\"n/a\"");
+   }
+
+   if (!db_key_present)
+   {
+      data = pgexporter_append(data, ", database=\"");
+      if (strlen(temp->database) > 0)
+      {
+         data = pgexporter_append(data, temp->database);
+      }
+      else
+      {
+         data = pgexporter_append(data, "unknown");
+      }
+      data = pgexporter_append(data, "\"");
+   }
+
+   data = pgexporter_append(data, "} 0\n");
+
+   // _sum
+   data = pgexporter_append(data, "pgexporter_");
+   data = pgexporter_append(data, temp->tag);
+   data = pgexporter_append(data, "_sum{server=\"");
+   if (config->number_of_servers > 0)
+   {
+      data = pgexporter_append(data, config->servers[0].name);
+   }
+   else
+   {
+      data = pgexporter_append(data, "unknown");
+   }
+   data = pgexporter_append(data, "\"");
+
+   db_key_present = false;
+   for (int j = 0; j < h_idx; j++)
+   {
+      if (!db_key_present && !strcmp("database", temp->query_alt->node.columns[j].name))
+      {
+         db_key_present = true;
+      }
+
+      data = pgexporter_append(data, ", ");
+      data = pgexporter_append(data, temp->query_alt->node.columns[j].name);
+      data = pgexporter_append(data, "=\"n/a\"");
+   }
+
+   if (!db_key_present)
+   {
+      data = pgexporter_append(data, ", database=\"");
+      if (strlen(temp->database) > 0)
+      {
+         data = pgexporter_append(data, temp->database);
+      }
+      else
+      {
+         data = pgexporter_append(data, "unknown");
+      }
+      data = pgexporter_append(data, "\"");
+   }
+
+   data = pgexporter_append(data, "} 0\n");
+
+   // _count
+   data = pgexporter_append(data, "pgexporter_");
+   data = pgexporter_append(data, temp->tag);
+   data = pgexporter_append(data, "_count{server=\"");
+   if (config->number_of_servers > 0)
+   {
+      data = pgexporter_append(data, config->servers[0].name);
+   }
+   else
+   {
+      data = pgexporter_append(data, "unknown");
+   }
+   data = pgexporter_append(data, "\"");
+
+   db_key_present = false;
+   for (int j = 0; j < h_idx; j++)
+   {
+      if (!db_key_present && !strcmp("database", temp->query_alt->node.columns[j].name))
+      {
+         db_key_present = true;
+      }
+
+      data = pgexporter_append(data, ", ");
+      data = pgexporter_append(data, temp->query_alt->node.columns[j].name);
+      data = pgexporter_append(data, "=\"n/a\"");
+   }
+
+   if (!db_key_present)
+   {
+      data = pgexporter_append(data, ", database=\"");
+      if (strlen(temp->database) > 0)
+      {
+         data = pgexporter_append(data, temp->database);
+      }
+      else
+      {
+         data = pgexporter_append(data, "unknown");
+      }
+      data = pgexporter_append(data, "\"");
+   }
+
+   data = pgexporter_append(data, "} 0\n");
+
+   add_column_to_store(store, idx, data, temp->sort_type, NULL);
 }
 
 static void

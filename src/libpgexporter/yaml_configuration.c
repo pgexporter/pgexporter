@@ -502,10 +502,6 @@ pgexporter_read_yaml_from_file_pointer(struct prometheus* prometheus, int promet
    }
 
 end:
-   if (yaml_config.extension_name)
-   {
-      free(yaml_config.extension_name);
-   }
    free_yaml_config(&yaml_config);
 
    return ret;
@@ -653,7 +649,8 @@ parse_yaml(FILE* file, yaml_config_t* yaml_config)
 
             state = PARSER_KEY;
 
-            buf = strdup((char*) event.data.scalar.value);
+            buf = NULL;
+            buf = pgexporter_append(buf, (char*) event.data.scalar.value);
 
             if (!strcmp(buf, "extension"))
             {
@@ -801,7 +798,8 @@ parse_metrics(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
 
             *state_ptr = PARSER_KEY;
 
-            buf = strdup((char*) event_ptr->data.scalar.value);
+            buf = NULL;
+            buf = pgexporter_append(buf, (char*) event_ptr->data.scalar.value);
 
             if (!strcmp(buf, "tag"))
             {
@@ -961,7 +959,8 @@ parse_queries(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
 
             *state_ptr = PARSER_KEY;
 
-            buf = strdup((char*) event_ptr->data.scalar.value);
+            buf = NULL;
+            buf = pgexporter_append(buf, (char*) event_ptr->data.scalar.value);
 
             if (!strcmp(buf, "query"))
             {
@@ -1100,7 +1099,8 @@ parse_columns(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
 
             *state_ptr = PARSER_KEY;
 
-            buf = strdup((char*) event_ptr->data.scalar.value);
+            buf = NULL;
+            buf = pgexporter_append(buf, (char*) event_ptr->data.scalar.value);
 
             if (!strcmp(buf, "name"))
             {
@@ -1220,7 +1220,8 @@ parse_string(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t*
       return 1;
    }
 
-   *dest = strdup((char*) event_ptr->data.scalar.value);
+   *dest = NULL;
+   *dest = pgexporter_append(*dest, (char*) event_ptr->data.scalar.value);
    yaml_event_delete(event_ptr);
    return 0;
 }
@@ -1288,6 +1289,11 @@ free_yaml_config(yaml_config_t* config)
    if (config->metrics)
    {
       free_yaml_metrics(&config->metrics, config->n_metrics);
+   }
+   if (config->extension_name)
+   {
+      free(config->extension_name);
+      config->extension_name = NULL;
    }
 }
 
