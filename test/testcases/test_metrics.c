@@ -26,19 +26,31 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PGEXPORTER_TEST3_H
-#define PGEXPORTER_TEST3_H
+#include <tsclient.h>
+#include <tscommon.h>
+#include <tssuite.h>
 
-#include <check.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+START_TEST(test_pgexporter_http_metrics)
+{
+   int found = 0;
+   found = !pgexporter_tsclient_test_http_metrics();
+   ck_assert_msg(found, "pgexporter HTTP metrics test failed");
+}
+END_TEST
 
-/**
- * Set up a suite of test cases for pgexporter HTTP functionality
- * @return The result
- */
 Suite*
-pgexporter_test3_suite();
+pgexporter_test_metrics_suite()
+{
+   Suite* s;
+   TCase* tc_core;
 
-#endif // PGEXPORTER_TEST3_H
+   s = suite_create("pgexporter_test_metrics");
+
+   tc_core = tcase_create("Core");
+
+   tcase_set_timeout(tc_core, 60);
+   tcase_add_test(tc_core, test_pgexporter_http_metrics);
+   suite_add_tcase(s, tc_core);
+
+   return s;
+}

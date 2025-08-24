@@ -24,58 +24,33 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
  * TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
-#include <shmem.h>
+
+#include <tsclient.h>
 #include <tscommon.h>
 #include <tssuite.h>
-#include <configuration.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
 
-#include "logging.h"
-
-int
-main(int argc, char* argv[])
+START_TEST(test_pgexporter_bridge_endpoint)
 {
-   if (argc != 2)
-   {
-      printf("Usage: %s <project_directory>\n", argv[0]);
-      return 1;
-   }
+   int found = 0;
+   found = !pgexporter_tsclient_test_bridge_endpoint();
+   ck_assert_msg(found, "pgexporter bridge endpoint test failed");
+}
+END_TEST
 
-   int number_failed = 0;
-   Suite* management_suite;
-   Suite* database_suite;
-   Suite* metrics_suite;
-   Suite* bridge_suite;
-   Suite* extensions_suite;
-   SRunner* sr;
+Suite*
+pgexporter_test_bridge_suite()
+{
+   Suite* s;
+   TCase* tc_core;
 
-   // Store project directory for test environment
-   memset(test_project_directory, 0, sizeof(test_project_directory));
-   memcpy(test_project_directory, argv[1], strlen(argv[1]));
+   s = suite_create("pgexporter_test_bridge");
 
-   pgexporter_test_environment_create();
+   tc_core = tcase_create("Core");
 
-   management_suite = pgexporter_test_management_suite();
-   database_suite = pgexporter_test_database_suite();
-   metrics_suite = pgexporter_test_metrics_suite();
-   bridge_suite = pgexporter_test_bridge_suite();
-   extensions_suite = pgexporter_test_extensions_suite();
+   tcase_set_timeout(tc_core, 60);
+   tcase_add_test(tc_core, test_pgexporter_bridge_endpoint);
+   suite_add_tcase(s, tc_core);
 
-   sr = srunner_create(management_suite);
-   srunner_add_suite(sr, database_suite);
-   srunner_add_suite(sr, metrics_suite);
-   srunner_add_suite(sr, bridge_suite);
-   srunner_add_suite(sr, extensions_suite);
-   srunner_set_log(sr, "-");
-   srunner_set_fork_status(sr, CK_NOFORK);
-   srunner_run(sr, NULL, NULL, CK_VERBOSE);
-   number_failed = srunner_ntests_failed(sr);
-   srunner_free(sr);
-   pgexporter_test_environment_destroy();
-
-   return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+   return s;
 }
