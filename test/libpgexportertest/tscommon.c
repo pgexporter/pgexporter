@@ -27,19 +27,32 @@
  *
  */
 
-#ifndef PGEXPORTER_TEST1_H
-#define PGEXPORTER_TEST1_H
+#include <pgexporter.h>
+#include <configuration.h>
+#include <logging.h>
+#include <shmem.h>
+#include <tsclient.h>
+#include <tscommon.h>
 
-#include <check.h>
-#include <stdio.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
-/**
- * Set up a suite of test cases for pgexporter core daemon operations
- * @return The result
- */
-Suite*
-pgexporter_test1_suite();
+char test_project_directory[BUFFER_SIZE];
 
-#endif // PGEXPORTER_TEST1_H
+void
+pgexporter_test_environment_create(void)
+{
+    if (pgexporter_tsclient_init(test_project_directory))
+    {
+        printf("ERROR: Failed to initialize test client environment\n");
+        exit(1);
+    }
+}
+
+void
+pgexporter_test_environment_destroy(void)
+{
+    pgexporter_tsclient_destroy();
+}

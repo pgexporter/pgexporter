@@ -27,19 +27,33 @@
  *
  */
 
-#ifndef PGEXPORTER_TEST2_H
-#define PGEXPORTER_TEST2_H
+#ifndef PGEXPORTER_TSCOMMON_H
+#define PGEXPORTER_TSCOMMON_H
 
-#include <check.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <pgexporter.h>
+
+#define BUFFER_SIZE 8192
+
+extern char test_project_directory[BUFFER_SIZE];
 
 /**
- * Set up a suite of test cases for pgexporter database operations
- * @return The result
+ * Create the testing environment
  */
-Suite*
-pgexporter_test2_suite();
+void
+pgexporter_test_environment_create(void);
 
-#endif // PGEXPORTER_TEST2_H
+/**
+ * Destroy the testing environment
+ */
+void
+pgexporter_test_environment_destroy(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

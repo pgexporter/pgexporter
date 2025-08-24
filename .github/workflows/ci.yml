@@ -117,7 +117,7 @@ jobs:
           path: coverage-report
           retention-days: 90
 
-      - name: Upload Build and Run Logs as Artifacts
+      - name: Upload Build and Test Logs as Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:

@@ -28,8 +28,8 @@
  */
 
 #include <tsclient.h>
-
-#include "pgexporter_test_2.h"
+#include <tscommon.h>
+#include <tssuite.h>
 
 // Test database connection establishment
 START_TEST(test_pgexporter_db_connection)
@@ -59,12 +59,12 @@ START_TEST(test_pgexporter_extension_path)
 END_TEST
 
 Suite*
-pgexporter_test2_suite()
+pgexporter_test_database_suite()
 {
    Suite* s;
    TCase* tc_core;
 
-   s = suite_create("pgexporter_test2");
+   s = suite_create("pgexporter_test_database");
 
    tc_core = tcase_create("Core");
 

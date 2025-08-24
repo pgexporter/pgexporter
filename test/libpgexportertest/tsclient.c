@@ -410,67 +410,6 @@ pgexporter_tsclient_test_extension_path()
     return ret;
 }
 
-static int 
-check_output_outcome(int socket)
-{
-    struct json* read = NULL;
-    struct json* outcome = NULL;
-
-    if (pgexporter_management_read_json(NULL, socket, NULL, NULL, &read))
-    {
-        goto error;
-    }
-    
-    if (!pgexporter_json_contains_key(read, MANAGEMENT_CATEGORY_OUTCOME))
-    {
-        goto error;
-    }
-
-    outcome = (struct json*)pgexporter_json_get(read, MANAGEMENT_CATEGORY_OUTCOME);
-    if (!pgexporter_json_contains_key(outcome, MANAGEMENT_ARGUMENT_STATUS) || !(bool)pgexporter_json_get(outcome, MANAGEMENT_ARGUMENT_STATUS))
-    {
-        goto error;
-    }
-
-    pgexporter_json_destroy(read);
-    return 0;
-    
-error:
-    pgexporter_json_destroy(read);
-    return 1;
-}
-
-static int
-get_connection()
-{
-    int socket = -1;
-    struct configuration* config;
-
-    config = (struct configuration*)shmem;
-    
-    if (pgexporter_connect_unix_socket(config->unix_socket_dir, MAIN_UDS, &socket))
-    {
-        return -1;
-    }
-    
-    return socket;
-}
-
-static char*
-get_configuration_path()
-{
-   char* configuration_path = NULL;
-   int project_directory_length = strlen(project_directory);
-   int configuration_trail_length = strlen(PGEXPORTER_CONFIGURATION_TRAIL);
-
-   configuration_path = (char*)calloc(project_directory_length + configuration_trail_length + 1, sizeof(char));
-
-   memcpy(configuration_path, project_directory, project_directory_length);
-   memcpy(configuration_path + project_directory_length, PGEXPORTER_CONFIGURATION_TRAIL, configuration_trail_length);
-
-   return configuration_path;
-}
-
 int
 pgexporter_tsclient_test_http_metrics()
 {
@@ -816,4 +755,65 @@ pgexporter_tsclient_test_extension_detection()
 
 error:
     return ret;
+}
+
+static int 
+check_output_outcome(int socket)
+{
+    struct json* read = NULL;
+    struct json* outcome = NULL;
+
+    if (pgexporter_management_read_json(NULL, socket, NULL, NULL, &read))
+    {
+        goto error;
+    }
+    
+    if (!pgexporter_json_contains_key(read, MANAGEMENT_CATEGORY_OUTCOME))
+    {
+        goto error;
+    }
+
+    outcome = (struct json*)pgexporter_json_get(read, MANAGEMENT_CATEGORY_OUTCOME);
+    if (!pgexporter_json_contains_key(outcome, MANAGEMENT_ARGUMENT_STATUS) || !(bool)pgexporter_json_get(outcome, MANAGEMENT_ARGUMENT_STATUS))
+    {
+        goto error;
+    }
+
+    pgexporter_json_destroy(read);
+    return 0;
+    
+error:
+    pgexporter_json_destroy(read);
+    return 1;
+}
+
+static int
+get_connection()
+{
+    int socket = -1;
+    struct configuration* config;
+
+    config = (struct configuration*)shmem;
+    
+    if (pgexporter_connect_unix_socket(config->unix_socket_dir, MAIN_UDS, &socket))
+    {
+        return -1;
+    }
+    
+    return socket;
+}
+
+static char*
+get_configuration_path()
+{
+   char* configuration_path = NULL;
+   int project_directory_length = strlen(project_directory);
+   int configuration_trail_length = strlen(PGEXPORTER_CONFIGURATION_TRAIL);
+
+   configuration_path = (char*)calloc(project_directory_length + configuration_trail_length + 1, sizeof(char));
+
+   memcpy(configuration_path, project_directory, project_directory_length);
+   memcpy(configuration_path + project_directory_length, PGEXPORTER_CONFIGURATION_TRAIL, configuration_trail_length);
+
+   return configuration_path;
 }

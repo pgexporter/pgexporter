@@ -24,62 +24,44 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
  * TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  */
 
 #include <tsclient.h>
+#include <tscommon.h>
+#include <tssuite.h>
 
-#include "pgexporter_test_3.h"
-
-START_TEST(test_pgexporter_http_metrics)
+// Test that pgexporter daemon starts and responds to ping
+START_TEST(test_pgexporter_ping)
 {
    int found = 0;
-   found = !pgexporter_tsclient_test_http_metrics();
-   ck_assert_msg(found, "pgexporter HTTP metrics test failed");
+   found = !pgexporter_tsclient_execute_ping();
+   ck_assert_msg(found, "pgexporter ping failed");
 }
 END_TEST
 
-START_TEST(test_pgexporter_bridge_endpoint)
+// Test that pgexporter responds to status command
+START_TEST(test_pgexporter_status)
 {
    int found = 0;
-   found = !pgexporter_tsclient_test_bridge_endpoint();
-   ck_assert_msg(found, "pgexporter bridge endpoint test failed");
-}
-END_TEST
-
-START_TEST(test_pgexporter_extension_detection)
-{
-   int found = 0;
-   found = !pgexporter_tsclient_test_extension_detection();
-   ck_assert_msg(found, "pgexporter extension detection test failed");
-}
-END_TEST
-
-// Test that shutdown command works (this should be last test)
-START_TEST(test_pgexporter_shutdown)
-{
-   int found = 0;
-   found = !pgexporter_tsclient_execute_shutdown();
-   ck_assert_msg(found, "pgexporter shutdown failed");
+   found = !pgexporter_tsclient_execute_status();
+   ck_assert_msg(found, "pgexporter status failed");
 }
 END_TEST
 
 Suite*
-pgexporter_test3_suite()
+pgexporter_test_management_suite()
 {
    Suite* s;
    TCase* tc_core;
 
-   s = suite_create("pgexporter_test3");
+   s = suite_create("pgexporter_test_management");
 
    tc_core = tcase_create("Core");
 
    tcase_set_timeout(tc_core, 60);
-   tcase_add_test(tc_core, test_pgexporter_bridge_endpoint);
-   tcase_add_test(tc_core, test_pgexporter_http_metrics);
-   tcase_add_test(tc_core, test_pgexporter_extension_detection);
-
-   tcase_add_test(tc_core, test_pgexporter_shutdown);
-
+   tcase_add_test(tc_core, test_pgexporter_ping);
+   tcase_add_test(tc_core, test_pgexporter_status);
    suite_add_tcase(s, tc_core);
 
    return s;
