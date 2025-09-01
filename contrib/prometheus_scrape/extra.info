@@ -2381,6 +2381,364 @@ pgexporter_pg_stat_archiver_failure_time_elapsed_ms
 * server: The configured name/identifier for the PostgreSQL server.
 Version: 10+
 
+pgexporter_pg_blocked_vacuum_blocked_duration_seconds
++ Duration in seconds that vacuum operations have been blocked
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_blocked_vacuum_blocking_duration_seconds
++ Duration in seconds that operations are blocking vacuum
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_db_conn_ssl
++ SSL connection status for database connections
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_stat_progress_vacuum_heap_blks_scanned
++ Number of heap blocks scanned during vacuum operation
+* server: The configured name/identifier for the PostgreSQL server.
+* pid: Process ID of the vacuum operation.
+* datname: Database name being vacuumed.
+* usename: Username running the vacuum.
+Version: 10+
+
+pgexporter_pg_stat_progress_vacuum_heap_blks_total
++ Total number of heap blocks to scan during vacuum operation
+* server: The configured name/identifier for the PostgreSQL server.
+* pid: Process ID of the vacuum operation.
+* datname: Database name being vacuumed.
+* usename: Username running the vacuum.
+Version: 10+
+
+pgexporter_pg_stat_progress_vacuum_heap_blks_vacuumed
++ Number of heap blocks vacuumed during vacuum operation
+* server: The configured name/identifier for the PostgreSQL server.
+* pid: Process ID of the vacuum operation.
+* datname: Database name being vacuumed.
+* usename: Username running the vacuum.
+Version: 10+
+
+pgexporter_pg_stat_progress_vacuum_index_vacuum_count
++ Number of index vacuum cycles completed
+* server: The configured name/identifier for the PostgreSQL server.
+* pid: Process ID of the vacuum operation.
+* datname: Database name being vacuumed.
+* usename: Username running the vacuum.
+Version: 10+
+
+pgexporter_pg_stat_progress_vacuum_max_dead_tuples
++ Maximum dead tuples that can be stored before vacuum must process indexes
+* server: The configured name/identifier for the PostgreSQL server.
+* pid: Process ID of the vacuum operation.
+* datname: Database name being vacuumed.
+* usename: Username running the vacuum.
+Version: 10+
+
+pgexporter_pg_stat_progress_vacuum_num_dead_tuples
++ Current number of dead tuples collected during vacuum
+* server: The configured name/identifier for the PostgreSQL server.
+* pid: Process ID of the vacuum operation.
+* datname: Database name being vacuumed.
+* usename: Username running the vacuum.
+Version: 10+
+
+pgexporter_pg_stat_progress_vacuum_pct_scan_completed
++ Percentage of heap scan completed during vacuum operation
+* server: The configured name/identifier for the PostgreSQL server.
+* pid: Process ID of the vacuum operation.
+* datname: Database name being vacuumed.
+* usename: Username running the vacuum.
+Version: 10+
+
+pgexporter_pg_settings_pg_stat_statements_max
++ Reflects the PostgreSQL `pg_stat_statements.max` setting, the maximum number of statements tracked by pg_stat_statements extension.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_settings_pg_stat_statements_save
++ Reflects the PostgreSQL `pg_stat_statements.save` setting, whether pg_stat_statements saves statistics across server shutdowns.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_settings_pg_stat_statements_track
++ Reflects the PostgreSQL `pg_stat_statements.track` setting, which statements are tracked by pg_stat_statements.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_settings_pg_stat_statements_track_planning
++ Reflects the PostgreSQL `pg_stat_statements.track_planning` setting, whether planning statistics are collected.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 13+
+
+pgexporter_pg_settings_pg_stat_statements_track_utility
++ Reflects the PostgreSQL `pg_stat_statements.track_utility` setting, whether utility commands are tracked.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_settings_timescaledb_compress_truncate_behaviour
++ Reflects the TimescaleDB `timescaledb.compress_truncate_behaviour` setting for compression truncation behavior.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_settings_timescaledb_compression_batch_size_limit
++ Reflects the TimescaleDB `timescaledb.compression_batch_size_limit` setting for compression batch size limits.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_settings_timescaledb_enable_bool_compression
++ Reflects the TimescaleDB `timescaledb.enable_bool_compression` setting for boolean compression.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_settings_timescaledb_enable_cagg_window_functions
++ Reflects the TimescaleDB `timescaledb.enable_cagg_window_functions` setting for continuous aggregate window functions.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_settings_timescaledb_enable_compressed_skipscan
++ Reflects the TimescaleDB `timescaledb.enable_compressed_skipscan` setting for compressed skip scan optimization.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_settings_timescaledb_enable_compression_ratio_warnings
++ Reflects the TimescaleDB `timescaledb.enable_compression_ratio_warnings` setting for compression ratio warnings.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_settings_timescaledb_enable_compressor_batch_limit
++ Reflects the TimescaleDB `timescaledb.enable_compressor_batch_limit` setting for compressor batch limits.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_settings_timescaledb_enable_event_triggers
++ Reflects the TimescaleDB `timescaledb.enable_event_triggers` setting for event triggers.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_settings_timescaledb_enable_exclusive_locking_recompression
++ Reflects the TimescaleDB `timescaledb.enable_exclusive_locking_recompression` setting for exclusive locking during recompression.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_settings_timescaledb_enable_skipscan_for_distinct_aggregates
++ Reflects the TimescaleDB `timescaledb.enable_skipscan_for_distinct_aggregates` setting for skip scan optimization in distinct aggregates.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_settings_timescaledb_enable_sparse_index_bloom
++ Reflects the TimescaleDB `timescaledb.enable_sparse_index_bloom` setting for sparse index bloom filters.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_settings_timescaledb_hypercore_arrow_cache_max_entries
++ Reflects the TimescaleDB `timescaledb.hypercore_arrow_cache_max_entries` setting for Arrow cache size.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_settings_timescaledb_lake_disable_load
++ Reflects the TimescaleDB `timescaledb.lake_disable_load` setting for disabling lake loading.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_settings_timescaledb_skip_scan_run_cost_multiplier
++ Reflects the TimescaleDB `timescaledb.skip_scan_run_cost_multiplier` setting for skip scan cost calculation.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_analyze_count
++ Reflects `analyze_count` from `pg_stat_user_tables`: the number of times this table has been manually analyzed.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_autoanalyze_count
++ Reflects `autoanalyze_count` from `pg_stat_user_tables`: the number of times this table has been analyzed by the autovacuum daemon.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_autovacuum_count
++ Reflects `autovacuum_count` from `pg_stat_user_tables`: the number of times this table has been vacuumed by the autovacuum daemon.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_dead_rows_pct
++ A derived metric showing the percentage of dead rows relative to the total estimated rows in the table.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_idx_scan
++ Reflects `idx_scan` from `pg_stat_user_tables`: the number of index scans initiated on this table.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_idx_tup_fetch
++ Reflects `idx_tup_fetch` from `pg_stat_user_tables`: the number of live rows fetched by index scans.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_last_analyze_seconds
++ Time elapsed in seconds since this table was last manually analyzed. Based on `last_analyze`. -1 if never.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_last_autoanalyze_seconds
++ Time elapsed in seconds since this table was last analyzed by the autovacuum daemon. Based on `last_autoanalyze`. -1 if never.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_last_autovacuum_seconds
++ Time elapsed in seconds since this table was last vacuumed by the autovacuum daemon. Based on `last_autovacuum`. -1 if never.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_last_idx_scan_seconds
++ Time elapsed in seconds since the last index scan on this table. Based on `last_idx_scan`. -1 if never.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_last_seq_scan_seconds
++ Time elapsed in seconds since the last sequential scan on this table. Based on `last_seq_scan`. -1 if never.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_last_vacuum_seconds
++ Time elapsed in seconds since this table was last manually vacuumed. Based on `last_vacuum`. -1 if never.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_n_dead_tup
++ Reflects `n_dead_tup` from `pg_stat_user_tables`: the estimated number of dead rows in this table.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_n_ins_since_vacuum
++ Reflects `n_ins_since_vacuum` from `pg_stat_user_tables`: the estimated number of rows inserted since this table was last vacuumed.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_n_live_tup
++ Reflects `n_live_tup` from `pg_stat_user_tables`: the estimated number of live rows in this table.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_n_mod_since_analyze
++ Reflects `n_mod_since_analyze` from `pg_stat_user_tables`: the estimated number of rows modified since this table was last analyzed.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_n_tup_del
++ Reflects `n_tup_del` from `pg_stat_user_tables`: the number of rows deleted in this table.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_n_tup_hot_upd
++ Reflects `n_tup_hot_upd` from `pg_stat_user_tables`: the number of rows HOT updated in this table.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_n_tup_ins
++ Reflects `n_tup_ins` from `pg_stat_user_tables`: the number of rows inserted in this table.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_n_tup_newpage_upd
++ Reflects `n_tup_newpage_upd` from `pg_stat_user_tables`: the number of rows updated to a new page in this table.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 14+
+
+pgexporter_pg_stat_user_tables_vacuum_n_tup_upd
++ Reflects `n_tup_upd` from `pg_stat_user_tables`: the number of rows updated in this table.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_seq_scan
++ Reflects `seq_scan` from `pg_stat_user_tables`: the number of sequential scans initiated on this table.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_seq_tup_read
++ Reflects `seq_tup_read` from `pg_stat_user_tables`: the number of live rows fetched by sequential scans.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
+pgexporter_pg_stat_user_tables_vacuum_vacuum_count
++ Reflects `vacuum_count` from `pg_stat_user_tables`: the number of times this table has been manually vacuumed.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database containing the table.
+* schemaname: The schema containing the table.
+* relname: The table name.
+Version: 10+
+
 pgexporter_pg_db_vacuum_age
 + Represents the age (number of transactions) of the oldest unfrozen transaction ID (`datfrozenxid`) within each database. Useful for monitoring autovacuum progress and wraparound risk.
 * server: The configured name/identifier for the PostgreSQL server.
@@ -3100,6 +3458,339 @@ pgexporter_pg_buffercache_usage_distribution_buffers
 * usage_count: The number of times a buffer has been accessed.
 Version: 1.4
 
+pgexporter_pg_buffercache_cache_effectiveness_total_used_buffers
++ Total number of used buffers in the shared buffer cache from pg_buffercache extension.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database being monitored.
+Version: 1.3
+
+pgexporter_pg_buffercache_cache_pressure_dirty_buffers
++ Number of dirty (modified) buffers in the shared buffer cache.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database being monitored.
+Version: 1.3
+
+pgexporter_pg_buffercache_cache_pressure_total_buffers
++ Total number of buffers in the shared buffer cache.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database being monitored.
+Version: 1.3
+
+pgexporter_pg_buffercache_cache_pressure_used_buffers
++ Number of used buffers in the shared buffer cache.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database being monitored.
+Version: 1.3
+
+pgexporter_pg_buffercache_dirty_buffers_used_buffers
++ Number of dirty buffers currently in use in the shared buffer cache.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database being monitored.
+Version: 1.3
+
+pgexporter_pg_buffercache_usage_distribution_dirty
++ Distribution of dirty buffers across different usage patterns.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database being monitored.
+* usage_count: Buffer usage count.
+Version: 1.3
+
+pgexporter_pg_buffercache_usage_distribution_pinned
++ Distribution of pinned buffers across different usage patterns.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: The database being monitored.
+* usage_count: Buffer usage count.
+Version: 1.3
+
+pgexporter_pg_stat_statements_most_executed_calls
++ Number of times the most frequently executed SQL query has been called
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_most_planned_plans
++ Number of times the most frequently planned SQL query has been planned
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_most_rows_rows
++ Number of rows affected by the SQL query that affects the most rows
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_slowest_execution_total_exec_time
++ Total execution time in milliseconds for the slowest SQL query
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_highest_wal_wal_bytes
++ Number of WAL bytes generated by the SQL query with highest WAL usage
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_detailed_io_timing_blk_read_time
++ Total time spent reading data file blocks by this statement, in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_detailed_io_timing_blk_write_time
++ Total time spent writing data file blocks by this statement, in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_detailed_io_timing_temp_blk_read_time
++ Total time spent reading temporary file blocks by this statement, in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_detailed_io_timing_temp_blk_write_time
++ Total time spent writing temporary file blocks by this statement, in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_exec_time_detailed_mean_exec_time
++ Mean execution time in milliseconds for detailed statement execution analysis.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_exec_time_detailed_total_exec_time
++ Total execution time in milliseconds for detailed statement execution analysis.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_extension_info_tracked_queries
++ Total number of distinct normalized SQL statements tracked by pg_stat_statements extension.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+Version: 1.8
+
+pgexporter_pg_stat_statements_extension_metadata_dealloc
++ Number of times pg_stat_statements entries were deallocated due to lack of memory.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+Version: 1.8
+
+pgexporter_pg_stat_statements_hierarchy_performance_avg_mean_exec_time
++ Average mean execution time across queries in the performance hierarchy.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the queries.
+* toplevel: Whether this is a top-level statement.
+Version: 1.8
+
+pgexporter_pg_stat_statements_hierarchy_performance_avg_mean_plan_time
++ Average mean planning time across queries in the performance hierarchy.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the queries.
+* toplevel: Whether this is a top-level statement.
+Version: 1.8
+
+pgexporter_pg_stat_statements_hierarchy_performance_total_wal_bytes
++ Total WAL bytes generated by queries in the performance hierarchy.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the queries.
+* toplevel: Whether this is a top-level statement.
+Version: 1.8
+
+pgexporter_pg_stat_statements_io_stats_local_blks_read
++ Number of local block reads by this statement.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_io_stats_local_blks_written
++ Number of local block writes by this statement.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_io_stats_shared_blks_hit
++ Number of shared block cache hits by this statement.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_io_timing_blk_read_time
++ Total time spent reading blocks by this statement, in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_io_timing_blk_write_time
++ Total time spent writing blocks by this statement, in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_jit_stats_jit_emission_count
++ Number of times JIT emission was performed for this statement.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_jit_stats_jit_emission_time
++ Total time spent in JIT emission for this statement, in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_jit_stats_jit_functions
++ Number of functions JIT-compiled for this statement.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_jit_stats_jit_generation_time
++ Total time spent in JIT code generation for this statement, in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_jit_stats_jit_inlining_count
++ Number of times JIT inlining was performed for this statement.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_jit_stats_jit_inlining_time
++ Total time spent in JIT inlining for this statement, in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_jit_stats_jit_optimization_count
++ Number of times JIT optimization was performed for this statement.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_jit_stats_jit_optimization_time
++ Total time spent in JIT optimization for this statement, in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_performance_summary_avg_mean_time
++ Average mean execution time across all tracked statements in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being summarized.
+Version: 1.8
+
+pgexporter_pg_stat_statements_performance_summary_total_calls
++ Total number of calls across all tracked statements.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being summarized.
+Version: 1.8
+
+pgexporter_pg_stat_statements_performance_summary_total_exec_time
++ Total execution time across all tracked statements in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being summarized.
+Version: 1.8
+
+pgexporter_pg_stat_statements_performance_summary_total_queries
++ Total number of distinct normalized statements tracked.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being summarized.
+Version: 1.8
+
+pgexporter_pg_stat_statements_planning_stats_mean_plan_time
++ Mean planning time for the statement in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_planning_stats_plans
++ Number of times the query has been planned.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_planning_stats_total_plan_time
++ Total planning time for the statement in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the query.
+* queryid: Query identifier.
+* query: The SQL query text.
+Version: 1.8
+
+pgexporter_pg_stat_statements_query_hierarchy_query_count
++ Number of distinct queries in the hierarchy level.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the queries.
+* toplevel: Whether this is a top-level statement.
+Version: 1.8
+
+pgexporter_pg_stat_statements_query_hierarchy_total_calls
++ Total number of calls for queries in the hierarchy level.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the queries.
+* toplevel: Whether this is a top-level statement.
+Version: 1.8
+
+pgexporter_pg_stat_statements_query_hierarchy_total_time
++ Total execution time for queries in the hierarchy level in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the queries.
+* toplevel: Whether this is a top-level statement.
+Version: 1.8
+
 pgexporter_pg_stat_statements_jit_summary_jit_enabled_queries
 + Reports the number of distinct queries tracked by `pg_stat_statements` that have utilized JIT compilation.
 * server: The configured name/identifier for the PostgreSQL server.
@@ -3161,6 +3852,27 @@ pgexporter_pgcrypto_user_crypto_function_usage_calls
 * database: The database being monitored.
 * schemaname: The schema of the function.
 * funcname: The name of the function.
+
+Version: 1.3
+pgexporter_pgcrypto_user_crypto_function_usage_avg_time_per_call
++ Average time per call for cryptographic functions in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the function.
+* funcname: Name of the cryptographic function.
+Version: 1.3
+
+pgexporter_pgcrypto_user_crypto_function_usage_self_time
++ Self time (excluding called functions) for cryptographic function execution in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the function.
+* funcname: Name of the cryptographic function.
+Version: 1.3
+
+pgexporter_pgcrypto_user_crypto_function_usage_total_time
++ Total execution time for cryptographic function calls in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the function.
+* funcname: Name of the cryptographic function.
 Version: 1.3
 
 pgexporter_postgis_spatial_tables_geometry_tables
@@ -3186,6 +3898,435 @@ Version: 3.0
 pgexporter_postgis_raster_raster_table_count_raster_table_count
 + The total number of tables containing columns of the `raster` type.
 * server: The configured name/identifier for the PostgreSQL server.
+Version: 3.0
+
+pgexporter_postgis_coordinate_dimensions_column_count
++ Number of geometry/geography columns with specific coordinate dimensions.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* coord_dimension: Coordinate dimension count.
+Version: 3.0
+
+pgexporter_postgis_coordinate_dimensions_coord_dimension
++ The coordinate dimension value for PostGIS geometry/geography columns.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* coord_dimension: Coordinate dimension count.
+Version: 3.0
+
+pgexporter_postgis_geography_columns_detail_coord_dimension
++ Coordinate dimension for geography columns in PostGIS.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing the geography column.
+* table_name: Table containing the geography column.
+* column_name: Name of the geography column.
+Version: 3.0
+
+pgexporter_postgis_geometry_columns_detail_coord_dimension
++ Coordinate dimension for geometry columns in PostGIS.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing the geometry column.
+* table_name: Table containing the geometry column.
+* column_name: Name of the geometry column.
+Version: 3.0
+
+pgexporter_postgis_geometry_type_stats_column_count
++ Number of geometry columns grouped by geometry type.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* geometry_type: Type of geometry (Point, LineString, Polygon, etc.).
+Version: 3.0
+
+pgexporter_postgis_raster_raster_band_stats_num_bands
++ Number of bands in PostGIS raster columns.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing the raster table.
+* table_name: Table containing raster data.
+* column_name: Name of the raster column.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_band_stats_table_count
++ Number of tables with specific raster band configurations.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* num_bands: Number of bands in the raster.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_block_sizes_blocksize_x
++ X-dimension block size for PostGIS raster data.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing the raster table.
+* table_name: Table containing raster data.
+* column_name: Name of the raster column.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_block_sizes_blocksize_y
++ Y-dimension block size for PostGIS raster data.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing the raster table.
+* table_name: Table containing raster data.
+* column_name: Name of the raster column.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_block_sizes_table_count
++ Number of raster tables with specific block size configurations.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* blocksize_x: X-dimension block size.
+* blocksize_y: Y-dimension block size.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_columns_info_num_bands
++ Number of bands in PostGIS raster columns.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing the raster table.
+* table_name: Table containing raster data.
+* column_name: Name of the raster column.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_constraints_regular_blocking
++ Indicates if raster data has regular blocking constraints enabled.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing the raster table.
+* table_name: Table containing raster data.
+* column_name: Name of the raster column.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_constraints_same_alignment
++ Indicates if raster data has same alignment constraints enabled.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing the raster table.
+* table_name: Table containing raster data.
+* column_name: Name of the raster column.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_constraints_table_count
++ Number of raster tables with specific constraint configurations.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* regular_blocking: Regular blocking constraint status.
+* same_alignment: Same alignment constraint status.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_nodata_stats_nodata_value
++ NoData value used in PostGIS raster data.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing the raster table.
+* table_name: Table containing raster data.
+* column_name: Name of the raster column.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_nodata_stats_usage_count
++ Usage count for specific NoData values in PostGIS raster data.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* nodata_value: The NoData value.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_overview_count_overview_count
++ Number of overview levels for PostGIS raster data.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing the raster table.
+* table_name: Table containing raster data.
+* column_name: Name of the raster column.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_overview_factors_overview_count
++ Count of raster overviews with specific factor configurations.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* overview_factor: Overview reduction factor.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_overview_factors_overview_factor
++ Overview reduction factor for PostGIS raster data.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing the raster table.
+* table_name: Table containing raster data.
+* column_name: Name of the raster column.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_pixel_types_usage_count
++ Usage count for different pixel types in PostGIS raster data.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* pixel_type: Raster pixel data type.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_scale_stats_scale_x
++ X-axis scale factor for PostGIS raster data.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing the raster table.
+* table_name: Table containing raster data.
+* column_name: Name of the raster column.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_scale_stats_scale_y
++ Y-axis scale factor for PostGIS raster data.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing the raster table.
+* table_name: Table containing raster data.
+* column_name: Name of the raster column.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_scale_stats_table_count
++ Number of raster tables with specific scale configurations.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* scale_x: X-axis scale factor.
+* scale_y: Y-axis scale factor.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_schema_distribution_avg_bands
++ Average number of bands per raster column in each schema.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing raster tables.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_schema_distribution_raster_table_count
++ Number of tables containing raster data in each schema.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing raster tables.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_schema_distribution_unique_srids
++ Number of unique Spatial Reference System IDs used in raster data per schema.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing raster tables.
+Version: 3.0
+
+pgexporter_postgis_raster_raster_srid_distribution_raster_count
++ Number of raster objects using each Spatial Reference System ID.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* srid: Spatial Reference System Identifier.
+Version: 3.0
+
+pgexporter_postgis_schema_spatial_stats_geometry_columns
++ Number of geometry columns in each schema.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing spatial data.
+Version: 3.0
+
+pgexporter_postgis_schema_spatial_stats_spatial_tables
++ Number of tables containing spatial data in each schema.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing spatial data.
+Version: 3.0
+
+pgexporter_postgis_schema_spatial_stats_unique_srids
++ Number of unique Spatial Reference System IDs used in each schema.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* table_schema: Schema containing spatial data.
+Version: 3.0
+
+pgexporter_postgis_spatial_index_summary_geography_indexes
++ Total number of spatial indexes on geography columns.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+Version: 3.0
+
+pgexporter_postgis_spatial_index_summary_geometry_indexes
++ Total number of spatial indexes on geometry columns.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+Version: 3.0
+
+pgexporter_postgis_srid_usage_usage_count
++ Usage count for each Spatial Reference System ID across all spatial data.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* srid: Spatial Reference System Identifier.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_details_hasz
++ Indicates if the topology has Z-coordinate support.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the topology.
+* topology_name: Name of the topology.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_details_precision
++ Precision value for the PostGIS topology.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the topology.
+* topology_name: Name of the topology.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_edge_counts_inserted_edges
++ Total number of edges that have been inserted into the topology.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the topology.
+* topology_name: Name of the topology.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_edge_counts_live_edge_count
++ Current number of active edges in the topology.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the topology.
+* topology_name: Name of the topology.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_face_counts_inserted_faces
++ Total number of faces that have been inserted into the topology.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the topology.
+* topology_name: Name of the topology.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_face_counts_live_face_count
++ Current number of active faces in the topology.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the topology.
+* topology_name: Name of the topology.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_health_current_edge_count
++ Current number of edges for topology health monitoring.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the topology.
+* topology_name: Name of the topology.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_health_current_node_count
++ Current number of nodes for topology health monitoring.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the topology.
+* topology_name: Name of the topology.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_node_counts_deleted_nodes
++ Total number of nodes that have been deleted from the topology.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the topology.
+* topology_name: Name of the topology.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_node_counts_inserted_nodes
++ Total number of nodes that have been inserted into the topology.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the topology.
+* topology_name: Name of the topology.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_node_counts_live_node_count
++ Current number of active nodes in the topology.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the topology.
+* topology_name: Name of the topology.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_node_counts_updated_nodes
++ Total number of nodes that have been updated in the topology.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the topology.
+* topology_name: Name of the topology.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_primitives_summary_edge_count
++ Total number of edges across all topologies.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_primitives_summary_face_count
++ Total number of faces across all topologies.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_primitives_summary_node_count
++ Total number of nodes across all topologies.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_primitives_summary_precision
++ Average precision across all topologies.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_primitives_summary_total_primitives
++ Total number of topology primitives (nodes + edges + faces).
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_srid_distribution_topology_count
++ Number of topologies using each Spatial Reference System ID.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* srid: Spatial Reference System Identifier.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_srid_distribution_total_edges_for_srid
++ Total number of edges across all topologies using a specific SRID.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* srid: Spatial Reference System Identifier.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_srid_distribution_total_nodes_for_srid
++ Total number of nodes across all topologies using a specific SRID.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+* srid: Spatial Reference System Identifier.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_system_stats_avg_precision
++ Average precision across all topologies in the system.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_system_stats_total_edges
++ Total number of edges across all topologies in the system.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_system_stats_total_faces
++ Total number of faces across all topologies in the system.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_system_stats_total_nodes
++ Total number of nodes across all topologies in the system.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_system_stats_total_topologies
++ Total number of topologies defined in the system.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
+Version: 3.0
+
+pgexporter_postgis_topology_topology_system_stats_unique_srids
++ Number of unique Spatial Reference System IDs used across all topologies.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database being monitored.
 Version: 3.0
 
 pgexporter_postgis_topology_topology_inventory_topology_count
@@ -3216,6 +4357,95 @@ Version: 2.10.0
 pgexporter_timescaledb_job_health_failed_jobs
 + The number of TimescaleDB background jobs that failed on their most recent execution.
 * server: The configured name/identifier for the PostgreSQL server.
+Version: 2.10.0
+
+pgexporter_timescaledb_chunk_age_distribution_chunk_count
++ Number of chunks in each age category for TimescaleDB hypertables.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing hypertables.
+* age_category: Age category of chunks.
+Version: 2.10.0
+
+pgexporter_timescaledb_columnstore_health_total_columnstore_hypertables
++ Total number of columnstore hypertables in TimescaleDB.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing hypertables.
+Version: 2.10.0
+
+pgexporter_timescaledb_columnstore_health_unique_columnstore_hypertables
++ Number of unique columnstore hypertables in TimescaleDB.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing hypertables.
+Version: 2.10.0
+
+pgexporter_timescaledb_compression_config_total_compressed_hypertables
++ Total number of compressed hypertables in TimescaleDB.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing hypertables.
+Version: 2.10.0
+
+pgexporter_timescaledb_compression_config_unique_compressed_hypertables
++ Number of unique compressed hypertables in TimescaleDB.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing hypertables.
+Version: 2.10.0
+
+pgexporter_timescaledb_compression_effectiveness_avg_chunk_age_days
++ Average age in days of compressed chunks in TimescaleDB.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing hypertables.
+* hypertable_schema: Schema containing the hypertable.
+* hypertable_name: Name of the hypertable.
+Version: 2.10.0
+
+pgexporter_timescaledb_compression_effectiveness_compressed_chunks
++ Number of compressed chunks for a TimescaleDB hypertable.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing hypertables.
+* hypertable_schema: Schema containing the hypertable.
+* hypertable_name: Name of the hypertable.
+Version: 2.10.0
+
+pgexporter_timescaledb_compression_effectiveness_compression_ratio_pct
++ Compression ratio as percentage for TimescaleDB hypertable chunks.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing hypertables.
+* hypertable_schema: Schema containing the hypertable.
+* hypertable_name: Name of the hypertable.
+Version: 2.10.0
+
+pgexporter_timescaledb_compression_effectiveness_total_chunks
++ Total number of chunks for a TimescaleDB hypertable.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing hypertables.
+* hypertable_schema: Schema containing the hypertable.
+* hypertable_name: Name of the hypertable.
+Version: 2.10.0
+
+pgexporter_timescaledb_hypertable_overview_dimension_types
++ Count of hypertables grouped by their dimension types in TimescaleDB.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing hypertables.
+* dimension_type: Type of hypertable dimension.
+Version: 2.10.0
+
+pgexporter_timescaledb_job_health_paused_jobs
++ Number of paused background jobs in TimescaleDB.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing jobs.
+Version: 2.10.0
+
+pgexporter_timescaledb_job_health_running_jobs
++ Number of currently running background jobs in TimescaleDB.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing jobs.
+Version: 2.10.0
+
+pgexporter_timescaledb_recent_job_failures_seconds_since_failure
++ Time elapsed in seconds since the most recent job failure in TimescaleDB.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing jobs.
+* job_id: TimescaleDB background job identifier.
 Version: 2.10.0
 
 pgexporter_vector_hnsw_index_performance_index_size_bytes
@@ -3252,6 +4482,66 @@ pgexporter_vector_ivfflat_index_performance_idx_scan
 * schemaname: The schema of the index.
 * tablename: The table the index is on.
 * indexname: The name of the IVFFlat index.
+Version: 0.8.0
+
+pgexporter_vector_ivfflat_index_performance_idx_tup_fetch
++ Number of live table rows fetched by index scans on this IVFFlat vector index.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the index.
+* schemaname: Schema containing the index.
+* tablename: Table containing the index.
+* indexname: Name of the IVFFlat index.
+Version: 0.8.0
+
+pgexporter_vector_ivfflat_index_performance_idx_tup_read
++ Number of index entries returned by scans on this IVFFlat vector index.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the index.
+* schemaname: Schema containing the index.
+* tablename: Table containing the index.
+* indexname: Name of the IVFFlat index.
+Version: 0.8.0
+
+pgexporter_vector_vector_column_inventory_vector_columns
++ Number of vector columns in each table.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing vector data.
+* schema_name: Schema containing the table.
+* table_name: Table containing vector columns.
+Version: 0.8.0
+
+pgexporter_vector_vector_table_storage_table_size_bytes
++ Size in bytes of tables containing vector data.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing vector data.
+* schema_name: Schema containing the table.
+* table_name: Table containing vector columns.
+Version: 0.8.0
+
+pgexporter_vector_vector_table_storage_total_size_bytes
++ Total size in bytes including indexes for tables containing vector data.
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing vector data.
+* schema_name: Schema containing the table.
+* table_name: Table containing vector columns.
+Version: 0.8.0
+
+pgexporter_vector_hnsw_index_performance_idx_tup_read
++ Number of index entries returned by scans on this HNSW vector index
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the index.
+* schemaname: Schema containing the index.
+* tablename: Table containing the index.
+* indexname: Name of the HNSW index.
+Version: 0.8.0
+
+pgexporter_vector_hnsw_index_performance_idx_tup_fetch
++ Number of live table rows fetched by index scans on this HNSW vector index
+* server: The configured name/identifier for the PostgreSQL server.
+* database: Database containing the index.
+* schemaname: Schema containing the index.
+* tablename: Table containing the index.
+* indexname: Name of the HNSW index.
 Version: 0.8.0
 
 pgexporter_vector_vector_index_distribution_index_count
