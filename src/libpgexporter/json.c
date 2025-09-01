@@ -31,13 +31,14 @@
 #include <art.h>
 #include <json.h>
 #include <logging.h>
-#include <message.h>
 #include <utils.h>
 
 /* System */
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 static bool type_allowed(enum value_type type);
