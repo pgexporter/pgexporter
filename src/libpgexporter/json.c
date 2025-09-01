@@ -90,6 +90,10 @@ pgexporter_json_remove(struct json* item, char* key)
    struct art* tree = NULL;
    if (item == NULL || key == NULL || strlen(key) == 0 || item->type != JSONItem)
    {
+      if (item != NULL && item->type == JSONUnknown)
+      {
+         return 0;
+      }
       goto error;
    }
 
