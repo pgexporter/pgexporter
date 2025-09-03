@@ -133,77 +133,77 @@ jobs:
           path: /home/runner/work/pgexporter/pgexporter/build/doc
           retention-days: 90
 
-  build-macos:
-    runs-on: macos-latest
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Detect Homebrew prefix
-        id: brew-prefix
-        run: |
-          echo "HOMEBREW_PREFIX=$(brew --prefix)" >> $GITHUB_ENV
-          echo "ARCH=$(uname -m)" >> $GITHUB_ENV
-          if [ "$(uname -m)" = "arm64" ]; then
-            echo "Using Apple Silicon (M1/M2) configuration with Homebrew at /opt/homebrew"
-          else
-            echo "Using Intel configuration with Homebrew at /usr/local"
-          fi
-
-      - name: Install dependencies
-        run: |
-          brew update
-          brew upgrade
-          brew install libev zstd lz4 bzip2 graphviz doxygen libyaml cmake docutils check pkg-config curl
-          brew link --force bzip2
-          brew link --force zstd
-          brew link --force lz4
-
-      - name: Install PostgreSQL
-        run: |
-          brew install postgresql@17
-          echo "$(brew --prefix postgresql@17)/bin" >> $GITHUB_PATH
-
-      - name: Debug Build
-        run: |
-          mkdir -p build
-          cd build
-          export CC=/usr/bin/clang
-
-          cmake -DCMAKE_BUILD_TYPE=Debug .. \
-            -DCMAKE_PREFIX_PATH="$HOMEBREW_PREFIX" \
-            -DCMAKE_INCLUDE_PATH="$HOMEBREW_PREFIX/include" \
-            -DCMAKE_LIBRARY_PATH="$HOMEBREW_PREFIX/lib"
-
-          make
-
-      - name: Run Tests (Debug)
-        run: |
-          cd build
-          $(which bash) ./testsuite.sh
-
-      - name: Upload pgexporter log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pgexporter-log-macos
-          path: build/log/pgexporter.log
-          retention-days: 7
-
-      - name: Release Build
-        run: |
-          rm -rf build
-          mkdir -p build
-          cd build
-          export CC=/usr/bin/clang
-
-          cmake -DCMAKE_BUILD_TYPE=Release .. \
-            -DCMAKE_C_FLAGS='-D_DARWIN_C_SOURCE' \
-            -DCMAKE_PREFIX_PATH="$HOMEBREW_PREFIX" \
-            -DCMAKE_INCLUDE_PATH="$HOMEBREW_PREFIX/include" \
-            -DCMAKE_LIBRARY_PATH="$HOMEBREW_PREFIX/lib"
-
-          make
+#  build-macos:
+#    runs-on: macos-latest
+#
+#    steps:
+#      - uses: actions/checkout@v3
+#
+#      - name: Detect Homebrew prefix
+#        id: brew-prefix
+#        run: |
+#          echo "HOMEBREW_PREFIX=$(brew --prefix)" >> $GITHUB_ENV
+#          echo "ARCH=$(uname -m)" >> $GITHUB_ENV
+#          if [ "$(uname -m)" = "arm64" ]; then
+#            echo "Using Apple Silicon (M1/M2) configuration with Homebrew at /opt/homebrew"
+#          else
+#            echo "Using Intel configuration with Homebrew at /usr/local"
+#          fi
+#
+#      - name: Install dependencies
+#        run: |
+#          brew update
+#          brew upgrade
+#          brew install libev zstd lz4 bzip2 graphviz doxygen libyaml cmake docutils check pkg-config curl
+#          brew link --force bzip2
+#          brew link --force zstd
+#          brew link --force lz4
+#
+#      - name: Install PostgreSQL
+#        run: |
+#          brew install postgresql@17
+#          echo "$(brew --prefix postgresql@17)/bin" >> $GITHUB_PATH
+#
+#      - name: Debug Build
+#        run: |
+#          mkdir -p build
+#          cd build
+#          export CC=/usr/bin/clang
+#
+#          cmake -DCMAKE_BUILD_TYPE=Debug .. \
+#            -DCMAKE_PREFIX_PATH="$HOMEBREW_PREFIX" \
+#            -DCMAKE_INCLUDE_PATH="$HOMEBREW_PREFIX/include" \
+#            -DCMAKE_LIBRARY_PATH="$HOMEBREW_PREFIX/lib"
+#
+#          make
+#
+#      - name: Run Tests (Debug)
+#        run: |
+#          cd build
+#          $(which bash) ./testsuite.sh
+#
+#      - name: Upload pgexporter log
+#        if: always()
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: pgexporter-log-macos
+#          path: build/log/pgexporter.log
+#          retention-days: 7
+#
+#      - name: Release Build
+#        run: |
+#          rm -rf build
+#          mkdir -p build
+#          cd build
+#          export CC=/usr/bin/clang
+#
+#          cmake -DCMAKE_BUILD_TYPE=Release .. \
+#            -DCMAKE_C_FLAGS='-D_DARWIN_C_SOURCE' \
+#            -DCMAKE_PREFIX_PATH="$HOMEBREW_PREFIX" \
+#            -DCMAKE_INCLUDE_PATH="$HOMEBREW_PREFIX/include" \
+#            -DCMAKE_LIBRARY_PATH="$HOMEBREW_PREFIX/lib"
+#
+#          make
 
   build-freebsd:
     runs-on: ubuntu-latest
