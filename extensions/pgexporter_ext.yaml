@@ -1,0 +1,183 @@
+#
+# Copyright (C) 2025 The pgexporter community
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this list
+# of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice, this
+# list of conditions and the following disclaimer in the documentation and/or other
+# materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors may
+# be used to endorse or promote products derived from this software without specific
+# prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+# THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+# OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+# TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+extension: pgexporter_ext
+metrics:
+
+  # Operating system information
+  - metric: os_info
+    queries:
+      - query: SELECT current_database() as database, * FROM pgexporter_os_info();
+        version: "0.3.0"
+        columns:
+          - name: database
+            type: label
+          - name: name
+            type: label
+            description: Operating system name
+          - name: version
+            type: label
+            description: Operating system version
+          - name: architecture
+            type: label
+            description: System architecture
+          - name: host_name
+            type: label
+            description: Hostname
+          - name: domain_name
+            type: label
+            description: Domain name
+          - name: process_count
+            type: gauge
+            description: Number of running processes
+          - name: uptime_seconds
+            type: gauge
+            description: System uptime in seconds
+
+  # CPU information
+  - metric: cpu_info
+    queries:
+      - query: SELECT current_database() as database, * FROM pgexporter_cpu_info();
+        version: "0.3.0"
+        columns:
+          - name: database
+            type: label
+          - name: vendor
+            type: label
+            description: CPU vendor
+          - name: model_name
+            type: label
+            description: CPU model name
+          - name: number_of_cores
+            type: gauge
+            description: Number of CPU cores
+          - name: clock_speed_hz
+            type: gauge
+            description: CPU clock speed in Hz
+          - name: l1dcache_size
+            type: gauge
+            description: L1 data cache size in KB
+          - name: l1icache_size
+            type: gauge
+            description: L1 instruction cache size in KB
+          - name: l2cache_size
+            type: gauge
+            description: L2 cache size in KB
+          - name: l3cache_size
+            type: gauge
+            description: L3 cache size in KB
+
+  # Memory information
+  - metric: memory_info
+    queries:
+      - query: SELECT current_database() as database, * FROM pgexporter_memory_info();
+        version: "0.3.0"
+        columns:
+          - name: database
+            type: label
+          - name: total_memory
+            type: gauge
+            description: Total system memory in KB
+          - name: used_memory
+            type: gauge
+            description: Used memory in KB
+          - name: free_memory
+            type: gauge
+            description: Free memory in KB
+          - name: swap_total
+            type: gauge
+            description: Total swap space in KB
+          - name: swap_used
+            type: gauge
+            description: Used swap space in KB
+          - name: swap_free
+            type: gauge
+            description: Free swap space in KB
+          - name: cache_total
+            type: gauge
+            description: Total cache memory in KB
+
+  # Network interface information
+  - metric: network_info
+    queries:
+      - query: SELECT current_database() as database, * FROM pgexporter_network_info();
+        version: "0.3.0"
+        columns:
+          - name: database
+            type: label
+          - name: interface_name
+            type: label
+            description: Network interface name
+          - name: ip_address
+            type: label
+            description: IP address
+          - name: tx_bytes
+            type: counter
+            description: Bytes transmitted
+          - name: tx_packets
+            type: counter
+            description: Packets transmitted
+          - name: tx_errors
+            type: counter
+            description: Transmission errors
+          - name: tx_dropped
+            type: counter
+            description: Transmitted packets dropped
+          - name: rx_bytes
+            type: counter
+            description: Bytes received
+          - name: rx_packets
+            type: counter
+            description: Packets received
+          - name: rx_errors
+            type: counter
+            description: Reception errors
+          - name: rx_dropped
+            type: counter
+            description: Received packets dropped
+          - name: link_speed_mbps
+            type: gauge
+            description: Link speed in Mbps
+
+  # System load averages
+  - metric: load_avg
+    queries:
+      - query: SELECT current_database() as database, * FROM pgexporter_load_avg();
+        version: "0.3.0"
+        columns:
+          - name: database
+            type: label
+          - name: load_avg_one_minute
+            type: gauge
+            description: 1-minute load average
+          - name: load_avg_five_minutes
+            type: gauge
+            description: 5-minute load average
+          - name: load_avg_ten_minutes
+            type: gauge
+            description: 15-minute load average

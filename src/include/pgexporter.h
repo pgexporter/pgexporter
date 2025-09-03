@@ -261,7 +261,6 @@ struct server
    SSL* ssl;                                                    /**< The SSL structure */
    int fd;                                                      /**< The socket descriptor */
    bool new;                                                    /**< Is the connection new */
-   bool extension;                                              /**< Is the pgexporter_ext extension installed */
    int state;                                                   /**< The state of the server */
    int version;                                                 /**< The major version of the server*/
    int minor_version;                                           /**< The minor version of the server*/

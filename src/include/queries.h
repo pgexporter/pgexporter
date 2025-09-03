@@ -94,14 +94,6 @@ pgexporter_open_connections(void);
 void
 pgexporter_close_connections(void);
 
-/**
- * Get functions
- * @param server The server
- * @param query The resulting query
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_query_get_functions(int server, struct query** query);
 
 /**
  * Execute query
@@ -114,35 +106,6 @@ pgexporter_query_get_functions(int server, struct query** query);
 int
 pgexporter_query_execute(int server, char* sql, char* tag, struct query** query);
 
-/**
- * Query for used disk space
- * @param server The server
- * @param data Data (true) or WAL (false)
- * @param query The resulting query
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_query_used_disk_space(int server, bool data, struct query** query);
-
-/**
- * Query for free disk space
- * @param server The server
- * @param data Data (true) or WAL (false)
- * @param query The resulting query
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_query_free_disk_space(int server, bool data, struct query** query);
-
-/**
- * Query for total disk space
- * @param server The server
- * @param data Data (true) or WAL (false)
- * @param query The resulting query
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_query_total_disk_space(int server, bool data, struct query** query);
 
 /**
  * Query PostgreSQL version

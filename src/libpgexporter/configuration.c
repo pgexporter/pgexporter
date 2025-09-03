@@ -216,7 +216,6 @@ pgexporter_read_configuration(void* shm, char* filename)
                   memset(&srv, 0, sizeof(struct server));
                   snprintf(&srv.name[0], MISC_LENGTH, "%s", section);
                   srv.fd = -1;
-                  srv.extension = true;
                   srv.state = SERVER_UNKNOWN;
                   srv.version = SERVER_UNDERTERMINED_VERSION;
 
@@ -3414,7 +3413,6 @@ copy_server(struct server* dst, struct server* src)
    memcpy(&dst->wal[0], &src->wal[0], MISC_LENGTH);
    memcpy(&dst->extensions_config[0], &src->extensions_config[0], MAX_EXTENSIONS_CONFIG_LENGTH);
    dst->fd = src->fd;
-   dst->extension = true;
 }
 
 static void
