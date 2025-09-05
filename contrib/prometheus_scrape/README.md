@@ -1,25 +1,29 @@
 # Prometheus Metrics Documentation Generator
 
-This script automatically generates documentation for Prometheus metrics exposed on `localhost`. It fetches metrics from a specified port and combines them with additional information from an extra file to produce both Markdown (`prometheus.md`) and HTML (`prometheus.html`) documentation files.
+This Python script generates comprehensive documentation for pgexporter's Prometheus metrics. It fetches live metrics from your running pgexporter instance and enriches them with detailed descriptions from an extra info file.
 
 ## Requirements
 
-*   **Bash:** The script is written in Bash.
-*   **Standard GNU/Linux Utilities:** Requires common tools like `curl`, `awk`, `sed`, `grep`, `sort`, `printf`, `cat`, `rm`, `cut`, `tr`, `paste`. These are typically available on most Linux distributions.
-*   **Running Service:** The service exposing Prometheus metrics must be running and accessible on the specified port on `localhost`.
+*   **Python 3.6+** 
+*   **requests library:** Install with `pip install requests`
+*   **Running pgexporter:** Your pgexporter service must be running and exposing metrics
 
 ## Usage
 
-Execute the script from your terminal, providing the port number and the path to the extra information file as arguments:
-
 ```bash
-./prometheus.sh <port> <extra_info_file>
+./prometheus.py <port> <extra_info_file> [options]
 ```
 
 **Arguments:**
+*   `<port>`: Port where pgexporter is exposing metrics (usually 5002)
+*   `<extra_info_file>`: File containing metric descriptions (typically `extra.info`)
 
-*   `<port>`: The TCP port number on `localhost` where the Prometheus metrics endpoint (`/metrics`) is available.
-*   `<extra_info_file>`: The path to a text file containing supplementary descriptions and details for the metrics.
+**Options:**
+*   `--manual`: Generate simple bullet-point format (like the user manual)
+*   `--md`: Generate detailed markdown with examples and descriptions  
+*   `--html`: Generate HTML documentation with styling
+*   `--toc`: Include table of contents
+*   Default (no options): Generates detailed markdown + HTML + TOC
 
 ## `extra_info_file` Format
 
@@ -70,14 +74,24 @@ Each metric entry in the output files follows this structure:
 *   Attributes Table (generated *only* if `* Key: Value` lines were present in `extra.info`)
 *   Example (a sample raw metric line, preferably from the `postgres` database if available, otherwise the first one found)
 
-## Example Usage
+## Examples
 
-To generate documentation from metrics exposed on port `5002` using the file `extra.info` located in the current directory:
-
+Generate full documentation with examples and descriptions:
 ```bash
-./prometheus.sh 5002 extra.info
+./prometheus.py 5002 extra.info
 ```
 
-This will create `prometheus.md` and `prometheus.html` in the current directory.
+Generate just markdown in simple bullet-point format:
+```bash  
+./prometheus.py 5002 extra.info --manual
+```
 
-**Note**: By default the metrics are extracted from `postgres` for generating the example section. The `extra.info` files comes packaged with the core metrics that **pgexporter** supports but the document generation may skip metrics if they are not exposed by prometheus. This may occur due to lower Postgres versions or due to missing extensions which are not pulled by prometheus.
+Generate detailed markdown with table of contents:
+```bash
+./prometheus.py 5002 extra.info --md --toc
+```
+
+Generate both HTML and markdown:
+```bash
+./prometheus.py 5002 extra.info --md --html
+```
