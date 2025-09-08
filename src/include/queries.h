@@ -83,6 +83,14 @@ struct query_alts_base
 } __attribute__ ((aligned (64)));
 
 /**
+ * Check if user has pg_monitor role
+ * @param server The server
+ * @return 0 if user has pg_monitor role, otherwise 1
+ */
+int
+pgexporter_check_pg_monitor_role(int server);
+
+/**
  * Open database connections
  */
 void

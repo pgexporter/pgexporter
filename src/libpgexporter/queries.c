@@ -53,6 +53,62 @@ static int pgexporter_detect_databases(int server);
 static int pgexporter_detect_extensions(int server);
 static int pgexporter_connect_db(int server, char* database);
 
+int
+pgexporter_check_pg_monitor_role(int server)
+{
+   struct query* q = NULL;
+   struct configuration* config;
+   int ret = 1;
+
+   config = (struct configuration*)shmem;
+
+   if (config->servers[server].fd == -1)
+   {
+      pgexporter_log_error("Cannot check pg_monitor role: no active connection to server '%s'", 
+                           &config->servers[server].name[0]);
+      return 1;
+   }
+
+   if (pgexporter_query_execute(server, 
+                               "SELECT pg_has_role(current_user, 'pg_monitor', 'USAGE') AS has_pg_monitor;",
+                               "pg_monitor_check", &q) == 0 && q != NULL)
+   {
+      if (q->tuples != NULL && q->tuples->data != NULL && q->tuples->data[0] != NULL)
+      {
+         if (strcmp(q->tuples->data[0], "t") == 0)
+         {
+            ret = 0;
+            pgexporter_log_debug("User has pg_monitor role on server '%s'", &config->servers[server].name[0]);
+         }
+         else
+         {
+            pgexporter_log_error("User '%s' lacks pg_monitor role on server '%s'. "
+                                "Grant pg_monitor role: GRANT pg_monitor TO %s;", 
+                                &config->servers[server].username[0],
+                                &config->servers[server].name[0],
+                                &config->servers[server].username[0]);
+            ret = 1;
+         }
+      }
+      else
+      {
+         pgexporter_log_error("Failed to check pg_monitor role on server '%s': empty result",
+                              &config->servers[server].name[0]);
+         ret = 1;
+      }
+      
+      pgexporter_free_query(q);
+   }
+   else
+   {
+      pgexporter_log_error("Failed to execute pg_monitor role check query on server '%s'",
+                           &config->servers[server].name[0]);
+      ret = 1;
+   }
+
+   return ret;
+}
+
 void
 pgexporter_open_connections(void)
 {
@@ -99,6 +155,17 @@ pgexporter_open_connections(void)
             {
                process_server_parameters(server, server_parameters);
                pgexporter_deque_destroy(server_parameters);
+            }
+
+            if (pgexporter_check_pg_monitor_role(server) != 0)
+            {
+               pgexporter_log_fatal("Server '%s': pg_monitor role check failed. pgexporter cannot function without proper permissions.", 
+                                   &config->servers[server].name[0]);
+               pgexporter_disconnect(config->servers[server].fd);
+               config->servers[server].fd = -1;
+               config->servers[server].new = false;
+               config->servers[server].state = SERVER_UNKNOWN;
+               exit(1);
             }
 
             pgexporter_detect_databases(server);
