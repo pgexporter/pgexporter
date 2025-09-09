@@ -3,7 +3,7 @@
 # Command line interface
 
 ``` sh
-pgexporter-cli 0.7.0
+pgexporter-cli 0.8.0
   Command line utility for pgexporter
 
 Usage:

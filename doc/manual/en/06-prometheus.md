@@ -34,7 +34,7 @@ Exposes the version of the running pgexporter service through labels.
 
 | Attribute | Description |
 | :-------- | :---------- |
-| pgexporter_version | The semantic version string of the running pgexporter (e.g., "0.7.0"). |
+| pgexporter_version | The semantic version string of the running pgexporter (e.g., "0.8.0"). |
 
 ## pgexporter_postgresql_active
 
