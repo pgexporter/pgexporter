@@ -1,5 +1,5 @@
 Name:          pgexporter
-Version:       0.7.0
+Version:       0.7.1
 Release:       1%{dist}
 Summary:       Prometheus exporter for PostgreSQL
 License:       BSD

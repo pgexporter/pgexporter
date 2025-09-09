@@ -5,7 +5,7 @@
 Make sure that [**pgexporter**][pgexporter] is installed and in your path by using `pgexporter -?`. You should see
 
 ``` console
-pgexporter 0.7.0
+pgexporter 0.7.1
   Prometheus exporter for PostgreSQL
 
 Usage:
@@ -103,7 +103,7 @@ If this doesn't give an error, then we are ready to do backups.
 You can see the commands it supports by using `pgexporter-cli -?` which will give
 
 ``` console
-pgexporter-cli 0.7.0
+pgexporter-cli 0.7.1
   Command line utility for pgexporter
 
 Usage:
@@ -164,7 +164,7 @@ connect with TLS using the files `~/.pgexporter/pgexporter.key` (must be 0600 pe
 You can see the commands it supports by using `pgexporter-admin -?` which will give
 
 ``` console
-pgexporter-admin 0.7.0
+pgexporter-admin 0.7.1
   Administration utility for pgexporter
 
 Usage:
