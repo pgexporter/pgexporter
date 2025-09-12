@@ -598,7 +598,7 @@ execute_testcases() {
    test_bridge_endpoint_with_curl
    
    ### RUN TESTCASES ###
-   run_as_postgres $TEST_DIRECTORY/pgexporter_test $PROJECT_DIRECTORY
+   run_as_postgres $TEST_DIRECTORY/pgexporter-test $PROJECT_DIRECTORY
    if [ $? -ne 0 ]; then
       # Kill pgexporter if tests failed
       pkill -f pgexporter || true
