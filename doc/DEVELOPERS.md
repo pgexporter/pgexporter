@@ -377,8 +377,7 @@ Remember to add your name to
 
 ```
 AUTHORS
-doc/manual/97-acknowledgement.md
-doc/manual/advanced/97-acknowledgement.md
+doc/manual/en/97-acknowledgement.md
 ```
 
 in your first pull request
