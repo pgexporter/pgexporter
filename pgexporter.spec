@@ -54,7 +54,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-15.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-15.yaml
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-16.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-16.yaml
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/prometheus_scrape/extra.info %{buildroot}%{_docdir}/%{name}/prometheus_scrape/extra.info
-%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/prometheus_scrape/prometheus.sh %{buildroot}%{_docdir}/%{name}/prometheus_scrape/prometheus.sh
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/prometheus_scrape/prometheus.py %{buildroot}%{_docdir}/%{name}/prometheus_scrape/prometheus.py
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/prometheus_scrape/README.md %{buildroot}%{_docdir}/%{name}/prometheus_scrape/README.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/extensions/pg_stat_statements.yaml %{buildroot}%{_datadir}/%{name}/extensions/pg_stat_statements.yaml
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/extensions/pg_buffercache.yaml %{buildroot}%{_datadir}/%{name}/extensions/pg_buffercache.yaml
@@ -104,7 +104,7 @@ cd %{buildroot}%{_libdir}/
 %{_docdir}/%{name}/yaml/postgresql-15.yaml
 %{_docdir}/%{name}/yaml/postgresql-16.yaml
 %{_docdir}/%{name}/prometheus_scrape/extra.info
-%{_docdir}/%{name}/prometheus_scrape/prometheus.sh
+%{_docdir}/%{name}/prometheus_scrape/prometheus.py
 %{_docdir}/%{name}/prometheus_scrape/README.md
 %{_datadir}/%{name}/extensions/pg_stat_statements.yaml
 %{_datadir}/%{name}/extensions/pg_buffercache.yaml
