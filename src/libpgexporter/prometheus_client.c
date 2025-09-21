@@ -724,13 +724,17 @@ add_line(struct prometheus_metric* metric, char* line, int endpoint, time_t time
       goto error;
    }
 
-   e = pgexporter_append(e, config->endpoints[endpoint].host);
-   e = pgexporter_append_char(e, ':');
-   e = pgexporter_append_int(e, config->endpoints[endpoint].port);
-
-   if (add_attribute(line_attrs, "endpoint", e))
+   /* endpoint labels added only for PostgreSQL servers, not for Prometheus pass-through */
+   if (config->servers[endpoint].type != SERVER_TYPE_PROMETHEUS)
    {
-      goto error;
+      e = pgexporter_append(e, config->endpoints[endpoint].host);
+      e = pgexporter_append_char(e, ':');
+      e = pgexporter_append_int(e, config->endpoints[endpoint].port);
+
+      if (add_attribute(line_attrs, "endpoint", e))
+      {
+         goto error;
+      }
    }
 
    /* Lines of the form:

@@ -1126,7 +1126,6 @@ core_information(SSL* client_ssl, int client_fd)
    }
 }
 
-
 static void
 extension_list_information(SSL* client_ssl, int client_fd)
 {
@@ -1197,7 +1196,6 @@ extension_list_information(SSL* client_ssl, int client_fd)
       data = NULL;
    }
 }
-
 
 static void
 settings_information(SSL* client_ssl, int client_fd)
