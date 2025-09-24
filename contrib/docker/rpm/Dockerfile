@@ -1,0 +1,16 @@
+ARG OS_VERSION=9
+
+FROM almalinux:$OS_VERSION-minimal
+
+RUN microdnf upgrade -y && \
+  microdnf install -y git gcc cmake make rpm-build rpm-devel rpmlint diffutils patch rpmdevtools chrpath && \
+  microdnf install --enablerepo=crb -y check-devel zlib-devel bzip2-devel lz4-devel libev-devel openssl-devel python3-docutils doxygen libyaml-devel lz4 systemd-devel && \
+  microdnf clean all && rm -rf /var/cache/yum && \
+  cd ~ && rpmdev-setuptree
+
+COPY ./build.sh /root/build.sh
+
+RUN chmod +x /root/build.sh && \
+  cd ~ && git clone https://github.com/pgexporter/pgexporter.git
+
+WORKDIR /root
