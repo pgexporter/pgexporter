@@ -217,6 +217,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                   snprintf(&srv.name[0], MISC_LENGTH, "%s", section);
                   srv.fd = -1;
                   srv.state = SERVER_UNKNOWN;
+                  srv.type = SERVER_TYPE_POSTGRESQL;
                   srv.version = SERVER_UNDERTERMINED_VERSION;
 
                   idx_server++;
@@ -309,6 +310,29 @@ pgexporter_read_configuration(void* shm, char* filename)
                         max = MAX_USERNAME_LENGTH - 1;
                      }
                      memcpy(&srv.username, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "type"))
+               {
+                  if (strlen(section) > 0)
+                  {
+                     if (!strcmp(value, "prometheus"))
+                     {
+                        srv.type = SERVER_TYPE_PROMETHEUS;
+                     }
+                     else if (!strcmp(value, "postgresql"))
+                     {
+                        srv.type = SERVER_TYPE_POSTGRESQL;
+                     }
+                     else
+                     {
+                        pgexporter_log_warn("Unknown server type '%s' for server '%s', defaulting to postgresql", value, section);
+                        srv.type = SERVER_TYPE_POSTGRESQL;
+                     }
                   }
                   else
                   {
@@ -1147,7 +1171,7 @@ pgexporter_validate_configuration(void* shm)
          return 1;
       }
 
-      if (strlen(config->servers[i].username) == 0)
+      if (config->servers[i].type == SERVER_TYPE_POSTGRESQL && strlen(config->servers[i].username) == 0)
       {
          pgexporter_log_fatal("pgexporter: No user defined for %s", config->servers[i].name);
          return 1;
@@ -1314,6 +1338,12 @@ pgexporter_validate_users_configuration(void* shm)
 
    for (int i = 0; i < config->number_of_servers; i++)
    {
+      /* no validation Prometheus servers */
+      if (config->servers[i].type == SERVER_TYPE_PROMETHEUS)
+      {
+         continue;
+      }
+
       bool found = false;
 
       for (int j = 0; !found && j < config->number_of_users; j++)
@@ -1815,6 +1845,31 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
             }
             memcpy(&config->servers[server_index].username, config_value, max);
             pgexporter_json_put(server_j, key, (uintptr_t)config->servers[server_index].username, ValueString);
+            pgexporter_json_put(response, config->servers[server_index].name, (uintptr_t)server_j, ValueJSON);
+         }
+         else
+         {
+            unknown = true;
+         }
+      }
+      else if (!strcmp(key, "type"))
+      {
+         if (strlen(section) > 0)
+         {
+            if (!strcmp(config_value, "prometheus"))
+            {
+               config->servers[server_index].type = SERVER_TYPE_PROMETHEUS;
+            }
+            else if (!strcmp(config_value, "postgresql"))
+            {
+               config->servers[server_index].type = SERVER_TYPE_POSTGRESQL;
+            }
+            else
+            {
+               pgexporter_log_warn("Unknown server type '%s' for server '%s', defaulting to postgresql", config_value, config->servers[server_index].name);
+               config->servers[server_index].type = SERVER_TYPE_POSTGRESQL;
+            }
+            pgexporter_json_put(server_j, key, (uintptr_t)config_value, ValueString);
             pgexporter_json_put(response, config->servers[server_index].name, (uintptr_t)server_j, ValueJSON);
          }
          else

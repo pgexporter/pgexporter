@@ -64,14 +64,14 @@ pgexporter_check_pg_monitor_role(int server)
 
    if (config->servers[server].fd == -1)
    {
-      pgexporter_log_error("Cannot check pg_monitor role: no active connection to server '%s'", 
+      pgexporter_log_error("Cannot check pg_monitor role: no active connection to server '%s'",
                            &config->servers[server].name[0]);
       return 1;
    }
 
-   if (pgexporter_query_execute(server, 
-                               "SELECT pg_has_role(current_user, 'pg_monitor', 'USAGE') AS has_pg_monitor;",
-                               "pg_monitor_check", &q) == 0 && q != NULL)
+   if (pgexporter_query_execute(server,
+                                "SELECT pg_has_role(current_user, 'pg_monitor', 'USAGE') AS has_pg_monitor;",
+                                "pg_monitor_check", &q) == 0 && q != NULL)
    {
       if (q->tuples != NULL && q->tuples->data != NULL && q->tuples->data[0] != NULL)
       {
@@ -83,10 +83,10 @@ pgexporter_check_pg_monitor_role(int server)
          else
          {
             pgexporter_log_error("User '%s' lacks pg_monitor role on server '%s'. "
-                                "Grant pg_monitor role: GRANT pg_monitor TO %s;", 
-                                &config->servers[server].username[0],
-                                &config->servers[server].name[0],
-                                &config->servers[server].username[0]);
+                                 "Grant pg_monitor role: GRANT pg_monitor TO %s;",
+                                 &config->servers[server].username[0],
+                                 &config->servers[server].name[0],
+                                 &config->servers[server].username[0]);
             ret = 1;
          }
       }
@@ -96,7 +96,7 @@ pgexporter_check_pg_monitor_role(int server)
                               &config->servers[server].name[0]);
          ret = 1;
       }
-      
+
       pgexporter_free_query(q);
    }
    else
@@ -121,6 +121,11 @@ pgexporter_open_connections(void)
 
    for (int server = 0; server < config->number_of_servers; server++)
    {
+      if (config->servers[server].type == SERVER_TYPE_PROMETHEUS)
+      {
+         continue;
+      }
+
       if (config->servers[server].fd != -1)
       {
          if (!pgexporter_connection_isvalid(config->servers[server].ssl, config->servers[server].fd))
@@ -159,8 +164,8 @@ pgexporter_open_connections(void)
 
             if (pgexporter_check_pg_monitor_role(server) != 0)
             {
-               pgexporter_log_fatal("Server '%s': pg_monitor role check failed. pgexporter cannot function without proper permissions.", 
-                                   &config->servers[server].name[0]);
+               pgexporter_log_fatal("Server '%s': pg_monitor role check failed. pgexporter cannot function without proper permissions.",
+                                    &config->servers[server].name[0]);
                pgexporter_disconnect(config->servers[server].fd);
                config->servers[server].fd = -1;
                config->servers[server].new = false;
@@ -232,13 +237,11 @@ pgexporter_close_connections(void)
    }
 }
 
-
 int
 pgexporter_query_execute(int server, char* sql, char* tag, struct query** query)
 {
    return query_execute(server, sql, tag, -1, NULL, query);
 }
-
 
 int
 pgexporter_query_version(int server, struct query** query)
