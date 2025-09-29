@@ -102,7 +102,6 @@ pgexporter_open_connections(void);
 void
 pgexporter_close_connections(void);
 
-
 /**
  * Execute query
  * @param server The server
@@ -113,7 +112,6 @@ pgexporter_close_connections(void);
  */
 int
 pgexporter_query_execute(int server, char* sql, char* tag, struct query** query);
-
 
 /**
  * Query PostgreSQL version
