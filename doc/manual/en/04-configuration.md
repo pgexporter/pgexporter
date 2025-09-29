@@ -63,21 +63,29 @@ See a [sample][sample] configuration for running [**pgexporter**][pgexporter] on
 
 ## Server section
 
-| Property       | Default | Unit | Required | Description |
-|----------------|---------|------|----------|-------------|
-| host | | String | Yes | The address of the PostgreSQL instance |
-| port | | Int | Yes | The port of the PostgreSQL instance |
-| user | | String | Yes | The user name |
-| data_dir | | String | No | The location of the data directory |
-| wal_dir | | String | No | The location of the WAL directory |
-| tls_cert_file | | String | No | Certificate file for TLS. This file must be owned by either the user running pgexporter or root. |
-| tls_key_file | | String | No | Private key file for TLS. This file must be owned by either the user running pgexporter or root. Additionally permissions must be at least `0640` when owned by root or `0600` otherwise. |
-| tls_ca_file | | String | No | Certificate Authority (CA) file for TLS. This file must be owned by either the user running pgexporter or root.  |
-| extensions | | String | No | Comma-separated list of extensions to enable for this specific server. Overrides global extensions setting. If specified, only listed extensions will be enabled. If empty, all extensions are disabled for this server. |
+| Property       | Default | Unit | Required | Applies To | Description |
+|----------------|---------|------|----------|------------|-------------|
+| host | | String | Yes | All | The address of the PostgreSQL instance or Prometheus endpoint |
+| port | | Int | Yes | All | The port of the PostgreSQL instance or Prometheus endpoint |
+| type | postgresql | String | No | All | The server type: `postgresql` or `prometheus` |
+| user | | String | Conditional | PostgreSQL | The user name. Required for `postgresql` type |
+| data_dir | | String | No | PostgreSQL | The location of the data directory |
+| wal_dir | | String | No | PostgreSQL | The location of the WAL directory |
+| tls_cert_file | | String | No | All | Certificate file for TLS. This file must be owned by either the user running pgexporter or root. |
+| tls_key_file | | String | No | All | Private key file for TLS. This file must be owned by either the user running pgexporter or root. Additionally permissions must be at least `0640` when owned by root or `0600` otherwise. |
+| tls_ca_file | | String | No | All | Certificate Authority (CA) file for TLS. This file must be owned by either the user running pgexporter or root.  |
+| extensions | | String | No | PostgreSQL | Comma-separated list of extensions to enable for this specific server. Overrides global extensions setting. If specified, only listed extensions will be enabled. If empty, all extensions are disabled for this server. |
 
-Note, that PostgreSQL 13+ is required.
+Note, that PostgreSQL 13+ is required for PostgreSQL servers.
 
 Note, that if `host` starts with a `/` it represents a path and [**pgexporter**][pgexporter] will connect using a Unix Domain Socket.
+
+## Server Types
+
+The `type` property defines how [**pgexporter**][pgexporter] interacts with the server:
+
+- **`postgresql`** (default): PostgreSQL database server for direct metrics collection. Requires `user` property and establishes database connections.
+- **`prometheus`**: Prometheus-compatible HTTP endpoint for metrics scraping. No `user` property required. Metrics pass through unchanged.
 
 ## Extension Configuration
 

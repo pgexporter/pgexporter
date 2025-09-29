@@ -30,6 +30,7 @@
 #include <openssl/crypto.h>
 #include <pgexporter.h>
 #include <extension.h>
+#include <http.h>
 #include <logging.h>
 #include <memory.h>
 #include <message.h>
@@ -133,6 +134,7 @@ static void primary_information(SSL* client_ssl, int client_fd);
 static void settings_information(SSL* client_ssl, int client_fd);
 static void custom_metrics(SSL* client_ssl, int client_fd); // Handles custom metrics provided in YAML format, both internal and external
 static void extension_metrics(SSL* client_ssl, int client_fd);
+static void prometheus_endpoints_information(SSL* client_ssl, int client_fd);
 static void append_help_info(char** data, char* tag, char* name, char* description);
 static void append_type_info(char** data, char* tag, char* name, int typeId);
 
@@ -695,6 +697,8 @@ retry_cache_locking:
 
          pgexporter_close_connections();
 
+         prometheus_endpoints_information(client_ssl, client_fd);
+
          /* Footer */
          data = pgexporter_append(data, "0\r\n\r\n");
 
@@ -1126,7 +1130,6 @@ core_information(SSL* client_ssl, int client_fd)
    }
 }
 
-
 static void
 extension_list_information(SSL* client_ssl, int client_fd)
 {
@@ -1197,7 +1200,6 @@ extension_list_information(SSL* client_ssl, int client_fd)
       data = NULL;
    }
 }
-
 
 static void
 settings_information(SSL* client_ssl, int client_fd)
@@ -2980,4 +2982,86 @@ metrics_cache_finalize(void)
    now = time(NULL);
    cache->valid_until = now + config->metrics_cache_max_age;
    return cache->valid_until > now;
+}
+
+static void
+prometheus_endpoints_information(SSL* client_ssl, int client_fd)
+{
+   char* data = NULL;
+   struct http* http = NULL;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   for (int i = 0; i < config->number_of_servers; i++)
+   {
+      if (config->servers[i].type != SERVER_TYPE_PROMETHEUS)
+      {
+         continue;
+      }
+
+      pgexporter_log_trace("Scraping Prometheus endpoint: %s:%d", config->servers[i].host, config->servers[i].port);
+
+      if (pgexporter_http_connect(config->servers[i].host, config->servers[i].port, false, &http))
+      {
+         pgexporter_log_warn("Failed to connect to Prometheus endpoint %s (%s:%d)",
+                             config->servers[i].name,
+                             config->servers[i].host,
+                             config->servers[i].port);
+         goto next;
+      }
+
+      if (pgexporter_http_get(http, config->servers[i].host, "/metrics"))
+      {
+         pgexporter_log_warn("Failed to get metrics from Prometheus endpoint %s (%s:%d/metrics)",
+                             config->servers[i].name,
+                             config->servers[i].host,
+                             config->servers[i].port);
+         goto next;
+      }
+
+      if (http->body != NULL && strlen(http->body) > 0)
+      {
+         char* line = NULL;
+         char* body_copy = NULL;
+         char* saveptr = NULL;
+         bool first_line = true;
+
+         body_copy = strdup(http->body);
+         if (body_copy == NULL)
+         {
+            goto next;
+         }
+
+         line = strtok_r(body_copy, "\n", &saveptr);
+         while (line != NULL)
+         {
+            if (!first_line && strncmp(line, "#HELP", 5) == 0)
+            {
+               data = pgexporter_append(data, "\n");
+            }
+
+            data = pgexporter_append(data, line);
+            data = pgexporter_append(data, "\n");
+
+            first_line = false;
+            line = strtok_r(NULL, "\n", &saveptr);
+         }
+
+         free(body_copy);
+
+         send_chunk(client_ssl, client_fd, data);
+         metrics_cache_append(data);
+         free(data);
+         data = NULL;
+      }
+
+next:
+      if (http != NULL)
+      {
+         pgexporter_http_disconnect(http);
+         pgexporter_http_destroy(http);
+         http = NULL;
+      }
+   }
 }

@@ -72,6 +72,7 @@ static int as_logging_type(char* str);
 static int as_logging_level(char* str);
 static int as_logging_mode(char* str);
 static int as_hugepage(char* str);
+static int as_server_type(char* str);
 static unsigned int as_update_process_title(char* str, unsigned int default_policy);
 static int as_logging_rotation_size(char* str, size_t* size);
 static int as_logging_rotation_age(char* str, int* age);
@@ -217,6 +218,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                   snprintf(&srv.name[0], MISC_LENGTH, "%s", section);
                   srv.fd = -1;
                   srv.state = SERVER_UNKNOWN;
+                  srv.type = SERVER_TYPE_POSTGRESQL;
                   srv.version = SERVER_UNDERTERMINED_VERSION;
 
                   idx_server++;
@@ -309,6 +311,17 @@ pgexporter_read_configuration(void* shm, char* filename)
                         max = MAX_USERNAME_LENGTH - 1;
                      }
                      memcpy(&srv.username, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "type"))
+               {
+                  if (strlen(section) > 0)
+                  {
+                     srv.type = as_server_type(value);
                   }
                   else
                   {
@@ -1147,7 +1160,7 @@ pgexporter_validate_configuration(void* shm)
          return 1;
       }
 
-      if (strlen(config->servers[i].username) == 0)
+      if (config->servers[i].type == SERVER_TYPE_POSTGRESQL && strlen(config->servers[i].username) == 0)
       {
          pgexporter_log_fatal("pgexporter: No user defined for %s", config->servers[i].name);
          return 1;
@@ -1315,6 +1328,11 @@ pgexporter_validate_users_configuration(void* shm)
    for (int i = 0; i < config->number_of_servers; i++)
    {
       bool found = false;
+
+      if (config->servers[i].type == SERVER_TYPE_PROMETHEUS)
+      {
+         continue;
+      }
 
       for (int j = 0; !found && j < config->number_of_users; j++)
       {
@@ -1815,6 +1833,19 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
             }
             memcpy(&config->servers[server_index].username, config_value, max);
             pgexporter_json_put(server_j, key, (uintptr_t)config->servers[server_index].username, ValueString);
+            pgexporter_json_put(response, config->servers[server_index].name, (uintptr_t)server_j, ValueJSON);
+         }
+         else
+         {
+            unknown = true;
+         }
+      }
+      else if (!strcmp(key, "type"))
+      {
+         if (strlen(section) > 0)
+         {
+            config->servers[server_index].type = as_server_type(config_value);
+            pgexporter_json_put(server_j, key, (uintptr_t)config_value, ValueString);
             pgexporter_json_put(response, config->servers[server_index].name, (uintptr_t)server_j, ValueJSON);
          }
          else
@@ -2720,6 +2751,22 @@ as_logging_type(char* str)
    }
 
    return 0;
+}
+
+static int
+as_server_type(char* str)
+{
+   if (!strcasecmp(str, "prometheus"))
+   {
+      return SERVER_TYPE_PROMETHEUS;
+   }
+
+   if (!strcasecmp(str, "postgresql"))
+   {
+      return SERVER_TYPE_POSTGRESQL;
+   }
+
+   return SERVER_TYPE_POSTGRESQL;
 }
 
 static int

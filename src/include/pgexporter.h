@@ -83,6 +83,9 @@ extern "C" {
 #define SERVER_PRIMARY 1
 #define SERVER_REPLICA 2
 
+#define SERVER_TYPE_POSTGRESQL 0
+#define SERVER_TYPE_PROMETHEUS 1
+
 #define AUTH_SUCCESS      0
 #define AUTH_BAD_PASSWORD 1
 #define AUTH_ERROR        2
@@ -255,6 +258,7 @@ struct server
    char name[MISC_LENGTH];                                      /**< The name of the server */
    char host[MISC_LENGTH];                                      /**< The host name of the server */
    int port;                                                    /**< The port of the server */
+   int type;                                                    /**< The server type */
    char username[MAX_USERNAME_LENGTH];                          /**< The user name */
    char data[MISC_LENGTH];                                      /**< The data directory */
    char wal[MISC_LENGTH];                                       /**< The WAL directory */
