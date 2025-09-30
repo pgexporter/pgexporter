@@ -40,6 +40,7 @@
 #include <security.h>
 #include <shmem.h>
 #include <utils.h>
+#include <utf8.h>
 #include <value.h>
 #include <yaml_configuration.h>
 
@@ -1233,6 +1234,42 @@ pgexporter_read_users_configuration(void* shm, char* filename)
                goto error;
             }
 
+            // Validate password is valid UTF-8
+            if (!pgexporter_utf8_valid((unsigned char*)password, strlen(password)))
+            {
+               warnx("pgexporter: Invalid USER entry: invalid UTF-8 password for user '%s'", username);
+               warnx("%s", line);
+               free(password);
+               free(decoded);
+               password = NULL;
+               decoded = NULL;
+               continue;
+            }
+
+            // Check character length
+            size_t char_count = pgexporter_utf8_char_length((unsigned char*)password, strlen(password));
+            if (char_count == (size_t)-1)
+            {
+               warnx("pgexporter: Invalid USER entry: error counting UTF-8 characters for user '%s'", username);
+               warnx("%s", line);
+               free(password);
+               free(decoded);
+               password = NULL;
+               decoded = NULL;
+               continue;
+            }
+            if (char_count > MAX_PASSWORD_CHARS)
+            {
+               pgexporter_log_warn("Password too long for user '%s' (%zu characters)", username, char_count);
+               warnx("pgexporter: Invalid USER entry");
+               warnx("%s", line);
+               free(password);
+               free(decoded);
+               password = NULL;
+               decoded = NULL;
+               continue;
+            }
+
             if (strlen(username) < MAX_USERNAME_LENGTH &&
                 strlen(password) < MAX_PASSWORD_LENGTH)
             {
@@ -1415,6 +1452,42 @@ pgexporter_read_admins_configuration(void* shm, char* filename)
                goto error;
             }
 
+            // Validate password is valid UTF-8
+            if (!pgexporter_utf8_valid((unsigned char*)password, strlen(password)))
+            {
+               warnx("pgexporter: Invalid ADMIN entry: invalid UTF-8 password for user '%s'", username);
+               warnx("%s", line);
+               free(password);
+               free(decoded);
+               password = NULL;
+               decoded = NULL;
+               continue;
+            }
+
+            // Check character length
+            size_t char_count = pgexporter_utf8_char_length((unsigned char*)password, strlen(password));
+            if (char_count == (size_t)-1)
+            {
+               warnx("pgexporter: Invalid ADMIN entry: error counting UTF-8 characters for user '%s'", username);
+               warnx("%s", line);
+               free(password);
+               free(decoded);
+               password = NULL;
+               decoded = NULL;
+               continue;
+            }
+            if (char_count > MAX_PASSWORD_CHARS)
+            {
+               pgexporter_log_warn("Password too long for user '%s' (%zu characters)", username, char_count);
+               warnx("pgexporter: Invalid ADMIN entry");
+               warnx("%s", line);
+               free(password);
+               free(decoded);
+               password = NULL;
+               decoded = NULL;
+               continue;
+            }
+
             if (strlen(username) < MAX_USERNAME_LENGTH &&
                 strlen(password) < MAX_PASSWORD_LENGTH)
             {
@@ -1426,6 +1499,14 @@ pgexporter_read_admins_configuration(void* shm, char* filename)
                warnx("pgexporter: Invalid ADMIN entry");
                warnx("%s", line);
             }
+
+            free(password);
+            free(decoded);
+
+            password = NULL;
+            decoded = NULL;
+
+            index++;
 
             free(password);
             free(decoded);

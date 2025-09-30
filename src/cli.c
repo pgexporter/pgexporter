@@ -37,6 +37,7 @@
 #include <network.h>
 #include <security.h>
 #include <shmem.h>
+#include <utf8.h>
 #include <utils.h>
 #include <value.h>
 
@@ -561,12 +562,23 @@ password:
          do_free = false;
       }
 
-      for (size_t i = 0; i < strlen(password); i++)
+      // Validate password is valid UTF-8
+      if (!pgexporter_utf8_valid((const unsigned char*)password, strlen(password)))
       {
-         if ((unsigned char)(*(password + i)) & 0x80)
-         {
-            goto password;
-         }
+         warnx("pgexporter-cli: Invalid UTF-8 sequence in password");
+         goto password;
+      }
+      // Check character length
+      size_t char_count = pgexporter_utf8_char_length((const unsigned char*)password, strlen(password));
+      if (char_count == (size_t)-1)
+      {
+         warnx("pgexporter-cli: Error counting UTF-8 characters in password");
+         goto password;
+      }
+      if (char_count > MAX_PASSWORD_CHARS)
+      {
+         warnx("pgexporter-cli: Password too long (%zu characters). Maximum allowed: %d characters.", char_count, MAX_PASSWORD_CHARS);
+         goto password;
       }
 
       /* Authenticate */

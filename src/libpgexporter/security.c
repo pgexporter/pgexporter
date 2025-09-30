@@ -35,6 +35,7 @@
 #include <network.h>
 #include <prometheus.h>
 #include <security.h>
+#include <utf8.h>
 #include <utils.h>
 
 /* system */
@@ -1909,27 +1910,30 @@ error:
 static int
 sasl_prep(char* password, char** password_prep)
 {
-   char* p = NULL;
+   size_t char_count;
 
-   /* Only support ASCII for now */
-   for (size_t i = 0; i < strlen(password); i++)
+   if (!password || !password_prep)
    {
-      if ((unsigned char)(*(password + i)) & 0x80)
-      {
-         goto error;
-      }
+      goto error;
+   }
+   // Validate password is valid UTF-8
+   if (!pgexporter_utf8_valid((const unsigned char*)password, strlen(password)))
+   {
+      goto error;
    }
 
-   p = strdup(password);
+   // Validate the character count in the password
+   char_count = pgexporter_utf8_char_length((const unsigned char*)password, strlen(password));
+   if (char_count == (size_t)-1 || char_count > MAX_PASSWORD_CHARS)
+   {
+      goto error;
+   }
 
-   *password_prep = p;
-
+   *password_prep = strdup(password);
    return 0;
 
 error:
-
    *password_prep = NULL;
-
    return 1;
 }
 
