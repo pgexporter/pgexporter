@@ -5008,3 +5008,294 @@ Time elapsed (in milliseconds) since the last index scan occurred on any index o
 | server | The configured name/identifier for the PostgreSQL server. |
 | relname | The name of the table or materialized view the index belongs to. |
 
+## pgexporter_pg_stat_io_read_bytes
+
+Total bytes read across all I/O operations, sourced from `pg_stat_io`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| backend_type | Type of backend process (e.g., client backend, autovacuum worker, checkpointer). |
+
+## pgexporter_pg_stat_io_write_bytes
+
+Total bytes written across all I/O operations, sourced from `pg_stat_io`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| backend_type | Type of backend process. |
+
+## pgexporter_pg_stat_io_extend_bytes
+
+Total bytes extended (relation file growth) across all I/O operations, sourced from `pg_stat_io`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| backend_type | Type of backend process. |
+
+## pgexporter_pg_stat_user_tables_total_vacuum_time
+
+Total time (milliseconds) spent vacuuming this table since statistics reset, from `pg_stat_user_tables`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The database being monitored. |
+| schemaname | Schema name. |
+| relname | Table name. |
+
+## pgexporter_pg_stat_user_tables_total_autovacuum_time
+
+Total time (milliseconds) spent auto-vacuuming this table since statistics reset, from `pg_stat_user_tables`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The database being monitored. |
+| schemaname | Schema name. |
+| relname | Table name. |
+
+## pgexporter_pg_stat_user_tables_total_analyze_time
+
+Total time (milliseconds) spent analyzing this table since statistics reset, from `pg_stat_user_tables`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The database being monitored. |
+| schemaname | Schema name. |
+| relname | Table name. |
+
+## pgexporter_pg_stat_user_tables_total_autoanalyze_time
+
+Total time (milliseconds) spent auto-analyzing this table since statistics reset, from `pg_stat_user_tables`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The database being monitored. |
+| schemaname | Schema name. |
+| relname | Table name. |
+
+## pgexporter_pg_stat_database_parallel_workers_to_launch
+
+Number of parallel workers PostgreSQL attempted to launch for this database, from `pg_stat_database`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The database being monitored. |
+
+## pgexporter_pg_stat_database_parallel_workers_launched
+
+Number of parallel workers successfully launched for this database, from `pg_stat_database`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The database being monitored. |
+
+## pgexporter_pg_stat_checkpointer_num_done
+
+Total number of checkpoints completed (sum of timed and requested), from `pg_stat_checkpointer`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+## pgexporter_pg_stat_checkpointer_slru_written
+
+Number of SLRU (Simple LRU) buffers written during checkpoints, from `pg_stat_checkpointer`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+## pgexporter_pg_stat_progress_vacuum_delay_time
+
+Total time (milliseconds) spent in vacuum delay/throttling for currently running vacuum operations, from `pg_stat_progress_vacuum`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The database being monitored. |
+| pid | Process ID of the vacuum operation. |
+
+## pgexporter_pg_stat_progress_analyze_delay_time
+
+Total time (milliseconds) spent in analyze delay/throttling for currently running analyze operations, from `pg_stat_progress_analyze`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The database being monitored. |
+| pid | Process ID of the analyze operation. |
+
+## pgexporter_pg_stat_subscription_stats_confl_insert_exists
+
+Number of conflicts where INSERT tried to insert an existing row in logical replication, from `pg_stat_subscription_stats`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| subname | Subscription name. |
+
+## pgexporter_pg_stat_subscription_stats_confl_update_origin_differs
+
+Number of conflicts where UPDATE had different origin in logical replication, from `pg_stat_subscription_stats`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| subname | Subscription name. |
+
+## pgexporter_pg_stat_subscription_stats_confl_update_exists
+
+Number of conflicts where UPDATE target already exists in logical replication, from `pg_stat_subscription_stats`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| subname | Subscription name. |
+
+## pgexporter_pg_stat_subscription_stats_confl_update_missing
+
+Number of conflicts where UPDATE target is missing in logical replication, from `pg_stat_subscription_stats`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| subname | Subscription name. |
+
+## pgexporter_pg_stat_subscription_stats_confl_delete_origin_differs
+
+Number of conflicts where DELETE had different origin in logical replication, from `pg_stat_subscription_stats`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| subname | Subscription name. |
+
+## pgexporter_pg_stat_subscription_stats_confl_delete_missing
+
+Number of conflicts where DELETE target is missing in logical replication, from `pg_stat_subscription_stats`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| subname | Subscription name. |
+
+## pgexporter_pg_stat_subscription_stats_confl_multiple_unique_conflicts
+
+Number of conflicts with multiple unique constraint violations in logical replication, from `pg_stat_subscription_stats`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| subname | Subscription name. |
+
+## pgexporter_pg_aios_total_operations
+
+Total number of asynchronous I/O operations in a given state, from `pg_aios`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| state | State of async I/O operation (in_progress, complete, error). |
+| operation | Type of I/O operation (read, write, fsync, etc.). |
+
+## pgexporter_pg_aios_total_bytes
+
+Total bytes involved in asynchronous I/O operations, from `pg_aios`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| state | State of async I/O operation. |
+| operation | Type of I/O operation. |
+
+## pgexporter_pg_aios_avg_bytes_per_op
+
+Average bytes per asynchronous I/O operation, from `pg_aios`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| state | State of async I/O operation. |
+| operation | Type of I/O operation. |
+
+## pgexporter_pg_aios_sync_operations
+
+Number of asynchronous I/O operations with sync flag, from `pg_aios`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| state | State of async I/O operation. |
+| operation | Type of I/O operation. |
+
+## pgexporter_pg_aios_buffered_operations
+
+Number of buffered asynchronous I/O operations, from `pg_aios`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| state | State of async I/O operation. |
+| operation | Type of I/O operation. |
+
+## pgexporter_pg_shmem_allocations_numa_allocations
+
+Number of shared memory allocations on a specific NUMA node, from `pg_shmem_allocations_numa`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| numa_node | NUMA node number. |
+
+## pgexporter_pg_shmem_allocations_numa_total_bytes
+
+Total bytes allocated on a specific NUMA node, from `pg_shmem_allocations_numa`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| numa_node | NUMA node number. |
+
+## pgexporter_pg_shmem_allocations_numa_avg_bytes
+
+Average allocation size on a specific NUMA node, from `pg_shmem_allocations_numa`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| numa_node | NUMA node number. |
+
+## pgexporter_pg_shmem_allocations_numa_max_bytes
+
+Maximum allocation size on a specific NUMA node, from `pg_shmem_allocations_numa`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| numa_node | NUMA node number. |
+
+## pgexporter_pg_shmem_allocations_numa_min_bytes
+
+Minimum allocation size on a specific NUMA node, from `pg_shmem_allocations_numa`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| numa_node | NUMA node number. |
+
+## pgexporter_pg_replication_slots_two_phase_at
+
+LSN at which two-phase commit state was enabled for replication slot, from `pg_replication_slots`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| slot_name | Replication slot name. |

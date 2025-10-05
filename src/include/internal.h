@@ -142,6 +142,56 @@ extern "C" {
         "      - description: Is the replication temporary\n" \
         "        name: temporary\n" \
         "        type: gauge\n" \
+        "\n" \
+        "    - query: SELECT\n" \
+        "                slot_name,\n" \
+        "                slot_type,\n" \
+        "                database,\n" \
+        "                active,\n" \
+        "                temporary,\n" \
+        "                two_phase,\n" \
+        "                two_phase_at,\n" \
+        "                EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - inactive_since))::bigint AS inactive_since_seconds,\n" \
+        "                conflicting,\n" \
+        "                invalidation_reason,\n" \
+        "                failover,\n" \
+        "                synced\n" \
+        "              FROM pg_replication_slots;\n" \
+        "      version: 18\n" \
+        "      columns:\n" \
+        "      - name: slot_name\n" \
+        "        type: label\n" \
+        "      - name: slot_type\n" \
+        "        type: label\n" \
+        "      - name: database\n" \
+        "        type: label\n" \
+        "      - name: active\n" \
+        "        type: gauge\n" \
+        "        description: Is the replication active\n" \
+        "      - name: temporary\n" \
+        "        type: gauge\n" \
+        "        description: Is the replication temporary\n" \
+        "      - name: two_phase\n" \
+        "        type: gauge\n" \
+        "        description: Is two-phase commit enabled for this slot\n" \
+        "      - name: two_phase_at\n" \
+        "        type: label\n" \
+        "        description: LSN at which two-phase state was enabled\n" \
+        "      - name: inactive_since_seconds\n" \
+        "        type: gauge\n" \
+        "        description: Seconds since slot became inactive (-1 if active or NULL)\n" \
+        "      - name: conflicting\n" \
+        "        type: gauge\n" \
+        "        description: Is this slot conflicting with other slots\n" \
+        "      - name: invalidation_reason\n" \
+        "        type: label\n" \
+        "        description: Reason slot was invalidated\n" \
+        "      - name: failover\n" \
+        "        type: gauge\n" \
+        "        description: Is failover enabled for this slot\n" \
+        "      - name: synced\n" \
+        "        type: gauge\n" \
+        "        description: Is this slot synced from primary\n" \
         "    tag: pg_replication_slots\n" \
         "    sort: data\n" \
         "    collector: replication\n" \
@@ -728,6 +778,42 @@ extern "C" {
         "    tag: pg_shmem_allocations\n" \
         "    collector: shmem_size\n" \
         "\n" \
+        "# Shared memory allocations per NUMA node\n" \
+        "  - queries:\n" \
+        "    - query: SELECT\n" \
+        "                numa_node,\n" \
+        "                COUNT(*) AS allocations,\n" \
+        "                SUM(size) AS total_bytes,\n" \
+        "                AVG(size) AS avg_bytes,\n" \
+        "                MAX(size) AS max_bytes,\n" \
+        "                MIN(size) AS min_bytes\n" \
+        "              FROM pg_shmem_allocations_numa\n" \
+        "              GROUP BY numa_node\n" \
+        "              ORDER BY numa_node;\n" \
+        "      version: 18\n" \
+        "      columns:\n" \
+        "        - name: numa_node\n" \
+        "          type: label\n" \
+        "          description: NUMA node number\n" \
+        "        - name: allocations\n" \
+        "          type: gauge\n" \
+        "          description: Number of shared memory allocations on this NUMA node\n" \
+        "        - name: total_bytes\n" \
+        "          type: gauge\n" \
+        "          description: Total bytes allocated on this NUMA node\n" \
+        "        - name: avg_bytes\n" \
+        "          type: gauge\n" \
+        "          description: Average allocation size on this NUMA node\n" \
+        "        - name: max_bytes\n" \
+        "          type: gauge\n" \
+        "          description: Maximum allocation size on this NUMA node\n" \
+        "        - name: min_bytes\n" \
+        "          type: gauge\n" \
+        "          description: Minimum allocation size on this NUMA node\n" \
+        "    tag: pg_shmem_allocations_numa\n" \
+        "    sort: data\n" \
+        "    collector: shmem_numa\n" \
+        "\n" \
         "# Vacuum progress information\n" \
         "  - queries:\n" \
         "    - query: SELECT\n" \
@@ -854,9 +940,212 @@ extern "C" {
         "        - name: pct_index_completed\n" \
         "          type: gauge\n" \
         "          description: Index processing progress percentage\n" \
+        "\n" \
+        "    - query: SELECT\n" \
+        "                p.pid,\n" \
+        "                a.datname,\n" \
+        "                a.usename,\n" \
+        "                a.query,\n" \
+        "                p.phase,\n" \
+        "                p.heap_blks_total,\n" \
+        "                p.heap_blks_scanned,\n" \
+        "                p.heap_blks_vacuumed,\n" \
+        "                p.index_vacuum_count,\n" \
+        "                p.max_dead_tuple_bytes,\n" \
+        "                p.dead_tuple_bytes,\n" \
+        "                p.num_dead_item_ids,\n" \
+        "                p.indexes_total,\n" \
+        "                p.indexes_processed,\n" \
+        "                p.delay_time,\n" \
+        "                CASE WHEN p.heap_blks_total > 0\n" \
+        "                     THEN round(100 * p.heap_blks_scanned / p.heap_blks_total, 2)\n" \
+        "                     ELSE 0\n" \
+        "                END AS pct_scan_completed,\n" \
+        "                CASE WHEN p.indexes_total > 0\n" \
+        "                     THEN round(100 * p.indexes_processed / p.indexes_total, 2)\n" \
+        "                     ELSE 0\n" \
+        "                END AS pct_index_completed\n" \
+        "              FROM pg_stat_progress_vacuum p\n" \
+        "              JOIN pg_stat_activity a USING (pid)\n" \
+        "              ORDER BY p.pid;\n" \
+        "      version: 18\n" \
+        "      columns:\n" \
+        "        - name: pid\n" \
+        "          type: label\n" \
+        "        - name: datname\n" \
+        "          type: label\n" \
+        "        - name: usename\n" \
+        "          type: label\n" \
+        "        - name: query\n" \
+        "          type: label\n" \
+        "        - name: phase\n" \
+        "          type: label\n" \
+        "        - name: heap_blks_total\n" \
+        "          type: gauge\n" \
+        "          description: Total heap blocks in table\n" \
+        "        - name: heap_blks_scanned\n" \
+        "          type: gauge\n" \
+        "          description: Heap blocks scanned\n" \
+        "        - name: heap_blks_vacuumed\n" \
+        "          type: gauge\n" \
+        "          description: Heap blocks vacuumed\n" \
+        "        - name: index_vacuum_count\n" \
+        "          type: gauge\n" \
+        "          description: Number of index vacuum cycles completed\n" \
+        "        - name: max_dead_tuple_bytes\n" \
+        "          type: gauge\n" \
+        "          description: Maximum dead tuple bytes\n" \
+        "        - name: dead_tuple_bytes\n" \
+        "          type: gauge\n" \
+        "          description: Current dead tuple bytes\n" \
+        "        - name: num_dead_item_ids\n" \
+        "          type: gauge\n" \
+        "          description: Number of dead item identifiers\n" \
+        "        - name: indexes_total\n" \
+        "          type: gauge\n" \
+        "          description: Total number of indexes\n" \
+        "        - name: indexes_processed\n" \
+        "          type: gauge\n" \
+        "          description: Number of indexes processed\n" \
+        "        - name: delay_time\n" \
+        "          type: gauge\n" \
+        "          description: Total time spent in vacuum delay/throttling (milliseconds)\n" \
+        "        - name: pct_scan_completed\n" \
+        "          type: gauge\n" \
+        "          description: Vacuum scan progress percentage\n" \
+        "        - name: pct_index_completed\n" \
+        "          type: gauge\n" \
+        "          description: Index processing progress percentage\n" \
         "    tag: pg_stat_progress_vacuum\n" \
         "    sort: data\n" \
         "    collector: vacuum_progress\n" \
+        "\n" \
+        "# ANALYZE progress information\n" \
+        "  - queries:\n" \
+        "    - query: SELECT\n" \
+        "                p.pid,\n" \
+        "                a.datname,\n" \
+        "                a.usename,\n" \
+        "                p.phase,\n" \
+        "                p.sample_blks_total,\n" \
+        "                p.sample_blks_scanned,\n" \
+        "                p.ext_stats_total,\n" \
+        "                p.ext_stats_computed,\n" \
+        "                p.child_tables_total,\n" \
+        "                p.child_tables_done,\n" \
+        "                CASE\n" \
+        "                  WHEN p.sample_blks_total > 0\n" \
+        "                  THEN ROUND(100 * p.sample_blks_scanned / p.sample_blks_total, 2)\n" \
+        "                  ELSE 0\n" \
+        "                END AS pct_sample_completed,\n" \
+        "                CASE\n" \
+        "                  WHEN p.child_tables_total > 0\n" \
+        "                  THEN ROUND(100 * p.child_tables_done / p.child_tables_total, 2)\n" \
+        "                  ELSE 0\n" \
+        "                END AS pct_child_tables_completed\n" \
+        "              FROM pg_stat_progress_analyze p\n" \
+        "              JOIN pg_stat_activity a USING (pid)\n" \
+        "              ORDER BY p.pid;\n" \
+        "      version: 13\n" \
+        "      columns:\n" \
+        "        - name: pid\n" \
+        "          type: label\n" \
+        "        - name: datname\n" \
+        "          type: label\n" \
+        "        - name: usename\n" \
+        "          type: label\n" \
+        "        - name: phase\n" \
+        "          type: label\n" \
+        "        - name: sample_blks_total\n" \
+        "          type: gauge\n" \
+        "          description: Total blocks to sample\n" \
+        "        - name: sample_blks_scanned\n" \
+        "          type: gauge\n" \
+        "          description: Blocks sampled so far\n" \
+        "        - name: ext_stats_total\n" \
+        "          type: gauge\n" \
+        "          description: Total extended statistics to compute\n" \
+        "        - name: ext_stats_computed\n" \
+        "          type: gauge\n" \
+        "          description: Extended statistics computed\n" \
+        "        - name: child_tables_total\n" \
+        "          type: gauge\n" \
+        "          description: Total child tables to analyze\n" \
+        "        - name: child_tables_done\n" \
+        "          type: gauge\n" \
+        "          description: Child tables analyzed\n" \
+        "        - name: pct_sample_completed\n" \
+        "          type: gauge\n" \
+        "          description: Percentage of sampling completed\n" \
+        "        - name: pct_child_tables_completed\n" \
+        "          type: gauge\n" \
+        "          description: Percentage of child tables completed\n" \
+        "\n" \
+        "    - query: SELECT\n" \
+        "                p.pid,\n" \
+        "                a.datname,\n" \
+        "                a.usename,\n" \
+        "                p.phase,\n" \
+        "                p.sample_blks_total,\n" \
+        "                p.sample_blks_scanned,\n" \
+        "                p.ext_stats_total,\n" \
+        "                p.ext_stats_computed,\n" \
+        "                p.child_tables_total,\n" \
+        "                p.child_tables_done,\n" \
+        "                p.delay_time,\n" \
+        "                CASE\n" \
+        "                  WHEN p.sample_blks_total > 0\n" \
+        "                  THEN ROUND(100 * p.sample_blks_scanned / p.sample_blks_total, 2)\n" \
+        "                  ELSE 0\n" \
+        "                END AS pct_sample_completed,\n" \
+        "                CASE\n" \
+        "                  WHEN p.child_tables_total > 0\n" \
+        "                  THEN ROUND(100 * p.child_tables_done / p.child_tables_total, 2)\n" \
+        "                  ELSE 0\n" \
+        "                END AS pct_child_tables_completed\n" \
+        "              FROM pg_stat_progress_analyze p\n" \
+        "              JOIN pg_stat_activity a USING (pid)\n" \
+        "              ORDER BY p.pid;\n" \
+        "      version: 18\n" \
+        "      columns:\n" \
+        "        - name: pid\n" \
+        "          type: label\n" \
+        "        - name: datname\n" \
+        "          type: label\n" \
+        "        - name: usename\n" \
+        "          type: label\n" \
+        "        - name: phase\n" \
+        "          type: label\n" \
+        "        - name: sample_blks_total\n" \
+        "          type: gauge\n" \
+        "          description: Total blocks to sample\n" \
+        "        - name: sample_blks_scanned\n" \
+        "          type: gauge\n" \
+        "          description: Blocks sampled so far\n" \
+        "        - name: ext_stats_total\n" \
+        "          type: gauge\n" \
+        "          description: Total extended statistics to compute\n" \
+        "        - name: ext_stats_computed\n" \
+        "          type: gauge\n" \
+        "          description: Extended statistics computed\n" \
+        "        - name: child_tables_total\n" \
+        "          type: gauge\n" \
+        "          description: Total child tables to analyze\n" \
+        "        - name: child_tables_done\n" \
+        "          type: gauge\n" \
+        "          description: Child tables analyzed\n" \
+        "        - name: delay_time\n" \
+        "          type: gauge\n" \
+        "          description: Total time spent in analyze delay/throttling (milliseconds)\n" \
+        "        - name: pct_sample_completed\n" \
+        "          type: gauge\n" \
+        "          description: Percentage of sampling completed\n" \
+        "        - name: pct_child_tables_completed\n" \
+        "          type: gauge\n" \
+        "          description: Percentage of child tables completed\n" \
+        "    tag: pg_stat_progress_analyze\n" \
+        "    sort: data\n" \
+        "    collector: analyze_progress\n" \
         "\n" \
         "# Table-level vacuum and analyze statistics\n" \
         "  - queries:\n" \
@@ -1039,6 +1328,134 @@ extern "C" {
         "        - name: autoanalyze_count\n" \
         "          type: counter\n" \
         "          description: Number of times this table has been analyzed by autoanalyze\n" \
+        "\n" \
+        "    - query: SELECT\n" \
+        "                schemaname,\n" \
+        "                relname,\n" \
+        "                seq_scan,\n" \
+        "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_seq_scan))::bigint, -1) AS last_seq_scan_seconds,\n" \
+        "                seq_tup_read,\n" \
+        "                idx_scan,\n" \
+        "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_idx_scan))::bigint, -1) AS last_idx_scan_seconds,\n" \
+        "                idx_tup_fetch,\n" \
+        "                n_tup_ins,\n" \
+        "                n_tup_upd,\n" \
+        "                n_tup_del,\n" \
+        "                n_tup_hot_upd,\n" \
+        "                n_tup_newpage_upd,\n" \
+        "                n_live_tup,\n" \
+        "                n_dead_tup,\n" \
+        "                CASE\n" \
+        "                  WHEN n_live_tup > 0\n" \
+        "                  THEN ROUND((n_dead_tup::numeric / n_live_tup::numeric) * 100, 2)\n" \
+        "                  ELSE 0\n" \
+        "                END AS dead_rows_pct,\n" \
+        "                n_mod_since_analyze,\n" \
+        "                n_ins_since_vacuum,\n" \
+        "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_vacuum))::bigint, -1) AS last_vacuum_seconds,\n" \
+        "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_autovacuum))::bigint, -1) AS last_autovacuum_seconds,\n" \
+        "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_analyze))::bigint, -1) AS last_analyze_seconds,\n" \
+        "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_autoanalyze))::bigint, -1) AS last_autoanalyze_seconds,\n" \
+        "                vacuum_count,\n" \
+        "                autovacuum_count,\n" \
+        "                analyze_count,\n" \
+        "                autoanalyze_count,\n" \
+        "                total_vacuum_time,\n" \
+        "                total_autovacuum_time,\n" \
+        "                total_analyze_time,\n" \
+        "                total_autoanalyze_time\n" \
+        "              FROM pg_stat_user_tables\n" \
+        "              ORDER BY n_dead_tup DESC;\n" \
+        "      version: 18\n" \
+        "      columns:\n" \
+        "        - name: schemaname\n" \
+        "          type: label\n" \
+        "        - name: relname\n" \
+        "          type: label\n" \
+        "        - name: seq_scan\n" \
+        "          type: counter\n" \
+        "          description: Number of sequential scans initiated on this table\n" \
+        "        - name: last_seq_scan_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Seconds since last sequential scan (-1 if never)\n" \
+        "        - name: seq_tup_read\n" \
+        "          type: counter\n" \
+        "          description: Number of live rows fetched by sequential scans\n" \
+        "        - name: idx_scan\n" \
+        "          type: counter\n" \
+        "          description: Number of index scans initiated on this table\n" \
+        "        - name: last_idx_scan_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Seconds since last index scan (-1 if never)\n" \
+        "        - name: idx_tup_fetch\n" \
+        "          type: counter\n" \
+        "          description: Number of live rows fetched by index scans\n" \
+        "        - name: n_tup_ins\n" \
+        "          type: counter\n" \
+        "          description: Number of rows inserted\n" \
+        "        - name: n_tup_upd\n" \
+        "          type: counter\n" \
+        "          description: Number of rows updated\n" \
+        "        - name: n_tup_del\n" \
+        "          type: counter\n" \
+        "          description: Number of rows deleted\n" \
+        "        - name: n_tup_hot_upd\n" \
+        "          type: counter\n" \
+        "          description: Number of rows HOT updated\n" \
+        "        - name: n_tup_newpage_upd\n" \
+        "          type: counter\n" \
+        "          description: Number of rows updated where successor goes to new heap page\n" \
+        "        - name: n_live_tup\n" \
+        "          type: gauge\n" \
+        "          description: Estimated number of live rows\n" \
+        "        - name: n_dead_tup\n" \
+        "          type: gauge\n" \
+        "          description: Estimated number of dead rows\n" \
+        "        - name: dead_rows_pct\n" \
+        "          type: gauge\n" \
+        "          description: Percentage of dead rows relative to live rows\n" \
+        "        - name: n_mod_since_analyze\n" \
+        "          type: gauge\n" \
+        "          description: Estimated number of rows modified since last analyze\n" \
+        "        - name: n_ins_since_vacuum\n" \
+        "          type: gauge\n" \
+        "          description: Estimated number of rows inserted since last vacuum\n" \
+        "        - name: last_vacuum_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Seconds since last manual vacuum (-1 if never)\n" \
+        "        - name: last_autovacuum_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Seconds since last autovacuum (-1 if never)\n" \
+        "        - name: last_analyze_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Seconds since last manual analyze (-1 if never)\n" \
+        "        - name: last_autoanalyze_seconds\n" \
+        "          type: gauge\n" \
+        "          description: Seconds since last autoanalyze (-1 if never)\n" \
+        "        - name: vacuum_count\n" \
+        "          type: counter\n" \
+        "          description: Number of times this table has been manually vacuumed\n" \
+        "        - name: autovacuum_count\n" \
+        "          type: counter\n" \
+        "          description: Number of times this table has been vacuumed by autovacuum\n" \
+        "        - name: analyze_count\n" \
+        "          type: counter\n" \
+        "          description: Number of times this table has been manually analyzed\n" \
+        "        - name: autoanalyze_count\n" \
+        "          type: counter\n" \
+        "          description: Number of times this table has been analyzed by autoanalyze\n" \
+        "        - name: total_vacuum_time\n" \
+        "          type: counter\n" \
+        "          description: Total time spent vacuuming this table, in milliseconds\n" \
+        "        - name: total_autovacuum_time\n" \
+        "          type: counter\n" \
+        "          description: Total time spent auto-vacuuming this table, in milliseconds\n" \
+        "        - name: total_analyze_time\n" \
+        "          type: counter\n" \
+        "          description: Total time spent analyzing this table, in milliseconds\n" \
+        "        - name: total_autoanalyze_time\n" \
+        "          type: counter\n" \
+        "          description: Total time spent auto-analyzing this table, in milliseconds\n" \
         "    tag: pg_stat_user_tables_vacuum\n" \
         "    sort: data\n" \
         "    collector: stat_user_tables\n" \
@@ -1144,10 +1561,37 @@ extern "C" {
         "        - name: total_bytes\n" \
         "          type: gauge\n" \
         "          description: Total bytes per memory context.\n" \
+        "\n" \
+        "    - query: SELECT\n" \
+        "                COUNT(*) AS contexts,\n" \
+        "                type,\n" \
+        "                SUM(free_bytes) AS free_bytes,\n" \
+        "                SUM(used_bytes) AS used_bytes,\n" \
+        "                SUM(total_bytes) AS total_bytes\n" \
+        "              FROM pg_backend_memory_contexts\n" \
+        "              WHERE type!=''\n" \
+        "              GROUP BY type;\n" \
+        "      version: 18\n" \
+        "      columns:\n" \
+        "        - name: contexts\n" \
+        "          type: gauge\n" \
+        "          description: Number of memory contexts per type.\n" \
+        "        - name: type\n" \
+        "          type: label\n" \
+        "          description: Memory context type\n" \
+        "        - name: free_bytes\n" \
+        "          type: gauge\n" \
+        "          description: Free bytes per memory context type.\n" \
+        "        - name: used_bytes\n" \
+        "          type: gauge\n" \
+        "          description: Used bytes per memory context type.\n" \
+        "        - name: total_bytes\n" \
+        "          type: gauge\n" \
+        "          description: Total bytes per memory context type.\n" \
         "    tag: pg_mem_ctx\n" \
         "    collector: mem_ctx\n" \
         "\n" \
-        "# Memory context information\n" \
+        "# WAL statistics\n" \
         "  - queries:\n" \
         "    - query: SELECT\n" \
         "                wal_records,\n" \
@@ -1185,6 +1629,52 @@ extern "C" {
         "        - name: wal_sync_time\n" \
         "          type: counter\n" \
         "          description: Time taken for WAL files to be synced to disk.\n" \
+        "\n" \
+        "    - query: WITH wal_io AS (\n" \
+        "                SELECT\n" \
+        "                  sum(writes) as wal_write,\n" \
+        "                  sum(fsyncs) as wal_sync,\n" \
+        "                  sum(write_time) as wal_write_time,\n" \
+        "                  sum(fsync_time) as wal_sync_time\n" \
+        "                FROM pg_stat_io\n" \
+        "                WHERE object = 'wal'\n" \
+        "              )\n" \
+        "              SELECT\n" \
+        "                wal_records,\n" \
+        "                wal_fpi,\n" \
+        "                wal_bytes,\n" \
+        "                wal_buffers_full,\n" \
+        "                wal_write,\n" \
+        "                wal_sync,\n" \
+        "                wal_write_time,\n" \
+        "                wal_sync_time\n" \
+        "              FROM pg_stat_wal, wal_io;\n" \
+        "      version: 18\n" \
+        "      columns:\n" \
+        "        - name: wal_records\n" \
+        "          type: counter\n" \
+        "          description: Number of WAL records generated.\n" \
+        "        - name: wal_fpi\n" \
+        "          type: counter\n" \
+        "          description: Number of WAL full page images generated.\n" \
+        "        - name: wal_bytes\n" \
+        "          type: counter\n" \
+        "          description: Total bytes of generated WAL.\n" \
+        "        - name: wal_buffers_full\n" \
+        "          type: counter\n" \
+        "          description: Number of disk writes due to WAL buffers being full.\n" \
+        "        - name: wal_write\n" \
+        "          type: counter\n" \
+        "          description: Number of times WAL files were written to disk (from pg_stat_io).\n" \
+        "        - name: wal_sync\n" \
+        "          type: counter\n" \
+        "          description: Number of times WAL files were synced to disk (from pg_stat_io).\n" \
+        "        - name: wal_write_time\n" \
+        "          type: counter\n" \
+        "          description: Time taken for WAL files to be written to disk in milliseconds (from pg_stat_io).\n" \
+        "        - name: wal_sync_time\n" \
+        "          type: counter\n" \
+        "          description: Time taken for WAL files to be synced to disk in milliseconds (from pg_stat_io).\n" \
         "    tag: pg_stat_wal\n" \
         "    collector: stat_wal\n" \
         "\n" \
@@ -1443,8 +1933,205 @@ extern "C" {
         "        - name: sessions_killed\n" \
         "          type: gauge\n" \
         "          description: pg_stat_database_sessions_killed\n" \
+        "\n" \
+        "    - query: SELECT\n" \
+        "                datname,\n" \
+        "                blk_read_time,\n" \
+        "                blk_write_time,\n" \
+        "                blks_hit,\n" \
+        "                blks_read,\n" \
+        "                deadlocks,\n" \
+        "                temp_files,\n" \
+        "                temp_bytes,\n" \
+        "                tup_returned,\n" \
+        "                tup_fetched,\n" \
+        "                tup_inserted,\n" \
+        "                tup_updated,\n" \
+        "                tup_deleted,\n" \
+        "                xact_commit,\n" \
+        "                xact_rollback,\n" \
+        "                conflicts,\n" \
+        "                numbackends,\n" \
+        "                checksum_failures,\n" \
+        "                session_time,\n" \
+        "                active_time,\n" \
+        "                idle_in_transaction_time,\n" \
+        "                sessions,\n" \
+        "                sessions_abandoned,\n" \
+        "                sessions_fatal,\n" \
+        "                sessions_killed,\n" \
+        "                parallel_workers_to_launch,\n" \
+        "                parallel_workers_launched\n" \
+        "              FROM pg_stat_database\n" \
+        "              WHERE datname IS NOT NULL\n" \
+        "              ORDER BY datname;\n" \
+        "      version: 18\n" \
+        "      columns:\n" \
+        "        - name: database\n" \
+        "          type: label\n" \
+        "        - name: blk_read_time\n" \
+        "          type: counter\n" \
+        "          description: pg_stat_database_blk_read_time\n" \
+        "        - name: blk_write_time\n" \
+        "          type: counter\n" \
+        "          description: pg_stat_database_blk_write_time\n" \
+        "        - name: blks_hit\n" \
+        "          type: counter\n" \
+        "          description: pg_stat_database_blks_hit\n" \
+        "        - name: blks_read\n" \
+        "          type: counter\n" \
+        "          description: pg_stat_database_blks_read\n" \
+        "        - name: deadlocks\n" \
+        "          type: counter\n" \
+        "          description: pg_stat_database_deadlocks\n" \
+        "        - name: temp_files\n" \
+        "          type: gauge\n" \
+        "          description: pg_stat_database_temp_files\n" \
+        "        - name: temp_bytes\n" \
+        "          type: gauge\n" \
+        "          description: pg_stat_database_temp_bytes\n" \
+        "        - name: tup_returned\n" \
+        "          type: counter\n" \
+        "          description: pg_stat_database_tup_returned\n" \
+        "        - name: tup_fetched\n" \
+        "          type: counter\n" \
+        "          description: pg_stat_database_tup_fetched\n" \
+        "        - name: tup_inserted\n" \
+        "          type: counter\n" \
+        "          description: pg_stat_database_tup_inserted\n" \
+        "        - name: tup_updated\n" \
+        "          type: counter\n" \
+        "          description: pg_stat_database_tup_updated\n" \
+        "        - name: tup_deleted\n" \
+        "          type: counter\n" \
+        "          description: pg_stat_database_tup_deleted\n" \
+        "        - name: xact_commit\n" \
+        "          type: counter\n" \
+        "          description: pg_stat_database_xact_commit\n" \
+        "        - name: xact_rollback\n" \
+        "          type: counter\n" \
+        "          description: pg_stat_database_xact_rollback\n" \
+        "        - name: conflicts\n" \
+        "          type: counter\n" \
+        "          description: pg_stat_database_conflicts\n" \
+        "        - name: numbackends\n" \
+        "          type: gauge\n" \
+        "          description: pg_stat_database_numbackends\n" \
+        "        - name: checksum_failures\n" \
+        "          type: gauge\n" \
+        "          description: pg_stat_database_checksum_failures\n" \
+        "        - name: session_time\n" \
+        "          type: gauge\n" \
+        "          description: pg_stat_database_session_time\n" \
+        "        - name: active_time\n" \
+        "          type: gauge\n" \
+        "          description: pg_stat_database_active_time\n" \
+        "        - name: idle_in_transaction_time\n" \
+        "          type: gauge\n" \
+        "          description: pg_stat_database_idle_in_transaction_time\n" \
+        "        - name: sessions\n" \
+        "          type: gauge\n" \
+        "          description: pg_stat_database_sessions\n" \
+        "        - name: sessions_abandoned\n" \
+        "          type: gauge\n" \
+        "          description: pg_stat_database_sessions_abandoned\n" \
+        "        - name: sessions_fatal\n" \
+        "          type: gauge\n" \
+        "          description: pg_stat_database_sessions_fatal\n" \
+        "        - name: sessions_killed\n" \
+        "          type: gauge\n" \
+        "          description: pg_stat_database_sessions_killed\n" \
+        "        - name: parallel_workers_to_launch\n" \
+        "          type: gauge\n" \
+        "          description: Number of parallel workers PostgreSQL attempted to launch\n" \
+        "        - name: parallel_workers_launched\n" \
+        "          type: gauge\n" \
+        "          description: Number of parallel workers successfully launched\n" \
         "    tag: pg_stat_database\n" \
         "    collector: stat_db\n" \
+        "\n" \
+        "# Logical replication subscription statistics\n" \
+        "  - queries:\n" \
+        "    - query: SELECT\n" \
+        "                subid,\n" \
+        "                subname,\n" \
+        "                apply_error_count,\n" \
+        "                sync_error_count,\n" \
+        "                EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - stats_reset))::bigint AS stats_reset_seconds\n" \
+        "              FROM pg_stat_subscription_stats;\n" \
+        "      version: 16\n" \
+        "      columns:\n" \
+        "        - name: subid\n" \
+        "          type: label\n" \
+        "          description: Subscription OID\n" \
+        "        - name: subname\n" \
+        "          type: label\n" \
+        "          description: Subscription name\n" \
+        "        - name: apply_error_count\n" \
+        "          type: counter\n" \
+        "          description: Number of errors during apply\n" \
+        "        - name: sync_error_count\n" \
+        "          type: counter\n" \
+        "          description: Number of errors during initial sync\n" \
+        "        - name: stats_reset_seconds\n" \
+        "          type: counter\n" \
+        "          description: Seconds since statistics were last reset\n" \
+        "\n" \
+        "    - query: SELECT\n" \
+        "                subid,\n" \
+        "                subname,\n" \
+        "                apply_error_count,\n" \
+        "                sync_error_count,\n" \
+        "                confl_insert_exists,\n" \
+        "                confl_update_origin_differs,\n" \
+        "                confl_update_exists,\n" \
+        "                confl_update_missing,\n" \
+        "                confl_delete_origin_differs,\n" \
+        "                confl_delete_missing,\n" \
+        "                confl_multiple_unique_conflicts,\n" \
+        "                EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - stats_reset))::bigint AS stats_reset_seconds\n" \
+        "              FROM pg_stat_subscription_stats;\n" \
+        "      version: 18\n" \
+        "      columns:\n" \
+        "        - name: subid\n" \
+        "          type: label\n" \
+        "          description: Subscription OID\n" \
+        "        - name: subname\n" \
+        "          type: label\n" \
+        "          description: Subscription name\n" \
+        "        - name: apply_error_count\n" \
+        "          type: counter\n" \
+        "          description: Number of errors during apply\n" \
+        "        - name: sync_error_count\n" \
+        "          type: counter\n" \
+        "          description: Number of errors during initial sync\n" \
+        "        - name: confl_insert_exists\n" \
+        "          type: counter\n" \
+        "          description: Number of conflicts where INSERT tried to insert existing row\n" \
+        "        - name: confl_update_origin_differs\n" \
+        "          type: counter\n" \
+        "          description: Number of conflicts where UPDATE had different origin\n" \
+        "        - name: confl_update_exists\n" \
+        "          type: counter\n" \
+        "          description: Number of conflicts where UPDATE target already exists\n" \
+        "        - name: confl_update_missing\n" \
+        "          type: counter\n" \
+        "          description: Number of conflicts where UPDATE target is missing\n" \
+        "        - name: confl_delete_origin_differs\n" \
+        "          type: counter\n" \
+        "          description: Number of conflicts where DELETE had different origin\n" \
+        "        - name: confl_delete_missing\n" \
+        "          type: counter\n" \
+        "          description: Number of conflicts where DELETE target is missing\n" \
+        "        - name: confl_multiple_unique_conflicts\n" \
+        "          type: counter\n" \
+        "          description: Number of conflicts with multiple unique constraint violations\n" \
+        "        - name: stats_reset_seconds\n" \
+        "          type: counter\n" \
+        "          description: Seconds since statistics were last reset\n" \
+        "    tag: pg_stat_subscription_stats\n" \
+        "    sort: data\n" \
+        "    collector: subscription_stats\n" \
         "\n" \
         "#\n" \
         "# PostgreSQL 15\n" \
@@ -1550,6 +2237,79 @@ extern "C" {
         "          type: counter\n" \
         "          description: Total time spent on fsync operations in milliseconds.\n" \
         "      version: 16\n" \
+        "\n" \
+        "    - query: SELECT\n" \
+        "                backend_type,\n" \
+        "                SUM(COALESCE(reads, 0)) AS reads,\n" \
+        "                SUM(COALESCE(read_bytes, 0)) AS read_bytes,\n" \
+        "                SUM(COALESCE(read_time, 0)) AS read_time,\n" \
+        "                SUM(COALESCE(writes, 0)) AS writes,\n" \
+        "                SUM(COALESCE(write_bytes, 0)) AS write_bytes,\n" \
+        "                SUM(COALESCE(write_time, 0)) AS write_time,\n" \
+        "                SUM(COALESCE(writebacks, 0)) AS writebacks,\n" \
+        "                SUM(COALESCE(writeback_time, 0)) AS writeback_time,\n" \
+        "                SUM(COALESCE(extends, 0)) AS extends,\n" \
+        "                SUM(COALESCE(extend_bytes, 0)) AS extend_bytes,\n" \
+        "                SUM(COALESCE(extend_time, 0)) AS extend_time,\n" \
+        "                SUM(COALESCE(hits, 0)) AS hits,\n" \
+        "                SUM(COALESCE(evictions, 0)) AS evictions,\n" \
+        "                SUM(COALESCE(reuses, 0)) AS reuses,\n" \
+        "                SUM(COALESCE(fsyncs, 0)) AS fsyncs,\n" \
+        "                SUM(COALESCE(fsync_time, 0)) AS fsync_time\n" \
+        "              FROM pg_stat_io\n" \
+        "              GROUP BY backend_type;\n" \
+        "      version: 18\n" \
+        "      columns:\n" \
+        "        - name: backend_type\n" \
+        "          type: label\n" \
+        "        - name: reads\n" \
+        "          type: counter\n" \
+        "          description: Number of read operations.\n" \
+        "        - name: read_bytes\n" \
+        "          type: counter\n" \
+        "          description: Total bytes read.\n" \
+        "        - name: read_time\n" \
+        "          type: counter\n" \
+        "          description: Total time spent on read operations in milliseconds.\n" \
+        "        - name: writes\n" \
+        "          type: counter\n" \
+        "          description: Number of write operations.\n" \
+        "        - name: write_bytes\n" \
+        "          type: counter\n" \
+        "          description: Total bytes written.\n" \
+        "        - name: write_time\n" \
+        "          type: counter\n" \
+        "          description: Total time spent on write operations in milliseconds.\n" \
+        "        - name: writebacks\n" \
+        "          type: counter\n" \
+        "          description: Number of writeback to permanent storage requests sent to kernel.\n" \
+        "        - name: writeback_time\n" \
+        "          type: counter\n" \
+        "          description: Total time spent on writeback operations in milliseconds.\n" \
+        "        - name: extends\n" \
+        "          type: counter\n" \
+        "          description: Number of relation extend operations.\n" \
+        "        - name: extend_bytes\n" \
+        "          type: counter\n" \
+        "          description: Total bytes extended.\n" \
+        "        - name: extend_time\n" \
+        "          type: counter\n" \
+        "          description: Total time spent on relation extend operations in milliseconds.\n" \
+        "        - name: hits\n" \
+        "          type: counter\n" \
+        "          description: The number of times a desired block was found in shared buffer.\n" \
+        "        - name: evictions\n" \
+        "          type: counter\n" \
+        "          description: The number of times a block has been written out from shared or local buffer in order to make it available for another use.\n" \
+        "        - name: reuses\n" \
+        "          type: counter\n" \
+        "          description: The number of times an existing buffer in a size-limited ring buffer outside of shared buffers was reused as part of an I/O operation.\n" \
+        "        - name: fsyncs\n" \
+        "          type: counter\n" \
+        "          description: Number of fsync calls.\n" \
+        "        - name: fsync_time\n" \
+        "          type: counter\n" \
+        "          description: Total time spent on fsync operations in milliseconds.\n" \
         "    tag: pg_stat_io\n" \
         "    collector: stat_io\n" \
         "\n" \
@@ -1676,6 +2436,138 @@ extern "C" {
         "# PostgreSQL 17\n" \
         "#\n" \
         "\n" \
+        "# Checkpointer statistics\n" \
+        "  - queries:\n" \
+        "    - query: SELECT\n" \
+        "                num_timed,\n" \
+        "                num_requested,\n" \
+        "                restartpoints_timed,\n" \
+        "                restartpoints_req,\n" \
+        "                restartpoints_done,\n" \
+        "                write_time,\n" \
+        "                sync_time,\n" \
+        "                buffers_written,\n" \
+        "                EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - stats_reset))::bigint AS stats_reset_seconds\n" \
+        "              FROM pg_stat_checkpointer;\n" \
+        "      version: 17\n" \
+        "      columns:\n" \
+        "        - name: num_timed\n" \
+        "          type: counter\n" \
+        "          description: Number of scheduled checkpoints performed\n" \
+        "        - name: num_requested\n" \
+        "          type: counter\n" \
+        "          description: Number of requested checkpoints performed\n" \
+        "        - name: restartpoints_timed\n" \
+        "          type: counter\n" \
+        "          description: Number of scheduled restartpoints on replica\n" \
+        "        - name: restartpoints_req\n" \
+        "          type: counter\n" \
+        "          description: Number of requested restartpoints on replica\n" \
+        "        - name: restartpoints_done\n" \
+        "          type: counter\n" \
+        "          description: Number of restartpoints completed on replica\n" \
+        "        - name: write_time\n" \
+        "          type: counter\n" \
+        "          description: Total time spent writing buffers during checkpoints (ms)\n" \
+        "        - name: sync_time\n" \
+        "          type: counter\n" \
+        "          description: Total time spent syncing buffers during checkpoints (ms)\n" \
+        "        - name: buffers_written\n" \
+        "          type: counter\n" \
+        "          description: Number of buffers written during checkpoints\n" \
+        "        - name: stats_reset_seconds\n" \
+        "          type: counter\n" \
+        "          description: Seconds since statistics were last reset\n" \
+        "\n" \
+        "    - query: SELECT\n" \
+        "                num_timed,\n" \
+        "                num_requested,\n" \
+        "                num_done,\n" \
+        "                restartpoints_timed,\n" \
+        "                restartpoints_req,\n" \
+        "                restartpoints_done,\n" \
+        "                write_time,\n" \
+        "                sync_time,\n" \
+        "                buffers_written,\n" \
+        "                slru_written,\n" \
+        "                EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - stats_reset))::bigint AS stats_reset_seconds\n" \
+        "              FROM pg_stat_checkpointer;\n" \
+        "      version: 18\n" \
+        "      columns:\n" \
+        "        - name: num_timed\n" \
+        "          type: counter\n" \
+        "          description: Number of scheduled checkpoints performed\n" \
+        "        - name: num_requested\n" \
+        "          type: counter\n" \
+        "          description: Number of requested checkpoints performed\n" \
+        "        - name: num_done\n" \
+        "          type: counter\n" \
+        "          description: Total number of checkpoints completed\n" \
+        "        - name: restartpoints_timed\n" \
+        "          type: counter\n" \
+        "          description: Number of scheduled restartpoints on replica\n" \
+        "        - name: restartpoints_req\n" \
+        "          type: counter\n" \
+        "          description: Number of requested restartpoints on replica\n" \
+        "        - name: restartpoints_done\n" \
+        "          type: counter\n" \
+        "          description: Number of restartpoints completed on replica\n" \
+        "        - name: write_time\n" \
+        "          type: counter\n" \
+        "          description: Total time spent writing buffers during checkpoints (ms)\n" \
+        "        - name: sync_time\n" \
+        "          type: counter\n" \
+        "          description: Total time spent syncing buffers during checkpoints (ms)\n" \
+        "        - name: buffers_written\n" \
+        "          type: counter\n" \
+        "          description: Number of buffers written during checkpoints\n" \
+        "        - name: slru_written\n" \
+        "          type: counter\n" \
+        "          description: Number of SLRU buffers written during checkpoints\n" \
+        "        - name: stats_reset_seconds\n" \
+        "          type: counter\n" \
+        "          description: Seconds since statistics were last reset\n" \
+        "    tag: pg_stat_checkpointer\n" \
+        "    collector: stat_checkpointer\n" \
+        "\n" \
+        "# Asynchronous I/O operations\n" \
+        "  - queries:\n" \
+        "    - query: SELECT\n" \
+        "                state,\n" \
+        "                operation,\n" \
+        "                COUNT(*) AS total_operations,\n" \
+        "                SUM(length) AS total_bytes,\n" \
+        "                AVG(length) AS avg_bytes_per_op,\n" \
+        "                COUNT(*) FILTER (WHERE f_sync) AS sync_operations,\n" \
+        "                COUNT(*) FILTER (WHERE f_buffered) AS buffered_operations\n" \
+        "              FROM pg_aios\n" \
+        "              GROUP BY state, operation;\n" \
+        "      version: 18\n" \
+        "      columns:\n" \
+        "        - name: state\n" \
+        "          type: label\n" \
+        "          description: State of async I/O operation (in_progress, complete, error)\n" \
+        "        - name: operation\n" \
+        "          type: label\n" \
+        "          description: Type of I/O operation (read, write, fsync, etc.)\n" \
+        "        - name: total_operations\n" \
+        "          type: gauge\n" \
+        "          description: Total number of async I/O operations in this state\n" \
+        "        - name: total_bytes\n" \
+        "          type: gauge\n" \
+        "          description: Total bytes involved in operations\n" \
+        "        - name: avg_bytes_per_op\n" \
+        "          type: gauge\n" \
+        "          description: Average bytes per operation\n" \
+        "        - name: sync_operations\n" \
+        "          type: gauge\n" \
+        "          description: Number of operations with sync flag\n" \
+        "        - name: buffered_operations\n" \
+        "          type: gauge\n" \
+        "          description: Number of buffered operations\n" \
+        "    tag: pg_aios\n" \
+        "    sort: data\n" \
+        "    collector: aios\n" \
         "\n" \
         "  - queries:\n" \
         "    - query: SELECT\n" \
