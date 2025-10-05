@@ -9,7 +9,8 @@ RUN microdnf clean all && rm -rf /var/cache/yum
 WORKDIR /root
 RUN rpmdev-setuptree
 
-COPY ./build.sh /root/build.sh
+COPY contrib/docker/rpm/build.sh /root/build.sh
 
 RUN chmod +x /root/build.sh
-RUN git clone https://github.com/pgexporter/pgexporter.git
+COPY . /root/pgexporter
+RUN rm -rf /root/pgexporter/build /root/pgexporter/cmake-build-debug
