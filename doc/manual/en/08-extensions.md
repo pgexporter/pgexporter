@@ -1697,3 +1697,368 @@ The total count of vector indexes in the database, grouped by access method type
 | database | The database being monitored. |
 | index_type | The access method of the vector index. |
 
+## citus
+
+Distributed PostgreSQL cluster monitoring - shard distribution, node health, distributed query performance, and rebalancing operations.
+
+**Note:** Query statistics metrics require:
+- `pg_stat_statements` extension loaded via `shared_preload_libraries = 'citus,pg_stat_statements'` in postgresql.conf
+- `citus.stat_statements_track = 'all'` to enable distributed query tracking
+
+Without these settings, query statistics metrics will not be available, but all other Citus metrics will work.
+
+**pgexporter_citus_shard_summary_total_shards**
+
+Total number of shards across all distributed tables in the cluster.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_shard_summary_total_size_bytes**
+
+Total storage size in bytes of all shards across the cluster.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_shard_by_node_shard_count**
+
+Number of shards hosted on each worker node.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| nodename | Hostname of the worker node. |
+| nodeport | Port number of the worker node. |
+
+**pgexporter_citus_shard_by_node_total_size_bytes**
+
+Total storage size in bytes of shards on each worker node.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| nodename | Hostname of the worker node. |
+| nodeport | Port number of the worker node. |
+
+**pgexporter_citus_shard_by_table_shard_count**
+
+Number of shards per distributed table.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| table_name | Name of the distributed table. |
+
+**pgexporter_citus_shard_size_stats_min_shard_size**
+
+Minimum shard size in bytes for each distributed table.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| table_name | Name of the distributed table. |
+
+**pgexporter_citus_shard_size_stats_max_shard_size**
+
+Maximum shard size in bytes for each distributed table.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| table_name | Name of the distributed table. |
+
+**pgexporter_citus_shard_size_stats_avg_shard_size**
+
+Average shard size in bytes for each distributed table.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| table_name | Name of the distributed table. |
+
+**pgexporter_citus_shard_placement_health_active_placements**
+
+Number of active shard placements across the cluster.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_shard_placement_health_inactive_placements**
+
+Number of inactive shard placements requiring attention.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_table_stats_total_tables**
+
+Total number of distributed tables.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_table_detail_table_size_bytes**
+
+Storage size in bytes for this table.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| table_name | Name of the distributed table. |
+| distribution_column | Distribution type. |
+| colocation_id | Colocation group identifier. |
+
+**pgexporter_citus_table_detail_shard_count**
+
+Number of shards for this table.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| table_name | Name of the distributed table. |
+| distribution_column | Distribution type. |
+| colocation_id | Colocation group identifier. |
+
+**pgexporter_citus_colocation_groups_shard_count**
+
+Number of shards in this colocation group.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| colocation_id | Colocation group identifier. |
+
+**pgexporter_citus_colocation_groups_replication_factor**
+
+Replication factor for this colocation group.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| colocation_id | Colocation group identifier. |
+
+**pgexporter_citus_active_workers_active_workers**
+
+Number of active worker nodes.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_total_nodes_total_nodes**
+
+Total number of nodes in the cluster.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_node_detail_is_active**
+
+Node availability status (1=active, 0=inactive).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| nodename | Hostname of the node. |
+| nodeport | Port number of the node. |
+| noderole | Node role (coordinator/worker). |
+| node_group | Node group identifier. |
+
+**pgexporter_citus_inactive_nodes_count**
+
+Number of inactive nodes.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_connection_stats_total_connections**
+
+Total connections opened to this node.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| hostname | Hostname of the worker node. |
+| port | Port number of the worker node. |
+| database_name | Database name. |
+
+**pgexporter_citus_connection_summary_total_cluster_connections**
+
+Total connections across all worker nodes.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_cluster_health_active_workers**
+
+Number of active worker nodes.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_cluster_health_distributed_tables**
+
+Number of distributed tables.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_cluster_health_total_shards**
+
+Total number of shards.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_active_transactions_count**
+
+Number of active distributed transactions.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_lock_waits_waiting_transactions**
+
+Number of transactions waiting on locks.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_lock_waits_blocking_transactions**
+
+Number of transactions blocking others.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_rebalance_status_is_rebalancing**
+
+Rebalance state (0=idle, 1=running).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_query_stats_total_total_queries**
+
+Total number of distinct distributed queries tracked. Requires pg_stat_statements extension loaded via shared_preload_libraries.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_query_stats_by_executor_query_count**
+
+Number of distinct queries using this executor type. Requires pg_stat_statements extension loaded via shared_preload_libraries.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| executor | Executor type (adaptive, coordinator-insert-select, fast-path router, pull-to-coordinator, push-pull, real-time, router, task-tracker). |
+
+**pgexporter_citus_query_stats_by_executor_total_calls**
+
+Total number of calls across all queries for this executor. Requires pg_stat_statements extension loaded via shared_preload_libraries.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| executor | Executor type. |
+
+**pgexporter_citus_query_stats_most_executed_calls**
+
+Number of times this query was executed. Requires pg_stat_statements extension loaded via shared_preload_libraries.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| query | SQL query text. |
+| executor | Executor type. |
+
+**pgexporter_citus_query_stats_summary_total_queries**
+
+Total number of distinct queries. Requires pg_stat_statements extension loaded via shared_preload_libraries.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_query_stats_summary_total_calls**
+
+Total number of query executions. Requires pg_stat_statements extension loaded via shared_preload_libraries.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_query_stats_summary_executor_types**
+
+Number of distinct executor types in use. Requires pg_stat_statements extension loaded via shared_preload_libraries.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_background_jobs_total_jobs**
+
+Total number of background jobs.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_background_jobs_running_jobs**
+
+Number of running background jobs.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_background_jobs_failed_jobs**
+
+Number of failed background jobs.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_background_jobs_finished_jobs**
+
+Number of finished background jobs.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_background_tasks_running_tasks**
+
+Number of running background tasks.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_citus_background_tasks_failed_tasks**
+
+Number of failed background tasks.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+

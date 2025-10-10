@@ -1,0 +1,399 @@
+#
+# Copyright (C) 2025 The pgexporter community
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this list
+# of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice, this
+# list of conditions and the following disclaimer in the documentation and/or other
+# materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors may
+# be used to endorse or promote products derived from this software without specific
+# prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+# THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+# OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+# TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+#
+# Citus Extension Metrics
+#
+# Citus is a distributed PostgreSQL extension that transforms PostgreSQL into a distributed database.
+# This configuration monitors shard distribution, node health, connection pools, rebalancing operations,
+# and distributed query performance across coordinator and worker nodes.
+#
+# Version Support:
+#   - 10.2+: Core distributed metrics (shards, tables, nodes, connections)
+#   - 11.0+: Distributed query statistics, rebalance monitoring
+#   - 12.0+: Background job/task monitoring
+#
+# Requirements:
+#   - User must have pg_monitor role
+#   - For citus_stat_statements metrics: pg_stat_statements must be loaded via shared_preload_libraries
+#
+extension: citus
+metrics:
+
+#
+# Extension Version 10.2+ - Core Distributed Monitoring
+#
+
+  # Shard distribution summary - total cluster overview
+  - metric: shard_summary
+    queries:
+      - query: SELECT COUNT(*) as total_shards, SUM(shard_size) as total_size_bytes FROM citus_shards;
+        version: "10.2"
+        columns:
+          - name: total_shards
+            type: gauge
+            description: Total number of shards across all distributed tables
+          - name: total_size_bytes
+            type: gauge
+            description: Total storage size in bytes of all shards
+
+  # Shard distribution by worker node - identify imbalanced nodes
+  - metric: shard_by_node
+    queries:
+      - query: SELECT nodename, nodeport, COUNT(*) as shard_count, SUM(shard_size) as total_size_bytes FROM citus_shards GROUP BY nodename, nodeport ORDER BY shard_count DESC;
+        version: "10.2"
+        columns:
+          - name: nodename
+            type: label
+          - name: nodeport
+            type: label
+          - name: shard_count
+            type: gauge
+            description: Number of shards on this worker node
+          - name: total_size_bytes
+            type: gauge
+            description: Total storage size of shards on this node
+
+  # Shard count per table - monitor table distribution
+  - metric: shard_by_table
+    queries:
+      - query: SELECT table_name::text, COUNT(*) as shard_count FROM citus_shards GROUP BY table_name ORDER BY shard_count DESC;
+        version: "10.2"
+        columns:
+          - name: table_name
+            type: label
+          - name: shard_count
+            type: gauge
+            description: Number of shards for this distributed table
+
+  # Shard size distribution per table - detect size imbalance
+  - metric: shard_size_stats
+    queries:
+      - query: SELECT table_name, MIN(shard_size) as min_shard_size, MAX(shard_size) as max_shard_size, AVG(shard_size) as avg_shard_size FROM citus_shards GROUP BY table_name;
+        version: "10.2"
+        columns:
+          - name: table_name
+            type: label
+          - name: min_shard_size
+            type: gauge
+            description: Minimum shard size in bytes
+          - name: max_shard_size
+            type: gauge
+            description: Maximum shard size in bytes
+          - name: avg_shard_size
+            type: gauge
+            description: Average shard size in bytes
+
+  # Shard placement health - monitor shard availability
+  - metric: shard_placement_health
+    queries:
+      - query: SELECT COUNT(*) FILTER (WHERE shardstate = 1) as active_placements, COUNT(*) FILTER (WHERE shardstate != 1) as inactive_placements FROM pg_dist_placement;
+        version: "10.2"
+        columns:
+          - name: active_placements
+            type: gauge
+            description: Number of active shard placements
+          - name: inactive_placements
+            type: gauge
+            description: Number of inactive shard placements
+
+  # Table statistics summary - overall table count
+  - metric: table_stats
+    queries:
+      - query: SELECT COUNT(*) as total_tables FROM citus_tables;
+        version: "10.2"
+        columns:
+          - name: total_tables
+            type: gauge
+            description: Total number of distributed tables
+
+  # Detailed table statistics - per-table monitoring
+  - metric: table_detail
+    queries:
+      - query: SELECT table_name::text, table_size as table_size_bytes, shard_count, citus_table_type as distribution_column, colocation_id FROM citus_tables ORDER BY table_size DESC LIMIT 20;
+        version: "10.2"
+        columns:
+          - name: table_name
+            type: label
+          - name: table_size_bytes
+            type: gauge
+            description: Storage size in bytes for this table
+          - name: shard_count
+            type: gauge
+            description: Number of shards for this table
+          - name: distribution_column
+            type: label
+          - name: colocation_id
+            type: label
+
+  # Colocation groups - monitor table co-location
+  - metric: colocation_groups
+    queries:
+      - query: SELECT colocationid as colocation_id, shardcount as shard_count, replicationfactor as replication_factor FROM pg_dist_colocation;
+        version: "10.2"
+        columns:
+          - name: colocation_id
+            type: label
+          - name: shard_count
+            type: gauge
+            description: Number of shards in this colocation group
+          - name: replication_factor
+            type: gauge
+            description: Replication factor for this colocation group
+
+  # Active worker nodes - cluster-wide node status
+  - metric: active_workers
+    queries:
+      - query: SELECT COUNT(*) as active_workers FROM citus_get_active_worker_nodes();
+        version: "10.2"
+        columns:
+          - name: active_workers
+            type: gauge
+            description: Number of active worker nodes
+
+  # Total nodes in cluster - coordinator and workers
+  - metric: total_nodes
+    queries:
+      - query: SELECT COUNT(*) as total_nodes FROM pg_dist_node;
+        version: "10.2"
+        columns:
+          - name: total_nodes
+            type: gauge
+            description: Total number of nodes in the cluster
+
+  # Node details - per-node status and role
+  - metric: node_detail
+    queries:
+      - query: SELECT nodename, nodeport, noderole::text, isactive::int as is_active, noderack as node_group FROM pg_dist_node;
+        version: "10.2"
+        columns:
+          - name: nodename
+            type: label
+          - name: nodeport
+            type: label
+          - name: noderole
+            type: label
+          - name: is_active
+            type: gauge
+            description: Node availability status (1=active, 0=inactive)
+          - name: node_group
+            type: label
+
+  # Inactive nodes count - alert on node failures
+  - metric: inactive_nodes
+    queries:
+      - query: SELECT COUNT(*) as count FROM pg_dist_node WHERE isactive = false;
+        version: "10.2"
+        columns:
+          - name: count
+            type: gauge
+            description: Number of inactive nodes
+
+  # Connection pool statistics per node - monitor connection usage
+  - metric: connection_stats
+    queries:
+      - query: SELECT hostname, port, database_name, connection_count_to_node as total_connections FROM citus_remote_connection_stats();
+        version: "10.2"
+        columns:
+          - name: hostname
+            type: label
+          - name: port
+            type: label
+          - name: database_name
+            type: label
+          - name: total_connections
+            type: gauge
+            description: Total connections opened to this node
+
+  # Connection summary - cluster-wide connection metrics
+  - metric: connection_summary
+    queries:
+      - query: SELECT SUM(connection_count_to_node) as total_cluster_connections FROM citus_remote_connection_stats();
+        version: "10.2"
+        columns:
+          - name: total_cluster_connections
+            type: gauge
+            description: Total connections across all worker nodes
+
+  # Cluster health overview - single query for overall health
+  - metric: cluster_health
+    queries:
+      - query: SELECT (SELECT COUNT(*) FROM citus_get_active_worker_nodes()) as active_workers, (SELECT COUNT(*) FROM citus_tables) as distributed_tables, (SELECT COUNT(*) FROM citus_shards) as total_shards;
+        version: "10.2"
+        columns:
+          - name: active_workers
+            type: gauge
+            description: Number of active worker nodes
+          - name: distributed_tables
+            type: gauge
+            description: Number of distributed tables
+          - name: total_shards
+            type: gauge
+            description: Total number of shards
+
+  # Active distributed transactions - monitor transaction load
+  - metric: active_transactions
+    queries:
+      - query: SELECT COUNT(*) as count FROM get_all_active_transactions();
+        version: "10.2"
+        columns:
+          - name: count
+            type: gauge
+            description: Number of active distributed transactions
+
+  # Lock waits - detect distributed locking issues (v10.2 uses waiting_pid/blocking_pid, v11.0+ uses waiting_gpid/blocking_gpid)
+  - metric: lock_waits
+    queries:
+      - query: SELECT COUNT(DISTINCT waiting_gpid) as waiting_transactions, COUNT(DISTINCT blocking_gpid) as blocking_transactions FROM citus_lock_waits;
+        version: "11.0"
+        columns:
+          - name: waiting_transactions
+            type: gauge
+            description: Number of transactions waiting on locks
+          - name: blocking_transactions
+            type: gauge
+            description: Number of transactions blocking others
+      - query: SELECT COUNT(DISTINCT waiting_pid) as waiting_transactions, COUNT(DISTINCT blocking_pid) as blocking_transactions FROM citus_lock_waits;
+        version: "10.2"
+        columns:
+          - name: waiting_transactions
+            type: gauge
+            description: Number of transactions waiting on locks
+          - name: blocking_transactions
+            type: gauge
+            description: Number of transactions blocking others
+
+#
+# Extension Version 11.0+ - Distributed Query Statistics & Rebalancing
+#
+
+  # Rebalance status - monitor shard rebalancing operations
+  # Note: citus_rebalance_status() returns NULL when no rebalance is in progress
+  - metric: rebalance_status
+    queries:
+      - query: SELECT CASE WHEN state IS NULL THEN 0 ELSE 1 END as is_rebalancing FROM citus_rebalance_status();
+        version: "11.0"
+        columns:
+          - name: is_rebalancing
+            type: gauge
+            description: Rebalance state (0=idle, 1=running)
+
+  # Query statistics - total tracked queries
+  # REQUIRES: pg_stat_statements loaded via shared_preload_libraries
+  - metric: query_stats_total
+    queries:
+      - query: SELECT COUNT(*) as total_queries FROM citus_stat_statements;
+        version: "11.0"
+        columns:
+          - name: total_queries
+            type: gauge
+            description: Total number of distinct distributed queries tracked
+
+  # Query statistics by executor type - monitor query routing
+  # REQUIRES: pg_stat_statements loaded via shared_preload_libraries
+  - metric: query_stats_by_executor
+    queries:
+      - query: SELECT executor, COUNT(*) as query_count, SUM(calls) as total_calls FROM citus_stat_statements GROUP BY executor ORDER BY total_calls DESC LIMIT 5;
+        version: "11.0"
+        columns:
+          - name: executor
+            type: label
+          - name: query_count
+            type: gauge
+            description: Number of distinct queries using this executor type
+          - name: total_calls
+            type: gauge
+            description: Total number of calls across all queries for this executor
+
+  # Most executed distributed queries - identify high-frequency queries
+  # REQUIRES: pg_stat_statements loaded via shared_preload_libraries
+  - metric: query_stats_most_executed
+    queries:
+      - query: SELECT query, executor, calls FROM citus_stat_statements ORDER BY calls DESC LIMIT 5;
+        version: "11.0"
+        columns:
+          - name: query
+            type: label
+          - name: executor
+            type: label
+          - name: calls
+            type: gauge
+            description: Number of times this query was executed
+
+  # Query execution summary - aggregated query metrics
+  # REQUIRES: pg_stat_statements loaded via shared_preload_libraries
+  - metric: query_stats_summary
+    queries:
+      - query: SELECT COUNT(*) as total_queries, SUM(calls) as total_calls, COUNT(DISTINCT executor) as executor_types FROM citus_stat_statements;
+        version: "11.0"
+        columns:
+          - name: total_queries
+            type: gauge
+            description: Total number of distinct queries
+          - name: total_calls
+            type: gauge
+            description: Total number of query executions
+          - name: executor_types
+            type: gauge
+            description: Number of distinct executor types in use
+
+#
+# Extension Version 12.0+ - Background Job & Task Monitoring
+#
+
+  # Background job status - monitor maintenance operations
+  - metric: background_jobs
+    queries:
+      - query: SELECT COUNT(*) as total_jobs, COUNT(*) FILTER (WHERE state = 'running') as running_jobs, COUNT(*) FILTER (WHERE state = 'failed') as failed_jobs, COUNT(*) FILTER (WHERE state = 'finished') as finished_jobs FROM pg_dist_background_job;
+        version: "12.0"
+        columns:
+          - name: total_jobs
+            type: gauge
+            description: Total number of background jobs
+          - name: running_jobs
+            type: gauge
+            description: Number of running background jobs
+          - name: failed_jobs
+            type: gauge
+            description: Number of failed background jobs
+          - name: finished_jobs
+            type: gauge
+            description: Number of finished background jobs
+
+  # Background task status - detailed task monitoring
+  - metric: background_tasks
+    queries:
+      - query: SELECT COUNT(*) FILTER (WHERE status = 'running') as running_tasks, COUNT(*) FILTER (WHERE status = 'error') as failed_tasks FROM pg_dist_background_task;
+        version: "12.0"
+        columns:
+          - name: running_tasks
+            type: gauge
+            description: Number of running background tasks
+          - name: failed_tasks
+            type: gauge
+            description: Number of failed background tasks
