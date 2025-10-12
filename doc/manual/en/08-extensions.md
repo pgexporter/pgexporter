@@ -2062,3 +2062,277 @@ Number of failed background tasks.
 | :-------- | :---------- |
 | server | The configured name/identifier for the PostgreSQL server. |
 
+
+## pg_wait_sampling
+
+Wait event sampling and profiling - tracks where PostgreSQL processes spend time waiting for locks, IO, CPU, and other resources.
+
+**Note:** pg_wait_sampling requires:
+- `shared_preload_libraries = 'pg_wait_sampling'` in postgresql.conf
+- Background worker must be running
+- Some sampling data needs to accumulate before queries return meaningful results
+
+Without proper configuration, no metrics will be collected.
+
+**pgexporter_pg_wait_sampling_wait_event_profile_sample_count**
+
+Number of times this wait event was sampled.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event_type | PostgreSQL wait event type (Lock, LWLock, IO, IPC, Timeout, Activity, etc). |
+| event | Specific wait event name. |
+
+**pgexporter_pg_wait_sampling_wait_event_profile_percentage**
+
+Percentage of total wait samples.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event_type | PostgreSQL wait event type. |
+| event | Specific wait event name. |
+
+**pgexporter_pg_wait_sampling_process_wait_stats_event_types_seen**
+
+Number of distinct wait event types seen by this process.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pid | Process ID. |
+
+**pgexporter_pg_wait_sampling_process_wait_stats_unique_events**
+
+Number of unique wait events.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pid | Process ID. |
+
+**pgexporter_pg_wait_sampling_process_wait_stats_total_wait_samples**
+
+Total wait samples collected for this process.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pid | Process ID. |
+
+**pgexporter_pg_wait_sampling_wait_events_by_type_event_count**
+
+Number of distinct events in this type.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event_type | Wait event type category. |
+
+**pgexporter_pg_wait_sampling_wait_events_by_type_total_samples**
+
+Total wait samples for this event type.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event_type | Wait event type category. |
+
+**pgexporter_pg_wait_sampling_wait_events_by_type_avg_samples_per_event**
+
+Average samples per event within this type.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event_type | Wait event type category. |
+
+**pgexporter_pg_wait_sampling_current_wait_events_waiting_processes**
+
+Number of processes currently waiting on this event.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event_type | Wait event type. |
+| event | Wait event name. |
+
+**pgexporter_pg_wait_sampling_lock_waits_lock_wait_samples**
+
+Number of lock wait samples.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event | Lock wait event name. |
+
+**pgexporter_pg_wait_sampling_lock_waits_affected_processes**
+
+Number of distinct processes affected by this lock wait.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event | Lock wait event name. |
+
+**pgexporter_pg_wait_sampling_lock_waits_pct_of_lock_waits**
+
+Percentage of all lock waits.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event | Lock wait event name. |
+
+**pgexporter_pg_wait_sampling_io_waits_io_wait_samples**
+
+Number of IO wait samples.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event | IO wait event name. |
+
+**pgexporter_pg_wait_sampling_io_waits_affected_processes**
+
+Number of distinct processes affected by this IO wait.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event | IO wait event name. |
+
+**pgexporter_pg_wait_sampling_wait_history_recent_occurrence_count**
+
+Number of times this event occurred in last 5 minutes.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event_type | Wait event type. |
+| event | Wait event name. |
+
+**pgexporter_pg_wait_sampling_wait_history_recent_time_span_seconds**
+
+Time span in seconds between first and last occurrence.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event_type | Wait event type. |
+| event | Wait event name. |
+
+**pgexporter_pg_wait_sampling_cpu_waits_cpu_wait_samples**
+
+Number of CPU-related wait samples.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event | CPU/LWLock wait event name. |
+
+**pgexporter_pg_wait_sampling_cpu_waits_affected_processes**
+
+Number of distinct processes affected.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event | CPU/LWLock wait event name. |
+
+**pgexporter_pg_wait_sampling_query_wait_profile_unique_events**
+
+Number of distinct wait events for this query.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| queryid | Query identifier from pg_stat_statements. |
+| event_type | Wait event type. |
+
+**pgexporter_pg_wait_sampling_query_wait_profile_total_wait_samples**
+
+Total wait samples for this query and event type.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| queryid | Query identifier from pg_stat_statements. |
+| event_type | Wait event type. |
+
+**pgexporter_pg_wait_sampling_wait_distribution_summary_active_processes**
+
+Number of processes with recorded wait events.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_wait_sampling_wait_distribution_summary_event_types**
+
+Number of distinct wait event types observed.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_wait_sampling_wait_distribution_summary_unique_events**
+
+Total number of unique wait events.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_wait_sampling_wait_distribution_summary_total_samples**
+
+Total wait samples collected.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_wait_sampling_wait_distribution_summary_queries_with_waits**
+
+Number of distinct queries with recorded waits.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_wait_sampling_timeout_waits_timeout_samples**
+
+Number of timeout wait samples.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event | Timeout wait event name. |
+
+**pgexporter_pg_wait_sampling_timeout_waits_affected_processes**
+
+Number of distinct processes affected.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event | Timeout wait event name. |
+
+**pgexporter_pg_wait_sampling_ipc_waits_ipc_wait_samples**
+
+Number of IPC wait samples.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event | IPC wait event name. |
+
+**pgexporter_pg_wait_sampling_ipc_waits_affected_processes**
+
+Number of distinct processes affected.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| event | IPC wait event name. |

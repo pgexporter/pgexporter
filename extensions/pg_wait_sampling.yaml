@@ -1,0 +1,365 @@
+#
+# Copyright (C) 2025 The pgexporter community
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this list
+# of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice, this
+# list of conditions and the following disclaimer in the documentation and/or other
+# materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors may
+# be used to endorse or promote products derived from this software without specific
+# prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+# THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+# OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+# TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+extension: pg_wait_sampling
+metrics:
+
+#
+#
+# NOTE: pg_wait_sampling requires:
+#   - shared_preload_libraries = 'pg_wait_sampling' (or 'pg_stat_statements,pg_wait_sampling')
+#   - Background worker must be running
+#   - Some sampling data needs to accumulate before queries return meaningful results
+#
+
+# Wait event profile overview - aggregates wait events across all processes for system-wide wait analysis
+  - metric: wait_event_profile
+    queries:
+      - query: SELECT
+                  event_type,
+                  event,
+                  COUNT(*) as sample_count,
+                  ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) as percentage
+                FROM pg_wait_sampling_profile
+                WHERE event_type IS NOT NULL
+                GROUP BY event_type, event
+                ORDER BY sample_count DESC
+                LIMIT 20;
+        version: "1.1"
+        columns:
+          - name: event_type
+            type: label
+            description: PostgreSQL wait event type (Lock, LWLock, IO, IPC, Timeout, Activity, etc)
+          - name: event
+            type: label
+            description: Specific wait event name
+          - name: sample_count
+            type: gauge
+            description: Number of times this wait event was sampled
+          - name: percentage
+            type: gauge
+            description: Percentage of total wait samples
+
+# Per-process wait statistics - identifies which processes are experiencing the most waits
+# Can be used for diagnosing process-level performance issues and connection pool problems
+  - metric: process_wait_stats
+    queries:
+      - query: SELECT
+                  pid,
+                  COUNT(DISTINCT event_type) as event_types_seen,
+                  COUNT(DISTINCT event) as unique_events,
+                  SUM(count) as total_wait_samples
+                FROM pg_wait_sampling_profile
+                WHERE pid IS NOT NULL
+                GROUP BY pid
+                ORDER BY total_wait_samples DESC
+                LIMIT 10;
+        version: "1.1"
+        columns:
+          - name: pid
+            type: label
+            description: Process ID
+          - name: event_types_seen
+            type: gauge
+            description: Number of distinct wait event types seen by this process
+          - name: unique_events
+            type: gauge
+            description: Number of unique wait events
+          - name: total_wait_samples
+            type: gauge
+            description: Total wait samples collected for this process
+
+# Wait events aggregated by type - breaks down waits by PostgreSQL wait event categories
+# Provides high-level view of where the system is spending time waiting
+  - metric: wait_events_by_type
+    queries:
+      - query: SELECT
+                  event_type,
+                  COUNT(*) as event_count,
+                  SUM(count) as total_samples,
+                  ROUND(AVG(count), 2) as avg_samples_per_event
+                FROM pg_wait_sampling_profile
+                WHERE event_type IS NOT NULL
+                GROUP BY event_type
+                ORDER BY total_samples DESC;
+        version: "1.1"
+        columns:
+          - name: event_type
+            type: label
+            description: Wait event type category
+          - name: event_count
+            type: gauge
+            description: Number of distinct events in this type
+          - name: total_samples
+            type: gauge
+            description: Total wait samples for this event type
+          - name: avg_samples_per_event
+            type: gauge
+            description: Average samples per event within this type
+
+# Current active waits - real-time snapshot of what processes are waiting on right now
+  - metric: current_wait_events
+    queries:
+      - query: SELECT
+                  event_type,
+                  event,
+                  COUNT(*) as waiting_processes
+                FROM pg_wait_sampling_current
+                WHERE event_type IS NOT NULL
+                GROUP BY event_type, event
+                ORDER BY waiting_processes DESC;
+        version: "1.1"
+        columns:
+          - name: event_type
+            type: label
+            description: Wait event type
+          - name: event
+            type: label
+            description: Wait event name
+          - name: waiting_processes
+            type: gauge
+            description: Number of processes currently waiting on this event
+
+# Lock wait analysis - specifically tracks lock-related wait events
+# Helpful for identifying concurrency issues and lock contention problems
+  - metric: lock_waits
+    queries:
+      - query: SELECT
+                  event,
+                  SUM(count) as lock_wait_samples,
+                  COUNT(DISTINCT pid) as affected_processes,
+                  ROUND(
+                    SUM(count) * 100.0 /
+                    NULLIF((SELECT SUM(count) FROM pg_wait_sampling_profile WHERE event_type = 'Lock'), 0),
+                    2
+                  ) as pct_of_lock_waits
+                FROM pg_wait_sampling_profile
+                WHERE event_type = 'Lock'
+                GROUP BY event
+                ORDER BY lock_wait_samples DESC;
+        version: "1.1"
+        columns:
+          - name: event
+            type: label
+            description: Lock wait event name
+          - name: lock_wait_samples
+            type: gauge
+            description: Number of lock wait samples
+          - name: affected_processes
+            type: gauge
+            description: Number of distinct processes affected by this lock wait
+          - name: pct_of_lock_waits
+            type: gauge
+            description: Percentage of all lock waits
+
+# IO wait analysis - tracks IO-related wait events
+# Essential for identifying storage performance issues and disk bottlenecks
+  - metric: io_waits
+    queries:
+      - query: SELECT
+                  event,
+                  SUM(count) as io_wait_samples,
+                  COUNT(DISTINCT pid) as affected_processes
+                FROM pg_wait_sampling_profile
+                WHERE event_type = 'IO'
+                GROUP BY event
+                ORDER BY io_wait_samples DESC;
+        version: "1.1"
+        columns:
+          - name: event
+            type: label
+            description: IO wait event name
+          - name: io_wait_samples
+            type: gauge
+            description: Number of IO wait samples
+          - name: affected_processes
+            type: gauge
+            description: Number of distinct processes affected by this IO wait
+
+# Wait event history - recent history of wait events for trend analysis
+# Gives time-based analysis and identification of patterns over recent intervals
+  - metric: wait_history_recent
+    queries:
+      - query: SELECT
+                  event_type,
+                  event,
+                  COUNT(*) as occurrence_count,
+                  EXTRACT(EPOCH FROM (MAX(ts) - MIN(ts)))::bigint as time_span_seconds
+                FROM pg_wait_sampling_history
+                WHERE ts > NOW() - INTERVAL '5 minutes'
+                  AND event_type IS NOT NULL
+                GROUP BY event_type, event
+                ORDER BY occurrence_count DESC
+                LIMIT 15;
+        version: "1.1"
+        columns:
+          - name: event_type
+            type: label
+            description: Wait event type
+          - name: event
+            type: label
+            description: Wait event name
+          - name: occurrence_count
+            type: counter
+            description: Number of times this event occurred in last 5 minutes
+          - name: time_span_seconds
+            type: gauge
+            description: Time span in seconds between first and last occurrence
+
+# CPU-related wait events - tracks lightweight locks and CPU contention
+# Important for identifying spinlock contention and CPU-bound operations
+  - metric: cpu_waits
+    queries:
+      - query: SELECT
+                  event,
+                  SUM(count) as cpu_wait_samples,
+                  COUNT(DISTINCT pid) as affected_processes
+                FROM pg_wait_sampling_profile
+                WHERE event_type IN ('LWLock', 'CPU')
+                GROUP BY event
+                ORDER BY cpu_wait_samples DESC
+                LIMIT 10;
+        version: "1.1"
+        columns:
+          - name: event
+            type: label
+            description: CPU/LWLock wait event name
+          - name: cpu_wait_samples
+            type: gauge
+            description: Number of CPU-related wait samples
+          - name: affected_processes
+            type: gauge
+            description: Number of distinct processes affected
+
+# Per-query wait profile - links wait events to specific queries via queryid
+# Requires pg_stat_statements to be enabled for queryid tracking
+# Used for query-level performance optimization
+  - metric: query_wait_profile
+    queries:
+      - query: SELECT
+                  queryid,
+                  event_type,
+                  COUNT(DISTINCT event) as unique_events,
+                  SUM(count) as total_wait_samples
+                FROM pg_wait_sampling_profile
+                WHERE queryid IS NOT NULL
+                  AND queryid != 0
+                GROUP BY queryid, event_type
+                ORDER BY total_wait_samples DESC
+                LIMIT 20;
+        version: "1.1"
+        columns:
+          - name: queryid
+            type: label
+            description: Query identifier from pg_stat_statements
+          - name: event_type
+            type: label
+            description: Wait event type
+          - name: unique_events
+            type: gauge
+            description: Number of distinct wait events for this query
+          - name: total_wait_samples
+            type: gauge
+            description: Total wait samples for this query and event type
+
+# Wait distribution summary - high-level overview of all wait activity
+# Provides key metrics for monitoring overall wait sampling effectiveness
+  - metric: wait_distribution_summary
+    queries:
+      - query: SELECT
+                  COUNT(DISTINCT pid) as active_processes,
+                  COUNT(DISTINCT event_type) as event_types,
+                  COUNT(DISTINCT event) as unique_events,
+                  SUM(count) as total_samples,
+                  COUNT(DISTINCT queryid) FILTER (WHERE queryid IS NOT NULL AND queryid != 0) as queries_with_waits
+                FROM pg_wait_sampling_profile;
+        version: "1.1"
+        columns:
+          - name: active_processes
+            type: gauge
+            description: Number of processes with recorded wait events
+          - name: event_types
+            type: gauge
+            description: Number of distinct wait event types observed
+          - name: unique_events
+            type: gauge
+            description: Total number of unique wait events
+          - name: total_samples
+            type: gauge
+            description: Total wait samples collected
+          - name: queries_with_waits
+            type: gauge
+            description: Number of distinct queries with recorded waits
+
+# Timeout wait events - tracks timeout-related waits like pg_sleep, deadlock detection
+# Used for understanding application behavior and timeout patterns
+  - metric: timeout_waits
+    queries:
+      - query: SELECT
+                  event,
+                  SUM(count) as timeout_samples,
+                  COUNT(DISTINCT pid) as affected_processes
+                FROM pg_wait_sampling_profile
+                WHERE event_type = 'Timeout'
+                GROUP BY event
+                ORDER BY timeout_samples DESC;
+        version: "1.1"
+        columns:
+          - name: event
+            type: label
+            description: Timeout wait event name
+          - name: timeout_samples
+            type: gauge
+            description: Number of timeout wait samples
+          - name: affected_processes
+            type: gauge
+            description: Number of distinct processes affected
+
+# IPC wait events - tracks inter-process communication waits
+# Relevant for parallel query execution and background worker coordination
+  - metric: ipc_waits
+    queries:
+      - query: SELECT
+                  event,
+                  SUM(count) as ipc_wait_samples,
+                  COUNT(DISTINCT pid) as affected_processes
+                FROM pg_wait_sampling_profile
+                WHERE event_type = 'IPC'
+                GROUP BY event
+                ORDER BY ipc_wait_samples DESC;
+        version: "1.1"
+        columns:
+          - name: event
+            type: label
+            description: IPC wait event name
+          - name: ipc_wait_samples
+            type: gauge
+            description: Number of IPC wait samples
+          - name: affected_processes
+            type: gauge
+            description: Number of distinct processes affected
