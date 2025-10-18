@@ -4400,6 +4400,72 @@ Reflects `autoanalyze_count` from `pg_stat_user_tables`: the number of times thi
 | schemaname | The schema containing the table. |
 | relname | The table name. |
 
+## pgexporter_pg_table_blocks_read
+
+Total blocks read from disk (heap + index) for this table, from `pg_statio_user_tables`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The database containing the table. |
+| schemaname | The schema containing the table. |
+| relname | The table name. |
+
+## pgexporter_pg_table_tuples_read
+
+Total number of tuples read (sequential + index scans) in this table, from `pg_stat_user_tables`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The database containing the table. |
+| schemaname | The schema containing the table. |
+| relname | The table name. |
+
+## pgexporter_pg_table_blocks_write
+
+Estimated blocks affected by write operations, calculated based on table density and write tuple counts.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The database containing the table. |
+| schemaname | The schema containing the table. |
+| relname | The table name. |
+
+## pgexporter_pg_table_tuples_write
+
+Total number of tuples inserted, updated, or deleted in this table, from `pg_stat_user_tables`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The database containing the table. |
+| schemaname | The schema containing the table. |
+| relname | The table name. |
+
+## pgexporter_pg_table_ratio_write
+
+Percentage of I/O activity that is writes (0-100). Helps identify write-heavy tables for tuning WAL, autovacuum, and storage.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The database containing the table. |
+| schemaname | The schema containing the table. |
+| relname | The table name. |
+
+## pgexporter_pg_table_ratio_read
+
+Percentage of I/O activity that is reads (0-100). Helps identify read-heavy tables for tuning indexes, caching, and read replicas.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The database containing the table. |
+| schemaname | The schema containing the table. |
+| relname | The table name. |
+
 ## pgexporter_pg_table_bloat_table_size
 
 Reports the actual total size of a table on disk, in bytes, including the main relation, TOAST table, and all indexes.

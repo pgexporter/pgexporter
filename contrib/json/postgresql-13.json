@@ -1101,6 +1101,58 @@
     {
       "queries": [
         {
+          "query": "WITH table_activity AS ( SELECT s.schemaname, s.relname, si.heap_blks_read + si.idx_blks_read AS blocks_read, s.seq_tup_read + s.idx_tup_fetch AS tuples_read, c.relpages * (s.n_tup_ins + s.n_tup_upd + s.n_tup_del) / CASE WHEN c.reltuples = 0 THEN 1 ELSE c.reltuples END AS blocks_write, s.n_tup_ins + s.n_tup_upd + s.n_tup_del AS tuples_write FROM pg_stat_user_tables AS s JOIN pg_statio_user_tables AS si ON s.relid = si.relid JOIN pg_class c ON c.oid = s.relid WHERE (s.n_tup_ins + s.n_tup_upd + s.n_tup_del) > 0 AND (si.heap_blks_read + si.idx_blks_read) > 0 ) SELECT schemaname, relname, blocks_read, tuples_read, blocks_write, tuples_write, CASE WHEN (blocks_read + blocks_write) = 0 THEN 0 ELSE ROUND(100.0 * blocks_write / (blocks_read + blocks_write))::int END AS ratio_write, CASE WHEN (blocks_read + blocks_write) = 0 THEN 0 ELSE ROUND(100.0 * blocks_read / (blocks_read + blocks_write))::int END AS ratio_read FROM table_activity ORDER BY (blocks_read + blocks_write) DESC;",
+          "version": 13,
+          "columns": [
+            {
+              "name": "schemaname",
+              "type": "label"
+            },
+            {
+              "name": "relname",
+              "type": "label"
+            },
+            {
+              "name": "blocks_read",
+              "type": "counter",
+              "description": "Total blocks read from disk (heap + index)"
+            },
+            {
+              "name": "tuples_read",
+              "type": "counter",
+              "description": "Total number of tuples read (sequential + index scans)"
+            },
+            {
+              "name": "blocks_write",
+              "type": "gauge",
+              "description": "Estimated blocks affected by write operations"
+            },
+            {
+              "name": "tuples_write",
+              "type": "counter",
+              "description": "Total number of tuples inserted, updated, or deleted"
+            },
+            {
+              "name": "ratio_write",
+              "type": "gauge",
+              "description": "Percentage of I/O activity that is writes (0-100)"
+            },
+            {
+              "name": "ratio_read",
+              "type": "gauge",
+              "description": "Percentage of I/O activity that is reads (0-100)"
+            }
+          ]
+        }
+      ],
+      "tag": "pg_table_ratio",
+      "sort": "data",
+      "collector": "table_activity_ratio",
+      "database": "all"
+    },
+    {
+      "queries": [
+        {
           "query": "SELECT schemaname, tblname, real_size AS table_size, extra_size AS bloat_size, ROUND(extra_ratio::numeric, 2) AS bloat_ratio_pct, tblpages, est_tblpages, bs AS block_size FROM ( SELECT schemaname, tblname, bs*tblpages AS real_size, (tblpages-est_tblpages)*bs AS extra_size, CASE WHEN tblpages > 0 THEN 100 * (tblpages-est_tblpages)/tblpages::numeric ELSE 0 END AS extra_ratio, tblpages, est_tblpages, bs FROM ( SELECT n.nspname AS schemaname, c.relname AS tblname, c.relpages AS tblpages, CEIL(c.reltuples/((current_setting('block_size')::integer-24)/100)) AS est_tblpages, current_setting('block_size')::integer AS bs FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relkind = 'r' AND n.nspname NOT IN ('information_schema', 'pg_catalog', 'pg_toast') AND n.nspname NOT LIKE 'pg_temp_%' ) AS bloat_calc ) AS bloat_summary WHERE tblpages > 0 ORDER BY extra_size DESC;",
           "version": 13,
           "columns": [
