@@ -333,6 +333,13 @@ the `pgexporter_log_XYZ()` API
 You may find [core APIs](https://github.com/pgexporter/pgexporter/blob/main/doc/manual/dev-06-core_api.md) quite useful. Try
 not to reinvent the wheels, unless for a good reason.
 
+## Testing
+
+[**pgexporter**](https://github.com/pgexporter/pgexporter) has a test suite that uses containerized PostgreSQL 17 for testing.
+See [TEST.md](TEST.md) for detailed information on running tests, adding test cases, and understanding the test infrastructure.
+
+It is recommended that you **ALWAYS** run tests before raising a pull request.
+
 ## Basic git guide
 
 Here are some links that will help you
