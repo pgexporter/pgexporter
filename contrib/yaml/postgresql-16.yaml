@@ -917,6 +917,70 @@ metrics:
     sort: data
     collector: stat_user_tables
     database: all
+
+# Table read/write activity ratios
+  - queries:
+    - query: WITH table_activity AS (
+                SELECT
+                  s.schemaname,
+                  s.relname,
+                  si.heap_blks_read + si.idx_blks_read AS blocks_read,
+                  s.seq_tup_read + s.idx_tup_fetch AS tuples_read,
+                  c.relpages * (s.n_tup_ins + s.n_tup_upd + s.n_tup_del) /
+                    CASE WHEN c.reltuples = 0 THEN 1 ELSE c.reltuples END AS blocks_write,
+                  s.n_tup_ins + s.n_tup_upd + s.n_tup_del AS tuples_write
+                FROM pg_stat_user_tables AS s
+                JOIN pg_statio_user_tables AS si ON s.relid = si.relid
+                JOIN pg_class c ON c.oid = s.relid
+                WHERE (s.n_tup_ins + s.n_tup_upd + s.n_tup_del) > 0
+                  AND (si.heap_blks_read + si.idx_blks_read) > 0
+              )
+              SELECT
+                schemaname,
+                relname,
+                blocks_read,
+                tuples_read,
+                blocks_write,
+                tuples_write,
+                CASE
+                  WHEN (blocks_read + blocks_write) = 0 THEN 0
+                  ELSE ROUND(100.0 * blocks_write / (blocks_read + blocks_write))::int
+                END AS ratio_write,
+                CASE
+                  WHEN (blocks_read + blocks_write) = 0 THEN 0
+                  ELSE ROUND(100.0 * blocks_read / (blocks_read + blocks_write))::int
+                END AS ratio_read
+              FROM table_activity
+              ORDER BY (blocks_read + blocks_write) DESC;
+      version: 13
+      columns:
+        - name: schemaname
+          type: label
+        - name: relname
+          type: label
+        - name: blocks_read
+          type: counter
+          description: Total blocks read from disk (heap + index)
+        - name: tuples_read
+          type: counter
+          description: Total number of tuples read (sequential + index scans)
+        - name: blocks_write
+          type: gauge
+          description: Estimated blocks affected by write operations
+        - name: tuples_write
+          type: counter
+          description: Total number of tuples inserted, updated, or deleted
+        - name: ratio_write
+          type: gauge
+          description: Percentage of I/O activity that is writes (0-100)
+        - name: ratio_read
+          type: gauge
+          description: Percentage of I/O activity that is reads (0-100)
+    tag: pg_table_ratio
+    sort: data
+    collector: table_activity_ratio
+    database: all
+
 # Table bloat analysis
   - queries:
     - query: SELECT

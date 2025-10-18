@@ -1461,6 +1461,69 @@ extern "C" {
         "    collector: stat_user_tables\n" \
         "    database: all\n" \
         "\n" \
+        "# Table read/write activity ratios\n" \
+        "  - queries:\n" \
+        "    - query: WITH table_activity AS (\n" \
+        "                SELECT\n" \
+        "                  s.schemaname,\n" \
+        "                  s.relname,\n" \
+        "                  si.heap_blks_read + si.idx_blks_read AS blocks_read,\n" \
+        "                  s.seq_tup_read + s.idx_tup_fetch AS tuples_read,\n" \
+        "                  c.relpages * (s.n_tup_ins + s.n_tup_upd + s.n_tup_del) /\n" \
+        "                    CASE WHEN c.reltuples = 0 THEN 1 ELSE c.reltuples END AS blocks_write,\n" \
+        "                  s.n_tup_ins + s.n_tup_upd + s.n_tup_del AS tuples_write\n" \
+        "                FROM pg_stat_user_tables AS s\n" \
+        "                JOIN pg_statio_user_tables AS si ON s.relid = si.relid\n" \
+        "                JOIN pg_class c ON c.oid = s.relid\n" \
+        "                WHERE (s.n_tup_ins + s.n_tup_upd + s.n_tup_del) > 0\n" \
+        "                  AND (si.heap_blks_read + si.idx_blks_read) > 0\n" \
+        "              )\n" \
+        "              SELECT\n" \
+        "                schemaname,\n" \
+        "                relname,\n" \
+        "                blocks_read,\n" \
+        "                tuples_read,\n" \
+        "                blocks_write,\n" \
+        "                tuples_write,\n" \
+        "                CASE\n" \
+        "                  WHEN (blocks_read + blocks_write) = 0 THEN 0\n" \
+        "                  ELSE ROUND(100.0 * blocks_write / (blocks_read + blocks_write))::int\n" \
+        "                END AS ratio_write,\n" \
+        "                CASE\n" \
+        "                  WHEN (blocks_read + blocks_write) = 0 THEN 0\n" \
+        "                  ELSE ROUND(100.0 * blocks_read / (blocks_read + blocks_write))::int\n" \
+        "                END AS ratio_read\n" \
+        "              FROM table_activity\n" \
+        "              ORDER BY (blocks_read + blocks_write) DESC;\n" \
+        "      version: 13\n" \
+        "      columns:\n" \
+        "        - name: schemaname\n" \
+        "          type: label\n" \
+        "        - name: relname\n" \
+        "          type: label\n" \
+        "        - name: blocks_read\n" \
+        "          type: counter\n" \
+        "          description: Total blocks read from disk (heap + index)\n" \
+        "        - name: tuples_read\n" \
+        "          type: counter\n" \
+        "          description: Total number of tuples read (sequential + index scans)\n" \
+        "        - name: blocks_write\n" \
+        "          type: gauge\n" \
+        "          description: Estimated blocks affected by write operations\n" \
+        "        - name: tuples_write\n" \
+        "          type: counter\n" \
+        "          description: Total number of tuples inserted, updated, or deleted\n" \
+        "        - name: ratio_write\n" \
+        "          type: gauge\n" \
+        "          description: Percentage of I/O activity that is writes (0-100)\n" \
+        "        - name: ratio_read\n" \
+        "          type: gauge\n" \
+        "          description: Percentage of I/O activity that is reads (0-100)\n" \
+        "    tag: pg_table_ratio\n" \
+        "    sort: data\n" \
+        "    collector: table_activity_ratio\n" \
+        "    database: all\n" \
+        "\n" \
         "# Table bloat analysis\n" \
         "  - queries:\n" \
         "    - query: SELECT\n" \
