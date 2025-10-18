@@ -2988,7 +2988,9 @@ static void
 prometheus_endpoints_information(SSL* client_ssl, int client_fd)
 {
    char* data = NULL;
-   struct http* http = NULL;
+   struct http* connection = NULL;
+   struct http_request* request = NULL;
+   struct http_response* response = NULL;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
@@ -3002,7 +3004,7 @@ prometheus_endpoints_information(SSL* client_ssl, int client_fd)
 
       pgexporter_log_trace("Scraping Prometheus endpoint: %s:%d", config->servers[i].host, config->servers[i].port);
 
-      if (pgexporter_http_connect(config->servers[i].host, config->servers[i].port, false, &http))
+      if (pgexporter_http_create(config->servers[i].host, config->servers[i].port, false, &connection))
       {
          pgexporter_log_warn("Failed to connect to Prometheus endpoint %s (%s:%d)",
                              config->servers[i].name,
@@ -3011,7 +3013,14 @@ prometheus_endpoints_information(SSL* client_ssl, int client_fd)
          goto next;
       }
 
-      if (pgexporter_http_get(http, config->servers[i].host, "/metrics"))
+      if (pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/metrics", &request))
+      {
+         pgexporter_log_warn("Failed to create request for Prometheus endpoint %s",
+                             config->servers[i].name);
+         goto next;
+      }
+
+      if (pgexporter_http_invoke(connection, request, &response))
       {
          pgexporter_log_warn("Failed to get metrics from Prometheus endpoint %s (%s:%d/metrics)",
                              config->servers[i].name,
@@ -3020,14 +3029,14 @@ prometheus_endpoints_information(SSL* client_ssl, int client_fd)
          goto next;
       }
 
-      if (http->body != NULL && strlen(http->body) > 0)
+      if (response->payload.data != NULL && response->payload.data_size > 0)
       {
          char* line = NULL;
          char* body_copy = NULL;
          char* saveptr = NULL;
          bool first_line = true;
 
-         body_copy = strdup(http->body);
+         body_copy = strdup((char*)response->payload.data);
          if (body_copy == NULL)
          {
             goto next;
@@ -3057,11 +3066,22 @@ prometheus_endpoints_information(SSL* client_ssl, int client_fd)
       }
 
 next:
-      if (http != NULL)
+      if (response != NULL)
       {
-         pgexporter_http_disconnect(http);
-         pgexporter_http_destroy(http);
-         http = NULL;
+         pgexporter_http_response_destroy(response);
+         response = NULL;
+      }
+
+      if (request != NULL)
+      {
+         pgexporter_http_request_destroy(request);
+         request = NULL;
+      }
+
+      if (connection != NULL)
+      {
+         pgexporter_http_destroy(connection);
+         connection = NULL;
       }
    }
 }

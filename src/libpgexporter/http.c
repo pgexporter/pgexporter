@@ -36,252 +36,39 @@
 
 /* system */
 #include <errno.h>
+#include <string.h>
 #include <unistd.h>
 #include <openssl/err.h>
 
-static int http_build_header(int method, char* path, char** request);
-static int http_extract_headers_body(char* response, struct http* http);
+static int http_read_response(SSL* ssl, int socket, char** response);
+static int http_parse_response(char* response, struct http_response* http_response);
+static int http_build_request(struct http* connection, struct http_request* request, char** full_request, size_t* full_request_size);
+static char* http_method_to_string(int method);
 
 int
-pgexporter_http_add_header(struct http* http, char* name, char* value)
+pgexporter_http_create(char* hostname, int port, bool secure, struct http** result)
 {
-   char* tmp = NULL;
-
-   tmp = pgexporter_append(http->request_headers, name);
-   if (tmp == NULL)
-   {
-      return 1;
-   }
-   http->request_headers = tmp;
-
-   tmp = pgexporter_append(http->request_headers, ": ");
-   if (tmp == NULL)
-   {
-      return 1;
-   }
-   http->request_headers = tmp;
-
-   tmp = pgexporter_append(http->request_headers, value);
-   if (tmp == NULL)
-   {
-      return 1;
-   }
-   http->request_headers = tmp;
-
-   tmp = pgexporter_append(http->request_headers, "\r\n");
-   if (tmp == NULL)
-   {
-      return 1;
-   }
-   http->request_headers = tmp;
-
-   return 0;
-}
-
-static int
-http_build_header(int method, char* path, char** request)
-{
-   char* r = NULL;
-   *request = NULL;
-
-   if (method == PGEXPORTER_HTTP_GET)
-   {
-      r = pgexporter_append(r, "GET ");
-   }
-   else if (method == PGEXPORTER_HTTP_POST)
-   {
-      r = pgexporter_append(r, "POST ");
-   }
-   else if (method == PGEXPORTER_HTTP_PUT)
-   {
-      r = pgexporter_append(r, "PUT ");
-   }
-   else
-   {
-      pgexporter_log_error("Invalid HTTP method: %d", method);
-      return 1;
-   }
-
-   r = pgexporter_append(r, path);
-   r = pgexporter_append(r, " HTTP/1.1\r\n");
-
-   *request = r;
-
-   return 0;
-}
-
-static int
-http_extract_headers_body(char* response, struct http* http)
-{
-   bool header = true;
-   char* p = NULL;
-   char* response_copy = NULL;
-
-   if (response == NULL)
-   {
-      pgexporter_log_error("Response is NULL");
-      goto error;
-   }
-
-   response_copy = strdup(response);
-   if (response_copy == NULL)
-   {
-      pgexporter_log_error("Failed to duplicate response string");
-      goto error;
-   }
-
-   p = strtok(response_copy, "\n");
-   while (p != NULL)
-   {
-      if (*p == '\r')
-      {
-         header = false;
-      }
-      else
-      {
-         if (!pgexporter_is_number(p, 16))
-         {
-            if (header)
-            {
-               http->headers = pgexporter_append(http->headers, p);
-               http->headers = pgexporter_append_char(http->headers, '\n');
-            }
-            else
-            {
-               http->body = pgexporter_append(http->body, p);
-               http->body = pgexporter_append_char(http->body, '\n');
-            }
-         }
-      }
-
-      p = strtok(NULL, "\n");
-   }
-
-   free(response_copy);
-   return 0;
-
-error:
-   free(response_copy);
-   return 1;
-}
-
-int
-pgexporter_http_get(struct http* http, char* hostname, char* path)
-{
-   struct message* msg_request = NULL;
-   int error = 0;
-   int status;
-   char* request = NULL;
-   char* full_request = NULL;
-   char* response = NULL;
-   char* user_agent = NULL;
-
-   pgexporter_log_trace("Starting pgexporter_http_get");
-   if (path == NULL || strlen(path) == 0)
-   {
-      pgexporter_log_error("GET: Path can not be NULL");
-      goto error;
-   }
-   request = pgexporter_append(request, "GET ");
-   request = pgexporter_append(request, path);
-   request = pgexporter_append(request, " HTTP/1.1\r\n");
-
-   pgexporter_http_add_header(http, "Host", hostname);
-   user_agent = pgexporter_append(user_agent, "pgexporter/");
-   user_agent = pgexporter_append(user_agent, VERSION);
-   pgexporter_http_add_header(http, "User-Agent", user_agent);
-   pgexporter_http_add_header(http, "Accept", "text/*");
-   pgexporter_http_add_header(http, "Connection", "close");
-
-   full_request = pgexporter_append(NULL, request);
-   full_request = pgexporter_append(full_request, http->request_headers);
-   full_request = pgexporter_append(full_request, "\r\n");
-
-   msg_request = (struct message*)malloc(sizeof(struct message));
-   if (msg_request == NULL)
-   {
-      pgexporter_log_error("Failed to allocate msg_request");
-      goto error;
-   }
-
-   memset(msg_request, 0, sizeof(struct message));
-   msg_request->data = full_request;
-   msg_request->length = strlen(full_request) + 1;
-
-   error = 0;
-req:
-   if (error < 5)
-   {
-      status = pgexporter_write_message(http->ssl, http->socket, msg_request);
-      if (status != MESSAGE_STATUS_OK)
-      {
-         error++;
-         pgexporter_log_debug("Write failed, retrying (%d/5)", error);
-         goto req;
-      }
-   }
-   else
-   {
-      pgexporter_log_error("Failed to write after 5 attempts");
-      goto error;
-   }
-
-   status = pgexporter_http_read(http->ssl, http->socket, &response);
-
-   if (response == NULL)
-   {
-      pgexporter_log_error("GET: No response data collected");
-      goto error;
-   }
-
-   if (http_extract_headers_body(response, http))
-   {
-      pgexporter_log_error("Failed to extract headers and body");
-      goto error;
-   }
-
-   pgexporter_log_debug("HTTP Headers: %s", http->headers ? http->headers : "NULL");
-   pgexporter_log_debug("HTTP Body: %s", http->body ? http->body : "NULL");
-
-   free(request);
-   free(full_request);
-   free(response);
-   free(msg_request);
-   free(user_agent);
-
-   free(http->request_headers);
-   http->request_headers = NULL;
-
-   return 0;
-
-error:
-   free(request);
-   free(full_request);
-   free(response);
-   free(msg_request);
-   free(user_agent);
-   free(http->request_headers);
-   http->request_headers = NULL;
-   return 1;
-}
-
-int
-pgexporter_http_connect(char* hostname, int port, bool secure, struct http** result)
-{
-   struct http* h = NULL;
+   struct http* connection = NULL;
    int socket_fd = -1;
    SSL* ssl = NULL;
    SSL_CTX* ctx = NULL;
 
-   pgexporter_log_debug("Connecting to %s:%d (secure: %d)", hostname, port, secure);
-   h = (struct http*) malloc(sizeof(struct http));
-   if (h == NULL)
+   if (hostname == NULL || result == NULL)
    {
-      pgexporter_log_error("Failed to allocate HTTP structure");
+      pgexporter_log_error("Invalid parameters for HTTP connection");
       goto error;
    }
 
-   memset(h, 0, sizeof(struct http));
+   pgexporter_log_debug("Creating HTTP connection to %s:%d (secure: %d)", hostname, port, secure);
+
+   connection = (struct http*)malloc(sizeof(struct http));
+   if (connection == NULL)
+   {
+      pgexporter_log_error("Failed to allocate HTTP connection structure");
+      goto error;
+   }
+
+   memset(connection, 0, sizeof(struct http));
 
    if (pgexporter_connect(hostname, port, &socket_fd))
    {
@@ -289,7 +76,10 @@ pgexporter_http_connect(char* hostname, int port, bool secure, struct http** res
       goto error;
    }
 
-   h->socket = socket_fd;
+   connection->socket = socket_fd;
+   connection->hostname = strdup(hostname);
+   connection->port = port;
+   connection->secure = secure;
 
    if (secure)
    {
@@ -339,12 +129,12 @@ pgexporter_http_connect(char* hostname, int port, bool secure, struct http** res
       }
       while (connect_result != 1);
 
-      h->ssl = ssl;
+      connection->ssl = ssl;
    }
 
-   *result = h;
+   *result = connection;
 
-   return 0;
+   return PGEXPORTER_HTTP_STATUS_OK;
 
 error:
    if (ssl != NULL)
@@ -359,68 +149,265 @@ error:
    {
       pgexporter_disconnect(socket_fd);
    }
-   free(h);
-   return 1;
+   if (connection != NULL)
+   {
+      free(connection->hostname);
+      free(connection);
+   }
+
+   return PGEXPORTER_HTTP_STATUS_ERROR;
 }
 
 int
-pgexporter_http_post(struct http* http, char* hostname, char* path, char* data, size_t length)
+pgexporter_http_request_create(int method, char* path, struct http_request** result)
 {
-   struct message msg_request;
-   struct message* msg_request_ptr = NULL;
+   struct http_request* request = NULL;
+
+   if (path == NULL || result == NULL)
+   {
+      pgexporter_log_error("Invalid parameters for HTTP request");
+      goto error;
+   }
+
+   request = (struct http_request*)malloc(sizeof(struct http_request));
+   if (request == NULL)
+   {
+      pgexporter_log_error("Failed to allocate HTTP request structure");
+      goto error;
+   }
+
+   memset(request, 0, sizeof(struct http_request));
+
+   request->method = method;
+   request->path = strdup(path);
+   if (request->path == NULL)
+   {
+      pgexporter_log_error("Failed to duplicate path string");
+      goto error;
+   }
+
+   if (pgexporter_deque_create(false, &request->payload.headers))
+   {
+      pgexporter_log_error("Failed to create headers deque");
+      goto error;
+   }
+
+   *result = request;
+
+   return PGEXPORTER_HTTP_STATUS_OK;
+
+error:
+   if (request != NULL)
+   {
+      free(request->path);
+      pgexporter_deque_destroy(request->payload.headers);
+      free(request);
+   }
+   return PGEXPORTER_HTTP_STATUS_ERROR;
+}
+
+int
+pgexporter_http_request_add_header(struct http_request* request, char* name, char* value)
+{
+   if (request == NULL || name == NULL || value == NULL)
+   {
+      pgexporter_log_error("Invalid parameters for adding HTTP header");
+      goto error;
+   }
+
+   if (request->payload.headers == NULL)
+   {
+      pgexporter_log_error("Headers deque is NULL");
+      goto error;
+   }
+
+   if (pgexporter_deque_add(request->payload.headers, name, (uintptr_t)value, ValueString))
+   {
+      pgexporter_log_error("Failed to add header to deque");
+      goto error;
+   }
+
+   return PGEXPORTER_HTTP_STATUS_OK;
+
+error:
+   return PGEXPORTER_HTTP_STATUS_ERROR;
+}
+
+char*
+pgexporter_http_request_get_header(struct http_request* request, char* name)
+{
+   if (request == NULL || name == NULL)
+   {
+      return NULL;
+   }
+
+   if (request->payload.headers == NULL)
+   {
+      return NULL;
+   }
+
+   return (char*)pgexporter_deque_get(request->payload.headers, name);
+}
+
+int
+pgexporter_http_request_update_header(struct http_request* request, char* name, char* value)
+{
+   if (request == NULL || name == NULL || value == NULL)
+   {
+      pgexporter_log_error("Invalid parameters for updating HTTP header");
+      goto error;
+   }
+
+   if (request->payload.headers == NULL)
+   {
+      pgexporter_log_error("Headers deque is NULL");
+      goto error;
+   }
+
+   if (pgexporter_deque_remove(request->payload.headers, name) > 0)
+   {
+      pgexporter_log_trace("Removed existing header: %s", name);
+   }
+
+   if (pgexporter_deque_add(request->payload.headers, name, (uintptr_t)value, ValueString))
+   {
+      pgexporter_log_error("Failed to add updated header to deque");
+      goto error;
+   }
+
+   return PGEXPORTER_HTTP_STATUS_OK;
+
+error:
+   return PGEXPORTER_HTTP_STATUS_ERROR;
+}
+
+int
+pgexporter_http_request_remove_header(struct http_request* request, char* name)
+{
+   if (request == NULL || name == NULL)
+   {
+      pgexporter_log_error("Invalid parameters for removing HTTP header");
+      goto error;
+   }
+
+   if (request->payload.headers == NULL)
+   {
+      pgexporter_log_error("Headers deque is NULL");
+      goto error;
+   }
+
+   int removed = pgexporter_deque_remove(request->payload.headers, name);
+   if (removed == 0)
+   {
+      pgexporter_log_debug("Header not found for removal: %s", name);
+   }
+
+   return PGEXPORTER_HTTP_STATUS_OK;
+
+error:
+   return PGEXPORTER_HTTP_STATUS_ERROR;
+}
+
+int
+pgexporter_http_set_data(struct http_request* request, void* data, size_t size)
+{
+   if (request == NULL)
+   {
+      pgexporter_log_error("Invalid request parameter");
+      goto error;
+   }
+
+   if (request->payload.data != NULL)
+   {
+      free(request->payload.data);
+      request->payload.data = NULL;
+      request->payload.data_size = 0;
+   }
+
+   if (data != NULL && size > 0)
+   {
+      request->payload.data = malloc(size);
+      if (request->payload.data == NULL)
+      {
+         pgexporter_log_error("Failed to allocate memory for request data");
+         goto error;
+      }
+
+      memcpy(request->payload.data, data, size);
+      request->payload.data_size = size;
+   }
+
+   return PGEXPORTER_HTTP_STATUS_OK;
+
+error:
+   return PGEXPORTER_HTTP_STATUS_ERROR;
+}
+
+char*
+pgexporter_http_get_response_header(struct http_response* response, char* name)
+{
+   if (response == NULL || name == NULL)
+   {
+      return NULL;
+   }
+
+   if (response->payload.headers == NULL)
+   {
+      return NULL;
+   }
+
+   return (char*)pgexporter_deque_get(response->payload.headers, name);
+}
+
+int
+pgexporter_http_invoke(struct http* connection, struct http_request* request, struct http_response** response)
+{
+   struct message* msg_request = NULL;
+   char* full_request = NULL;
+   size_t full_request_size = 0;
+   char* response_text = NULL;
+   struct http_response* http_response = NULL;
    int error = 0;
    int status;
-   char* request = NULL;
-   char* full_request = NULL;
-   char* response = NULL;
-   char* user_agent = NULL;
-   char content_length[32];
 
-   memset(&msg_request, 0, sizeof(struct message));
-
-   pgexporter_log_trace("Starting pgexporter_http_post");
-   if (http_build_header(PGEXPORTER_HTTP_POST, path, &request))
+   if (connection == NULL || request == NULL || response == NULL)
    {
-      pgexporter_log_error("Failed to build HTTP header");
+      pgexporter_log_error("Invalid parameters for HTTP invoke");
       goto error;
    }
 
-   pgexporter_http_add_header(http, "Host", hostname);
-   user_agent = pgexporter_append(user_agent, "pgexporter/");
-   user_agent = pgexporter_append(user_agent, VERSION);
-   pgexporter_http_add_header(http, "User-Agent", user_agent);
-   pgexporter_http_add_header(http, "Connection", "close");
+   pgexporter_log_trace("Invoking HTTP request");
 
-   sprintf(content_length, "%zu", length);
-   pgexporter_http_add_header(http, "Content-Length", content_length);
-   pgexporter_http_add_header(http, "Content-Type", "application/x-www-form-urlencoded");
-
-   full_request = pgexporter_append(NULL, request);
-   full_request = pgexporter_append(full_request, http->request_headers);
-   full_request = pgexporter_append(full_request, "\r\n");
-
-   if (data != NULL && length > 0)
+   http_response = (struct http_response*)malloc(sizeof(struct http_response));
+   if (http_response == NULL)
    {
-      full_request = pgexporter_append(full_request, data);
+      pgexporter_log_error("Failed to allocate HTTP response structure");
+      goto error;
    }
+   memset(http_response, 0, sizeof(struct http_response));
 
-   msg_request_ptr = (struct message*)malloc(sizeof(struct message));
-   if (msg_request_ptr == NULL)
+   if (http_build_request(connection, request, &full_request, &full_request_size))
    {
-      pgexporter_log_error("Failed to allocate msg_request");
+      pgexporter_log_error("Failed to build HTTP request");
       goto error;
    }
 
-   memset(msg_request_ptr, 0, sizeof(struct message));
+   msg_request = (struct message*)malloc(sizeof(struct message));
+   if (msg_request == NULL)
+   {
+      pgexporter_log_error("Failed to allocate message structure");
+      goto error;
+   }
 
-   msg_request_ptr->data = full_request;
-   msg_request_ptr->length = strlen(full_request) + 1;
+   memset(msg_request, 0, sizeof(struct message));
+   msg_request->data = full_request;
+   msg_request->length = full_request_size;
 
    error = 0;
 req:
    if (error < 5)
    {
-      status = pgexporter_write_message(http->ssl, http->socket, msg_request_ptr);
+      status = pgexporter_write_message(connection->ssl, connection->socket, msg_request);
       if (status != MESSAGE_STATUS_OK)
       {
          error++;
@@ -434,338 +421,90 @@ req:
       goto error;
    }
 
-   status = pgexporter_http_read(http->ssl, http->socket, &response);
-
-   if (response == NULL)
+   status = http_read_response(connection->ssl, connection->socket, &response_text);
+   if (status != MESSAGE_STATUS_OK)
    {
-      pgexporter_log_error("No response data collected");
+      pgexporter_log_error("Failed to read HTTP response");
       goto error;
    }
 
-   if (http_extract_headers_body(response, http))
+   if (http_parse_response(response_text, http_response))
    {
-      pgexporter_log_error("Failed to extract headers and body");
+      pgexporter_log_error("Failed to parse HTTP response");
       goto error;
    }
 
-   free(request);
+   *response = http_response;
+
    free(full_request);
-   free(response);
-   free(msg_request_ptr);
-   free(user_agent);
+   free(response_text);
+   free(msg_request);
 
-   free(http->request_headers);
-   http->request_headers = NULL;
-
-   return 0;
+   return PGEXPORTER_HTTP_STATUS_OK;
 
 error:
-   free(request);
    free(full_request);
-   free(response);
-   free(msg_request_ptr);
-   free(user_agent);
-   free(http->request_headers);
-   http->request_headers = NULL;
-   return 1;
+   free(response_text);
+   free(msg_request);
+   if (http_response != NULL)
+   {
+      pgexporter_http_response_destroy(http_response);
+   }
+
+   return PGEXPORTER_HTTP_STATUS_ERROR;
 }
 
 int
-pgexporter_http_put(struct http* http, char* hostname, char* path, const void* data, size_t length)
+pgexporter_http_request_destroy(struct http_request* request)
 {
-   struct message msg_request;
-   struct message* msg_request_ptr = NULL;
-   int error = 0;
-   int status;
-   char* request = NULL;
-   char* full_request = NULL;
-   char* response = NULL;
-   char* user_agent = NULL;
-   char* complete_request = NULL;
-   char content_length[32];
-
-   memset(&msg_request, 0, sizeof(struct message));
-
-   pgexporter_log_trace("Starting pgexporter_http_put");
-   if (http_build_header(PGEXPORTER_HTTP_PUT, path, &request))
+   if (request != NULL)
    {
-      pgexporter_log_error("Failed to build HTTP header");
-      goto error;
+      free(request->path);
+      pgexporter_deque_destroy(request->payload.headers);
+      free(request->payload.data);
+      free(request);
    }
 
-   pgexporter_http_add_header(http, "Host", hostname);
-   user_agent = pgexporter_append(user_agent, "pgexporter/");
-   user_agent = pgexporter_append(user_agent, VERSION);
-   pgexporter_http_add_header(http, "User-Agent", user_agent);
-   pgexporter_http_add_header(http, "Connection", "close");
-
-   sprintf(content_length, "%zu", length);
-   pgexporter_http_add_header(http, "Content-Length", content_length);
-   pgexporter_http_add_header(http, "Content-Type", "application/octet-stream");
-
-   full_request = pgexporter_append(NULL, request);
-   full_request = pgexporter_append(full_request, http->request_headers);
-   full_request = pgexporter_append(full_request, "\r\n");
-
-   size_t headers_len = strlen(full_request);
-   size_t total_len = headers_len + length;
-
-   complete_request = malloc(total_len + 1);
-   if (complete_request == NULL)
-   {
-      pgexporter_log_error("Failed to allocate complete request");
-      goto error;
-   }
-
-   memcpy(complete_request, full_request, headers_len);
-
-   if (data != NULL && length > 0)
-   {
-      memcpy(complete_request + headers_len, data, length);
-   }
-
-   complete_request[total_len] = '\0';
-
-   msg_request_ptr = (struct message*)malloc(sizeof(struct message));
-   if (msg_request_ptr == NULL)
-   {
-      pgexporter_log_error("Failed to allocate msg_request");
-      goto error;
-   }
-
-   memset(msg_request_ptr, 0, sizeof(struct message));
-
-   msg_request_ptr->data = complete_request;
-   msg_request_ptr->length = total_len + 1;
-
-   error = 0;
-req:
-   if (error < 5)
-   {
-      status = pgexporter_write_message(http->ssl, http->socket, msg_request_ptr);
-      if (status != MESSAGE_STATUS_OK)
-      {
-         error++;
-         pgexporter_log_debug("Write failed, retrying (%d/5)", error);
-         goto req;
-      }
-   }
-   else
-   {
-      pgexporter_log_error("Failed to write after 5 attempts");
-      goto error;
-   }
-
-   status = pgexporter_http_read(http->ssl, http->socket, &response);
-
-   if (response == NULL)
-   {
-      pgexporter_log_error("No response data collected");
-      goto error;
-   }
-
-   if (http_extract_headers_body(response, http))
-   {
-      pgexporter_log_error("Failed to extract headers and body");
-      goto error;
-   }
-
-   free(request);
-   free(full_request);
-   free(response);
-   free(msg_request_ptr->data);
-   free(msg_request_ptr);
-   free(user_agent);
-
-   free(http->request_headers);
-   http->request_headers = NULL;
-
-   return 0;
-
-error:
-   free(request);
-   free(full_request);
-   free(response);
-   free(complete_request);
-   free(msg_request_ptr);
-   free(user_agent);
-   free(http->request_headers);
-   http->request_headers = NULL;
-
-   return 1;
+   return PGEXPORTER_HTTP_STATUS_OK;
 }
 
 int
-pgexporter_http_put_file(struct http* http, char* hostname, char* path, FILE* file, size_t file_size, char* content_type)
+pgexporter_http_response_destroy(struct http_response* response)
 {
-   struct message msg_request;
-   struct message* msg_request_ptr = NULL;
-   int error = 0;
-   int status;
-   char* request = NULL;
-   char* header_part = NULL;
-   char* response = NULL;
-   char* user_agent = NULL;
-   char* full_request = NULL;
-   char content_length[32];
-   void* file_buffer = NULL;
-
-   memset(&msg_request, 0, sizeof(struct message));
-
-   pgexporter_log_trace("Starting pgexporter_http_put_file");
-   if (file == NULL)
+   if (response != NULL)
    {
-      pgexporter_log_error("File is NULL");
-      goto error;
+      pgexporter_deque_destroy(response->payload.headers);
+      free(response->payload.data);
+      free(response);
    }
 
-   if (http_build_header(PGEXPORTER_HTTP_PUT, path, &request))
-   {
-      pgexporter_log_error("Failed to build HTTP header");
-      goto error;
-   }
-
-   pgexporter_http_add_header(http, "Host", hostname);
-   user_agent = pgexporter_append(user_agent, "pgexporter/");
-   user_agent = pgexporter_append(user_agent, VERSION);
-   pgexporter_http_add_header(http, "User-Agent", user_agent);
-   pgexporter_http_add_header(http, "Connection", "close");
-
-   sprintf(content_length, "%zu", file_size);
-   pgexporter_http_add_header(http, "Content-Length", content_length);
-
-   /* default to application/octet-stream if not specified */
-   char* type = (content_type != NULL) ? content_type : "application/octet-stream";
-   pgexporter_http_add_header(http, "Content-Type", type);
-
-   header_part = pgexporter_append(NULL, request);
-   header_part = pgexporter_append(header_part, http->request_headers);
-   header_part = pgexporter_append(header_part, "\r\n");
-
-   pgexporter_log_trace("File size: %zu", file_size);
-
-   rewind(file);
-
-   file_buffer = malloc(file_size);
-   if (file_buffer == NULL)
-   {
-      pgexporter_log_error("Failed to allocate memory for file content: %zu bytes", file_size);
-      goto error;
-   }
-
-   size_t bytes_read = fread(file_buffer, 1, file_size, file);
-   if (bytes_read != file_size)
-   {
-      pgexporter_log_error("Failed to read entire file. Expected %zu bytes, got %zu", file_size, bytes_read);
-      goto error;
-   }
-
-   pgexporter_log_trace("Read %zu bytes from file", bytes_read);
-
-   msg_request_ptr = (struct message*)malloc(sizeof(struct message));
-   if (msg_request_ptr == NULL)
-   {
-      pgexporter_log_error("Failed to allocate msg_request");
-      goto error;
-   }
-
-   memset(msg_request_ptr, 0, sizeof(struct message));
-
-   size_t header_len = strlen(header_part);
-   size_t total_len = header_len + file_size;
-
-   full_request = malloc(total_len + 1);
-   if (full_request == NULL)
-   {
-      pgexporter_log_error("Failed to allocate memory for full request: %zu bytes", total_len + 1);
-      goto error;
-   }
-
-   memcpy(full_request, header_part, header_len);
-
-   memcpy(full_request + header_len, file_buffer, file_size);
-
-   full_request[total_len] = '\0';
-
-   pgexporter_log_trace("Setting msg_request data, total size: %zu", total_len);
-   msg_request_ptr->data = full_request;
-   msg_request_ptr->length = total_len;
-
-   error = 0;
-req:
-   if (error < 5)
-   {
-      status = pgexporter_write_message(http->ssl, http->socket, msg_request_ptr);
-      if (status != MESSAGE_STATUS_OK)
-      {
-         error++;
-         pgexporter_log_debug("Write failed, retrying (%d/5)", error);
-         goto req;
-      }
-   }
-   else
-   {
-      pgexporter_log_error("Failed to write after 5 attempts");
-      goto error;
-   }
-
-   status = pgexporter_http_read(http->ssl, http->socket, &response);
-
-   if (response == NULL)
-   {
-      pgexporter_log_error("No response data collected");
-      goto error;
-   }
-
-   if (http_extract_headers_body(response, http))
-   {
-      pgexporter_log_error("Failed to extract headers and body");
-      goto error;
-   }
-
-   int status_code = 0;
-   if (http->headers != NULL && sscanf(http->headers, "HTTP/1.1 %d", &status_code) == 1)
-   {
-      pgexporter_log_debug("HTTP status code: %d", status_code);
-      if (status_code >= 200 && status_code < 300)
-      {
-         pgexporter_log_debug("HTTP request successful");
-      }
-      else
-      {
-         pgexporter_log_error("HTTP request failed with status code: %d", status_code);
-      }
-   }
-
-   free(request);
-   free(header_part);
-   free(response);
-   free(file_buffer);
-   free(full_request);
-   free(msg_request_ptr);
-   free(user_agent);
-
-   free(http->request_headers);
-   http->request_headers = NULL;
-
-   return (status_code >= 200 && status_code < 300) ? 0 : 1;
-
-error:
-   free(request);
-   free(header_part);
-   free(response);
-   free(file_buffer);
-   free(full_request);
-   free(msg_request_ptr);
-   free(user_agent);
-   free(http->request_headers);
-   http->request_headers = NULL;
-
-   return 1;
+   return PGEXPORTER_HTTP_STATUS_OK;
 }
 
 int
-pgexporter_http_read(SSL* ssl, int socket, char** response_text)
+pgexporter_http_destroy(struct http* connection)
+{
+   if (connection != NULL)
+   {
+      if (connection->ssl != NULL)
+      {
+         pgexporter_close_ssl(connection->ssl);
+      }
+
+      if (connection->socket != -1)
+      {
+         pgexporter_disconnect(connection->socket);
+      }
+
+      free(connection->hostname);
+      free(connection);
+   }
+
+   return PGEXPORTER_HTTP_STATUS_OK;
+}
+
+static int
+http_read_response(SSL* ssl, int socket, char** response_text)
 {
    char buffer[8192];
    ssize_t bytes_read;
@@ -777,7 +516,7 @@ pgexporter_http_read(SSL* ssl, int socket, char** response_text)
 
    while (1)
    {
-      if (ssl != NULL)
+      if (ssl)
       {
          bytes_read = SSL_read(ssl, buffer, sizeof(buffer) - 1);
          if (bytes_read <= 0)
@@ -857,71 +596,236 @@ pgexporter_http_read(SSL* ssl, int socket, char** response_text)
       }
    }
 
-   pgexporter_log_debug("Read %d bytes from socket", total_bytes);
-
    return total_bytes > 0 ? MESSAGE_STATUS_OK : MESSAGE_STATUS_ERROR;
 }
 
-int
-pgexporter_http_disconnect(struct http* http)
+static int
+http_parse_response(char* response, struct http_response* http_response)
 {
-   int status = 0;
+   bool header = true;
+   char* p = NULL;
+   char* response_copy = NULL;
+   char* status_line = NULL;
+   char* colon = NULL;
+   char* name = NULL;
+   char* value = NULL;
 
-   if (http != NULL)
+   if (response == NULL || http_response == NULL)
    {
-      if (http->ssl != NULL)
-      {
-         pgexporter_close_ssl(http->ssl);
-         http->ssl = NULL;
-      }
-
-      if (http->socket != -1)
-      {
-         if (pgexporter_disconnect(http->socket))
-         {
-            pgexporter_log_error("Failed to disconnect socket in pgexporter_http_disconnect");
-            status = 1;
-         }
-         http->socket = -1;
-      }
-   }
-
-   if (status != 0)
-   {
+      pgexporter_log_error("Invalid parameters for parsing HTTP response");
       goto error;
    }
 
-   return 0;
-
-error:
-   return 1;
-}
-
-int
-pgexporter_http_destroy(struct http* http)
-{
-
-   if (http != NULL)
+   response_copy = strdup(response);
+   if (response_copy == NULL)
    {
-      if (http->headers != NULL)
-      {
-         free(http->headers);
-         http->headers = NULL;
-      }
-
-      if (http->body != NULL)
-      {
-         free(http->body);
-         http->body = NULL;
-      }
-
-      if (http->request_headers != NULL)
-      {
-         free(http->request_headers);
-         http->request_headers = NULL;
-      }
-      free(http);
+      pgexporter_log_error("Failed to duplicate response string");
+      goto error;
    }
 
-   return 0;
+   if (pgexporter_deque_create(false, &http_response->payload.headers))
+   {
+      pgexporter_log_error("Failed to create headers deque for response");
+      goto error;
+   }
+
+   status_line = strtok(response_copy, "\n");
+   if (status_line != NULL && sscanf(status_line, "HTTP/1.1 %d", &http_response->status_code) != 1)
+   {
+      pgexporter_log_error("Failed to parse HTTP status code");
+      goto error;
+   }
+
+   free(response_copy);
+   response_copy = strdup(response);
+   if (response_copy == NULL)
+   {
+      pgexporter_log_error("Failed to duplicate response string");
+      goto error;
+   }
+
+   p = strtok(response_copy, "\n");
+   while (p != NULL)
+   {
+      if (*p == '\r')
+      {
+         header = false;
+      }
+      else
+      {
+         if (!pgexporter_is_number(p, 16))
+         {
+            if (header)
+            {
+               colon = strchr(p, ':');
+               if (colon != NULL)
+               {
+                  *colon = '\0';
+                  name = p;
+                  value = colon + 1;
+
+                  while (*value == ' ' || *value == '\t')
+                  {
+                     value++;
+                  }
+
+                  size_t len = strlen(value);
+                  while (len > 0 && (value[len - 1] == '\r' || value[len - 1] == '\n'))
+                  {
+                     value[len - 1] = '\0';
+                     len--;
+                  }
+
+                  if (pgexporter_deque_add(http_response->payload.headers, name, (uintptr_t)value, ValueString))
+                  {
+                     pgexporter_log_warn("Failed to add response header: %s", name);
+                  }
+               }
+            }
+            else
+            {
+               http_response->payload.data = pgexporter_append((char*)http_response->payload.data, p);
+               http_response->payload.data = pgexporter_append_char((char*)http_response->payload.data, '\n');
+            }
+         }
+      }
+
+      p = strtok(NULL, "\n");
+   }
+
+   if (http_response->payload.data != NULL)
+   {
+      http_response->payload.data_size = strlen((char*)http_response->payload.data);
+   }
+
+   free(response_copy);
+   return PGEXPORTER_HTTP_STATUS_OK;
+
+error:
+   free(response_copy);
+   return PGEXPORTER_HTTP_STATUS_ERROR;
+}
+
+static int
+http_build_request(struct http* connection, struct http_request* request, char** full_request, size_t* full_request_size)
+{
+   char* method_str = NULL;
+   char* request_line = NULL;
+   char* headers = NULL;
+   char* user_agent = NULL;
+   char content_length[32];
+   size_t header_len = 0;
+   size_t total_len = 0;
+
+   if (connection == NULL || request == NULL || full_request == NULL || full_request_size == NULL)
+   {
+      pgexporter_log_error("Invalid parameters for HTTP build request");
+      goto error;
+   }
+
+   method_str = http_method_to_string(request->method);
+   if (method_str == NULL)
+   {
+      pgexporter_log_error("Invalid HTTP method: %d", request->method);
+      goto error;
+   }
+
+   request_line = pgexporter_append(request_line, method_str);
+   request_line = pgexporter_append(request_line, " ");
+   request_line = pgexporter_append(request_line, request->path);
+   request_line = pgexporter_append(request_line, " HTTP/1.1\r\n");
+
+   headers = pgexporter_append(headers, "Host: ");
+   headers = pgexporter_append(headers, connection->hostname);
+   headers = pgexporter_append(headers, "\r\n");
+
+   user_agent = pgexporter_append(user_agent, "pgexporter/");
+   user_agent = pgexporter_append(user_agent, VERSION);
+   headers = pgexporter_append(headers, "User-Agent: ");
+   headers = pgexporter_append(headers, user_agent);
+   headers = pgexporter_append(headers, "\r\n");
+
+   headers = pgexporter_append(headers, "Connection: close\r\n");
+
+   sprintf(content_length, "%zu", request->payload.data_size);
+   headers = pgexporter_append(headers, "Content-Length: ");
+   headers = pgexporter_append(headers, content_length);
+   headers = pgexporter_append(headers, "\r\n");
+
+   if (request->method == PGEXPORTER_HTTP_POST)
+   {
+      headers = pgexporter_append(headers, "Content-Type: application/x-www-form-urlencoded\r\n");
+   }
+   else if (request->method == PGEXPORTER_HTTP_PUT)
+   {
+      headers = pgexporter_append(headers, "Content-Type: application/octet-stream\r\n");
+   }
+
+   if (request->payload.headers != NULL && !pgexporter_deque_empty(request->payload.headers))
+   {
+      struct deque_iterator* iter = NULL;
+      if (pgexporter_deque_iterator_create(request->payload.headers, &iter) == 0)
+      {
+         while (pgexporter_deque_iterator_next(iter))
+         {
+            headers = pgexporter_append(headers, iter->tag);
+            headers = pgexporter_append(headers, ": ");
+            headers = pgexporter_append(headers, (char*)pgexporter_value_data(iter->value));
+            headers = pgexporter_append(headers, "\r\n");
+         }
+         pgexporter_deque_iterator_destroy(iter);
+      }
+   }
+
+   headers = pgexporter_append(headers, "\r\n");
+
+   header_len = strlen(request_line) + strlen(headers);
+   total_len = header_len + request->payload.data_size;
+
+   *full_request = malloc(total_len + 1);
+   if (*full_request == NULL)
+   {
+      pgexporter_log_error("Failed to allocate memory for full request");
+      goto error;
+   }
+
+   memcpy(*full_request, request_line, strlen(request_line));
+   memcpy(*full_request + strlen(request_line), headers, strlen(headers));
+
+   if (request->payload.data_size > 0)
+   {
+      memcpy(*full_request + header_len, request->payload.data, request->payload.data_size);
+   }
+
+   (*full_request)[total_len] = '\0';
+   *full_request_size = total_len;
+
+   free(request_line);
+   free(headers);
+   free(user_agent);
+
+   return PGEXPORTER_HTTP_STATUS_OK;
+
+error:
+   free(request_line);
+   free(headers);
+   free(user_agent);
+
+   return PGEXPORTER_HTTP_STATUS_ERROR;
+}
+
+static char*
+http_method_to_string(int method)
+{
+   switch (method)
+   {
+      case PGEXPORTER_HTTP_GET:
+         return "GET";
+      case PGEXPORTER_HTTP_POST:
+         return "POST";
+      case PGEXPORTER_HTTP_PUT:
+         return "PUT";
+      default:
+         return NULL;
+   }
 }
