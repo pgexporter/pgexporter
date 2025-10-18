@@ -114,14 +114,16 @@ int
 pgexporter_prometheus_client_get(int endpoint, struct prometheus_bridge* bridge)
 {
    time_t timestamp;
-   struct http* http = NULL;
+   struct http* connection = NULL;
+   struct http_request* request = NULL;
+   struct http_response* response = NULL;
    struct configuration* config = NULL;
 
    config = (struct configuration*)shmem;
 
    pgexporter_log_debug("Endpoint http://%s:%d/metrics", config->endpoints[endpoint].host, config->endpoints[endpoint].port);
 
-   if (pgexporter_http_connect(config->endpoints[endpoint].host, config->endpoints[endpoint].port, false, &http))
+   if (pgexporter_http_create(config->endpoints[endpoint].host, config->endpoints[endpoint].port, false, &connection))
    {
       pgexporter_log_error("Failed to connect to HTTP endpoint %d (%s:%d)",
                            endpoint,
@@ -130,9 +132,13 @@ pgexporter_prometheus_client_get(int endpoint, struct prometheus_bridge* bridge)
       goto error;
    }
 
-   http->endpoint = endpoint;
+   if (pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/metrics", &request))
+   {
+      pgexporter_log_error("Failed to create HTTP request for endpoint %d", endpoint);
+      goto error;
+   }
 
-   if (pgexporter_http_get(http, config->endpoints[endpoint].host, "/metrics"))
+   if (pgexporter_http_invoke(connection, request, &response))
    {
       pgexporter_log_error("Failed to execute HTTP/GET interaction with http://%s:%d/metrics",
                            config->endpoints[endpoint].host,
@@ -141,28 +147,37 @@ pgexporter_prometheus_client_get(int endpoint, struct prometheus_bridge* bridge)
    }
 
    timestamp = time(NULL);
-
-   if (parse_body_to_bridge(endpoint, timestamp, http->body, bridge))
+   if (response->payload.data == NULL)
+   {
+      pgexporter_log_error("No response data from endpoint %d", endpoint);
+      goto error;
+   }
+   if (parse_body_to_bridge(endpoint, timestamp, (char*)response->payload.data, bridge))
    {
       goto error;
    }
 
-   if (pgexporter_http_disconnect(http))
-   {
-      pgexporter_log_error("Failed to disconnect HTTP");
-      goto error;
-   }
-
-   pgexporter_http_destroy(http);
+   pgexporter_http_response_destroy(response);
+   pgexporter_http_request_destroy(request);
+   pgexporter_http_destroy(connection);
 
    return 0;
 
 error:
 
-   if (http != NULL)
+   if (response != NULL)
    {
-      pgexporter_http_disconnect(http);
-      pgexporter_http_destroy(http);
+      pgexporter_http_response_destroy(response);
+   }
+
+   if (request != NULL)
+   {
+      pgexporter_http_request_destroy(request);
+   }
+
+   if (connection != NULL)
+   {
+      pgexporter_http_destroy(connection);
    }
 
    return 1;

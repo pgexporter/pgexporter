@@ -474,7 +474,9 @@ get_configuration_path()
 int
 pgexporter_tsclient_test_http_metrics()
 {
-    struct http* http = NULL;
+    struct http* connection = NULL;
+    struct http_request* request = NULL;
+    struct http_response* response = NULL;
     struct configuration* config;
     char* response_body = NULL;
     size_t response_size = 0;
@@ -491,29 +493,35 @@ pgexporter_tsclient_test_http_metrics()
     printf("=== Testing HTTP /metrics endpoint ===\n");
     printf("Attempting to connect to localhost:%d\n", config->metrics);
 
-    if (pgexporter_http_connect("localhost", config->metrics, false, &http))
+    if (pgexporter_http_create("localhost", config->metrics, false, &connection))
     {
         printf("ERROR: Failed to connect to HTTP endpoint localhost:%d\n", config->metrics);
         goto error;
     }
     printf("Successfully connected to HTTP endpoint\n");
 
+    if (pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/metrics", &request))
+    {
+        printf("ERROR: Failed to create HTTP request\n");
+        goto error;
+    }
+
     printf("Executing HTTP GET /metrics request\n");
-    if (pgexporter_http_get(http, "localhost", "/metrics"))
+    if (pgexporter_http_invoke(connection, request, &response))
     {
         printf("ERROR: Failed to execute HTTP GET /metrics\n");
         goto error;
     }
     printf("HTTP GET request completed\n");
 
-    if (http->body == NULL)
+    if (response->payload.data == NULL)
     {
         printf("ERROR: HTTP response body is NULL\n");
         goto error;
     }
     printf("HTTP response body received\n");
 
-    response_body = strdup(http->body);
+    response_body = strdup((char*)response->payload.data);
     if (response_body == NULL)
     {
         printf("ERROR: Failed to duplicate response body\n");
@@ -589,11 +597,21 @@ pgexporter_tsclient_test_http_metrics()
     ret = 0;
 
 error:
-    if (http != NULL)
+    if (connection != NULL)
     {
-        pgexporter_http_disconnect(http);
-        pgexporter_http_destroy(http);
+        pgexporter_http_destroy(connection);
     }
+
+    if (request != NULL)
+    {
+        pgexporter_http_request_destroy(request);
+    }
+
+    if (response != NULL)
+    {
+        pgexporter_http_response_destroy(response);
+    }
+
     free(response_body);
     return ret;
 }
@@ -603,8 +621,10 @@ pgexporter_tsclient_test_bridge_endpoint()
 {
    printf("DEBUG: Bridge test function entry\n");
    fflush(stdout);
-   
-   struct http* http = NULL;
+
+   struct http* connection = NULL;
+   struct http_request* request = NULL;
+   struct http_response* response = NULL;
    struct configuration* config;
    char* response_body = NULL;
    size_t response_size = 0;
@@ -641,7 +661,7 @@ pgexporter_tsclient_test_bridge_endpoint()
    
    printf("Attempting to connect to localhost:%d\n", config->bridge);
 
-   if (pgexporter_http_connect("localhost", config->bridge, false, &http))
+   if (pgexporter_http_create("localhost", config->bridge, false, &connection))
    {
        printf("ERROR: Failed to connect to bridge endpoint localhost:%d\n", config->bridge);
        printf("Is bridge endpoint running and configured?\n");
@@ -649,22 +669,28 @@ pgexporter_tsclient_test_bridge_endpoint()
    }
    printf("Successfully connected to bridge endpoint\n");
 
+   if (pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/metrics", &request))
+   {
+       printf("ERROR: Failed to create HTTP request\n");
+       goto error;
+   }
+
    printf("Executing HTTP GET /metrics request\n");
-   if (pgexporter_http_get(http, "localhost", "/metrics"))
+   if (pgexporter_http_invoke(connection, request, &response))
    {
        printf("ERROR: Failed to execute HTTP GET /metrics\n");
        goto error;
    }
    printf("HTTP GET request completed\n");
 
-   if (http->body == NULL)
+   if (response->payload.data == NULL)
    {
        printf("ERROR: HTTP response body is NULL\n");
        goto error;
    }
    printf("HTTP response body received\n");
 
-   response_body = strdup(http->body);
+   response_body = strdup((char*)response->payload.data);
    if (response_body == NULL)
    {
        printf("ERROR: Failed to duplicate response body\n");
@@ -747,17 +773,27 @@ pgexporter_tsclient_test_bridge_endpoint()
 error:
    printf("DEBUG: Bridge test cleanup\n");
    fflush(stdout);
-   
-   if (http != NULL)
+
+   if (connection != NULL)
    {
-       pgexporter_http_disconnect(http);
-       pgexporter_http_destroy(http);
+       pgexporter_http_destroy(connection);
    }
+
+   if (request != NULL)
+   {
+       pgexporter_http_request_destroy(request);
+   }
+
+   if (response != NULL)
+   {
+       pgexporter_http_response_destroy(response);
+   }
+
    free(response_body);
-   
+
    printf("DEBUG: Bridge test returning %d\n", ret);
    fflush(stdout);
-   
+
    return ret;
 }
 
