@@ -27,19 +27,60 @@
  *
  */
 
-#ifndef PGEXPORTER_TEST1_H
-#define PGEXPORTER_TEST1_H
+#include <pgexporter.h>
+#include <configuration.h>
+#include <json.h>
+#include <management.h>
+#include <network.h>
+#include <shmem.h>
+#include <tsclient.h>
 
-#include <check.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/**
- * Set up a suite of test cases for pgexporter core daemon operations
- * @return The result
- */
-Suite*
-pgexporter_test1_suite();
+int
+pgexporter_tsclient_check_outcome(int socket)
+{
+   struct json* read = NULL;
+   struct json* outcome = NULL;
+   int ret = 1;
 
-#endif // PGEXPORTER_TEST1_H
+   if (pgexporter_management_read_json(NULL, socket, NULL, NULL, &read))
+   {
+      goto error;
+   }
+
+   if (!pgexporter_json_contains_key(read, MANAGEMENT_CATEGORY_OUTCOME))
+   {
+      goto error;
+   }
+
+   outcome = (struct json*)pgexporter_json_get(read, MANAGEMENT_CATEGORY_OUTCOME);
+   if (!pgexporter_json_contains_key(outcome, MANAGEMENT_ARGUMENT_STATUS) ||
+       !(bool)pgexporter_json_get(outcome, MANAGEMENT_ARGUMENT_STATUS))
+   {
+      goto error;
+   }
+
+   ret = 0;
+
+error:
+   pgexporter_json_destroy(read);
+   return ret;
+}
+
+int
+pgexporter_tsclient_get_connection(void)
+{
+   int socket = -1;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (pgexporter_connect_unix_socket(config->unix_socket_dir, MAIN_UDS, &socket))
+   {
+      return -1;
+   }
+
+   return socket;
+}

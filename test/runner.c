@@ -26,47 +26,35 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include <tsclient.h>
+#include <tscommon.h>
+#include <tssuite.h>
 
-#include "testcases/pgexporter_test_1.h"
-#include "testcases/pgexporter_test_2.h"
-#include "testcases/pgexporter_test_3.h"
+#include "logging.h"
 
 int
 main(int argc, char* argv[])
 {
-
-   if (argc != 2)
-   {
-      printf("Usage: %s <project_directory>\n", argv[0]);
-      return 1;
-   }
-
-   int number_failed;
-   Suite* s1;
-   Suite* s2;
-   Suite* s3;
+   int number_failed = 0;
+   Suite* cli_suite;
+   Suite* database_suite;
+   Suite* http_suite;
    SRunner* sr;
 
-   if (pgexporter_tsclient_init(argv[1]))
-   {
-      goto done;
-   }
+   pgexporter_test_environment_create();
 
-   s1 = pgexporter_test1_suite();
-   s2 = pgexporter_test2_suite();
-   s3 = pgexporter_test3_suite();
+   cli_suite = pgexporter_test_cli_suite();
+   database_suite = pgexporter_test_database_suite();
+   http_suite = pgexporter_test_http_suite();
 
-   sr = srunner_create(s1);
-   srunner_add_suite(sr, s2);
-   srunner_add_suite(sr, s3);
-
-   srunner_run_all(sr, CK_VERBOSE);
+   sr = srunner_create(cli_suite);
+   srunner_add_suite(sr, database_suite);
+   srunner_add_suite(sr, http_suite);
+   srunner_set_log(sr, "-");
+   srunner_set_fork_status(sr, CK_NOFORK);
+   srunner_run(sr, NULL, NULL, CK_VERBOSE);
    number_failed = srunner_ntests_failed(sr);
    srunner_free(sr);
-
-done:
-   pgexporter_tsclient_destroy();
+   pgexporter_test_environment_destroy();
 
    return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

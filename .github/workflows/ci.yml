@@ -65,19 +65,16 @@ jobs:
                 export CC=/usr/bin/clang
               fi
 
-              cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ..
+              cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -Dcheck=ON ..
               make -j$(nproc)
         working-directory: /home/runner/work/pgexporter/pgexporter/
 
       - name: Run Tests
         run: |
-          if [ "${{ matrix.compiler }}" = "gcc" ] && [ "${{ matrix.build_type }}" = "Debug" ]; then
-            ASAN_LIB=$(gcc -print-file-name=libasan.so)
-            export LD_PRELOAD=$ASAN_LIB
-            export ASAN_OPTIONS=detect_leaks=0,verify_asan_link_order=0
+          if [ "${{ matrix.build_type }}" = "Debug" ]; then
+            $(which bash) ./test/check.sh ci
           fi
-          $(which bash) ./testsuite.sh
-        working-directory: /home/runner/work/pgexporter/pgexporter/build
+        working-directory: /home/runner/work/pgexporter/pgexporter/
 
       # === Generate coverage reports ===
       - name: Generate Detailed HTML Coverage Report
@@ -122,7 +119,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: logs-${{ matrix.compiler }}-${{ matrix.build_type }}
-          path: /home/runner/work/pgexporter/pgexporter/build/log
+          path: /tmp/pgexporter-test/log
           retention-days: 90
 
       - name: Upload Generated Documentation Artifact
@@ -133,158 +130,58 @@ jobs:
           path: /home/runner/work/pgexporter/pgexporter/build/doc
           retention-days: 90
 
-#  build-macos:
-#    runs-on: macos-latest
-#
-#    steps:
-#      - uses: actions/checkout@v3
-#
-#      - name: Detect Homebrew prefix
-#        id: brew-prefix
-#        run: |
-#          echo "HOMEBREW_PREFIX=$(brew --prefix)" >> $GITHUB_ENV
-#          echo "ARCH=$(uname -m)" >> $GITHUB_ENV
-#          if [ "$(uname -m)" = "arm64" ]; then
-#            echo "Using Apple Silicon (M1/M2) configuration with Homebrew at /opt/homebrew"
-#          else
-#            echo "Using Intel configuration with Homebrew at /usr/local"
-#          fi
-#
-#      - name: Install dependencies
-#        run: |
-#          brew update
-#          brew upgrade
-#          brew install libev zstd lz4 bzip2 graphviz doxygen libyaml cmake docutils check pkg-config curl
-#          brew link --force bzip2
-#          brew link --force zstd
-#          brew link --force lz4
-#
-#      - name: Install PostgreSQL
-#        run: |
-#          brew install postgresql@17
-#          echo "$(brew --prefix postgresql@17)/bin" >> $GITHUB_PATH
-#
-#      - name: Debug Build
-#        run: |
-#          mkdir -p build
-#          cd build
-#          export CC=/usr/bin/clang
-#
-#          cmake -DCMAKE_BUILD_TYPE=Debug .. \
-#            -DCMAKE_PREFIX_PATH="$HOMEBREW_PREFIX" \
-#            -DCMAKE_INCLUDE_PATH="$HOMEBREW_PREFIX/include" \
-#            -DCMAKE_LIBRARY_PATH="$HOMEBREW_PREFIX/lib"
-#
-#          make
-#
-#      - name: Run Tests (Debug)
-#        run: |
-#          cd build
-#          $(which bash) ./testsuite.sh
-#
-#      - name: Upload pgexporter log
-#        if: always()
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: pgexporter-log-macos
-#          path: build/log/pgexporter.log
-#          retention-days: 7
-#
-#      - name: Release Build
-#        run: |
-#          rm -rf build
-#          mkdir -p build
-#          cd build
-#          export CC=/usr/bin/clang
-#
-#          cmake -DCMAKE_BUILD_TYPE=Release .. \
-#            -DCMAKE_C_FLAGS='-D_DARWIN_C_SOURCE' \
-#            -DCMAKE_PREFIX_PATH="$HOMEBREW_PREFIX" \
-#            -DCMAKE_INCLUDE_PATH="$HOMEBREW_PREFIX/include" \
-#            -DCMAKE_LIBRARY_PATH="$HOMEBREW_PREFIX/lib"
-#
-#          make
-
-  build-freebsd:
-    runs-on: ubuntu-latest
-    name: FreeBSD Build and Test
-    timeout-minutes: 30
-    strategy:
-      matrix:
-        compiler: [clang]
-        build_type: [Debug, Release]
-      fail-fast: false
-
+  build-macos:
+    runs-on: macos-latest
+    env:
+      PGEXPORTER_ROOT: ${{ github.workspace }}
+      BUILD_DIR: ${{ github.workspace }}/build
+      POSTGRESQL_VERSION: "@17"
     steps:
-      - uses: actions/checkout@v4
-      - name: Install QEMU dependencies
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+      - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            qemu-system-x86 \
-            qemu-utils \
-            libvirt-daemon-system \
-            libvirt-clients \
-            bridge-utils
-          sudo systemctl start libvirtd
-
-      - name: Setup FreeBSD VM
-        uses: vmactions/freebsd-vm@v1
-        id: freebsd-vm
-        with:
-          release: "14.3"
-          usesh: true
-          envs: "PATH,GITHUB_ENV,GITHUB_WORKSPACE,GITHUB_OUTPUT"
-          mem: 6144
-          sync: rsync
-          copyback: true
-          prepare: |
-            ASSUME_ALWAYS_YES=yes pkg bootstrap
-            pkg update
-            pkg upgrade -y
-            pkg install -y \
-              bash \
-              sudo \
-              libev \
-              cmake \
-              llvm11 \
-              postgresql17-server \
-              postgresql17-contrib \
-              zstd \
-              liblz4 \
-              bzip2 \
-              libssh \
-              libyaml \
-              libarchive \
-              check \
-              py311-docutils \
-              curl \
-              doxygen \
-              hs-pandoc \
-              texlive-base \
-              texlive-texmf \
-              graphviz \
-              pkgconf
-            dot -c
-
-      - name: Build Project
-        shell: freebsd {0}
+          brew update
+          brew install \
+            libev \
+            libyaml \
+            docutils \
+            check \
+            postgresql${POSTGRESQL_VERSION} \
+            curl
+      - name: Add PostgreSQL to PATH
         run: |
-          mkdir -p $GITHUB_WORKSPACE/build
-          cd $GITHUB_WORKSPACE/build
-          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} "$GITHUB_WORKSPACE"
+          echo "$(brew --prefix postgresql${POSTGRESQL_VERSION})/bin" >> $GITHUB_PATH
+      - name: Build with Clang
+        run: |
+          mkdir -p $BUILD_DIR
+          cd $BUILD_DIR
+          export CC=$(xcrun -find clang)
+          cmake -DCMAKE_BUILD_TYPE=Debug -DDOCS=FALSE ..
           make -j$(sysctl -n hw.ncpu)
 
-      - name: Run Tests
-        shell: freebsd {0}
+      - name: Show logs on failure
+        if: failure()
+        working-directory: ${{ env.BUILD_DIR }}
         run: |
-          cd ${GITHUB_WORKSPACE}/build
-          bash ./testsuite.sh
+          cat ./log/pgexporter.log || echo "pgexporter.log not found"
 
-      - name: Upload pgexporter log
-        if: always()
+      - name: Upload logs on failure
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: pgexporter-log-freebsd-${{ matrix.compiler }}-${{ matrix.build_type }}
-          path: ${GITHUB_WORKSPACE}/build/log/pgexporter.log
+          name: macos-build-logs
+          path: |
+            ${{ env.BUILD_DIR }}/log/
+            /tmp/*.log
+          retention-days: 7
+
+      - name: Upload Generated Documentation Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-generated-docs
+          path: ${{ env.BUILD_DIR }}/doc/
           retention-days: 7

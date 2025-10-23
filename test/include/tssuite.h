@@ -27,52 +27,30 @@
  *
  */
 
-#include <tsclient.h>
+#ifndef PGEXPORTER_TEST_SUITE_H
+#define PGEXPORTER_TEST_SUITE_H
 
-#include "pgexporter_test_2.h"
+#include <check.h>
 
-// Test database connection establishment
-START_TEST(test_pgexporter_db_connection)
-{
-   int found = 0;
-   found = !pgexporter_tsclient_test_db_connection();
-   ck_assert_msg(found, "database connection test failed");
-}
-END_TEST
-
-// Test direct PostgreSQL version query 
-START_TEST(test_pgexporter_version_query)
-{
-   int found = 0;
-   found = !pgexporter_tsclient_test_version_query();
-   ck_assert_msg(found, "PostgreSQL version query test failed");
-}
-END_TEST
-
-// Test extension path setup
-START_TEST(test_pgexporter_extension_path)
-{
-   int found = 0;
-   found = !pgexporter_tsclient_test_extension_path();
-   ck_assert_msg(found, "extension path setup test failed");
-}
-END_TEST
-
+/**
+ * Set up CLI test suite for pgexporter
+ * @return The suite
+ */
 Suite*
-pgexporter_test2_suite()
-{
-   Suite* s;
-   TCase* tc_core;
+pgexporter_test_cli_suite();
 
-   s = suite_create("pgexporter_test2");
+/**
+ * Set up database test suite for pgexporter
+ * @return The suite
+ */
+Suite*
+pgexporter_test_database_suite();
 
-   tc_core = tcase_create("Core");
+/**
+ * Set up HTTP test suite for pgexporter
+ * @return The suite
+ */
+Suite*
+pgexporter_test_http_suite();
 
-   tcase_set_timeout(tc_core, 60);
-   tcase_add_test(tc_core, test_pgexporter_db_connection);
-   tcase_add_test(tc_core, test_pgexporter_version_query);
-   tcase_add_test(tc_core, test_pgexporter_extension_path);
-   suite_add_tcase(s, tc_core);
-
-   return s;
-}
+#endif

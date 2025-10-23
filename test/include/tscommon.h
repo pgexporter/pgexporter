@@ -24,21 +24,49 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
  * TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  */
 
-#ifndef PGEXPORTER_TEST3_H
-#define PGEXPORTER_TEST3_H
+#ifndef PGEXPORTER_TSCOMMON_H
+#define PGEXPORTER_TSCOMMON_H
 
-#include <check.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "pgexporter.h"
+
+#define PRIMARY_SERVER 0
+#define ENV_VAR_BASE_DIR "PGEXPORTER_TEST_BASE_DIR"
+
+extern char TEST_BASE_DIR[MAX_PATH];
 
 /**
- * Set up a suite of test cases for pgexporter HTTP functionality
- * @return The result
+ * Create the testing environment
  */
-Suite*
-pgexporter_test3_suite();
+void
+pgexporter_test_environment_create(void);
 
-#endif // PGEXPORTER_TEST3_H
+/**
+ * Destroy the testing environment
+ */
+void
+pgexporter_test_environment_destroy(void);
+
+/**
+ * Basic setup before each forked unit test
+ */
+void
+pgexporter_test_setup(void);
+
+/**
+ * Basic teardown after each forked unit test
+ */
+void
+pgexporter_test_teardown(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
