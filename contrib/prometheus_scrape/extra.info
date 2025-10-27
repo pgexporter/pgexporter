@@ -5742,3 +5742,168 @@ pgexporter_pg_stat_monitor_top_slow_queries_rows
 * queryid: Query identifier.
 * query_text: Truncated query text.
 Version: 2.0+
+
+pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_plan_user_time_sec
++ User CPU time during planning in seconds.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_plan_system_time_sec
++ System CPU time during planning in seconds.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_exec_user_time_sec
++ User CPU time during execution in seconds.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_exec_system_time_sec
++ System CPU time during execution in seconds.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_total_cpu_time_sec
++ Total CPU time (planning + execution) in seconds.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_plan_reads_bytes
++ Bytes read during planning.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_plan_writes_bytes
++ Bytes written during planning.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_exec_reads_bytes
++ Bytes read during execution.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_exec_writes_bytes
++ Bytes written during execution.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_total_reads_bytes
++ Total bytes read (planning + execution).
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_total_writes_bytes
++ Total bytes written (planning + execution).
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_page_fault_stats_plan_soft_page_faults
++ Soft page faults during planning (minor faults).
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_page_fault_stats_plan_hard_page_faults
++ Hard page faults during planning (disk I/O required).
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_page_fault_stats_exec_soft_page_faults
++ Soft page faults during execution.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_page_fault_stats_exec_hard_page_faults
++ Hard page faults during execution (disk I/O required).
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_page_fault_stats_total_soft_page_faults
++ Total soft page faults.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_page_fault_stats_total_hard_page_faults
++ Total hard page faults (memory pressure indicator).
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_context_switch_stats_plan_voluntary_switches
++ Voluntary context switches during planning.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_context_switch_stats_plan_involuntary_switches
++ Involuntary context switches during planning (CPU contention).
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_context_switch_stats_exec_voluntary_switches
++ Voluntary context switches during execution.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_context_switch_stats_exec_involuntary_switches
++ Involuntary context switches during execution (CPU contention).
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_context_switch_stats_total_voluntary_switches
++ Total voluntary context switches.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_context_switch_stats_total_involuntary_switches
++ Total involuntary context switches (CPU contention indicator).
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_context_switch_stats_involuntary_switch_pct
++ Percentage of involuntary switches (CPU contention indicator).
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_planning_vs_execution_overhead_total_plan_cpu_sec
++ CPU time spent in planning in seconds.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_planning_vs_execution_overhead_total_exec_cpu_sec
++ CPU time spent in execution in seconds.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_planning_vs_execution_overhead_plan_cpu_overhead_pct
++ Percentage of CPU time spent planning versus total time.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_ipc_and_swap_stats_total_swaps
++ Total memory swaps (extreme memory pressure indicator).
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_ipc_and_swap_stats_total_ipc_msgs_sent
++ IPC messages sent.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_ipc_and_swap_stats_total_ipc_msgs_received
++ IPC messages received.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_ipc_and_swap_stats_total_signals
++ Signals received by queries.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.1.3+
+
+pgexporter_pg_stat_kcache_stats_freshness_stats_since
++ When statistics collection started for this database.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.3.0+
+
+pgexporter_pg_stat_kcache_stats_freshness_stats_age_seconds
++ Age of statistics in seconds since last reset.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 2.3.0+

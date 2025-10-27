@@ -2840,3 +2840,278 @@ Total rows returned or affected by this query.
 | server | The configured name/identifier for the PostgreSQL server. |
 | queryid | Query identifier. |
 | query_text | Truncated query text. |
+
+## pg_stat_kcache
+
+OS-level resource consumption statistics from the kernel for PostgreSQL queries, including CPU time, physical I/O, page faults, and context switches.
+
+**Note:** pg_stat_kcache requires:
+- `shared_preload_libraries = 'pg_stat_kcache'` in postgresql.conf
+- Requires `pg_stat_statements` extension to be loaded first
+- Server restart after configuration
+- Extension creation: `CREATE EXTENSION pg_stat_kcache;`
+- Provides getrusage(2) kernel statistics for query performance analysis
+
+**pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_plan_user_time_sec**
+
+User CPU time during planning in seconds.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_plan_system_time_sec**
+
+System CPU time during planning in seconds.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_exec_user_time_sec**
+
+User CPU time during execution in seconds.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_exec_system_time_sec**
+
+System CPU time during execution in seconds.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_total_cpu_time_sec**
+
+Total CPU time (planning + execution) in seconds.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_plan_reads_bytes**
+
+Bytes read during planning.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_plan_writes_bytes**
+
+Bytes written during planning.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_exec_reads_bytes**
+
+Bytes read during execution.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_exec_writes_bytes**
+
+Bytes written during execution.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_total_reads_bytes**
+
+Total bytes read.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_kernel_resource_usage_by_database_total_writes_bytes**
+
+Total bytes written.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_page_fault_stats_plan_soft_page_faults**
+
+Soft page faults during planning.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_page_fault_stats_plan_hard_page_faults**
+
+Hard page faults during planning (disk I/O required).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_page_fault_stats_exec_soft_page_faults**
+
+Soft page faults during execution.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_page_fault_stats_exec_hard_page_faults**
+
+Hard page faults during execution (disk I/O required).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_page_fault_stats_total_soft_page_faults**
+
+Total soft page faults.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_page_fault_stats_total_hard_page_faults**
+
+Total hard page faults (memory pressure indicator).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_context_switch_stats_plan_voluntary_switches**
+
+Voluntary context switches during planning.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_context_switch_stats_plan_involuntary_switches**
+
+Involuntary context switches during planning.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_context_switch_stats_exec_voluntary_switches**
+
+Voluntary context switches during execution.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_context_switch_stats_exec_involuntary_switches**
+
+Involuntary context switches during execution.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_context_switch_stats_total_voluntary_switches**
+
+Total voluntary context switches.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_context_switch_stats_total_involuntary_switches**
+
+Total involuntary context switches (CPU contention indicator).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_context_switch_stats_involuntary_switch_pct**
+
+Percentage of involuntary switches (CPU contention indicator).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_planning_vs_execution_overhead_total_plan_cpu_sec**
+
+CPU time spent in planning.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_planning_vs_execution_overhead_total_exec_cpu_sec**
+
+CPU time spent in execution.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_planning_vs_execution_overhead_plan_cpu_overhead_pct**
+
+Percentage of CPU time spent planning versus total.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_ipc_and_swap_stats_total_swaps**
+
+Total memory swaps (extreme memory pressure indicator).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_ipc_and_swap_stats_total_ipc_msgs_sent**
+
+IPC messages sent.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_ipc_and_swap_stats_total_ipc_msgs_received**
+
+IPC messages received.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_ipc_and_swap_stats_total_signals**
+
+Signals received.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_stats_freshness_stats_since**
+
+When statistics collection started for this database.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
+**pgexporter_pg_stat_kcache_stats_freshness_stats_age_seconds**
+
+Age of statistics in seconds.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |

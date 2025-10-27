@@ -1,0 +1,444 @@
+#
+# Copyright (C) 2025 The pgexporter community
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this list
+# of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice, this
+# list of conditions and the following disclaimer in the documentation and/or other
+# materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors may
+# be used to endorse or promote products derived from this software without specific
+# prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+# THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+# OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+# TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+extension: pg_stat_kcache
+metrics:
+
+#
+# pg_stat_kcache: 2.1.3 -> 2.3.1
+# Requires: pg_stat_statements extension
+#
+
+# OS-level resource consumption by database - aggregated kernel statistics
+# Version history: All versions provide getrusage(2) metrics, 2.3.0+ added stats_since
+  - metric: kernel_resource_usage_by_database
+    queries:
+      - query: SELECT
+                  datname as database,
+                  ROUND(plan_user_time, 4) as plan_user_time_sec,
+                  ROUND(plan_system_time, 4) as plan_system_time_sec,
+                  ROUND(exec_user_time, 4) as exec_user_time_sec,
+                  ROUND(exec_system_time, 4) as exec_system_time_sec,
+                  ROUND((plan_user_time + plan_system_time + exec_user_time + exec_system_time), 4) as total_cpu_time_sec,
+                  plan_reads as plan_reads_bytes,
+                  plan_writes as plan_writes_bytes,
+                  exec_reads as exec_reads_bytes,
+                  exec_writes as exec_writes_bytes,
+                  (plan_reads + exec_reads) as total_reads_bytes,
+                  (plan_writes + exec_writes) as total_writes_bytes
+                FROM pg_stat_kcache
+                ORDER BY total_cpu_time_sec DESC;
+        version: "2.1.3"
+        columns:
+          - name: database
+            type: label
+          - name: plan_user_time_sec
+            type: counter
+            description: User CPU time during planning
+          - name: plan_system_time_sec
+            type: counter
+            description: System CPU time during planning
+          - name: exec_user_time_sec
+            type: counter
+            description: User CPU time during execution
+          - name: exec_system_time_sec
+            type: counter
+            description: System CPU time during execution
+          - name: total_cpu_time_sec
+            type: counter
+            description: Total CPU time (planning + execution)
+          - name: plan_reads_bytes
+            type: counter
+            description: Bytes read during planning
+          - name: plan_writes_bytes
+            type: counter
+            description: Bytes written during planning
+          - name: exec_reads_bytes
+            type: counter
+            description: Bytes read during execution
+          - name: exec_writes_bytes
+            type: counter
+            description: Bytes written during execution
+          - name: total_reads_bytes
+            type: counter
+            description: Total bytes read
+          - name: total_writes_bytes
+            type: counter
+            description: Total bytes written
+
+# Page fault statistics - memory pressure indicators
+# Version history: Available since 2.1.0 (soft/hard page faults from getrusage)
+  - metric: page_fault_stats
+    queries:
+      - query: SELECT
+                  datname as database,
+                  plan_minflts as plan_soft_page_faults,
+                  plan_majflts as plan_hard_page_faults,
+                  exec_minflts as exec_soft_page_faults,
+                  exec_majflts as exec_hard_page_faults,
+                  (plan_minflts + exec_minflts) as total_soft_page_faults,
+                  (plan_majflts + exec_majflts) as total_hard_page_faults
+                FROM pg_stat_kcache
+                ORDER BY total_hard_page_faults DESC;
+        version: "2.1.3"
+        columns:
+          - name: database
+            type: label
+          - name: plan_soft_page_faults
+            type: counter
+            description: Soft page faults during planning
+          - name: plan_hard_page_faults
+            type: counter
+            description: Hard page faults (disk I/O) during planning
+          - name: exec_soft_page_faults
+            type: counter
+            description: Soft page faults during execution
+          - name: exec_hard_page_faults
+            type: counter
+            description: Hard page faults (disk I/O) during execution
+          - name: total_soft_page_faults
+            type: counter
+            description: Total soft page faults
+          - name: total_hard_page_faults
+            type: counter
+            description: Total hard page faults
+
+# Context switch statistics - CPU scheduling efficiency
+# Version history: Available since 2.1.0 (voluntary/involuntary context switches)
+  - metric: context_switch_stats
+    queries:
+      - query: SELECT
+                  datname as database,
+                  plan_nvcsws as plan_voluntary_switches,
+                  plan_nivcsws as plan_involuntary_switches,
+                  exec_nvcsws as exec_voluntary_switches,
+                  exec_nivcsws as exec_involuntary_switches,
+                  (plan_nvcsws + exec_nvcsws) as total_voluntary_switches,
+                  (plan_nivcsws + exec_nivcsws) as total_involuntary_switches,
+                  ROUND(
+                    (plan_nivcsws + exec_nivcsws)::numeric * 100.0 /
+                    NULLIF((plan_nvcsws + exec_nvcsws + plan_nivcsws + exec_nivcsws), 0), 2
+                  ) as involuntary_switch_pct
+                FROM pg_stat_kcache
+                ORDER BY total_involuntary_switches DESC;
+        version: "2.1.3"
+        columns:
+          - name: database
+            type: label
+          - name: plan_voluntary_switches
+            type: counter
+            description: Voluntary context switches during planning
+          - name: plan_involuntary_switches
+            type: counter
+            description: Involuntary context switches during planning
+          - name: exec_voluntary_switches
+            type: counter
+            description: Voluntary context switches during execution
+          - name: exec_involuntary_switches
+            type: counter
+            description: Involuntary context switches during execution
+          - name: total_voluntary_switches
+            type: counter
+            description: Total voluntary context switches
+          - name: total_involuntary_switches
+            type: counter
+            description: Total involuntary context switches
+          - name: involuntary_switch_pct
+            type: gauge
+            description: Percentage of involuntary switches (CPU contention indicator)
+
+# Detailed query-level kernel statistics - per-query resource consumption
+# Version history: 2.1.3 baseline, 2.2.0+ added 'top' column for nested query tracking
+  - metric: query_kernel_stats_detail
+    queries:
+      - query: SELECT
+                  LEFT(query, 100) as query_text,
+                  datname as database,
+                  rolname,
+                  ROUND((plan_user_time + plan_system_time + exec_user_time + exec_system_time), 4) as total_cpu_sec,
+                  (plan_reads + exec_reads) as total_reads_bytes,
+                  (plan_writes + exec_writes) as total_writes_bytes,
+                  (plan_majflts + exec_majflts) as hard_page_faults,
+                  (plan_nivcsws + exec_nivcsws) as involuntary_switches
+                FROM pg_stat_kcache_detail
+                ORDER BY total_cpu_sec DESC
+                LIMIT 50;
+        version: "2.1.3"
+        columns:
+          - name: query_text
+            type: label
+          - name: database
+            type: label
+          - name: rolname
+            type: label
+          - name: total_cpu_sec
+            type: counter
+            description: Total CPU time consumed by this query
+          - name: total_reads_bytes
+            type: counter
+            description: Total bytes read
+          - name: total_writes_bytes
+            type: counter
+            description: Total bytes written
+          - name: hard_page_faults
+            type: counter
+            description: Hard page faults (memory pressure)
+          - name: involuntary_switches
+            type: counter
+            description: Involuntary context switches (CPU contention)
+      - query: SELECT
+                  LEFT(query, 100) as query_text,
+                  datname as database,
+                  rolname,
+                  top as is_top_level,
+                  ROUND((plan_user_time + plan_system_time + exec_user_time + exec_system_time), 4) as total_cpu_sec,
+                  (plan_reads + exec_reads) as total_reads_bytes,
+                  (plan_writes + exec_writes) as total_writes_bytes,
+                  (plan_majflts + exec_majflts) as hard_page_faults,
+                  (plan_nivcsws + exec_nivcsws) as involuntary_switches
+                FROM pg_stat_kcache_detail
+                ORDER BY total_cpu_sec DESC
+                LIMIT 50;
+        version: "2.2.0"
+        columns:
+          - name: query_text
+            type: label
+          - name: database
+            type: label
+          - name: rolname
+            type: label
+          - name: is_top_level
+            type: label
+          - name: total_cpu_sec
+            type: counter
+            description: Total CPU time consumed by this query
+          - name: total_reads_bytes
+            type: counter
+            description: Total bytes read
+          - name: total_writes_bytes
+            type: counter
+            description: Total bytes written
+          - name: hard_page_faults
+            type: counter
+            description: Hard page faults (memory pressure)
+          - name: involuntary_switches
+            type: counter
+            description: Involuntary context switches (CPU contention)
+
+# Planning vs execution resource breakdown - identifies expensive planning overhead
+# Version history: Planning metrics always available, became more useful with track_planning in 2.2.0+
+  - metric: planning_vs_execution_overhead
+    queries:
+      - query: SELECT
+                  datname as database,
+                  ROUND((plan_user_time + plan_system_time), 4) as total_plan_cpu_sec,
+                  ROUND((exec_user_time + exec_system_time), 4) as total_exec_cpu_sec,
+                  ROUND(
+                    (plan_user_time + plan_system_time)::numeric * 100.0 /
+                    NULLIF((plan_user_time + plan_system_time + exec_user_time + exec_system_time), 0), 2
+                  ) as plan_cpu_overhead_pct,
+                  plan_reads_blks,
+                  exec_reads_blks,
+                  plan_writes_blks,
+                  exec_writes_blks
+                FROM pg_stat_kcache
+                ORDER BY plan_cpu_overhead_pct DESC NULLS LAST;
+        version: "2.1.3"
+        columns:
+          - name: database
+            type: label
+          - name: total_plan_cpu_sec
+            type: counter
+            description: CPU time spent in planning
+          - name: total_exec_cpu_sec
+            type: counter
+            description: CPU time spent in execution
+          - name: plan_cpu_overhead_pct
+            type: gauge
+            description: Percentage of CPU time spent planning vs total
+          - name: plan_reads_blks
+            type: counter
+            description: Blocks read during planning
+          - name: exec_reads_blks
+            type: counter
+            description: Blocks read during execution
+          - name: plan_writes_blks
+            type: counter
+            description: Blocks written during planning
+          - name: exec_writes_blks
+            type: counter
+            description: Blocks written during execution
+
+# IPC and swap statistics - advanced system resource indicators
+# Version history: Available since 2.1.0 (signals, messages, swaps from getrusage)
+  - metric: ipc_and_swap_stats
+    queries:
+      - query: SELECT
+                  datname as database,
+                  (plan_nswaps + exec_nswaps) as total_swaps,
+                  (plan_msgsnds + exec_msgsnds) as total_ipc_msgs_sent,
+                  (plan_msgrcvs + exec_msgrcvs) as total_ipc_msgs_received,
+                  (plan_nsignals + exec_nsignals) as total_signals
+                FROM pg_stat_kcache
+                WHERE (plan_nswaps + exec_nswaps) > 0
+                   OR (plan_msgsnds + exec_msgsnds) > 0
+                   OR (plan_nsignals + exec_nsignals) > 0
+                ORDER BY total_swaps DESC;
+        version: "2.1.3"
+        columns:
+          - name: database
+            type: label
+          - name: total_swaps
+            type: counter
+            description: Total memory swaps (extreme memory pressure)
+          - name: total_ipc_msgs_sent
+            type: counter
+            description: IPC messages sent
+          - name: total_ipc_msgs_received
+            type: counter
+            description: IPC messages received
+          - name: total_signals
+            type: counter
+            description: Signals received
+
+# Statistics freshness - when kernel statistics were last reset
+# Version history: Introduced in 2.3.0
+  - metric: stats_freshness
+    queries:
+      - query: SELECT
+                  datname as database,
+                  stats_since,
+                  EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - stats_since))::bigint as stats_age_seconds
+                FROM pg_stat_kcache
+                ORDER BY stats_since;
+        version: "2.3.0"
+        columns:
+          - name: database
+            type: label
+          - name: stats_since
+            type: gauge
+            description: When statistics collection started for this database
+          - name: stats_age_seconds
+            type: gauge
+            description: Age of statistics in seconds
+
+# Top CPU consuming queries - essential for performance optimization
+# Version history: All versions, enhanced with 'top' filtering in 2.2.0+
+  - metric: top_cpu_queries
+    queries:
+      - query: SELECT
+                  LEFT(query, 100) as query_text,
+                  datname as database,
+                  rolname,
+                  ROUND((plan_user_time + plan_system_time + exec_user_time + exec_system_time), 4) as total_cpu_sec,
+                  ROUND((plan_user_time + exec_user_time), 4) as user_cpu_sec,
+                  ROUND((plan_system_time + exec_system_time), 4) as system_cpu_sec
+                FROM pg_stat_kcache_detail
+                ORDER BY total_cpu_sec DESC
+                LIMIT 20;
+        version: "2.1.3"
+        columns:
+          - name: query_text
+            type: label
+          - name: database
+            type: label
+          - name: rolname
+            type: label
+          - name: total_cpu_sec
+            type: counter
+            description: Total CPU time
+          - name: user_cpu_sec
+            type: counter
+            description: User mode CPU time
+          - name: system_cpu_sec
+            type: counter
+            description: Kernel mode CPU time
+      - query: SELECT
+                  LEFT(query, 100) as query_text,
+                  datname as database,
+                  rolname,
+                  ROUND((plan_user_time + plan_system_time + exec_user_time + exec_system_time), 4) as total_cpu_sec,
+                  ROUND((plan_user_time + exec_user_time), 4) as user_cpu_sec,
+                  ROUND((plan_system_time + exec_system_time), 4) as system_cpu_sec
+                FROM pg_stat_kcache_detail
+                WHERE top IS TRUE
+                ORDER BY total_cpu_sec DESC
+                LIMIT 20;
+        version: "2.2.0"
+        columns:
+          - name: query_text
+            type: label
+          - name: database
+            type: label
+          - name: rolname
+            type: label
+          - name: total_cpu_sec
+            type: counter
+            description: Total CPU time (top-level queries only)
+          - name: user_cpu_sec
+            type: counter
+            description: User mode CPU time
+          - name: system_cpu_sec
+            type: counter
+            description: Kernel mode CPU time
+
+# Top I/O consuming queries - identify disk bottlenecks
+# Version history: All versions provide physical I/O metrics
+  - metric: top_io_queries
+    queries:
+      - query: SELECT
+                  LEFT(query, 100) as query_text,
+                  datname as database,
+                  rolname,
+                  (plan_reads + exec_reads) as total_reads_bytes,
+                  (plan_writes + exec_writes) as total_writes_bytes,
+                  (plan_reads_blks + exec_reads_blks) as total_reads_blks,
+                  (plan_writes_blks + exec_writes_blks) as total_writes_blks
+                FROM pg_stat_kcache_detail
+                ORDER BY (plan_reads + exec_reads + plan_writes + exec_writes) DESC
+                LIMIT 20;
+        version: "2.1.3"
+        columns:
+          - name: query_text
+            type: label
+          - name: database
+            type: label
+          - name: rolname
+            type: label
+          - name: total_reads_bytes
+            type: counter
+            description: Total bytes read from disk
+          - name: total_writes_bytes
+            type: counter
+            description: Total bytes written to disk
+          - name: total_reads_blks
+            type: counter
+            description: Total blocks read
+          - name: total_writes_blks
+            type: counter
+            description: Total blocks written
