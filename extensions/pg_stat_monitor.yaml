@@ -1,0 +1,484 @@
+#
+# Copyright (C) 2025 The pgexporter community
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this list
+# of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice, this
+# list of conditions and the following disclaimer in the documentation and/or other
+# materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors may
+# be used to endorse or promote products derived from this software without specific
+# prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+# THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+# OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+# TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+extension: pg_stat_monitor
+metrics:
+
+#
+# pg_stat_monitor: 2.0 -> 2.3
+#
+
+# Query execution time metrics - aggregated by time bucket for temporal analysis
+# Version history: All versions support bucketing, 2.1+ added JIT deform stats, 2.3+ added stats_since
+  - metric: query_exec_time_by_bucket
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  bucket,
+                  bucket_start_time,
+                  SUM(calls) as total_calls,
+                  ROUND(SUM(total_exec_time)::numeric, 2) as total_exec_time_ms,
+                  ROUND(AVG(mean_exec_time)::numeric, 2) as avg_exec_time_ms,
+                  SUM(rows) as total_rows_returned
+                FROM pg_stat_monitor
+                WHERE bucket_done = false
+                GROUP BY bucket, bucket_start_time
+                ORDER BY bucket_start_time DESC;
+        version: "2.0"
+        columns:
+          - name: database
+            type: label
+          - name: bucket
+            type: label
+          - name: bucket_start_time
+            type: label
+          - name: total_calls
+            type: counter
+            description: Total query calls in this bucket
+          - name: total_exec_time_ms
+            type: counter
+            description: Total execution time in milliseconds
+          - name: avg_exec_time_ms
+            type: gauge
+            description: Average execution time in milliseconds
+          - name: total_rows_returned
+            type: counter
+            description: Total rows returned by queries
+
+# Query performance by command type - enables operation-level SLIs (SELECT/INSERT/UPDATE/DELETE)
+# Version history: Available since 2.0, MERGE command added in 2.2 for PostgreSQL 15+
+  - metric: query_stats_by_cmd_type
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  cmd_type_text,
+                  COUNT(DISTINCT queryid) as unique_queries,
+                  SUM(calls) as total_calls,
+                  ROUND(SUM(total_exec_time)::numeric, 2) as total_exec_time_ms,
+                  ROUND(AVG(mean_exec_time)::numeric, 2) as avg_exec_time_ms,
+                  SUM(rows) as total_rows
+                FROM pg_stat_monitor
+                WHERE cmd_type_text != ''
+                GROUP BY cmd_type_text
+                ORDER BY total_calls DESC;
+        version: "2.0"
+        columns:
+          - name: database
+            type: label
+          - name: cmd_type_text
+            type: label
+          - name: unique_queries
+            type: gauge
+            description: Number of unique query patterns
+          - name: total_calls
+            type: counter
+            description: Total number of query executions
+          - name: total_exec_time_ms
+            type: counter
+            description: Total execution time in milliseconds
+          - name: avg_exec_time_ms
+            type: gauge
+            description: Average execution time in milliseconds
+          - name: total_rows
+            type: counter
+            description: Total rows affected/returned
+
+# Application-level query metrics - service-level monitoring by application_name
+# Version history: Available since 2.0, unique to pg_stat_monitor (not in pg_stat_statements)
+  - metric: query_stats_by_application
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  application_name,
+                  COUNT(DISTINCT queryid) as unique_queries,
+                  SUM(calls) as total_calls,
+                  ROUND(SUM(total_exec_time)::numeric, 2) as total_exec_time_ms,
+                  ROUND(AVG(mean_exec_time)::numeric, 2) as avg_exec_time_ms
+                FROM pg_stat_monitor
+                WHERE application_name IS NOT NULL AND application_name != ''
+                GROUP BY application_name
+                ORDER BY total_calls DESC;
+        version: "2.0"
+        columns:
+          - name: database
+            type: label
+          - name: application_name
+            type: label
+          - name: unique_queries
+            type: gauge
+            description: Unique query patterns from this application
+          - name: total_calls
+            type: counter
+            description: Total query calls from this application
+          - name: total_exec_time_ms
+            type: counter
+            description: Total execution time in milliseconds
+          - name: avg_exec_time_ms
+            type: gauge
+            description: Average execution time in milliseconds
+
+# Client IP tracking - multi-tenant monitoring and security auditing
+# Version history: Available since 2.0, unique to pg_stat_monitor
+  - metric: query_stats_by_client
+    queries:
+      - query: SELECT
+                  client_ip::text,
+                  datname,
+                  COUNT(DISTINCT queryid) as unique_queries,
+                  SUM(calls) as total_calls,
+                  ROUND(SUM(total_exec_time)::numeric, 2) as total_exec_time_ms
+                FROM pg_stat_monitor
+                WHERE client_ip IS NOT NULL
+                GROUP BY client_ip, datname
+                ORDER BY total_calls DESC
+                LIMIT 20;
+        version: "2.0"
+        columns:
+          - name: client_ip
+            type: label
+          - name: datname
+            type: label
+          - name: unique_queries
+            type: gauge
+            description: Unique queries from this client/database
+          - name: total_calls
+            type: counter
+            description: Total calls from this client
+          - name: total_exec_time_ms
+            type: counter
+            description: Total execution time in milliseconds
+
+# Table access patterns - identify hot tables and query distribution
+# Version history: Available since 2.0, unique to pg_stat_monitor
+  - metric: table_access_stats
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  relations[1] as table_name,
+                  cmd_type_text,
+                  SUM(calls) as total_calls,
+                  ROUND(SUM(total_exec_time)::numeric, 2) as total_exec_time_ms,
+                  ROUND(AVG(mean_exec_time)::numeric, 2) as avg_exec_time_ms
+                FROM pg_stat_monitor
+                WHERE relations IS NOT NULL AND array_length(relations, 1) > 0
+                GROUP BY relations[1], cmd_type_text
+                ORDER BY total_calls DESC
+                LIMIT 50;
+        version: "2.0"
+        columns:
+          - name: database
+            type: label
+          - name: table_name
+            type: label
+          - name: cmd_type_text
+            type: label
+          - name: total_calls
+            type: counter
+            description: Number of times this table was accessed
+          - name: total_exec_time_ms
+            type: counter
+            description: Total time spent on queries to this table
+          - name: avg_exec_time_ms
+            type: gauge
+            description: Average query execution time
+
+# Error tracking and alerting - monitors query failures and SQL errors
+# Version history: Available since 2.0, unique to pg_stat_monitor
+  - metric: query_errors
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  sqlcode,
+                  message,
+                  COUNT(*) as error_count,
+                  MAX(bucket_start_time) as last_occurrence
+                FROM pg_stat_monitor
+                WHERE sqlcode != '00000' AND sqlcode IS NOT NULL
+                GROUP BY sqlcode, message
+                ORDER BY error_count DESC;
+        version: "2.0"
+        columns:
+          - name: database
+            type: label
+          - name: sqlcode
+            type: label
+          - name: message
+            type: label
+          - name: error_count
+            type: counter
+            description: Number of times this error occurred
+          - name: last_occurrence
+            type: gauge
+            description: Last time this error was seen
+
+# WAL generation metrics - write amplification monitoring for capacity planning
+# Version history: Available since 2.0, shared with pg_stat_statements but aggregated by bucket
+  - metric: wal_generation_stats
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  cmd_type_text,
+                  SUM(wal_records) as total_wal_records,
+                  SUM(wal_fpi) as total_wal_fpi,
+                  SUM(wal_bytes) as total_wal_bytes,
+                  SUM(calls) as total_calls
+                FROM pg_stat_monitor
+                WHERE wal_records > 0
+                GROUP BY cmd_type_text
+                ORDER BY total_wal_bytes DESC;
+        version: "2.0"
+        columns:
+          - name: database
+            type: label
+          - name: cmd_type_text
+            type: label
+          - name: total_wal_records
+            type: counter
+            description: Total WAL records generated
+          - name: total_wal_fpi
+            type: counter
+            description: Total full page images in WAL
+          - name: total_wal_bytes
+            type: counter
+            description: Total WAL bytes generated
+          - name: total_calls
+            type: counter
+            description: Number of queries that generated WAL
+
+# WAL buffer pressure monitoring - indicates when WAL buffers are being exhausted
+# Version history: Introduced in 2.3, critical for identifying WAL-related performance issues
+  - metric: wal_buffer_pressure
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  cmd_type_text,
+                  SUM(wal_buffers_full) as total_wal_buffers_full,
+                  SUM(wal_bytes) as total_wal_bytes,
+                  ROUND(SUM(wal_buffers_full)::numeric * 100.0 / NULLIF(SUM(calls), 0), 2) as buffers_full_pct
+                FROM pg_stat_monitor
+                WHERE wal_buffers_full > 0
+                GROUP BY cmd_type_text
+                ORDER BY total_wal_buffers_full DESC;
+        version: "2.3"
+        columns:
+          - name: database
+            type: label
+          - name: cmd_type_text
+            type: label
+          - name: total_wal_buffers_full
+            type: counter
+            description: Times WAL buffers were full
+          - name: total_wal_bytes
+            type: counter
+            description: Total WAL bytes generated
+          - name: buffers_full_pct
+            type: gauge
+            description: Percentage of calls that hit full WAL buffers
+
+# Buffer cache efficiency - shared and local block access patterns
+# Version history: Available since 2.0, local blocks always available, temp_blk timing in 2.0+
+  - metric: buffer_cache_stats
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  cmd_type_text,
+                  SUM(shared_blks_hit) as shared_blks_hit,
+                  SUM(shared_blks_read) as shared_blks_read,
+                  ROUND(
+                    SUM(shared_blks_hit)::numeric * 100.0 /
+                    NULLIF(SUM(shared_blks_hit) + SUM(shared_blks_read), 0), 2
+                  ) as cache_hit_ratio_pct,
+                  SUM(shared_blks_dirtied) as shared_blks_dirtied,
+                  SUM(shared_blks_written) as shared_blks_written,
+                  SUM(local_blks_hit) as local_blks_hit,
+                  SUM(local_blks_read) as local_blks_read,
+                  SUM(temp_blks_read) as temp_blks_read,
+                  SUM(temp_blks_written) as temp_blks_written
+                FROM pg_stat_monitor
+                GROUP BY cmd_type_text
+                ORDER BY shared_blks_read DESC;
+        version: "2.0"
+        columns:
+          - name: database
+            type: label
+          - name: cmd_type_text
+            type: label
+          - name: shared_blks_hit
+            type: counter
+            description: Shared blocks found in cache
+          - name: shared_blks_read
+            type: counter
+            description: Shared blocks read from disk
+          - name: cache_hit_ratio_pct
+            type: gauge
+            description: Cache hit ratio percentage
+          - name: shared_blks_dirtied
+            type: counter
+            description: Shared blocks dirtied
+          - name: shared_blks_written
+            type: counter
+            description: Shared blocks written to disk
+          - name: local_blks_hit
+            type: counter
+            description: Local blocks found in cache
+          - name: local_blks_read
+            type: counter
+            description: Local blocks read from disk
+          - name: temp_blks_read
+            type: counter
+            description: Temporary blocks read
+          - name: temp_blks_written
+            type: counter
+            description: Temporary blocks written
+
+# CPU consumption tracking - resource utilization by query type
+# Version history: Available since 2.0, unique to pg_stat_monitor
+  - metric: cpu_consumption
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  cmd_type_text,
+                  SUM(calls) as total_calls,
+                  ROUND(SUM(cpu_user_time)::numeric, 4) as cpu_user_sec,
+                  ROUND(SUM(cpu_sys_time)::numeric, 4) as cpu_sys_sec,
+                  ROUND((SUM(cpu_user_time) + SUM(cpu_sys_time))::numeric, 4) as total_cpu_sec,
+                  ROUND((SUM(cpu_user_time) + SUM(cpu_sys_time))::numeric / NULLIF(SUM(calls), 0), 6) as cpu_per_call_sec
+                FROM pg_stat_monitor
+                WHERE cpu_user_time > 0 OR cpu_sys_time > 0
+                GROUP BY cmd_type_text
+                ORDER BY total_cpu_sec DESC;
+        version: "2.0"
+        columns:
+          - name: database
+            type: label
+          - name: cmd_type_text
+            type: label
+          - name: total_calls
+            type: counter
+            description: Number of query executions
+          - name: cpu_user_sec
+            type: counter
+            description: CPU user time in seconds
+          - name: cpu_sys_sec
+            type: counter
+            description: CPU system time in seconds
+          - name: total_cpu_sec
+            type: counter
+            description: Total CPU time in seconds
+          - name: cpu_per_call_sec
+            type: gauge
+            description: Average CPU time per query call
+
+# JIT compilation metrics - tracks JIT overhead and optimization effectiveness
+# Version history: All JIT stats available since 2.0 (jit_deform_* not exposed in view for PG16)
+  - metric: jit_compilation_stats
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  cmd_type_text,
+                  SUM(jit_functions) as total_jit_functions,
+                  ROUND(SUM(jit_generation_time)::numeric, 2) as jit_generation_time_ms,
+                  ROUND(SUM(jit_inlining_time)::numeric, 2) as jit_inlining_time_ms,
+                  ROUND(SUM(jit_optimization_time)::numeric, 2) as jit_optimization_time_ms,
+                  ROUND(SUM(jit_emission_time)::numeric, 2) as jit_emission_time_ms,
+                  ROUND(
+                    (SUM(jit_generation_time) + SUM(jit_inlining_time) +
+                     SUM(jit_optimization_time) + SUM(jit_emission_time))::numeric, 2
+                  ) as total_jit_time_ms
+                FROM pg_stat_monitor
+                WHERE jit_functions > 0
+                GROUP BY cmd_type_text;
+        version: "2.0"
+        columns:
+          - name: database
+            type: label
+          - name: cmd_type_text
+            type: label
+          - name: total_jit_functions
+            type: counter
+            description: Number of functions JIT compiled
+          - name: jit_generation_time_ms
+            type: counter
+            description: Time spent generating JIT code
+          - name: jit_inlining_time_ms
+            type: counter
+            description: Time spent inlining JIT code
+          - name: jit_optimization_time_ms
+            type: counter
+            description: Time spent optimizing JIT code
+          - name: jit_emission_time_ms
+            type: counter
+            description: Time spent emitting JIT code
+          - name: total_jit_time_ms
+            type: counter
+            description: Total JIT compilation time
+
+# Note: stats_since and minmax_stats_since are in pg_stat_monitor_internal() but not exposed
+# in the pg_stat_monitor view for PostgreSQL 16. They are available in PG13-15 and PG17+.
+# For PG16, use bucket_start_time to track statistics age instead.
+
+# Top slow queries - identify performance bottlenecks
+# Version history: Available since 2.0, fundamental monitoring query
+  - metric: top_slow_queries
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  queryid,
+                  LEFT(query, 100) as query_text,
+                  calls,
+                  ROUND(total_exec_time::numeric, 2) as total_exec_time_ms,
+                  ROUND(mean_exec_time::numeric, 2) as mean_exec_time_ms,
+                  ROUND(max_exec_time::numeric, 2) as max_exec_time_ms,
+                  rows
+                FROM pg_stat_monitor
+                WHERE calls > 0
+                ORDER BY total_exec_time DESC
+                LIMIT 20;
+        version: "2.0"
+        columns:
+          - name: database
+            type: label
+          - name: queryid
+            type: label
+          - name: query_text
+            type: label
+          - name: calls
+            type: counter
+            description: Number of times executed
+          - name: total_exec_time_ms
+            type: counter
+            description: Total execution time in milliseconds
+          - name: mean_exec_time_ms
+            type: gauge
+            description: Average execution time in milliseconds
+          - name: max_exec_time_ms
+            type: gauge
+            description: Maximum execution time in milliseconds
+          - name: rows
+            type: counter
+            description: Total rows returned/affected

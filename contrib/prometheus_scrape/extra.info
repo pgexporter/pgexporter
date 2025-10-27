@@ -5407,3 +5407,338 @@ pgexporter_pg_wait_sampling_ipc_waits_affected_processes
 * server: The configured name/identifier for the PostgreSQL server.
 * event: IPC wait event name.
 Version: 1.1+
+
+pgexporter_pg_stat_monitor_query_exec_time_by_bucket_total_calls
++ Total query calls in this time bucket.
+* server: The configured name/identifier for the PostgreSQL server.
+* bucket: Time bucket identifier.
+* bucket_start_time: Timestamp when this bucket started.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_query_exec_time_by_bucket_total_exec_time_ms
++ Total execution time in milliseconds for all queries in this bucket.
+* server: The configured name/identifier for the PostgreSQL server.
+* bucket: Time bucket identifier.
+* bucket_start_time: Timestamp when this bucket started.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_query_exec_time_by_bucket_avg_exec_time_ms
++ Average execution time in milliseconds for queries in this bucket.
+* server: The configured name/identifier for the PostgreSQL server.
+* bucket: Time bucket identifier.
+* bucket_start_time: Timestamp when this bucket started.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_query_exec_time_by_bucket_total_rows_returned
++ Total rows returned by all queries in this time bucket.
+* server: The configured name/identifier for the PostgreSQL server.
+* bucket: Time bucket identifier.
+* bucket_start_time: Timestamp when this bucket started.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_query_stats_by_cmd_type_unique_queries
++ Number of unique query patterns for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type (SELECT, INSERT, UPDATE, DELETE, MERGE).
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_query_stats_by_cmd_type_total_calls
++ Total number of query executions for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_query_stats_by_cmd_type_total_exec_time_ms
++ Total execution time in milliseconds for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_query_stats_by_cmd_type_avg_exec_time_ms
++ Average execution time in milliseconds for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_query_stats_by_cmd_type_total_rows
++ Total rows affected or returned by this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_query_stats_by_application_unique_queries
++ Number of unique query patterns from this application.
+* server: The configured name/identifier for the PostgreSQL server.
+* application_name: Application name from connection string.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_query_stats_by_application_total_calls
++ Total query calls from this application.
+* server: The configured name/identifier for the PostgreSQL server.
+* application_name: Application name.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_query_stats_by_application_total_exec_time_ms
++ Total execution time in milliseconds for queries from this application.
+* server: The configured name/identifier for the PostgreSQL server.
+* application_name: Application name.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_query_stats_by_application_avg_exec_time_ms
++ Average execution time in milliseconds for this application.
+* server: The configured name/identifier for the PostgreSQL server.
+* application_name: Application name.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_query_stats_by_client_unique_queries
++ Number of unique queries from this client IP and database combination.
+* server: The configured name/identifier for the PostgreSQL server.
+* client_ip: Client IP address.
+* datname: Database name.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_query_stats_by_client_total_calls
++ Total query calls from this client.
+* server: The configured name/identifier for the PostgreSQL server.
+* client_ip: Client IP address.
+* datname: Database name.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_query_stats_by_client_total_exec_time_ms
++ Total execution time in milliseconds for queries from this client.
+* server: The configured name/identifier for the PostgreSQL server.
+* client_ip: Client IP address.
+* datname: Database name.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_table_access_stats_total_calls
++ Number of times this table was accessed with this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* table_name: Name of the accessed table.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_table_access_stats_total_exec_time_ms
++ Total time spent on queries to this table in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* table_name: Name of the accessed table.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_table_access_stats_avg_exec_time_ms
++ Average query execution time for this table in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* table_name: Name of the accessed table.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_query_errors_error_count
++ Number of times this SQL error occurred.
+* server: The configured name/identifier for the PostgreSQL server.
+* sqlcode: SQL error code (SQLSTATE).
+* message: Error message text.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_query_errors_last_occurrence
++ Timestamp of the last occurrence of this error.
+* server: The configured name/identifier for the PostgreSQL server.
+* sqlcode: SQL error code.
+* message: Error message text.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_wal_generation_stats_total_wal_records
++ Total WAL records generated by this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_wal_generation_stats_total_wal_fpi
++ Total full page images in WAL for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_wal_generation_stats_total_wal_bytes
++ Total WAL bytes generated by this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_wal_generation_stats_total_calls
++ Number of queries that generated WAL for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_wal_buffer_pressure_total_wal_buffers_full
++ Times WAL buffers were full for this command type, indicating potential WAL buffer exhaustion.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.3+
+
+pgexporter_pg_stat_monitor_wal_buffer_pressure_total_wal_bytes
++ Total WAL bytes generated by queries that experienced buffer pressure.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.3+
+
+pgexporter_pg_stat_monitor_wal_buffer_pressure_buffers_full_pct
++ Percentage of calls that hit full WAL buffers.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.3+
+
+pgexporter_pg_stat_monitor_buffer_cache_stats_shared_blks_hit
++ Shared blocks found in cache for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_buffer_cache_stats_shared_blks_read
++ Shared blocks read from disk for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_buffer_cache_stats_cache_hit_ratio_pct
++ Cache hit ratio percentage for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_buffer_cache_stats_shared_blks_dirtied
++ Shared blocks dirtied by this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_buffer_cache_stats_shared_blks_written
++ Shared blocks written to disk by this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_buffer_cache_stats_local_blks_hit
++ Local blocks found in cache for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_buffer_cache_stats_local_blks_read
++ Local blocks read from disk for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_buffer_cache_stats_temp_blks_read
++ Temporary blocks read for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_buffer_cache_stats_temp_blks_written
++ Temporary blocks written for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_cpu_consumption_total_calls
++ Number of query executions for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_cpu_consumption_cpu_user_sec
++ CPU user time in seconds for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_cpu_consumption_cpu_sys_sec
++ CPU system time in seconds for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_cpu_consumption_total_cpu_sec
++ Total CPU time in seconds for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_cpu_consumption_cpu_per_call_sec
++ Average CPU time per query call in seconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_jit_compilation_stats_total_jit_functions
++ Number of functions JIT compiled for this command type.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_jit_compilation_stats_jit_generation_time_ms
++ Time spent generating JIT code in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_jit_compilation_stats_jit_inlining_time_ms
++ Time spent inlining JIT code in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_jit_compilation_stats_jit_optimization_time_ms
++ Time spent optimizing JIT code in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_jit_compilation_stats_jit_emission_time_ms
++ Time spent emitting JIT code in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_jit_compilation_stats_total_jit_time_ms
++ Total JIT compilation time in milliseconds.
+* server: The configured name/identifier for the PostgreSQL server.
+* cmd_type_text: SQL command type.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_top_slow_queries_calls
++ Number of times this query was executed.
+* server: The configured name/identifier for the PostgreSQL server.
+* queryid: Query identifier.
+* query_text: Truncated query text (first 100 characters).
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_top_slow_queries_total_exec_time_ms
++ Total execution time in milliseconds for this query.
+* server: The configured name/identifier for the PostgreSQL server.
+* queryid: Query identifier.
+* query_text: Truncated query text.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_top_slow_queries_mean_exec_time_ms
++ Average execution time in milliseconds for this query.
+* server: The configured name/identifier for the PostgreSQL server.
+* queryid: Query identifier.
+* query_text: Truncated query text.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_top_slow_queries_max_exec_time_ms
++ Maximum execution time in milliseconds for this query.
+* server: The configured name/identifier for the PostgreSQL server.
+* queryid: Query identifier.
+* query_text: Truncated query text.
+Version: 2.0+
+
+pgexporter_pg_stat_monitor_top_slow_queries_rows
++ Total rows returned or affected by this query.
+* server: The configured name/identifier for the PostgreSQL server.
+* queryid: Query identifier.
+* query_text: Truncated query text.
+Version: 2.0+
