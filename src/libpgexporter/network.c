@@ -30,6 +30,7 @@
 #include <pgexporter.h>
 #include <logging.h>
 #include <network.h>
+#include <utils.h>
 
 /* system */
 #include <errno.h>
@@ -166,7 +167,7 @@ pgexporter_bind_unix_socket(const char* directory, const char* file, int* fd)
    }
 
    memset(&buf, 0, sizeof(buf));
-   snprintf(&buf[0], sizeof(buf), "%s", directory);
+   pgexporter_snprintf(&buf[0], sizeof(buf), "%s", directory);
 
    if (stat(&buf[0], &st) == -1)
    {
@@ -180,9 +181,9 @@ pgexporter_bind_unix_socket(const char* directory, const char* file, int* fd)
    }
 
    memset(&buf, 0, sizeof(buf));
-   snprintf(&buf[0], sizeof(buf), "%s/%s", directory, file);
+   pgexporter_snprintf(&buf[0], sizeof(buf), "%s/%s", directory, file);
 
-   snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", &buf[0]);
+   pgexporter_snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", &buf[0]);
    unlink(&buf[0]);
 
    if (bind(*fd, (struct sockaddr*)&addr, sizeof(addr)) == -1)
@@ -215,7 +216,7 @@ pgexporter_remove_unix_socket(const char* directory, const char* file)
    char buf[MISC_LENGTH];
 
    memset(&buf, 0, sizeof(buf));
-   snprintf(&buf[0], sizeof(buf), "%s/%s", directory, file);
+   pgexporter_snprintf(&buf[0], sizeof(buf), "%s/%s", directory, file);
 
    unlink(&buf[0]);
 
@@ -242,7 +243,7 @@ pgexporter_connect(const char* hostname, int port, int* fd)
    config = (struct configuration*)shmem;
 
    memset(&sport, 0, sizeof(sport));
-   snprintf(&sport[0], sizeof(sport), "%d", port);
+   pgexporter_snprintf(&sport[0], sizeof(sport), "%d", port);
 
    /* Connect to server */
    memset(&hints, 0, sizeof hints);
@@ -375,9 +376,9 @@ pgexporter_connect_unix_socket(const char* directory, const char* file, int* fd)
    addr.sun_family = AF_UNIX;
 
    memset(&buf, 0, sizeof(buf));
-   snprintf(&buf[0], sizeof(buf), "%s/%s", directory, file);
+   pgexporter_snprintf(&buf[0], sizeof(buf), "%s/%s", directory, file);
 
-   snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", &buf[0]);
+   pgexporter_snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", &buf[0]);
 
    if (connect(*fd, (struct sockaddr*)&addr, sizeof(addr)) == -1)
    {
@@ -577,7 +578,7 @@ bind_host(const char* hostname, int port, int** fds, int* length)
 
    sport = malloc(6);
    memset(sport, 0, 6);
-   snprintf(sport, 6, "%d", port);
+   pgexporter_snprintf(sport, 6, "%d", port);
 
    /* Find all SOCK_STREAM addresses */
    memset(&hints, 0, sizeof hints);

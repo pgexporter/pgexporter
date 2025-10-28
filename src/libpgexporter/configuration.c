@@ -216,7 +216,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                   }
 
                   memset(&srv, 0, sizeof(struct server));
-                  snprintf(&srv.name[0], MISC_LENGTH, "%s", section);
+                  pgexporter_snprintf(&srv.name[0], MISC_LENGTH, "%s", section);
                   srv.fd = -1;
                   srv.state = SERVER_UNKNOWN;
                   srv.type = SERVER_TYPE_POSTGRESQL;
@@ -1273,8 +1273,8 @@ pgexporter_read_users_configuration(void* shm, char* filename)
             if (strlen(username) < MAX_USERNAME_LENGTH &&
                 strlen(password) < MAX_PASSWORD_LENGTH)
             {
-               snprintf(&config->users[index].username[0], MAX_USERNAME_LENGTH, "%s", username);
-               snprintf(&config->users[index].password[0], MAX_PASSWORD_LENGTH, "%s", password);
+               pgexporter_snprintf(&config->users[index].username[0], MAX_USERNAME_LENGTH, "%s", username);
+               pgexporter_snprintf(&config->users[index].password[0], MAX_PASSWORD_LENGTH, "%s", password);
             }
             else
             {
@@ -1491,8 +1491,8 @@ pgexporter_read_admins_configuration(void* shm, char* filename)
             if (strlen(username) < MAX_USERNAME_LENGTH &&
                 strlen(password) < MAX_PASSWORD_LENGTH)
             {
-               snprintf(&config->admins[index].username[0], MAX_USERNAME_LENGTH, "%s", username);
-               snprintf(&config->admins[index].password[0], MAX_PASSWORD_LENGTH, "%s", password);
+               pgexporter_snprintf(&config->admins[index].username[0], MAX_USERNAME_LENGTH, "%s", username);
+               pgexporter_snprintf(&config->admins[index].password[0], MAX_PASSWORD_LENGTH, "%s", password);
             }
             else
             {
@@ -2610,8 +2610,8 @@ extract_key_value(char* str, char** key, char** value)
       k = calloc(1, strlen(left) + 1);
       v = calloc(1, strlen(right) + 1);
 
-      snprintf(k, strlen(left) + 1, "%s", left);
-      snprintf(v, strlen(right) + 1, "%s", right);
+      pgexporter_snprintf(k, strlen(left) + 1, "%s", left);
+      pgexporter_snprintf(v, strlen(right) + 1, "%s", right);
 
       *key = k;
       *value = v;
@@ -3300,7 +3300,7 @@ as_endpoints(char* str, struct configuration* config, bool reload)
 
          if (!found)
          {
-            snprintf(config->endpoints[idx].host, MISC_LENGTH, "%s", host);
+            pgexporter_snprintf(config->endpoints[idx].host, MISC_LENGTH, "%s", host);
             config->endpoints[idx].port = atoi(port);
 
             pgexporter_log_trace("Bridge Endpoint %d | Host: %s, Port: %s", idx, host, port);

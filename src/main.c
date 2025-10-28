@@ -511,7 +511,7 @@ main(int argc, char** argv)
 
             if (!found)
             {
-               snprintf(collectors[collector_idx++], MAX_COLLECTOR_LENGTH, "%s", collector);
+               pgexporter_snprintf(collectors[collector_idx++], MAX_COLLECTOR_LENGTH, "%s", collector);
             }
          }
       }
@@ -657,7 +657,7 @@ main(int argc, char** argv)
       }
       configuration_path = "/etc/pgexporter/pgexporter.conf";
    }
-   snprintf(&config->configuration_path[0], MAX_PATH, "%s", configuration_path);
+   pgexporter_snprintf(&config->configuration_path[0], MAX_PATH, "%s", configuration_path);
 
    /* Users Configuration File */
    if (users_path != NULL)
@@ -687,7 +687,7 @@ main(int argc, char** argv)
 #endif
          exit(1);
       }
-      snprintf(&config->users_path[0], MAX_PATH, "%s", users_path);
+      pgexporter_snprintf(&config->users_path[0], MAX_PATH, "%s", users_path);
    }
    else
    {
@@ -695,7 +695,7 @@ main(int argc, char** argv)
       ret = pgexporter_read_users_configuration(shmem, users_path);
       if (ret == 0)
       {
-         snprintf(&config->users_path[0], MAX_PATH, "%s", users_path);
+         pgexporter_snprintf(&config->users_path[0], MAX_PATH, "%s", users_path);
       }
    }
 
@@ -727,7 +727,7 @@ main(int argc, char** argv)
 #endif
          exit(1);
       }
-      snprintf(&config->admins_path[0], MAX_PATH, "%s", admins_path);
+      pgexporter_snprintf(&config->admins_path[0], MAX_PATH, "%s", admins_path);
    }
    else
    {
@@ -735,7 +735,7 @@ main(int argc, char** argv)
       ret = pgexporter_read_admins_configuration(shmem, admins_path);
       if (ret == 0)
       {
-         snprintf(&config->admins_path[0], MAX_PATH, "%s", admins_path);
+         pgexporter_snprintf(&config->admins_path[0], MAX_PATH, "%s", admins_path);
       }
    }
 
@@ -832,7 +832,7 @@ main(int argc, char** argv)
 
    if (yaml_path != NULL)
    {
-      snprintf(config->metrics_path, MAX_PATH, "%s", yaml_path);
+      pgexporter_snprintf(config->metrics_path, MAX_PATH, "%s", yaml_path);
 
       if (pgexporter_read_metrics_configuration(shmem))
       {
@@ -844,7 +844,7 @@ main(int argc, char** argv)
    }
    else if (json_path != NULL)
    {
-      snprintf(config->metrics_path, MAX_PATH, "%s", json_path);
+      pgexporter_snprintf(config->metrics_path, MAX_PATH, "%s", json_path);
 
       if (pgexporter_read_json_metrics_configuration(shmem))
       {
@@ -2041,7 +2041,7 @@ create_pidfile(void)
          goto error;
       }
 
-      snprintf(&buffer[0], sizeof(buffer), "%u\n", (unsigned)pid);
+      pgexporter_snprintf(&buffer[0], sizeof(buffer), "%u\n", (unsigned)pid);
 
       r = write(fd, &buffer[0], strlen(buffer));
       if (r < 0)

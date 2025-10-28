@@ -330,8 +330,8 @@ pgexporter_validate_yaml_metrics(struct configuration* config, yaml_config_t* ya
             if (yaml_config->metrics[i].queries[j].columns[k].name &&
                 strlen(yaml_config->metrics[i].queries[j].columns[k].name) > 0)
             {
-               snprintf(column_metric_name, sizeof(column_metric_name), "%s",
-                        yaml_config->metrics[i].queries[j].columns[k].name);
+               pgexporter_snprintf(column_metric_name, sizeof(column_metric_name), "%s",
+                                   yaml_config->metrics[i].queries[j].columns[k].name);
             }
             else
             {
@@ -372,8 +372,8 @@ pgexporter_validate_yaml_metrics(struct configuration* config, yaml_config_t* ya
             if (yaml_config->metrics[i].queries[j].columns[k].name &&
                 strlen(yaml_config->metrics[i].queries[j].columns[k].name) > 0)
             {
-               snprintf(column_metric_name, sizeof(column_metric_name), "%s",
-                        yaml_config->metrics[i].queries[j].columns[k].name);
+               pgexporter_snprintf(column_metric_name, sizeof(column_metric_name), "%s",
+                                   yaml_config->metrics[i].queries[j].columns[k].name);
             }
             else
             {
@@ -396,20 +396,20 @@ pgexporter_validate_yaml_metrics(struct configuration* config, yaml_config_t* ya
             /* Generate the final metric name */
             if (yaml_config->is_extension)
             {
-               snprintf(final_metric_name, sizeof(final_metric_name), "%s_%s",
-                        yaml_config->extension_name, yaml_config->metrics[i].tag);
+               pgexporter_snprintf(final_metric_name, sizeof(final_metric_name), "%s_%s",
+                                   yaml_config->extension_name, yaml_config->metrics[i].tag);
             }
             else
             {
-               snprintf(final_metric_name, sizeof(final_metric_name), "%s",
-                        yaml_config->metrics[i].tag);
+               pgexporter_snprintf(final_metric_name, sizeof(final_metric_name), "%s",
+                                   yaml_config->metrics[i].tag);
             }
 
             if (strlen(column_metric_name) > 0)
             {
-               snprintf(final_metric_name + strlen(final_metric_name),
-                        sizeof(final_metric_name) - strlen(final_metric_name),
-                        "_%s", column_metric_name);
+               pgexporter_snprintf(final_metric_name + strlen(final_metric_name),
+                                   sizeof(final_metric_name) - strlen(final_metric_name),
+                                   "_%s", column_metric_name);
             }
 
             if (!pgexporter_is_valid_metric_name(final_metric_name))
@@ -1522,22 +1522,22 @@ semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t*
             }
 
             char final_metric_name[PROMETHEUS_LENGTH];
-            snprintf(final_metric_name, sizeof(final_metric_name), "%s", yaml_config->metrics[i].tag);
+            pgexporter_snprintf(final_metric_name, sizeof(final_metric_name), "%s", yaml_config->metrics[i].tag);
 
             if (yaml_config->metrics[i].queries[j].columns[k].name &&
                 strlen(yaml_config->metrics[i].queries[j].columns[k].name) > 0)
             {
-               snprintf(final_metric_name + strlen(final_metric_name),
-                        sizeof(final_metric_name) - strlen(final_metric_name),
-                        "_%s", yaml_config->metrics[i].queries[j].columns[k].name);
+               pgexporter_snprintf(final_metric_name + strlen(final_metric_name),
+                                   sizeof(final_metric_name) - strlen(final_metric_name),
+                                   "_%s", yaml_config->metrics[i].queries[j].columns[k].name);
             }
 
             if (config->number_of_metric_names < NUMBER_OF_METRIC_NAMES)
             {
-               snprintf(config->metric_names[config->number_of_metric_names],
-                        PROMETHEUS_LENGTH,
-                        "%s",
-                        final_metric_name);
+               pgexporter_snprintf(config->metric_names[config->number_of_metric_names],
+                                   PROMETHEUS_LENGTH,
+                                   "%s",
+                                   final_metric_name);
                config->number_of_metric_names++;
             }
             else
@@ -1592,7 +1592,7 @@ pgexporter_load_single_extension_yaml(char* extensions_path, char* extension_nam
    }
 
    /* Construct the YAML file path */
-   ret = snprintf(yaml_path, MAX_PATH, "%s/%s.yaml", extensions_path, extension_name);
+   ret = pgexporter_snprintf(yaml_path, MAX_PATH, "%s/%s.yaml", extensions_path, extension_name);
    if (ret >= MAX_PATH)
    {
       pgexporter_log_debug("Extension YAML path too long for extension %s", extension_name);
@@ -1672,8 +1672,8 @@ semantics_extension_yaml(struct configuration* config, yaml_config_t* yaml_confi
 
       if (yaml_config->metrics[i].tag)
       {
-         snprintf(prom->tag, PROMETHEUS_LENGTH, "%s_%s",
-                  yaml_config->extension_name, yaml_config->metrics[i].tag);
+         pgexporter_snprintf(prom->tag, PROMETHEUS_LENGTH, "%s_%s",
+                             yaml_config->extension_name, yaml_config->metrics[i].tag);
       }
 
       if (yaml_config->metrics[i].collector)
@@ -1791,23 +1791,23 @@ semantics_extension_yaml(struct configuration* config, yaml_config_t* yaml_confi
             }
 
             char final_metric_name[PROMETHEUS_LENGTH];
-            snprintf(final_metric_name, sizeof(final_metric_name), "%s_%s",
-                     yaml_config->extension_name, yaml_config->metrics[i].tag);
+            pgexporter_snprintf(final_metric_name, sizeof(final_metric_name), "%s_%s",
+                                yaml_config->extension_name, yaml_config->metrics[i].tag);
 
             if (yaml_config->metrics[i].queries[j].columns[k].name &&
                 strlen(yaml_config->metrics[i].queries[j].columns[k].name) > 0)
             {
-               snprintf(final_metric_name + strlen(final_metric_name),
-                        sizeof(final_metric_name) - strlen(final_metric_name),
-                        "_%s", yaml_config->metrics[i].queries[j].columns[k].name);
+               pgexporter_snprintf(final_metric_name + strlen(final_metric_name),
+                                   sizeof(final_metric_name) - strlen(final_metric_name),
+                                   "_%s", yaml_config->metrics[i].queries[j].columns[k].name);
             }
 
             if (config->number_of_metric_names < NUMBER_OF_METRIC_NAMES)
             {
-               snprintf(config->metric_names[config->number_of_metric_names],
-                        PROMETHEUS_LENGTH,
-                        "%s",
-                        final_metric_name);
+               pgexporter_snprintf(config->metric_names[config->number_of_metric_names],
+                                   PROMETHEUS_LENGTH,
+                                   "%s",
+                                   final_metric_name);
                config->number_of_metric_names++;
             }
             else

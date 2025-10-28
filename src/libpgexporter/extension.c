@@ -30,6 +30,7 @@
 #include <pgexporter.h>
 #include <extension.h>
 #include <logging.h>
+#include <utils.h>
 #include <yaml_configuration.h>
 
 /* system */
@@ -53,7 +54,7 @@ pgexporter_setup_extensions_path(struct configuration* config, const char* argv0
    {
       /* Development build - use build/extensions directory */
       char temp_path[MAX_PATH];
-      snprintf(temp_path, MAX_PATH, "%s", local_bin_path);
+      pgexporter_snprintf(temp_path, MAX_PATH, "%s", local_bin_path);
 
       /* Remove the executable name to get directory */
       char* last_slash = strrchr(temp_path, '/');
@@ -62,7 +63,7 @@ pgexporter_setup_extensions_path(struct configuration* config, const char* argv0
          *last_slash = '\0';
       }
 
-      int result = snprintf(config->extensions_path, MAX_PATH, "%s/../extensions", temp_path);
+      int result = pgexporter_snprintf(config->extensions_path, MAX_PATH, "%s/../extensions", temp_path);
       if (result >= MAX_PATH)
       {
          pgexporter_log_error("Extensions path truncated");
@@ -83,7 +84,7 @@ pgexporter_setup_extensions_path(struct configuration* config, const char* argv0
 
       for (int i = 0; i < num_paths; i++)
       {
-         snprintf(config->extensions_path, MAX_PATH, "%s", standard_paths[i]);
+         pgexporter_snprintf(config->extensions_path, MAX_PATH, "%s", standard_paths[i]);
 
          /* Check if this path exists and is readable */
          if (access(config->extensions_path, R_OK) == 0)
@@ -270,17 +271,17 @@ pgexporter_version_to_string(struct version* version, char* buffer, size_t buffe
    if (version->patch != -1)
    {
       // version eg: "1.2.3" major.minor.patch
-      result = snprintf(buffer, buffer_size, "%d.%d.%d", major, minor, patch);
+      result = pgexporter_snprintf(buffer, buffer_size, "%d.%d.%d", major, minor, patch);
    }
    else if (version->minor != -1)
    {
       // Major.minor: "1.2"
-      result = snprintf(buffer, buffer_size, "%d.%d", major, minor);
+      result = pgexporter_snprintf(buffer, buffer_size, "%d.%d", major, minor);
    }
    else
    {
       // Major only: "1"
-      result = snprintf(buffer, buffer_size, "%d", major);
+      result = pgexporter_snprintf(buffer, buffer_size, "%d", major);
    }
 
    if (result >= buffer_size)

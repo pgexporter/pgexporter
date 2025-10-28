@@ -336,13 +336,13 @@ pgexporter_remote_management_scram_sha256(char* username, char* password, int se
    }
 
    memset(&key_file, 0, sizeof(key_file));
-   snprintf(&key_file[0], sizeof(key_file), "%s/.pgexporter/pgexporter.key", pgexporter_get_home_directory());
+   pgexporter_snprintf(&key_file[0], sizeof(key_file), "%s/.pgexporter/pgexporter.key", pgexporter_get_home_directory());
 
    memset(&cert_file, 0, sizeof(cert_file));
-   snprintf(&cert_file[0], sizeof(cert_file), "%s/.pgexporter/pgexporter.crt", pgexporter_get_home_directory());
+   pgexporter_snprintf(&cert_file[0], sizeof(cert_file), "%s/.pgexporter/pgexporter.crt", pgexporter_get_home_directory());
 
    memset(&root_file, 0, sizeof(root_file));
-   snprintf(&root_file[0], sizeof(root_file), "%s/.pgexporter/root.crt", pgexporter_get_home_directory());
+   pgexporter_snprintf(&root_file[0], sizeof(root_file), "%s/.pgexporter/root.crt", pgexporter_get_home_directory());
 
    if (stat(&key_file[0], &st) == 0)
    {
@@ -502,7 +502,7 @@ pgexporter_remote_management_scram_sha256(char* username, char* password, int se
    iteration = atoi(iteration_string);
 
    memset(&wo_proof[0], 0, sizeof(wo_proof));
-   snprintf(&wo_proof[0], sizeof(wo_proof), "c=biws,r=%s", combined_nounce);
+   pgexporter_snprintf(&wo_proof[0], sizeof(wo_proof), "c=biws,r=%s", combined_nounce);
 
    /* n=,r=... */
    client_first_message_bare = sasl_response->data + 26;
@@ -778,7 +778,7 @@ generate_md5(char* str, int length, char** md5)
 
    for (n = 0; n < 16; ++n)
    {
-      snprintf(&(out[n * 2]), 32, "%02x", (unsigned int)digest[n]);
+      pgexporter_snprintf(&(out[n * 2]), 32, "%02x", (unsigned int)digest[n]);
    }
 
    *md5 = out;
@@ -867,7 +867,7 @@ retry:
 
    server_first_message = malloc(89);
    memset(server_first_message, 0, 89);
-   snprintf(server_first_message, 89, "r=%s%s,s=%s,i=4096", client_nounce, server_nounce, base64_salt);
+   pgexporter_snprintf(server_first_message, 89, "r=%s%s,s=%s,i=4096", client_nounce, server_nounce, base64_salt);
 
    status = pgexporter_create_auth_scram256_continue(client_nounce, server_nounce, base64_salt, &msg);
    if (status != MESSAGE_STATUS_OK)
@@ -1038,7 +1038,7 @@ pgexporter_server_authenticate(int server, char* database, char* username, char*
       char pgsql[MISC_LENGTH];
 
       memset(&pgsql, 0, sizeof(pgsql));
-      snprintf(&pgsql[0], sizeof(pgsql), ".s.PGSQL.%d", config->servers[server].port);
+      pgexporter_snprintf(&pgsql[0], sizeof(pgsql), ".s.PGSQL.%d", config->servers[server].port);
       ret = pgexporter_connect_unix_socket(config->servers[server].host, &pgsql[0], &server_fd);
    }
    else
@@ -1359,7 +1359,7 @@ server_md5(char* username, char* password, SSL* ssl, int server_fd)
    pwdusr = malloc(size);
    memset(pwdusr, 0, size);
 
-   snprintf(pwdusr, size, "%s%s", password, username);
+   pgexporter_snprintf(pwdusr, size, "%s%s", password, username);
 
    if (generate_md5(pwdusr, strlen(pwdusr), &shadow))
    {
@@ -1377,7 +1377,7 @@ server_md5(char* username, char* password, SSL* ssl, int server_fd)
    }
 
    memset(&md5str, 0, sizeof(md5str));
-   snprintf(&md5str[0], 36, "md5%s", md5);
+   pgexporter_snprintf(&md5str[0], 36, "md5%s", md5);
 
    status = pgexporter_create_auth_md5_response(md5str, &md5_msg);
    if (status != MESSAGE_STATUS_OK)
@@ -1553,7 +1553,7 @@ server_scram256(char* username, char* password, SSL* ssl, int server_fd)
    iteration = atoi(iteration_string);
 
    memset(&wo_proof[0], 0, sizeof(wo_proof));
-   snprintf(&wo_proof[0], sizeof(wo_proof), "c=biws,r=%s", combined_nounce);
+   pgexporter_snprintf(&wo_proof[0], sizeof(wo_proof), "c=biws,r=%s", combined_nounce);
 
    /* n=,r=... */
    client_first_message_bare = security_messages[1] + 26;
@@ -1726,7 +1726,7 @@ pgexporter_get_master_key(char** masterkey)
    }
 
    memset(&buf, 0, sizeof(buf));
-   snprintf(&buf[0], sizeof(buf), "%s/.pgexporter", pgexporter_get_home_directory());
+   pgexporter_snprintf(&buf[0], sizeof(buf), "%s/.pgexporter", pgexporter_get_home_directory());
 
    if (stat(&buf[0], &st) == -1)
    {
@@ -1745,7 +1745,7 @@ pgexporter_get_master_key(char** masterkey)
    }
 
    memset(&buf, 0, sizeof(buf));
-   snprintf(&buf[0], sizeof(buf), "%s/.pgexporter/master.key", pgexporter_get_home_directory());
+   pgexporter_snprintf(&buf[0], sizeof(buf), "%s/.pgexporter/master.key", pgexporter_get_home_directory());
 
    if (stat(&buf[0], &st) == -1)
    {

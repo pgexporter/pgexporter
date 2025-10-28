@@ -447,7 +447,7 @@ main(int argc, char** argv)
 
          config->log_type = PGEXPORTER_LOGGING_TYPE_FILE;
          memset(&config->log_path[0], 0, MISC_LENGTH);
-         snprintf(&config->log_path[0], MISC_LENGTH, "%s", logfile);
+         pgexporter_snprintf(&config->log_path[0], MISC_LENGTH, "%s", logfile);
       }
 
       if (pgexporter_start_logging())
@@ -478,7 +478,7 @@ main(int argc, char** argv)
 
             config->log_type = PGEXPORTER_LOGGING_TYPE_FILE;
             memset(&config->log_path[0], 0, MISC_LENGTH);
-            snprintf(&config->log_path[0], MISC_LENGTH, "%s", logfile);
+            pgexporter_snprintf(&config->log_path[0], MISC_LENGTH, "%s", logfile);
          }
 
          if (pgexporter_start_logging())
@@ -1203,13 +1203,13 @@ get_config_key_result(char* config_key, struct json* j, uintptr_t* r, int32_t ou
    if (part_count == 1)
    {
       // Single key: config_key
-      snprintf(key, MISC_LENGTH, "%s", parts[0]);
+      pgexporter_snprintf(key, MISC_LENGTH, "%s", parts[0]);
    }
    else if (part_count == 2)
    {
       // Two parts: section.key
-      snprintf(section, MISC_LENGTH, "%s", parts[0]);
-      snprintf(key, MISC_LENGTH, "%s", parts[1]);
+      pgexporter_snprintf(section, MISC_LENGTH, "%s", parts[0]);
+      pgexporter_snprintf(key, MISC_LENGTH, "%s", parts[1]);
 
       // Treat "pgexporter" as the main section (empty)
       if (!strcasecmp(section, PGEXPORTER_MAIN_INI_SECTION))
@@ -1220,9 +1220,9 @@ get_config_key_result(char* config_key, struct json* j, uintptr_t* r, int32_t ou
    else if (part_count == 3)
    {
       // Three parts: section.context.key
-      snprintf(section, MISC_LENGTH, "%s", parts[0]);
-      snprintf(context, MISC_LENGTH, "%s", parts[1]);
-      snprintf(key, MISC_LENGTH, "%s", parts[2]);
+      pgexporter_snprintf(section, MISC_LENGTH, "%s", parts[0]);
+      pgexporter_snprintf(context, MISC_LENGTH, "%s", parts[1]);
+      pgexporter_snprintf(key, MISC_LENGTH, "%s", parts[2]);
    }
 
    response = (struct json*)pgexporter_json_get(j, MANAGEMENT_CATEGORY_RESPONSE);
@@ -1371,7 +1371,7 @@ error:
       config_value = (char*)malloc(6);
       if (config_value)
       {
-         snprintf(config_value, 6, "Error");
+         pgexporter_snprintf(config_value, 6, "Error");
       }
       *r = (uintptr_t)config_value;
       pgexporter_json_destroy(filtered_response);

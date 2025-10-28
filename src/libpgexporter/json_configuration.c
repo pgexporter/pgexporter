@@ -245,8 +245,8 @@ pgexporter_validate_json_metrics(struct configuration* config, json_config_t* js
             if (json_config->metrics[i].queries[j].columns[k].name &&
                 strlen(json_config->metrics[i].queries[j].columns[k].name) > 0)
             {
-               snprintf(column_metric_name, sizeof(column_metric_name), "%s",
-                        json_config->metrics[i].queries[j].columns[k].name);
+               pgexporter_snprintf(column_metric_name, sizeof(column_metric_name), "%s",
+                                   json_config->metrics[i].queries[j].columns[k].name);
             }
             else
             {
@@ -287,8 +287,8 @@ pgexporter_validate_json_metrics(struct configuration* config, json_config_t* js
             if (json_config->metrics[i].queries[j].columns[k].name &&
                 strlen(json_config->metrics[i].queries[j].columns[k].name) > 0)
             {
-               snprintf(column_metric_name, sizeof(column_metric_name), "%s",
-                        json_config->metrics[i].queries[j].columns[k].name);
+               pgexporter_snprintf(column_metric_name, sizeof(column_metric_name), "%s",
+                                   json_config->metrics[i].queries[j].columns[k].name);
             }
             else
             {
@@ -309,14 +309,14 @@ pgexporter_validate_json_metrics(struct configuration* config, json_config_t* js
             }
 
             /* Generate the final metric name - JSON doesn't support extensions currently */
-            snprintf(final_metric_name, sizeof(final_metric_name), "%s",
-                     json_config->metrics[i].tag);
+            pgexporter_snprintf(final_metric_name, sizeof(final_metric_name), "%s",
+                                json_config->metrics[i].tag);
 
             if (strlen(column_metric_name) > 0)
             {
-               snprintf(final_metric_name + strlen(final_metric_name),
-                        sizeof(final_metric_name) - strlen(final_metric_name),
-                        "_%s", column_metric_name);
+               pgexporter_snprintf(final_metric_name + strlen(final_metric_name),
+                                   sizeof(final_metric_name) - strlen(final_metric_name),
+                                   "_%s", column_metric_name);
             }
 
             if (!pgexporter_is_valid_metric_name(final_metric_name))
@@ -915,8 +915,8 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
             if (json_config->metrics[i].queries[j].columns[k].name &&
                 strlen(json_config->metrics[i].queries[j].columns[k].name) > 0)
             {
-               snprintf(column_metric_name, sizeof(column_metric_name), "%s",
-                        json_config->metrics[i].queries[j].columns[k].name);
+               pgexporter_snprintf(column_metric_name, sizeof(column_metric_name), "%s",
+                                   json_config->metrics[i].queries[j].columns[k].name);
             }
             else
             {
@@ -935,22 +935,22 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
             }
 
             char final_metric_name[PROMETHEUS_LENGTH];
-            snprintf(final_metric_name, sizeof(final_metric_name), "%s", json_config->metrics[i].tag);
+            pgexporter_snprintf(final_metric_name, sizeof(final_metric_name), "%s", json_config->metrics[i].tag);
 
             if (strlen(column_metric_name) > 0)
             {
-               snprintf(final_metric_name + strlen(final_metric_name),
-                        sizeof(final_metric_name) - strlen(final_metric_name),
-                        "_%s", column_metric_name);
+               pgexporter_snprintf(final_metric_name + strlen(final_metric_name),
+                                   sizeof(final_metric_name) - strlen(final_metric_name),
+                                   "_%s", column_metric_name);
             }
 
             struct configuration* config = (struct configuration*)shmem;
             if (config->number_of_metric_names < NUMBER_OF_METRIC_NAMES)
             {
-               snprintf(config->metric_names[config->number_of_metric_names],
-                        PROMETHEUS_LENGTH,
-                        "%s",
-                        final_metric_name);
+               pgexporter_snprintf(config->metric_names[config->number_of_metric_names],
+                                   PROMETHEUS_LENGTH,
+                                   "%s",
+                                   final_metric_name);
                config->number_of_metric_names++;
             }
             else

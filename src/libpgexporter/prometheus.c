@@ -1605,7 +1605,7 @@ custom_metrics(SSL* client_ssl, int client_fd)
                temp->sort_type = prom->sort_type;
             }
 
-            snprintf(temp->database, DB_NAME_LENGTH, "%s", database);
+            pgexporter_snprintf(temp->database, DB_NAME_LENGTH, "%s", database);
 
             free(names);
             names = NULL;
@@ -1714,7 +1714,7 @@ parse_list(char* list_str, char** strs, int* n_strs)
     * then this starts from `c1`, and goes for `len - 2`, so till `cn`, so the
     * `data` string becomes `c1,c2,c3,...,cn`
     */
-   snprintf(data, len - 1, "%.*s", (int)(len - 2), list_str + 1);
+   pgexporter_snprintf(data, len - 1, "%.*s", (int)(len - 2), list_str + 1);
 
    p = strtok(data, ",");
    while (p)
@@ -2623,7 +2623,7 @@ send_chunk(SSL* client_ssl, int client_fd, char* data)
 
    memset(m, 0, 20);
 
-   snprintf(m, 20, "%zX\r\n", strlen(data));
+   pgexporter_snprintf(m, 20, "%zX\r\n", strlen(data));
 
    m = pgexporter_vappend(m, 2,
                           data,
