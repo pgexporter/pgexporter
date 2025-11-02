@@ -1,0 +1,333 @@
+#
+# Copyright (C) 2025 The pgexporter community
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this list
+# of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice, this
+# list of conditions and the following disclaimer in the documentation and/or other
+# materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors may
+# be used to endorse or promote products derived from this software without specific
+# prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+# THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+# OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+# TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+extension: pgstattuple
+metrics:
+
+#
+# pgstattuple: 1.5 (stable across PostgreSQL 13-17)
+# Provides tuple-level statistics for identifying table bloat and dead tuples
+#
+
+# Table bloat metrics - identifies tables with excessive dead tuples and free space
+# Version history: Stable since PostgreSQL 13 (version 1.5)
+  - metric: table_bloat_stats
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  schemaname,
+                  tablename,
+                  (pgstattuple(schemaname || '.' || tablename)).*
+                FROM pg_tables
+                WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
+                  AND tablename NOT LIKE 'pg_%'
+                ORDER BY schemaname, tablename;
+        version: "1.5"
+        columns:
+          - name: database
+            type: label
+          - name: schemaname
+            type: label
+          - name: tablename
+            type: label
+          - name: table_len
+            type: gauge
+            description: Physical table length in bytes
+          - name: tuple_count
+            type: gauge
+            description: Number of live tuples
+          - name: tuple_len
+            type: gauge
+            description: Total length of live tuples in bytes
+          - name: tuple_percent
+            type: gauge
+            description: Percentage of table occupied by live tuples
+          - name: dead_tuple_count
+            type: gauge
+            description: Number of dead tuples
+          - name: dead_tuple_len
+            type: gauge
+            description: Total length of dead tuples in bytes
+          - name: dead_tuple_percent
+            type: gauge
+            description: Percentage of table occupied by dead tuples (bloat indicator)
+          - name: free_space
+            type: gauge
+            description: Total free space in bytes
+          - name: free_percent
+            type: gauge
+            description: Percentage of table that is free space
+
+# Table bloat summary - high-level bloat overview for quick monitoring
+# Version history: Stable since PostgreSQL 13 (version 1.5)
+  - metric: table_bloat_summary
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  schemaname,
+                  tablename,
+                  (stats).dead_tuple_count,
+                  (stats).dead_tuple_percent,
+                  (stats).free_percent,
+                  pg_size_pretty((stats).table_len) as table_size,
+                  pg_size_pretty((stats).dead_tuple_len) as dead_tuple_size
+                FROM (
+                  SELECT
+                    schemaname,
+                    tablename,
+                    pgstattuple(schemaname || '.' || tablename) as stats
+                  FROM pg_tables
+                  WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
+                    AND tablename NOT LIKE 'pg_%'
+                ) sub
+                WHERE (stats).dead_tuple_percent > 5
+                ORDER BY (stats).dead_tuple_percent DESC;
+        version: "1.5"
+        columns:
+          - name: database
+            type: label
+          - name: schemaname
+            type: label
+          - name: tablename
+            type: label
+          - name: dead_tuple_count
+            type: gauge
+            description: Number of dead tuples
+          - name: dead_tuple_percent
+            type: gauge
+            description: Percentage of dead tuples (bloat indicator)
+          - name: free_percent
+            type: gauge
+            description: Percentage of free space
+          - name: table_size
+            type: label
+            description: Human-readable table size
+          - name: dead_tuple_size
+            type: label
+            description: Human-readable dead tuple size
+
+# Approximate table bloat - fast estimation for large tables (uses visibility map)
+# Version history: Stable since PostgreSQL 13 (version 1.5)
+  - metric: table_bloat_approx
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  n.nspname as schemaname,
+                  c.relname as tablename,
+                  (pgstattuple_approx(c.oid)).*
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE c.relkind = 'r'
+                  AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+                  AND c.relname NOT LIKE 'pg_%'
+                ORDER BY n.nspname, c.relname;
+        version: "1.5"
+        columns:
+          - name: database
+            type: label
+          - name: schemaname
+            type: label
+          - name: tablename
+            type: label
+          - name: table_len
+            type: gauge
+            description: Physical table length in bytes
+          - name: scanned_percent
+            type: gauge
+            description: Percentage of table scanned
+          - name: approx_tuple_count
+            type: gauge
+            description: Approximate number of live tuples
+          - name: approx_tuple_len
+            type: gauge
+            description: Approximate total length of live tuples
+          - name: approx_tuple_percent
+            type: gauge
+            description: Approximate percentage of live tuples
+          - name: dead_tuple_count
+            type: gauge
+            description: Number of dead tuples (from scanned pages)
+          - name: dead_tuple_len
+            type: gauge
+            description: Total length of dead tuples
+          - name: dead_tuple_percent
+            type: gauge
+            description: Percentage of dead tuples
+          - name: approx_free_space
+            type: gauge
+            description: Approximate free space in bytes
+          - name: approx_free_percent
+            type: gauge
+            description: Approximate percentage of free space
+
+# Top bloated tables - identifies tables needing VACUUM
+# Version history: Stable since PostgreSQL 13 (version 1.5)
+  - metric: top_bloated_tables
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  n.nspname as schemaname,
+                  c.relname as tablename,
+                  (stats).dead_tuple_count,
+                  ROUND((stats).dead_tuple_percent::numeric, 2) as dead_tuple_percent,
+                  pg_size_pretty(pg_relation_size(c.oid)) as table_size,
+                  pg_size_pretty((stats).dead_tuple_len) as wasted_space
+                FROM (
+                  SELECT
+                    c.oid,
+                    pgstattuple_approx(c.oid) as stats
+                  FROM pg_class c
+                  JOIN pg_namespace n ON n.oid = c.relnamespace
+                  WHERE c.relkind = 'r'
+                    AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+                    AND c.relname NOT LIKE 'pg_%'
+                    AND pg_relation_size(c.oid) > 1048576
+                ) sub
+                JOIN pg_class c ON c.oid = sub.oid
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE (stats).dead_tuple_percent > 10
+                ORDER BY (stats).dead_tuple_percent DESC
+                LIMIT 20;
+        version: "1.5"
+        columns:
+          - name: database
+            type: label
+          - name: schemaname
+            type: label
+          - name: tablename
+            type: label
+          - name: dead_tuple_count
+            type: gauge
+            description: Number of dead tuples
+          - name: dead_tuple_percent
+            type: gauge
+            description: Percentage of dead tuples
+          - name: table_size
+            type: label
+            description: Current table size
+          - name: wasted_space
+            type: label
+            description: Space wasted by dead tuples
+
+# Page-level statistics - detailed page count information
+# Version history: Stable since PostgreSQL 13 (version 1.5)
+  - metric: table_page_stats
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  n.nspname as schemaname,
+                  c.relname as tablename,
+                  pg_relpages(c.oid) as page_count,
+                  pg_size_pretty(pg_relation_size(c.oid)) as table_size,
+                  CASE
+                    WHEN pg_relpages(c.oid) > 0
+                    THEN ROUND(pg_relation_size(c.oid)::numeric / pg_relpages(c.oid), 2)
+                    ELSE 0
+                  END as avg_bytes_per_page
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE c.relkind = 'r'
+                  AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+                  AND c.relname NOT LIKE 'pg_%'
+                ORDER BY pg_relpages(c.oid) DESC
+                LIMIT 50;
+        version: "1.5"
+        columns:
+          - name: database
+            type: label
+          - name: schemaname
+            type: label
+          - name: tablename
+            type: label
+          - name: page_count
+            type: gauge
+            description: Number of pages in the table
+          - name: table_size
+            type: label
+            description: Human-readable table size
+          - name: avg_bytes_per_page
+            type: gauge
+            description: Average bytes per page (page density)
+
+# Table health overview - comprehensive bloat and space statistics
+# Version history: Stable since PostgreSQL 13 (version 1.5)
+  - metric: table_health_overview
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  n.nspname as schemaname,
+                  c.relname as tablename,
+                  (stats).approx_tuple_count as live_tuples,
+                  (stats).dead_tuple_count,
+                  ROUND((stats).dead_tuple_percent::numeric, 2) as dead_tuple_percent,
+                  ROUND((stats).approx_free_percent::numeric, 2) as free_percent,
+                  pg_size_pretty((stats).table_len) as table_size,
+                  pg_size_pretty((stats).dead_tuple_len) as dead_tuple_size,
+                  pg_size_pretty((stats).approx_free_space) as free_space_size
+                FROM (
+                  SELECT
+                    c.oid,
+                    pgstattuple_approx(c.oid) as stats
+                  FROM pg_class c
+                  JOIN pg_namespace n ON n.oid = c.relnamespace
+                  WHERE c.relkind = 'r'
+                    AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+                    AND c.relname NOT LIKE 'pg_%'
+                ) sub
+                JOIN pg_class c ON c.oid = sub.oid
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                ORDER BY (stats).table_len DESC;
+        version: "1.5"
+        columns:
+          - name: database
+            type: label
+          - name: schemaname
+            type: label
+          - name: tablename
+            type: label
+          - name: live_tuples
+            type: gauge
+            description: Approximate number of live tuples
+          - name: dead_tuple_count
+            type: gauge
+            description: Number of dead tuples
+          - name: dead_tuple_percent
+            type: gauge
+            description: Percentage of dead tuples
+          - name: free_percent
+            type: gauge
+            description: Approximate percentage of free space
+          - name: table_size
+            type: label
+            description: Physical table size
+          - name: dead_tuple_size
+            type: label
+            description: Space occupied by dead tuples
+          - name: free_space_size
+            type: label
+            description: Approximate free space available in table

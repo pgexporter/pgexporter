@@ -5907,3 +5907,213 @@ pgexporter_pg_stat_kcache_stats_freshness_stats_age_seconds
 + Age of statistics in seconds since last reset.
 * server: The configured name/identifier for the PostgreSQL server.
 Version: 2.3.0+
+
+pgexporter_pgstattuple_table_bloat_stats_table_len
++ Physical table length in bytes.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_stats_tuple_count
++ Number of live tuples in the table.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_stats_tuple_len
++ Total length of live tuples in bytes.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_stats_tuple_percent
++ Percentage of table occupied by live tuples.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_stats_dead_tuple_count
++ Number of dead tuples in the table.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_stats_dead_tuple_len
++ Total length of dead tuples in bytes.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_stats_dead_tuple_percent
++ Percentage of table occupied by dead tuples (bloat indicator).
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_stats_free_space
++ Total free space in bytes within the table.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_stats_free_percent
++ Percentage of table that is free space.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_summary_dead_tuple_count
++ Number of dead tuples (summary view).
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_summary_dead_tuple_percent
++ Percentage of dead tuples (bloat indicator, summary view).
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_summary_free_percent
++ Percentage of free space (summary view).
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_approx_table_len
++ Physical table length in bytes (approximate).
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_approx_scanned_percent
++ Percentage of table scanned for approximate statistics.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_approx_approx_tuple_count
++ Approximate number of live tuples.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_approx_approx_tuple_len
++ Approximate total length of live tuples in bytes.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_approx_approx_tuple_percent
++ Approximate percentage of live tuples.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_approx_dead_tuple_count
++ Number of dead tuples (from scanned pages).
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_approx_dead_tuple_len
++ Total length of dead tuples in bytes (approximate).
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_approx_dead_tuple_percent
++ Percentage of dead tuples (approximate).
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_approx_approx_free_space
++ Approximate free space in bytes within the table.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_bloat_approx_approx_free_percent
++ Approximate percentage of free space.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_top_bloated_tables_dead_tuple_count
++ Number of dead tuples in bloated tables.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_top_bloated_tables_dead_tuple_percent
++ Percentage of dead tuples in bloated tables.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_page_stats_page_count
++ Number of pages in the table.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_page_stats_avg_bytes_per_page
++ Average bytes per page (page density indicator).
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_health_overview_live_tuples
++ Approximate number of live tuples in the table.
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_health_overview_dead_tuple_count
++ Number of dead tuples (health overview).
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_health_overview_dead_tuple_percent
++ Percentage of dead tuples (health overview).
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
+
+pgexporter_pgstattuple_table_health_overview_free_percent
++ Approximate percentage of free space (health overview).
+* server: The configured name/identifier for the PostgreSQL server.
+* schemaname: Schema name.
+* tablename: Table name.
+Version: 1.5+
