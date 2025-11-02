@@ -365,11 +365,15 @@ extension_in_list(const char* extension_name, const char* extensions_list)
    {
       // Remove leading/trailing whitespace from token
       while (*token == ' ' || *token == '\t')
+      {
          token++;
+      }
 
       char* end = token + strlen(token) - 1;
       while (end > token && (*end == ' ' || *end == '\t'))
+      {
          end--;
+      }
       *(end + 1) = '\0';
 
       if (!strcmp(token, extension_name))

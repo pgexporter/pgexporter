@@ -987,7 +987,9 @@ pgexporter_vappend(char* orig, unsigned int n_str, ...)
    {
       int j = 0;
       while (strings[i][j])
+      {
          *ptr++ = strings[i][j++];
+      }
    }
 
    *ptr = 0;
