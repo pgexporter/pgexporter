@@ -835,8 +835,6 @@ pgexporter_version_ge(unsigned int major, unsigned int minor, unsigned int patch
 int
 pgexporter_resolve_path(char* orig_path, char** new_path);
 
-#ifdef DEBUG
-
 /**
  * Generate a backtrace in the log
  * @return 0 if success, otherwise 1
@@ -844,7 +842,13 @@ pgexporter_resolve_path(char* orig_path, char** new_path);
 int
 pgexporter_backtrace(void);
 
-#endif
+/**
+ * Get the backtrace
+ * @param s The backtrace
+ * @return 0 if success, otherwise 1
+ */
+int
+pgexporter_backtrace_string(char **s);
 
 /**
  * Get the OS name and kernel version.

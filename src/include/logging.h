@@ -33,6 +33,8 @@
 extern "C" {
 #endif
 
+#include <pgexporter.h>
+
 #include <stdbool.h>
 #include <stdlib.h>
 
@@ -65,13 +67,6 @@ extern "C" {
 #define pgexporter_log_fatal(...) pgexporter_log_line(PGEXPORTER_LOGGING_LEVEL_FATAL, __FILE__, __LINE__, __VA_ARGS__)
 
 /**
- * Initialize the logging system
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_init_logging(void);
-
-/**
  * Start the logging system
  * @return 0 upon success, otherwise 1
  */
@@ -84,6 +79,14 @@ pgexporter_start_logging(void);
  */
 int
 pgexporter_stop_logging(void);
+
+/**
+ * Is the logging level enabled
+ * @param level The level
+ * @return True if enabled, otherwise false
+ */
+bool
+pgexporter_log_is_enabled(int level);
 
 /**
  * Log a line
@@ -106,82 +109,12 @@ void
 pgexporter_log_mem(void* data, size_t size);
 
 /**
- * Is the logging level enabled
- * @param level The level
- * @return True if enabled, otherwise false
- */
-bool
-pgexporter_log_is_enabled(int level);
-
-/**
- * Utility function to understand if log rotation
- * is enabled or not.
- * @return true if the rotation is enabled.
- */
-bool
-log_rotation_enabled(void);
-
-/**
- * Forces a disabling of the log rotation.
- * Useful when the system cannot determine how to rotate logs.
+ * Print n bytes after ptr in binary format
+ * @param ptr Pointer to the bytes
+ * @param n Number of bytes
  */
 void
-log_rotation_disable(void);
-
-/**
- * Checks if there are the requirements to perform a log rotation.
- * It returns true in either the case of the size exceeded or
- * the age exceeded. The age is contained into a global
- * variable 'next_log_rotation_age' that express the number
- * of seconds at which the next rotation will be performed.
- * @return true if the log should be rotated
- */
-bool
-log_rotation_required(void);
-
-/**
- * Function to compute the next instant at which a log rotation
- * will happen. It computes only if the logging is to a file
- * and only if the configuration tells to compute the rotation
- * age.
- * @return true on success
- */
-bool
-log_rotation_set_next_rotation_age(void);
-
-/**
- * Opens the log file defined in the configuration.
- * Works only for a real log file, i.e., the configuration
- * must be set up to log to a file, not console.
- *
- * The function considers the settings in the configuration
- * to determine the mode (append, create) and the filename
- * to open.
- *
- * It sets the global variable 'log_file'.
- *
- * If it succeed in opening the log file, it calls
- * the log_rotation_set_next_rotation_age() function to
- * determine the next instant at which the log file
- * must be rotated. Calling such function is safe
- * because if the log rotation is disabled, the function
- * does nothing.
- *
- * @return 0 on success, 1 on error.
- */
-int
-log_file_open(void);
-
-/**
- * Performs a log file rotation.
- * It flushes and closes the current log file,
- * then re-opens it.
- *
- * DO NOT LOG WITHIN THIS FUNCTION as long as this
- * is invoked by log_line
- */
-void
-log_file_rotate(void);
+pgexporter_print_bytes_binary(void* ptr, size_t n);
 
 #ifdef __cplusplus
 }

@@ -30,6 +30,7 @@
 #include <pgexporter.h>
 #include <logging.h>
 #include <prometheus.h>
+#include <utils.h>
 
 /* system */
 #include <errno.h>
@@ -43,6 +44,7 @@
 #include <unistd.h>
 
 #define LINE_LENGTH 32
+#define MAX_LENGTH  4096
 
 FILE* log_file;
 
@@ -50,7 +52,16 @@ time_t next_log_rotation_age;  /* number of seconds at which the next location w
 
 char current_log_path[MAX_PATH]; /* the current log file */
 
-static const char* levels[] =
+static bool log_rotation_enabled(void);
+static void log_rotation_disable(void);
+static bool log_rotation_required(void);
+static bool log_rotation_set_next_rotation_age(void);
+static int log_file_open(void);
+static void log_file_rotate(void);
+
+static void output_log_line(char* l);
+
+static char *levels[] =
 {
    "TRACE",
    "DEBUG",
@@ -60,7 +71,7 @@ static const char* levels[] =
    "FATAL"
 };
 
-static const char* colors[] =
+static char* colors[] =
 {
    "\x1b[37m",
    "\x1b[36m",
@@ -70,11 +81,462 @@ static const char* colors[] =
    "\x1b[35m"
 };
 
-bool
-log_rotation_enabled(void)
+/**
+ *
+ */
+int
+pgexporter_start_logging(void)
 {
    struct configuration* config;
 
+   config = (struct configuration*)shmem;
+
+   if (config->log_type == PGEXPORTER_LOGGING_TYPE_FILE && !log_file)
+   {
+      log_file_open();
+
+      if (!log_file)
+      {
+         printf("Failed to open log file %s due to %s\n", strlen(config->log_path) > 0 ? config->log_path : "pgexporter.log", strerror(errno));
+         errno = 0;
+         log_rotation_disable();
+         return 1;
+      }
+   }
+   else if (config->log_type == PGEXPORTER_LOGGING_TYPE_SYSLOG)
+   {
+      openlog("pgexporter", LOG_CONS | LOG_PERROR | LOG_PID, LOG_USER);
+   }
+
+   return 0;
+}
+
+/**
+ *
+ */
+int
+pgexporter_stop_logging(void)
+{
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (config->log_type == PGEXPORTER_LOGGING_TYPE_FILE)
+   {
+      if (log_file != NULL)
+      {
+         return fclose(log_file);
+      }
+      else
+      {
+         return 1;
+      }
+   }
+   else if (config->log_type == PGEXPORTER_LOGGING_TYPE_SYSLOG)
+   {
+      closelog();
+   }
+
+   return 0;
+}
+
+bool
+pgexporter_log_is_enabled(int level)
+{
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (level >= config->log_level)
+   {
+      return true;
+   }
+
+   return false;
+}
+
+void
+pgexporter_log_line(int level, char* file, int line, char* fmt, ...)
+{
+   FILE* output = NULL;
+   signed char isfree;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (config == NULL)
+   {
+      return;
+   }
+
+   if (level >= config->log_level)
+   {
+      switch (level)
+      {
+         case PGEXPORTER_LOGGING_LEVEL_INFO:
+            pgexporter_prometheus_logging(PGEXPORTER_LOGGING_LEVEL_INFO);
+            break;
+         case PGEXPORTER_LOGGING_LEVEL_WARN:
+            pgexporter_prometheus_logging(PGEXPORTER_LOGGING_LEVEL_WARN);
+            break;
+         case PGEXPORTER_LOGGING_LEVEL_ERROR:
+            pgexporter_prometheus_logging(PGEXPORTER_LOGGING_LEVEL_ERROR);
+            break;
+         case PGEXPORTER_LOGGING_LEVEL_FATAL:
+            pgexporter_prometheus_logging(PGEXPORTER_LOGGING_LEVEL_FATAL);
+            break;
+         default:
+            break;
+      }
+
+      if (config->log_type == PGEXPORTER_LOGGING_TYPE_CONSOLE)
+      {
+         output = stdout;
+      }
+      else if (config->log_type == PGEXPORTER_LOGGING_TYPE_FILE)
+      {
+         output = log_file;
+      }
+
+retry:
+      isfree = STATE_FREE;
+
+      if (atomic_compare_exchange_strong(&config->log_lock, &isfree, STATE_IN_USE))
+      {
+         char buf[1024];
+         va_list vl;
+         struct tm* tm;
+         time_t t;
+         char* filename;
+
+         t = time(NULL);
+         tm = localtime(&t);
+
+         filename = strrchr(file, '/');
+         if (filename != NULL)
+         {
+            filename = filename + 1;
+         }
+         else
+         {
+            filename = file;
+         }
+
+         if (strlen(config->log_line_prefix) == 0)
+         {
+            memcpy(config->log_line_prefix, PGEXPORTER_LOGGING_DEFAULT_LOG_LINE_PREFIX, strlen(PGEXPORTER_LOGGING_DEFAULT_LOG_LINE_PREFIX));
+         }
+
+         memset(&buf[0], 0, sizeof(buf));
+
+#ifdef DEBUG
+         if (level > 4)
+         {
+            char* bt = NULL;
+            pgexporter_backtrace_string(&bt);
+            if (bt != NULL)
+            {
+               fprintf(output, "%s", bt);
+               fflush(output);
+            }
+            free(bt);
+            memset(&buf[0], 0, sizeof(buf));
+         }
+#endif
+
+         va_start(vl, fmt);
+
+         if (config->log_type == PGEXPORTER_LOGGING_TYPE_CONSOLE)
+         {
+            buf[strftime(buf, sizeof(buf), config->log_line_prefix, tm)] = '\0';
+            fprintf(output, "%s %s%-5s\x1b[0m \x1b[90m%s:%d\x1b[0m ",
+                    buf, colors[level - 1], levels[level - 1],
+                    filename, line);
+            vfprintf(output, fmt, vl);
+            fprintf(output, "\n");
+            fflush(output);
+         }
+         else if (config->log_type == PGEXPORTER_LOGGING_TYPE_FILE)
+         {
+            buf[strftime(buf, sizeof(buf), config->log_line_prefix, tm)] = '\0';
+            fprintf(output, "%s %-5s %s:%d ",
+                    buf, levels[level - 1], filename, line);
+            vfprintf(output, fmt, vl);
+            fprintf(output, "\n");
+            fflush(output);
+
+            if (log_rotation_required())
+            {
+               log_file_rotate();
+            }
+         }
+         else if (config->log_type == PGEXPORTER_LOGGING_TYPE_SYSLOG)
+         {
+            switch (level)
+            {
+               case PGEXPORTER_LOGGING_LEVEL_DEBUG5:
+                  vsyslog(LOG_DEBUG, fmt, vl);
+                  break;
+               case PGEXPORTER_LOGGING_LEVEL_DEBUG1:
+                  vsyslog(LOG_DEBUG, fmt, vl);
+                  break;
+               case PGEXPORTER_LOGGING_LEVEL_INFO:
+                  vsyslog(LOG_INFO, fmt, vl);
+                  break;
+               case PGEXPORTER_LOGGING_LEVEL_WARN:
+                  vsyslog(LOG_WARNING, fmt, vl);
+                  break;
+               case PGEXPORTER_LOGGING_LEVEL_ERROR:
+                  vsyslog(LOG_ERR, fmt, vl);
+                  break;
+               case PGEXPORTER_LOGGING_LEVEL_FATAL:
+                  vsyslog(LOG_CRIT, fmt, vl);
+                  break;
+               default:
+                  vsyslog(LOG_INFO, fmt, vl);
+                  break;
+            }
+         }
+
+         va_end(vl);
+
+         atomic_store(&config->log_lock, STATE_FREE);
+      }
+      else
+      {
+         SLEEP_AND_GOTO(1000000L, retry)
+      }
+   }
+}
+
+void
+pgexporter_log_mem(void* data, size_t size)
+{
+   signed char isfree;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (config == NULL)
+   {
+      return;
+   }
+
+   if (size > 0)
+   {
+      if (config->log_level == PGEXPORTER_LOGGING_LEVEL_DEBUG5 &&
+          (config->log_type == PGEXPORTER_LOGGING_TYPE_CONSOLE || config->log_type == PGEXPORTER_LOGGING_TYPE_FILE))
+      {
+retry:
+         isfree = STATE_FREE;
+
+         if (atomic_compare_exchange_strong(&config->log_lock, &isfree, STATE_IN_USE))
+         {
+            if (size > MAX_LENGTH)
+            {
+               int index = 0;
+               size_t count = 0;
+
+               /* Display the first 1024 bytes */
+               index = 0;
+               count = 1024;
+               while (count > 0)
+               {
+                  char* t = NULL;
+                  char* n = NULL;
+                  char* l = NULL;
+
+                  for (int i = 0; i < LINE_LENGTH; i++)
+                  {
+                     signed char c;
+                     char buf[3] = {0};
+
+                     c = (signed char)*((char*)data + index + i);
+                     pgexporter_snprintf(&buf[0], sizeof(buf), "%02X", c);
+
+                     l = pgexporter_append(l, &buf[0]);
+
+                     if (c >= 32)
+                     {
+                        n = pgexporter_append_char(n, c);
+                     }
+                     else
+                     {
+                        n = pgexporter_append_char(n, '?');
+                     }
+                  }
+
+                  t = pgexporter_append(t, l);
+                  t = pgexporter_append_char(t, ' ');
+                  t = pgexporter_append(t, n);
+
+                  output_log_line(t);
+
+                  free(t);
+                  t = NULL;
+
+                  free(l);
+                  l = NULL;
+
+                  free(n);
+                  n = NULL;
+
+                  count -= LINE_LENGTH;
+                  index += LINE_LENGTH;
+               }
+
+               output_log_line("---------------------------------------------------------------- --------------------------------");
+
+               /* Display the last 1024 bytes */
+               index = size - 1024;
+               count = 1024;
+               while (count > 0)
+               {
+                  char* t = NULL;
+                  char* n = NULL;
+                  char* l = NULL;
+
+                  for (int i = 0; i < LINE_LENGTH; i++)
+                  {
+                     signed char c;
+                     char buf[3] = {0};
+
+                     c = (signed char)*((char*)data + index + i);
+                     pgexporter_snprintf(&buf[0], sizeof(buf), "%02X", c);
+
+                     l = pgexporter_append(l, &buf[0]);
+
+                     if (c >= 32)
+                     {
+                        n = pgexporter_append_char(n, c);
+                     }
+                     else
+                     {
+                        n = pgexporter_append_char(n, '?');
+                     }
+                  }
+
+                  t = pgexporter_append(t, l);
+                  t = pgexporter_append_char(t, ' ');
+                  t = pgexporter_append(t, n);
+
+                  output_log_line(t);
+
+                  free(t);
+                  t = NULL;
+
+                  free(l);
+                  l = NULL;
+
+                  free(n);
+                  n = NULL;
+
+                  count -= LINE_LENGTH;
+                  index += LINE_LENGTH;
+               }
+            }
+            else
+            {
+               size_t offset = 0;
+               size_t remaining = size;
+
+               while (remaining > 0)
+               {
+                  char* t = NULL;
+                  char* n = NULL;
+                  char* l = NULL;
+                  size_t count = MIN((int)remaining, (int)LINE_LENGTH);
+
+                  for (size_t i = 0; i < count; i++)
+                  {
+                     signed char c;
+                     char buf[3] = {0};
+
+                     c = (signed char)*((char*)data + offset + i);
+                     pgexporter_snprintf(&buf[0], sizeof(buf), "%02X", c);
+
+                     l = pgexporter_append(l, &buf[0]);
+
+                     if (c >= 32)
+                     {
+                        n = pgexporter_append_char(n, c);
+                     }
+                     else
+                     {
+                        n = pgexporter_append_char(n, '?');
+                     }
+                  }
+
+                  t = pgexporter_append(t, l);
+                  t = pgexporter_append_char(t, ' ');
+                  t = pgexporter_append(t, n);
+
+                  output_log_line(t);
+
+                  free(t);
+                  t = NULL;
+
+                  free(l);
+                  l = NULL;
+
+                  free(n);
+                  n = NULL;
+
+                  remaining -= count;
+                  offset += count;
+               }
+            }
+
+            atomic_store(&config->log_lock, STATE_FREE);
+         }
+         else
+         {
+            SLEEP_AND_GOTO(1000000L, retry)
+         }
+      }
+   }
+}
+
+static void
+output_log_line(char* l)
+{
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (config->log_type == PGEXPORTER_LOGGING_TYPE_CONSOLE)
+   {
+      fprintf(stdout, "%s", l);
+      fprintf(stdout, "\n");
+      fflush(stdout);
+   }
+   else if (config->log_type == PGEXPORTER_LOGGING_TYPE_FILE)
+   {
+      fprintf(log_file, "%s", l);
+      fprintf(log_file, "\n");
+      fflush(log_file);
+   }
+}
+
+void
+pgexporter_print_bytes_binary(void* ptr, size_t n)
+{
+   unsigned char* p = (unsigned char*)ptr;
+   for (size_t i = 0; i < n; i++)
+   {
+      for (int bit = 7; bit >= 0; bit--)
+      {
+         putchar((p[i] & (1 << bit)) ? '1' : '0');
+      }
+      putchar(' ');
+   }
+   putchar('\n');
+}
+
+static bool
+log_rotation_enabled(void)
+{
+   struct configuration* config;
    config = (struct configuration*)shmem;
 
    // disable log rotation in the case
@@ -91,11 +553,10 @@ log_rotation_enabled(void)
           || config->log_rotation_size != PGEXPORTER_LOGGING_ROTATION_DISABLED;
 }
 
-void
+static void
 log_rotation_disable(void)
 {
    struct configuration* config;
-
    config = (struct configuration*)shmem;
 
    config->log_rotation_age = PGEXPORTER_LOGGING_ROTATION_DISABLED;
@@ -103,7 +564,7 @@ log_rotation_disable(void)
    next_log_rotation_age = 0;
 }
 
-bool
+static bool
 log_rotation_required(void)
 {
    struct stat log_stat;
@@ -134,11 +595,11 @@ log_rotation_required(void)
    return false;
 }
 
-bool
+static bool
 log_rotation_set_next_rotation_age(void)
 {
-   time_t now;
    struct configuration* config;
+   time_t now;
 
    config = (struct configuration*)shmem;
 
@@ -161,67 +622,12 @@ log_rotation_set_next_rotation_age(void)
    }
 }
 
-/**
- *
- */
-int
-pgexporter_init_logging(void)
-{
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (config->log_type == PGEXPORTER_LOGGING_TYPE_FILE)
-   {
-      log_file_open();
-
-      if (!log_file)
-      {
-         printf("Failed to open log file %s due to %s\n", strlen(config->log_path) > 0 ? config->log_path : "pgexporter.log", strerror(errno));
-         errno = 0;
-         log_rotation_disable();
-         return 1;
-      }
-   }
-
-   return 0;
-}
-
-/**
- *
- */
-int
-pgexporter_start_logging(void)
-{
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (config->log_type == PGEXPORTER_LOGGING_TYPE_FILE && !log_file)
-   {
-      log_file_open();
-
-      if (!log_file)
-      {
-         printf("Failed to open log file %s due to %s\n", strlen(config->log_path) > 0 ? config->log_path : "pgexporter.log", strerror(errno));
-         errno = 0;
-         return 1;
-      }
-   }
-   else if (config->log_type == PGEXPORTER_LOGGING_TYPE_SYSLOG)
-   {
-      openlog("pgexporter", LOG_CONS | LOG_PERROR | LOG_PID, LOG_USER);
-   }
-
-   return 0;
-}
-
-int
+static int
 log_file_open(void)
 {
+   struct configuration* config;
    time_t htime;
    struct tm* tm;
-   struct configuration* config;
 
    config = (struct configuration*)shmem;
 
@@ -262,7 +668,7 @@ log_file_open(void)
    return 1;
 }
 
-void
+static void
 log_file_rotate(void)
 {
    if (log_rotation_enabled())
@@ -271,263 +677,4 @@ log_file_rotate(void)
       fclose(log_file);
       log_file_open();
    }
-}
-
-/**
- *
- */
-int
-pgexporter_stop_logging(void)
-{
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (config->log_type == PGEXPORTER_LOGGING_TYPE_FILE)
-   {
-      if (log_file != NULL)
-      {
-         int ret = fclose(log_file);
-         if(ret == 0) {
-            log_file = NULL;
-         }
-         return ret;
-      }
-      else
-      {
-         return 1;
-      }
-   }
-   else if (config->log_type == PGEXPORTER_LOGGING_TYPE_SYSLOG)
-   {
-      closelog();
-   }
-
-   return 0;
-}
-
-void
-pgexporter_log_line(int level, char* file, int line, char* fmt, ...)
-{
-   signed char isfree;
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (config == NULL)
-   {
-      return;
-   }
-
-   if (level >= config->log_level)
-   {
-      switch (level)
-      {
-         case PGEXPORTER_LOGGING_LEVEL_INFO:
-            pgexporter_prometheus_logging(PGEXPORTER_LOGGING_LEVEL_INFO);
-            break;
-         case PGEXPORTER_LOGGING_LEVEL_WARN:
-            pgexporter_prometheus_logging(PGEXPORTER_LOGGING_LEVEL_WARN);
-            break;
-         case PGEXPORTER_LOGGING_LEVEL_ERROR:
-            pgexporter_prometheus_logging(PGEXPORTER_LOGGING_LEVEL_ERROR);
-            break;
-         case PGEXPORTER_LOGGING_LEVEL_FATAL:
-            pgexporter_prometheus_logging(PGEXPORTER_LOGGING_LEVEL_FATAL);
-            break;
-         default:
-            break;
-      }
-
-retry:
-      isfree = STATE_FREE;
-
-      if (atomic_compare_exchange_strong(&config->log_lock, &isfree, STATE_IN_USE))
-      {
-         char buf[256];
-         va_list vl;
-         struct tm* tm;
-         time_t t;
-         char* filename;
-
-         t = time(NULL);
-         tm = localtime(&t);
-
-         filename = strrchr(file, '/');
-         if (filename != NULL)
-         {
-            filename = filename + 1;
-         }
-         else
-         {
-            filename = file;
-         }
-
-         if (strlen(config->log_line_prefix) == 0)
-         {
-            memcpy(config->log_line_prefix, PGEXPORTER_LOGGING_DEFAULT_LOG_LINE_PREFIX, strlen(PGEXPORTER_LOGGING_DEFAULT_LOG_LINE_PREFIX));
-         }
-
-         va_start(vl, fmt);
-
-         if (config->log_type == PGEXPORTER_LOGGING_TYPE_CONSOLE)
-         {
-            buf[strftime(buf, sizeof(buf), config->log_line_prefix, tm)] = '\0';
-            fprintf(stdout, "%s %s%-5s\x1b[0m \x1b[90m%s:%d\x1b[0m ",
-                    buf, colors[level - 1], levels[level - 1],
-                    filename, line);
-            vfprintf(stdout, fmt, vl);
-            fprintf(stdout, "\n");
-            fflush(stdout);
-         }
-         else if (config->log_type == PGEXPORTER_LOGGING_TYPE_FILE)
-         {
-            buf[strftime(buf, sizeof(buf), config->log_line_prefix, tm)] = '\0';
-            fprintf(log_file, "%s %-5s %s:%d ",
-                    buf, levels[level - 1], filename, line);
-            vfprintf(log_file, fmt, vl);
-            fprintf(log_file, "\n");
-            fflush(log_file);
-
-            if (log_rotation_required())
-            {
-               log_file_rotate();
-            }
-         }
-         else if (config->log_type == PGEXPORTER_LOGGING_TYPE_SYSLOG)
-         {
-            switch (level)
-            {
-               case PGEXPORTER_LOGGING_LEVEL_DEBUG5:
-                  vsyslog(LOG_DEBUG, fmt, vl);
-                  break;
-               case PGEXPORTER_LOGGING_LEVEL_DEBUG1:
-                  vsyslog(LOG_DEBUG, fmt, vl);
-                  break;
-               case PGEXPORTER_LOGGING_LEVEL_INFO:
-                  vsyslog(LOG_INFO, fmt, vl);
-                  break;
-               case PGEXPORTER_LOGGING_LEVEL_WARN:
-                  vsyslog(LOG_WARNING, fmt, vl);
-                  break;
-               case PGEXPORTER_LOGGING_LEVEL_ERROR:
-                  vsyslog(LOG_ERR, fmt, vl);
-                  break;
-               case PGEXPORTER_LOGGING_LEVEL_FATAL:
-                  vsyslog(LOG_CRIT, fmt, vl);
-                  break;
-               default:
-                  vsyslog(LOG_INFO, fmt, vl);
-                  break;
-            }
-         }
-
-         va_end(vl);
-
-         atomic_store(&config->log_lock, STATE_FREE);
-      }
-      else
-        SLEEP_AND_GOTO(1000000L,retry)
-   }
-}
-
-void
-pgexporter_log_mem(void* data, size_t size)
-{
-   signed char isfree;
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (config == NULL)
-   {
-      return;
-   }
-
-   if (config->log_level == PGEXPORTER_LOGGING_LEVEL_DEBUG5 &&
-       size > 0 &&
-       (config->log_type == PGEXPORTER_LOGGING_TYPE_CONSOLE || config->log_type == PGEXPORTER_LOGGING_TYPE_FILE))
-   {
-retry:
-      isfree = STATE_FREE;
-
-      if (atomic_compare_exchange_strong(&config->log_lock, &isfree, STATE_IN_USE))
-      {
-         char buf[(3 * size) + (2 * ((size / LINE_LENGTH) + 1)) + 1 + 1];
-         int j = 0;
-         int k = 0;
-
-         memset(&buf, 0, sizeof(buf));
-
-         for (size_t i = 0; i < size; i++)
-         {
-            if (k == LINE_LENGTH)
-            {
-               buf[j] = '\n';
-               j++;
-               k = 0;
-            }
-            sprintf(&buf[j], "%02X", (signed char) *((char*)data + i));
-            j += 2;
-            k++;
-         }
-
-         buf[j] = '\n';
-         j++;
-         k = 0;
-
-         for (size_t i = 0; i < size; i++)
-         {
-            signed char c = (signed char) *((char*)data + i);
-            if (k == LINE_LENGTH)
-            {
-               buf[j] = '\n';
-               j++;
-               k = 0;
-            }
-            if (c >= 32)
-            {
-               buf[j] = c;
-            }
-            else
-            {
-               buf[j] = '?';
-            }
-            j++;
-            k++;
-         }
-
-         if (config->log_type == PGEXPORTER_LOGGING_TYPE_CONSOLE)
-         {
-            fprintf(stdout, "%s", buf);
-            fprintf(stdout, "\n");
-            fflush(stdout);
-         }
-         else if (config->log_type == PGEXPORTER_LOGGING_TYPE_FILE)
-         {
-            fprintf(log_file, "%s", buf);
-            fprintf(log_file, "\n");
-            fflush(log_file);
-         }
-
-         atomic_store(&config->log_lock, STATE_FREE);
-      }
-      else
-        SLEEP_AND_GOTO(1000000L,retry)
-   }
-}
-
-bool
-pgexporter_log_is_enabled(int level)
-{
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (level >= config->log_level)
-   {
-      return true;
-   }
-
-   return false;
 }
