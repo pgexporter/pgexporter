@@ -32,6 +32,7 @@
 #include <utils.h>
 
 /* system */
+#include <ctype.h>
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
@@ -2915,6 +2916,27 @@ hvsnprintf(char* buf, size_t n, const char* fmt, va_list ap)
          continue;
       }
 
+      /* Parse flags (support '0' for zero-padding) */
+      bool flag_zero = false;
+      while (*p == '0')
+      {
+         flag_zero = true;
+         p++;
+      }
+
+      /* Parse width */
+      int width = -1;
+      if (isdigit((unsigned char)*p))
+      {
+         width = 0;
+         while (isdigit((unsigned char)*p))
+         {
+            width = width * 10 + (*p - '0');
+            p++;
+         }
+      }
+
+      /* Length modifier */
       enum { LM_NONE, LM_L, LM_LL, LM_Z } lm = LM_NONE;
       if (*p == 'l')
       {
@@ -2984,7 +3006,16 @@ hvsnprintf(char* buf, size_t n, const char* fmt, va_list ap)
             {
                v = va_arg(ap, int);
             }
-            (void)snprintf(scratch, sizeof(scratch), "%lld", v);
+
+            if (width >= 0)
+            {
+               (void)snprintf(scratch, sizeof(scratch),
+                              flag_zero ? "%0*lld" : "%*lld", width, v);
+            }
+            else
+            {
+               (void)snprintf(scratch, sizeof(scratch), "%lld", v);
+            }
             size_t cur = (out != NULL) ? strlen(out) : 0;
             append_bounded(&out, scratch, cur, cap);
             break;
@@ -3008,7 +3039,16 @@ hvsnprintf(char* buf, size_t n, const char* fmt, va_list ap)
             {
                v = va_arg(ap, unsigned int);
             }
-            (void)snprintf(scratch, sizeof(scratch), "%llu", v);
+
+            if (width >= 0)
+            {
+               (void)snprintf(scratch, sizeof(scratch),
+                              flag_zero ? "%0*llu" : "%*llu", width, v);
+            }
+            else
+            {
+               (void)snprintf(scratch, sizeof(scratch), "%llu", v);
+            }
             size_t cur = (out != NULL) ? strlen(out) : 0;
             append_bounded(&out, scratch, cur, cap);
             break;
@@ -3033,7 +3073,26 @@ hvsnprintf(char* buf, size_t n, const char* fmt, va_list ap)
             {
                v = va_arg(ap, unsigned int);
             }
-            (void)snprintf(scratch, sizeof(scratch), (conv == 'x') ? "%llx" : "%llX", v);
+
+            if (width >= 0)
+            {
+               if (conv == 'x')
+               {
+                  (void)snprintf(scratch, sizeof(scratch),
+                                 flag_zero ? "%0*llx" : "%*llx", width, v);
+               }
+               else
+               {
+                  (void)snprintf(scratch, sizeof(scratch),
+                                 flag_zero ? "%0*llX" : "%*llX", width, v);
+               }
+            }
+            else
+            {
+               (void)snprintf(scratch, sizeof(scratch),
+                              (conv == 'x') ? "%llx" : "%llX", v);
+            }
+
             size_t cur = (out != NULL) ? strlen(out) : 0;
             append_bounded(&out, scratch, cur, cap);
             break;
