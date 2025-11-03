@@ -29,8 +29,8 @@ This project uses GitHub issues to manage the issues. Open an issue directly in 
 If you believe you found a bug, and it's likely possible, please indicate a way to reproduce it, what you are seeing and what you would expect to see.
 Don't forget to indicate your pgexporter version.
 
-## Running with docker 
-Follow [this](./doc/manual/user15-docker.md) to build using docker 
+## Running with docker
+Follow [this](./doc/manual/en/13-docker.md) to build using docker
 
 ## Setup your build environment
 
@@ -51,7 +51,7 @@ git clone https://github.com/pgexporter/pgexporter.git
 cd pgexporter
 mkdir build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Debug ..
+cmake -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Debug ..
 make
 cd src
 cp ../../doc/etc/*.conf .

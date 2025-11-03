@@ -171,7 +171,7 @@ git clone https://github.com/pgexporter/pgexporter.git
 cd pgexporter
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+cmake -DCMAKE_C_COMPILER=clang -DCMAKE_INSTALL_PREFIX=/usr/local ..
 make
 sudo make install
 ```
