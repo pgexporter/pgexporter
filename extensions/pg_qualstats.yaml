@@ -1,0 +1,265 @@
+#
+# Copyright (C) 2025 The pgexporter community
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this list
+# of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice, this
+# list of conditions and the following disclaimer in the documentation and/or other
+# materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors may
+# be used to endorse or promote products derived from this software without specific
+# prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+# THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+# OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+# TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+extension: pg_qualstats
+metrics:
+
+#
+# pg_qualstats: 2.0.2 -> 2.1.3 (stable schema across all versions)
+# Requires: pg_stat_statements extension
+# Tracks WHERE/JOIN clause usage and planner estimation accuracy
+#
+
+# Most executed predicates - identifies frequently used WHERE/JOIN conditions
+# Version history: Stable since 2.0.2
+  - metric: top_executed_predicates
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  left_schema,
+                  left_table,
+                  left_column,
+                  operator,
+                  right_schema,
+                  right_table,
+                  right_column,
+                  occurences,
+                  execution_count,
+                  nbfiltered
+                FROM pg_qualstats_pretty
+                ORDER BY execution_count DESC
+                LIMIT 50;
+        version: "2.0.2"
+        columns:
+          - name: database
+            type: label
+          - name: left_schema
+            type: label
+          - name: left_table
+            type: label
+          - name: left_column
+            type: label
+          - name: operator
+            type: label
+          - name: right_schema
+            type: label
+          - name: right_table
+            type: label
+          - name: right_column
+            type: label
+          - name: occurences
+            type: counter
+            description: Number of times this predicate appeared in queries
+          - name: execution_count
+            type: counter
+            description: Number of times this predicate was executed
+          - name: nbfiltered
+            type: counter
+            description: Number of rows filtered by this predicate
+
+# Most filtering predicates - high nbfiltered indicates potential index candidates
+# Version history: Stable since 2.0.2
+  - metric: high_filtering_predicates
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  left_schema,
+                  left_table,
+                  left_column,
+                  operator,
+                  right_schema,
+                  right_table,
+                  right_column,
+                  execution_count,
+                  nbfiltered,
+                  ROUND((nbfiltered::numeric / NULLIF(execution_count, 0)), 2) as avg_rows_filtered
+                FROM pg_qualstats_pretty
+                WHERE nbfiltered > 1000
+                ORDER BY nbfiltered DESC
+                LIMIT 50;
+        version: "2.0.2"
+        columns:
+          - name: database
+            type: label
+          - name: left_schema
+            type: label
+          - name: left_table
+            type: label
+          - name: left_column
+            type: label
+          - name: operator
+            type: label
+          - name: right_schema
+            type: label
+          - name: right_table
+            type: label
+          - name: right_column
+            type: label
+          - name: execution_count
+            type: counter
+            description: Number of executions
+          - name: nbfiltered
+            type: counter
+            description: Total rows filtered (high values indicate missing indexes)
+          - name: avg_rows_filtered
+            type: gauge
+            description: Average rows filtered per execution
+
+# Selectivity estimation errors - identifies planner accuracy issues
+# Version history: Stable since 2.0.2
+  - metric: selectivity_estimation_errors
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  qs.queryid,
+                  pss.query,
+                  COUNT(*) as predicate_count,
+                  ROUND(AVG(qs.mean_err_estimate_ratio)::numeric, 2) as avg_estimation_error_ratio,
+                  ROUND(MAX(qs.max_err_estimate_ratio)::numeric, 2) as max_estimation_error_ratio,
+                  SUM(qs.execution_count) as total_executions,
+                  SUM(qs.nbfiltered) as total_filtered
+                FROM pg_qualstats qs
+                JOIN pg_stat_statements pss ON pss.queryid = qs.queryid
+                WHERE qs.mean_err_estimate_ratio > 1.5
+                  OR qs.mean_err_estimate_ratio < 0.5
+                GROUP BY qs.queryid, pss.query
+                ORDER BY avg_estimation_error_ratio DESC
+                LIMIT 50;
+        version: "2.0.2"
+        columns:
+          - name: database
+            type: label
+          - name: queryid
+            type: label
+          - name: query
+            type: label
+          - name: predicate_count
+            type: gauge
+            description: Number of predicates in this query
+          - name: avg_estimation_error_ratio
+            type: gauge
+            description: Average estimation error ratio (1.0 = perfect, >1 = underestimate, <1 = overestimate)
+          - name: max_estimation_error_ratio
+            type: gauge
+            description: Maximum estimation error seen
+          - name: total_executions
+            type: counter
+            description: Total predicate executions
+          - name: total_filtered
+            type: counter
+            description: Total rows filtered
+
+# Worst estimation errors by predicate - pinpoint specific problematic predicates
+# Version history: Stable since 2.0.2
+  - metric: worst_estimation_errors_by_predicate
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  left_schema,
+                  left_table,
+                  left_column,
+                  operator,
+                  execution_count,
+                  nbfiltered,
+                  ROUND(mean_err_estimate_ratio::numeric, 2) as mean_error_ratio,
+                  ROUND(max_err_estimate_ratio::numeric, 2) as max_error_ratio,
+                  mean_err_estimate_num as mean_error_rows,
+                  max_err_estimate_num as max_error_rows
+                FROM pg_qualstats_pretty
+                JOIN pg_qualstats USING (left_schema, left_table, left_column, operator)
+                WHERE mean_err_estimate_ratio > 2.0
+                  OR mean_err_estimate_ratio < 0.5
+                ORDER BY ABS(1.0 - mean_err_estimate_ratio) DESC
+                LIMIT 50;
+        version: "2.0.2"
+        columns:
+          - name: database
+            type: label
+          - name: left_schema
+            type: label
+          - name: left_table
+            type: label
+          - name: left_column
+            type: label
+          - name: operator
+            type: label
+          - name: execution_count
+            type: counter
+            description: Number of executions
+          - name: nbfiltered
+            type: counter
+            description: Rows filtered
+          - name: mean_error_ratio
+            type: gauge
+            description: Mean estimation error ratio
+          - name: max_error_ratio
+            type: gauge
+            description: Maximum estimation error ratio
+          - name: mean_error_rows
+            type: gauge
+            description: Mean estimation error in row count
+          - name: max_error_rows
+            type: gauge
+            description: Maximum estimation error in row count
+
+# Predicate usage by query - per-query predicate statistics
+# Version history: Stable since 2.0.2
+  - metric: predicate_stats_by_query
+    queries:
+      - query: SELECT
+                  current_database() as database,
+                  qbq.queryid,
+                  pss.query,
+                  qbq.occurences,
+                  qbq.execution_count,
+                  qbq.nbfiltered,
+                  ROUND((qbq.nbfiltered::numeric / NULLIF(qbq.execution_count, 0)), 2) as avg_filtered_per_exec
+                FROM pg_qualstats_by_query qbq
+                JOIN pg_stat_statements pss ON pss.queryid = qbq.queryid
+                ORDER BY qbq.nbfiltered DESC
+                LIMIT 50;
+        version: "2.0.2"
+        columns:
+          - name: database
+            type: label
+          - name: queryid
+            type: label
+          - name: query
+            type: label
+          - name: occurences
+            type: counter
+            description: Number of times predicate appeared
+          - name: execution_count
+            type: counter
+            description: Number of times predicate executed
+          - name: nbfiltered
+            type: counter
+            description: Total rows filtered
+          - name: avg_filtered_per_exec
+            type: gauge
+            description: Average rows filtered per execution

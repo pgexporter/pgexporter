@@ -3419,3 +3419,280 @@ Approximate percentage of free space.
 | server | The configured name/identifier for the PostgreSQL server. |
 | schemaname | Schema name. |
 | tablename | Table name. |
+
+## pg_qualstats
+
+**Note:** pg_qualstats requires the pg_stat_statements extension to be installed and enabled.
+
+**pgexporter_pg_qualstats_top_executed_predicates_occurences**
+
+Number of times this predicate appeared in queries.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| left_schema | Left side schema name. |
+| left_table | Left side table name. |
+| left_column | Left side column name. |
+| operator | Comparison operator. |
+| right_schema | Right side schema name. |
+| right_table | Right side table name. |
+| right_column | Right side column name. |
+
+**pgexporter_pg_qualstats_top_executed_predicates_execution_count**
+
+Number of times this predicate was executed.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| left_schema | Left side schema name. |
+| left_table | Left side table name. |
+| left_column | Left side column name. |
+| operator | Comparison operator. |
+| right_schema | Right side schema name. |
+| right_table | Right side table name. |
+| right_column | Right side column name. |
+
+**pgexporter_pg_qualstats_top_executed_predicates_nbfiltered**
+
+Number of rows filtered by this predicate.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| left_schema | Left side schema name. |
+| left_table | Left side table name. |
+| left_column | Left side column name. |
+| operator | Comparison operator. |
+| right_schema | Right side schema name. |
+| right_table | Right side table name. |
+| right_column | Right side column name. |
+
+**pgexporter_pg_qualstats_high_filtering_predicates_execution_count**
+
+Number of executions.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| left_schema | Left side schema name. |
+| left_table | Left side table name. |
+| left_column | Left side column name. |
+| operator | Comparison operator. |
+| right_schema | Right side schema name. |
+| right_table | Right side table name. |
+| right_column | Right side column name. |
+
+**pgexporter_pg_qualstats_high_filtering_predicates_nbfiltered**
+
+Total rows filtered (high values indicate missing indexes).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| left_schema | Left side schema name. |
+| left_table | Left side table name. |
+| left_column | Left side column name. |
+| operator | Comparison operator. |
+| right_schema | Right side schema name. |
+| right_table | Right side table name. |
+| right_column | Right side column name. |
+
+**pgexporter_pg_qualstats_high_filtering_predicates_avg_rows_filtered**
+
+Average rows filtered per execution.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| left_schema | Left side schema name. |
+| left_table | Left side table name. |
+| left_column | Left side column name. |
+| operator | Comparison operator. |
+| right_schema | Right side schema name. |
+| right_table | Right side table name. |
+| right_column | Right side column name. |
+
+**pgexporter_pg_qualstats_selectivity_estimation_errors_predicate_count**
+
+Number of predicates in this query.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| queryid | Query identifier. |
+| query | SQL query text. |
+
+**pgexporter_pg_qualstats_selectivity_estimation_errors_avg_estimation_error_ratio**
+
+Average estimation error ratio (1.0 = perfect, >1 = underestimate, <1 = overestimate).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| queryid | Query identifier. |
+| query | SQL query text. |
+
+**pgexporter_pg_qualstats_selectivity_estimation_errors_max_estimation_error_ratio**
+
+Maximum estimation error seen.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| queryid | Query identifier. |
+| query | SQL query text. |
+
+**pgexporter_pg_qualstats_selectivity_estimation_errors_total_executions**
+
+Total predicate executions.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| queryid | Query identifier. |
+| query | SQL query text. |
+
+**pgexporter_pg_qualstats_selectivity_estimation_errors_total_filtered**
+
+Total rows filtered.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| queryid | Query identifier. |
+| query | SQL query text. |
+
+**pgexporter_pg_qualstats_worst_estimation_errors_by_predicate_execution_count**
+
+Number of executions.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| left_schema | Left side schema name. |
+| left_table | Left side table name. |
+| left_column | Left side column name. |
+| operator | Comparison operator. |
+
+**pgexporter_pg_qualstats_worst_estimation_errors_by_predicate_nbfiltered**
+
+Rows filtered.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| left_schema | Left side schema name. |
+| left_table | Left side table name. |
+| left_column | Left side column name. |
+| operator | Comparison operator. |
+
+**pgexporter_pg_qualstats_worst_estimation_errors_by_predicate_mean_error_ratio**
+
+Mean estimation error ratio.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| left_schema | Left side schema name. |
+| left_table | Left side table name. |
+| left_column | Left side column name. |
+| operator | Comparison operator. |
+
+**pgexporter_pg_qualstats_worst_estimation_errors_by_predicate_max_error_ratio**
+
+Maximum estimation error ratio.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| left_schema | Left side schema name. |
+| left_table | Left side table name. |
+| left_column | Left side column name. |
+| operator | Comparison operator. |
+
+**pgexporter_pg_qualstats_worst_estimation_errors_by_predicate_mean_error_rows**
+
+Mean estimation error in row count.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| left_schema | Left side schema name. |
+| left_table | Left side table name. |
+| left_column | Left side column name. |
+| operator | Comparison operator. |
+
+**pgexporter_pg_qualstats_worst_estimation_errors_by_predicate_max_error_rows**
+
+Maximum estimation error in row count.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| left_schema | Left side schema name. |
+| left_table | Left side table name. |
+| left_column | Left side column name. |
+| operator | Comparison operator. |
+
+**pgexporter_pg_qualstats_predicate_stats_by_query_occurences**
+
+Number of times predicate appeared.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| queryid | Query identifier. |
+| query | SQL query text. |
+
+**pgexporter_pg_qualstats_predicate_stats_by_query_execution_count**
+
+Number of times predicate executed.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| queryid | Query identifier. |
+| query | SQL query text. |
+
+**pgexporter_pg_qualstats_predicate_stats_by_query_nbfiltered**
+
+Total rows filtered.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| queryid | Query identifier. |
+| query | SQL query text. |
+
+**pgexporter_pg_qualstats_predicate_stats_by_query_avg_filtered_per_exec**
+
+Average rows filtered per execution.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | Database name. |
+| queryid | Query identifier. |
+| query | SQL query text. |
