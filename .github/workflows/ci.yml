@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install dependencies
         run: |
@@ -108,7 +108,7 @@ jobs:
 
       - name: Upload All Coverage Reports as Artifact
         if: matrix.compiler == 'gcc' && matrix.build_type == 'Debug'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-reports-${{ matrix.compiler }}-${{ matrix.build_type }}
           path: coverage-report
@@ -116,7 +116,7 @@ jobs:
 
       - name: Upload Build and Run Logs as Artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: logs-${{ matrix.compiler }}-${{ matrix.build_type }}
           path: /tmp/pgexporter-test/log
@@ -124,7 +124,7 @@ jobs:
 
       - name: Upload Generated Documentation Artifact
         if: matrix.compiler == 'gcc' && matrix.build_type == 'Release'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: generated-docs
           path: /home/runner/work/pgexporter/pgexporter/build/doc
@@ -138,7 +138,7 @@ jobs:
       POSTGRESQL_VERSION: "@17"
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Set up Homebrew
         id: set-up-homebrew
         uses: Homebrew/actions/setup-homebrew@master
@@ -171,7 +171,7 @@ jobs:
 
       - name: Upload logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: macos-build-logs
           path: |
@@ -180,7 +180,7 @@ jobs:
           retention-days: 7
 
       - name: Upload Generated Documentation Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: macos-generated-docs
           path: ${{ env.BUILD_DIR }}/doc/
