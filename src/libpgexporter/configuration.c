@@ -92,6 +92,7 @@ static bool is_empty_string(char* s);
 
 static void add_configuration_response(struct json* res);
 static void add_servers_configuration_response(struct json* res);
+static bool pgexporter_is_binary_file(const char* path);
 
 /**
  *
@@ -146,6 +147,40 @@ pgexporter_init_configuration(void* shm)
    {
       config->prometheus[i].sort_type = SORT_NAME;
       config->prometheus[i].server_query_type = SERVER_QUERY_BOTH;
+   }
+
+   return 0;
+}
+
+/*
+ *
+ */
+int
+pgexporter_validate_config_file(char* path)
+{
+   if (path == NULL)
+   {
+      return EINVAL;
+   }
+
+   if (!pgexporter_exists(path))
+   {
+      return ENOENT;
+   }
+
+   if (!pgexporter_is_file(path))
+   {
+      return ENOENT;
+   }
+
+   if (access(path, R_OK) != 0)
+   {
+      return EACCES;
+   }
+
+   if (pgexporter_is_binary_file(path))
+   {
+      return EINVAL;
    }
 
    return 0;
@@ -3619,4 +3654,40 @@ is_empty_string(char* s)
    }
 
    return true;
+}
+
+static bool
+pgexporter_is_binary_file(const char* path)
+{
+   FILE* fp = NULL;
+   unsigned char buffer[1024];
+   size_t bytes;
+   int error;
+
+   fp = fopen(path, "rb");
+   if (fp == NULL)
+   {
+      goto error;
+   }
+
+   while ((bytes = fread(buffer, 1, sizeof(buffer), fp)) > 0)
+   {
+      for (size_t i = 0; i < bytes; i++)
+      {
+         if (buffer[i] == '\0' || buffer[i] > 0X7F)
+         {
+            fclose(fp);
+            goto error;
+         }
+      }
+   }
+
+   error = ferror(fp);
+   fclose(fp);
+
+   return error != 0;
+
+error:
+   return true;
+
 }

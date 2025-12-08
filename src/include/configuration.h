@@ -104,6 +104,17 @@ int
 pgexporter_init_configuration(void* shmem);
 
 /**
+ * Validate a configuration file for existence, type, readability and binary content
+ * @param path The file path
+ * @return 0 if the file is valid, otherwise a positive error value:
+ *         ENOENT  = file does not exist or is not a regular file
+ *         EACCES  = file is not readable
+ *         EINVAL  = path is NULL or file contains binary data
+ */
+int
+pgexporter_validate_config_file(char* path);
+
+/**
  * Read the configuration from a file
  * @param shmem The shared memory segment
  * @param filename The file name

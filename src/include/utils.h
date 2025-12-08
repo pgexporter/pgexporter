@@ -848,7 +848,7 @@ pgexporter_backtrace(void);
  * @return 0 if success, otherwise 1
  */
 int
-pgexporter_backtrace_string(char **s);
+pgexporter_backtrace_string(char** s);
 
 /**
  * Get the OS name and kernel version.
