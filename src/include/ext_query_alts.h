@@ -52,14 +52,14 @@
  */
 struct ext_query_alts
 {
-   struct version ext_version;    /**< Extension semantic version */
-   struct query_alts_base node;   /**< Inherit base fields */
+   struct version ext_version;  /**< Extension semantic version */
+   struct query_alts_base node; /**< Inherit base fields */
 
    /* AVL Tree */
-   unsigned int height;           /**< Node's height, 1 if leaf, 0 if NULL */
-   struct ext_query_alts* left;   /**< Left child node */
-   struct ext_query_alts* right;  /**< Right child node */
-} __attribute__ ((aligned (64)));
+   unsigned int height;          /**< Node's height, 1 if leaf, 0 if NULL */
+   struct ext_query_alts* left;  /**< Left child node */
+   struct ext_query_alts* right; /**< Right child node */
+} __attribute__((aligned(64)));
 
 /**
  * @brief Get the extension query alternative for a given extension version

@@ -80,7 +80,7 @@ and then create a pull request for it
 Use
 
 ``` sh
-./uncrustify.sh
+./clang-format.sh
 ```
 
 to format the source code

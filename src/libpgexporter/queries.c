@@ -71,7 +71,8 @@ pgexporter_check_pg_monitor_role(int server)
 
    if (pgexporter_query_execute(server,
                                 "SELECT pg_has_role(current_user, 'pg_monitor', 'USAGE') AS has_pg_monitor;",
-                                "pg_monitor_check", &q) == 0 && q != NULL)
+                                "pg_monitor_check", &q) == 0 &&
+       q != NULL)
    {
       if (q->tuples != NULL && q->tuples->data != NULL && q->tuples->data[0] != NULL)
       {
@@ -247,7 +248,8 @@ int
 pgexporter_query_version(int server, struct query** query)
 {
    return query_execute(server, "SELECT split_part(split_part(version(), ' ', 2), '.', 1) AS major, "
-                        "split_part(split_part(version(), ' ', 2), '.', 2) AS minor;", "pg_version",
+                                "split_part(split_part(version(), ' ', 2), '.', 2) AS minor;",
+                        "pg_version",
                         2, NULL, query);
 }
 
@@ -276,8 +278,8 @@ int
 pgexporter_query_database_list(int server, struct query** query)
 {
    return query_execute(server, "SELECT datname "
-                        "FROM pg_database "
-                        "WHERE datistemplate = false AND datname != 'postgres';",
+                                "FROM pg_database "
+                                "WHERE datistemplate = false AND datname != 'postgres';",
                         "pg_db_list",
                         1, NULL, query);
 }
@@ -286,9 +288,9 @@ int
 pgexporter_query_extensions_list(int server, struct query** query)
 {
    return query_execute(server, "SELECT name, installed_version, comment "
-                        "FROM pg_available_extensions "
-                        "WHERE installed_version IS NOT NULL "
-                        "ORDER BY name;",
+                                "FROM pg_available_extensions "
+                                "WHERE installed_version IS NOT NULL "
+                                "ORDER BY name;",
                         "pg_extensions_list",
                         3, NULL, query);
 }
@@ -339,8 +341,7 @@ pgexporter_query_stat_bgwriter(int server, struct query** query)
       "checkpoint_write_time",
       "checkpoints_req",
       "checkpoints_timed",
-      "maxwritten_clean"
-   };
+      "maxwritten_clean"};
 
    return query_execute(server,
                         "SELECT buffers_alloc, buffers_backend, buffers_backend_fsync, "
@@ -371,8 +372,7 @@ pgexporter_query_stat_database(int server, struct query** query)
       "xact_commit",
       "xact_rollback",
       "conflicts",
-      "numbackends"
-   };
+      "numbackends"};
 
    return query_execute(server,
                         "SELECT datname, blk_read_time, blk_write_time, "
@@ -394,8 +394,7 @@ pgexporter_query_stat_database_conflicts(int server, struct query** query)
       "confl_lock",
       "confl_snapshot",
       "confl_bufferpin",
-      "confl_deadlock"
-   };
+      "confl_deadlock"};
 
    return query_execute(server,
                         "SELECT datname, confl_tablespace, confl_lock, "
@@ -451,12 +450,10 @@ pgexporter_merge_queries(struct query* q1, struct query* q2, int sort)
    }
    else
    {
-
       if (ct1 != NULL)
       {
          while (ct1 != NULL && ct2 != NULL)
          {
-
             tmp1 = ct1;
 
             if (strcmp(tmp1->data[0], ct2->data[0]))
@@ -499,7 +496,6 @@ pgexporter_merge_queries(struct query* q1, struct query* q2, int sort)
 int
 pgexporter_free_query(struct query* query)
 {
-
    if (query != NULL)
    {
       pgexporter_free_tuples(&query->tuples, query->number_of_columns);
@@ -1007,7 +1003,7 @@ pgexporter_detect_databases(int server)
 
       db_idx = config->servers[server].number_of_databases;
 
-      pgexporter_snprintf((char*) &config->servers[server].databases[db_idx],
+      pgexporter_snprintf((char*)&config->servers[server].databases[db_idx],
                           DB_NAME_LENGTH, "%s", pgexporter_get_column(0, current));
 
       config->servers[server].number_of_databases++;
@@ -1015,7 +1011,7 @@ pgexporter_detect_databases(int server)
    }
 
    db_idx = config->servers[server].number_of_databases;
-   strcpy((char*) &config->servers[server].databases[db_idx], "postgres");
+   strcpy((char*)&config->servers[server].databases[db_idx], "postgres");
    config->servers[server].number_of_databases++;
 
    pgexporter_log_debug("Server %s: Detected databases:", config->servers[server].name);

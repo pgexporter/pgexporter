@@ -51,19 +51,19 @@
 #include <unistd.h>
 #include <sys/types.h>
 
-#define CHUNK_SIZE 32768
+#define CHUNK_SIZE                  32768
 
-#define PAGE_UNKNOWN 0
-#define PAGE_HOME    1
-#define PAGE_METRICS 2
-#define BAD_REQUEST  3
+#define PAGE_UNKNOWN                0
+#define PAGE_HOME                   1
+#define PAGE_METRICS                2
+#define BAD_REQUEST                 3
 
-#define MAX_ARR_LENGTH 256
+#define MAX_ARR_LENGTH              256
 #define NUMBER_OF_HISTOGRAM_COLUMNS 4
 
-#define INPUT_NO   0
-#define INPUT_DATA 1
-#define INPUT_WAL  2
+#define INPUT_NO                    0
+#define INPUT_DATA                  1
+#define INPUT_WAL                   2
 
 /**
  * This is a linked list of queries with the data received from the server
@@ -426,8 +426,7 @@ badrequest_page(SSL* client_ssl, int client_fd)
                              "HTTP/1.1 400 Bad Request\r\n",
                              "Date: ",
                              &time_buf[0],
-                             "\r\n"
-                             );
+                             "\r\n");
 
    msg.kind = 0;
    msg.length = strlen(data);
@@ -462,8 +461,7 @@ unknown_page(SSL* client_ssl, int client_fd)
                              "HTTP/1.1 403 Forbidden\r\n",
                              "Date: ",
                              &time_buf[0],
-                             "\r\n"
-                             );
+                             "\r\n");
 
    msg.kind = 0;
    msg.length = strlen(data);
@@ -486,7 +484,7 @@ home_page(SSL* client_ssl, int client_fd)
    struct message msg;
    struct configuration* config;
 
-   config = (struct configuration*) shmem;
+   config = (struct configuration*)shmem;
 
    now = time(NULL);
 
@@ -501,8 +499,7 @@ home_page(SSL* client_ssl, int client_fd)
                              &time_buf[0],
                              "\r\n",
                              "Transfer-Encoding: chunked\r\n",
-                             "\r\n"
-                             );
+                             "\r\n");
 
    msg.kind = 0;
    msg.length = strlen(data);
@@ -529,8 +526,7 @@ home_page(SSL* client_ssl, int client_fd)
                              "  <a href=\"/metrics\">Metrics</a>\n",
                              "  <p>\n",
                              "  Support for\n",
-                             "  <ul>\n"
-                             );
+                             "  <ul>\n");
 
    send_chunk(client_ssl, client_fd, data);
    free(data);
@@ -540,8 +536,7 @@ home_page(SSL* client_ssl, int client_fd)
                              "  <li>pgexporter_logging_info</li>\n",
                              "  <li>pgexporter_logging_warn</li>\n",
                              "  <li>pgexporter_logging_error</li>\n",
-                             "  <li>pgexporter_logging_fatal</li>\n"
-                             );
+                             "  <li>pgexporter_logging_fatal</li>\n");
 
    send_chunk(client_ssl, client_fd, data);
    free(data);
@@ -556,8 +551,7 @@ home_page(SSL* client_ssl, int client_fd)
                                 "  <li>pg_settings</li>\n",
                                 "  <li>pg_stat_bgwriter</li>\n",
                                 "  <li>pg_stat_database</li>\n",
-                                "  <li>pg_stat_database_conflicts</li>\n"
-                                );
+                                "  <li>pg_stat_database_conflicts</li>\n");
    }
    else
    {
@@ -566,8 +560,7 @@ home_page(SSL* client_ssl, int client_fd)
          data = pgexporter_vappend(data, 3,
                                    "  <li>",
                                    config->prometheus[i].tag,
-                                   "</li>\n"
-                                   );
+                                   "</li>\n");
       }
    }
 
@@ -580,8 +573,7 @@ home_page(SSL* client_ssl, int client_fd)
                              "  <p>\n",
                              "  <a href=\"https://pgexporter.github.io/\">pgexporter.github.io/</a>\n",
                              "</body>\n",
-                             "</html>\n"
-                             );
+                             "</html>\n");
 
    /* Footer */
    data = pgexporter_append(data, "\r\n\r\n");
@@ -659,13 +651,11 @@ retry_cache_locking:
                                    "Content-Type: text/plain; version=0.0.1; charset=utf-8\r\n",
                                    "Date: ",
                                    &time_buf[0],
-                                   "\r\n"
-                                   );
-         metrics_cache_append(data);  // cache here to avoid the chunking for the cache
+                                   "\r\n");
+         metrics_cache_append(data); // cache here to avoid the chunking for the cache
          data = pgexporter_vappend(data, 2,
                                    "Transfer-Encoding: chunked\r\n",
-                                   "\r\n"
-                                   );
+                                   "\r\n");
 
          msg.kind = 0;
          msg.length = strlen(data);
@@ -763,8 +753,7 @@ bad_request(SSL* client_ssl, int client_fd)
                              "HTTP/1.1 400 Bad Request\r\n",
                              "Date: ",
                              &time_buf[0],
-                             "\r\n"
-                             );
+                             "\r\n");
 
    msg.kind = 0;
    msg.length = strlen(data);
@@ -812,8 +801,7 @@ general_information(SSL* client_ssl, int client_fd)
                              "#HELP pgexporter_state The state of pgexporter\n",
                              "#TYPE pgexporter_state gauge\n",
                              "pgexporter_state 1\n",
-                             "\n"
-                             );
+                             "\n");
 
    data = pgexporter_append(data, "#HELP pgexporter_logging_info The number of INFO logging statements\n");
    data = pgexporter_append(data, "#TYPE pgexporter_logging_info gauge\n");
@@ -855,16 +843,14 @@ server_information(SSL* client_ssl, int client_fd)
 
    data = pgexporter_vappend(data, 2,
                              "#HELP pgexporter_postgresql_active The state of PostgreSQL\n",
-                             "#TYPE pgexporter_postgresql_active gauge\n"
-                             );
+                             "#TYPE pgexporter_postgresql_active gauge\n");
 
    for (int server = 0; server < config->number_of_servers; server++)
    {
       data = pgexporter_vappend(data, 3,
                                 "pgexporter_postgresql_active{server=\"",
                                 &config->servers[server].name[0],
-                                "\"} "
-                                );
+                                "\"} ");
       if (config->servers[server].fd != -1)
       {
          data = pgexporter_append(data, "1");
@@ -921,8 +907,7 @@ version_information(SSL* client_ssl, int client_fd)
       {
          data = pgexporter_vappend(data, 2,
                                    "#HELP pgexporter_postgresql_version The PostgreSQL version\n",
-                                   "#TYPE pgexporter_postgresql_version gauge\n"
-                                   );
+                                   "#TYPE pgexporter_postgresql_version gauge\n");
 
          server = 0;
 
@@ -938,8 +923,7 @@ version_information(SSL* client_ssl, int client_fd)
                                       "\", minor_version=\"",
                                       safe_key2,
                                       "\"} ",
-                                      "1\n"
-                                      );
+                                      "1\n");
             safe_prometheus_key_free(safe_key1);
             safe_prometheus_key_free(safe_key2);
 
@@ -996,8 +980,7 @@ uptime_information(SSL* client_ssl, int client_fd)
       {
          data = pgexporter_vappend(data, 2,
                                    "#HELP pgexporter_postgresql_uptime The PostgreSQL uptime in seconds\n",
-                                   "#TYPE pgexporter_postgresql_uptime counter\n"
-                                   );
+                                   "#TYPE pgexporter_postgresql_uptime counter\n");
 
          server = 0;
 
@@ -1009,8 +992,7 @@ uptime_information(SSL* client_ssl, int client_fd)
                                       &config->servers[server].name[0],
                                       "\"} ",
                                       safe_key,
-                                      "\n"
-                                      );
+                                      "\n");
             safe_prometheus_key_free(safe_key);
 
             server++;
@@ -1065,8 +1047,7 @@ primary_information(SSL* client_ssl, int client_fd)
       {
          data = pgexporter_vappend(data, 2,
                                    "#HELP pgexporter_postgresql_primary Is the PostgreSQL instance the primary\n",
-                                   "#TYPE pgexporter_postgresql_primary gauge\n"
-                                   );
+                                   "#TYPE pgexporter_postgresql_primary gauge\n");
 
          server = 0;
 
@@ -1075,8 +1056,7 @@ primary_information(SSL* client_ssl, int client_fd)
             data = pgexporter_vappend(data, 3,
                                       "pgexporter_postgresql_primary{server=\"",
                                       &config->servers[server].name[0],
-                                      "\"} "
-                                      );
+                                      "\"} ");
 
             if (!strcmp("t", pgexporter_get_column(0, current)))
             {
@@ -1118,8 +1098,7 @@ core_information(SSL* client_ssl, int client_fd)
                              "pgexporter_version{pgexporter_version=\"",
                              VERSION,
                              "\"} 1\n",
-                             "\n"
-                             );
+                             "\n");
 
    if (data != NULL)
    {
@@ -1148,8 +1127,7 @@ extension_list_information(SSL* client_ssl, int client_fd)
 
    data = pgexporter_vappend(data, 2,
                              "#HELP pgexporter_postgresql_extension_info Information about installed PostgreSQL extensions\n",
-                             "#TYPE pgexporter_postgresql_extension_info gauge\n"
-                             );
+                             "#TYPE pgexporter_postgresql_extension_info gauge\n");
 
    for (int server = 0; server < config->number_of_servers; server++)
    {
@@ -1180,8 +1158,7 @@ extension_list_information(SSL* client_ssl, int client_fd)
                                       "\", comment=\"",
                                       safe_key3,
                                       "\"} ",
-                                      "1\n"
-                                      );
+                                      "1\n");
 
             safe_prometheus_key_free(safe_key1);
             safe_prometheus_key_free(safe_key2);
@@ -1251,8 +1228,7 @@ settings_information(SSL* client_ssl, int client_fd)
                                    &all->tag[0],
                                    "_",
                                    safe_key,
-                                   " gauge\n"
-                                   );
+                                   " gauge\n");
          safe_prometheus_key_free(safe_key);
 
 data:
@@ -1266,8 +1242,7 @@ data:
                                    &config->servers[current->server].name[0],
                                    "\"} ",
                                    get_value(&all->tag[0], pgexporter_get_column(0, current), pgexporter_get_column(1, current)),
-                                   "\n"
-                                   );
+                                   "\n");
          safe_prometheus_key_free(safe_key);
 
          if (current->next != NULL && !strcmp(pgexporter_get_column(0, current), pgexporter_get_column(0, current->next)))
@@ -1650,8 +1625,8 @@ custom_metrics(SSL* client_ssl, int client_fd)
 
    for (int i = 0; i < n_store; i++)
    {
-      column_node_t* temp = store[i].columns,
-                   * last = NULL;
+      column_node_t *temp = store[i].columns,
+                    *last = NULL;
 
       while (temp)
       {
@@ -1706,7 +1681,7 @@ parse_list(char* list_str, char** strs, int* n_strs)
     * just be `c1,c2,c3,...,cn`) and thus `strlen(data)` will be `x - 2`, and
     * so will take `x - 1` bytes in memory including the null character.
     */
-   data = (char*) malloc((len - 1) * sizeof(char));
+   data = (char*)malloc((len - 1) * sizeof(char));
    memset(data, 0, (len - 1) * sizeof(char));
 
    /**
@@ -1781,7 +1756,6 @@ add_column_to_store(column_store_t* store, int store_idx, char* data, int sort_t
             temp->next = new_node;
          }
       }
-
    }
    else
    {
@@ -1833,19 +1807,15 @@ handle_histogram(column_store_t* store, int* n_store, query_list_t* temp)
    /* generate column names X_sum, X_count, X, X_bucket*/
    names[0] = pgexporter_vappend(names[0], 2,
                                  temp->query_alt->node.columns[h_idx].name,
-                                 "_sum"
-                                 );
+                                 "_sum");
    names[1] = pgexporter_vappend(names[1], 2,
                                  temp->query_alt->node.columns[h_idx].name,
-                                 "_count"
-                                 );
+                                 "_count");
    names[2] = pgexporter_vappend(names[2], 1,
-                                 temp->query_alt->node.columns[h_idx].name
-                                 );
+                                 temp->query_alt->node.columns[h_idx].name);
    names[3] = pgexporter_vappend(names[3], 2,
                                  temp->query_alt->node.columns[h_idx].name,
-                                 "_bucket"
-                                 );
+                                 "_bucket");
 
    for (; idx < *n_store; idx++)
    {
@@ -1884,8 +1854,7 @@ append:
                                       "\", ",
                                       "server=\"",
                                       &config->servers[current->server].name[0],
-                                      "\""
-                                      );
+                                      "\"");
 
             db_key_present = false;
             for (int j = 0; j < h_idx; j++)
@@ -1901,8 +1870,7 @@ append:
                                          temp->query_alt->node.columns[j].name,
                                          "=\"",
                                          safe_key,
-                                         "\""
-                                         );
+                                         "\"");
                safe_prometheus_key_free(safe_key);
             }
 
@@ -1912,15 +1880,13 @@ append:
                data = pgexporter_vappend(data, 3,
                                          ", database=\"",
                                          temp->database,
-                                         "\""
-                                         );
+                                         "\"");
             }
 
             data = pgexporter_vappend(data, 3,
                                       "} ",
                                       buckets_arr[i],
-                                      "\n"
-                                      );
+                                      "\n");
          }
 
          data = pgexporter_vappend(data, 6,
@@ -1929,8 +1895,7 @@ append:
                                    "_bucket{le=\"+Inf\", ",
                                    "server=\"",
                                    &config->servers[current->server].name[0],
-                                   "\""
-                                   );
+                                   "\"");
 
          db_key_present = false;
          for (int j = 0; j < h_idx; j++)
@@ -1946,8 +1911,7 @@ append:
                                       temp->query_alt->node.columns[j].name,
                                       "=\"",
                                       safe_key,
-                                      "\""
-                                      );
+                                      "\"");
             safe_prometheus_key_free(safe_key);
          }
 
@@ -1957,15 +1921,13 @@ append:
             data = pgexporter_vappend(data, 3,
                                       ", database=\"",
                                       temp->database,
-                                      "\""
-                                      );
+                                      "\"");
          }
 
          data = pgexporter_vappend(data, 3,
                                    "} ",
                                    pgexporter_get_column_by_name(names[1], temp->query, current),
-                                   "\n"
-                                   );
+                                   "\n");
 
          /* sum */
          data = pgexporter_vappend(data, 6,
@@ -1974,8 +1936,7 @@ append:
                                    "_sum",
                                    "{server=\"",
                                    &config->servers[current->server].name[0],
-                                   "\""
-                                   );
+                                   "\"");
 
          db_key_present = false;
          for (int j = 0; j < h_idx; j++)
@@ -1991,8 +1952,7 @@ append:
                                       temp->query_alt->node.columns[j].name,
                                       "=\"",
                                       safe_key,
-                                      "\""
-                                      );
+                                      "\"");
             safe_prometheus_key_free(safe_key);
          }
 
@@ -2002,15 +1962,13 @@ append:
             data = pgexporter_vappend(data, 3,
                                       ", database=\"",
                                       temp->database,
-                                      "\""
-                                      );
+                                      "\"");
          }
 
          data = pgexporter_vappend(data, 3,
                                    "} ",
                                    pgexporter_get_column_by_name(names[0], temp->query, current),
-                                   "\n"
-                                   );
+                                   "\n");
 
          /* count */
          data = pgexporter_vappend(data, 6,
@@ -2019,8 +1977,7 @@ append:
                                    "_count",
                                    "{server=\"",
                                    &config->servers[current->server].name[0],
-                                   "\""
-                                   );
+                                   "\"");
 
          db_key_present = false;
          for (int j = 0; j < h_idx; j++)
@@ -2036,8 +1993,7 @@ append:
                                       temp->query_alt->node.columns[j].name,
                                       "=\"",
                                       safe_key,
-                                      "\""
-                                      );
+                                      "\"");
             safe_prometheus_key_free(safe_key);
          }
 
@@ -2047,15 +2003,13 @@ append:
             data = pgexporter_vappend(data, 3,
                                       ", database=\"",
                                       temp->database,
-                                      "\""
-                                      );
+                                      "\"");
          }
 
          data = pgexporter_vappend(data, 3,
                                    "} ",
                                    pgexporter_get_column_by_name(names[1], temp->query, current),
-                                   "\n"
-                                   );
+                                   "\n");
 
          add_column_to_store(store, idx, data, temp->sort_type, current);
 
@@ -2074,7 +2028,6 @@ append:
    }
    else
    {
-
       /* New Column */
       if (!temp->query->tuples)
       {
@@ -2106,7 +2059,6 @@ append:
    free(names[1]);
    free(names[2]);
    free(names[3]);
-
 }
 
 static void
@@ -2413,8 +2365,7 @@ handle_gauge_counter(column_store_t* store, int* n_store, query_list_t* temp)
          if (!strcmp(store[idx].tag, temp->tag) &&
              ((strlen(store[idx].name) == 0 && strlen(temp->query_alt->node.columns[i].name) == 0) ||
               !strcmp(store[idx].name, temp->query_alt->node.columns[i].name)) &&
-             store[idx].type == temp->query_alt->node.columns[i].type
-             )
+             store[idx].type == temp->query_alt->node.columns[i].type)
          {
             break;
          }
@@ -2439,23 +2390,19 @@ append:
 
             data = pgexporter_vappend(data, 2,
                                       "pgexporter_",
-                                      store[idx].tag
-                                      );
+                                      store[idx].tag);
 
             if (strlen(store[idx].name) > 0)
             {
                data = pgexporter_vappend(data, 2,
                                          "_",
-                                         store[idx].name
-                                         );
-
+                                         store[idx].name);
             }
 
             data = pgexporter_vappend(data, 3,
                                       "{server=\"",
                                       config->servers[temp->query->tuples->server].name,
-                                      "\""
-                                      );
+                                      "\"");
 
             /* Labels */
             for (int j = 0; j < temp->query_alt->node.n_columns; j++)
@@ -2476,10 +2423,8 @@ append:
                                          temp->query_alt->node.columns[j].name,
                                          "=\"",
                                          safe_key,
-                                         "\""
-                                         );
+                                         "\"");
                safe_prometheus_key_free(safe_key);
-
             }
 
             // Database
@@ -2488,23 +2433,20 @@ append:
                data = pgexporter_vappend(data, 3,
                                          ", database=\"",
                                          temp->database,
-                                         "\""
-                                         );
+                                         "\"");
             }
 
             safe_key = safe_prometheus_key(pgexporter_get_column(i, tuple));
             data = pgexporter_vappend(data, 3,
                                       "} ",
                                       get_value(store[idx].tag, store[idx].name, safe_key),
-                                      "\n"
-                                      );
+                                      "\n");
             safe_prometheus_key_free(safe_key);
 
             add_column_to_store(store, idx, data, temp->sort_type, tuple);
 
             tuple = tuple->next;
          }
-
       }
       else
       {
@@ -2537,15 +2479,13 @@ append_help_info(char** data, char* tag, char* name, char* description)
 {
    *data = pgexporter_vappend(*data, 2,
                               "#HELP pgexporter_",
-                              tag
-                              );
+                              tag);
 
    if (strlen(name) > 0)
    {
       *data = pgexporter_vappend(*data, 2,
                                  "_",
-                                 name
-                                 );
+                                 name);
    }
 
    *data = pgexporter_append(*data, " ");
@@ -2558,15 +2498,13 @@ append_help_info(char** data, char* tag, char* name, char* description)
    {
       *data = pgexporter_vappend(*data, 2,
                                  "pgexporter_",
-                                 tag
-                                 );
+                                 tag);
 
       if (strlen(name) > 0)
       {
          *data = pgexporter_vappend(*data, 2,
                                     "_",
-                                    name
-                                    );
+                                    name);
       }
    }
 
@@ -2578,15 +2516,13 @@ append_type_info(char** data, char* tag, char* name, int typeId)
 {
    *data = pgexporter_vappend(*data, 2,
                               "#TYPE pgexporter_",
-                              tag
-                              );
+                              tag);
 
    if (strlen(name) > 0)
    {
       *data = pgexporter_vappend(*data, 2,
                                  "_",
-                                 name
-                                 );
+                                 name);
    }
 
    if (typeId == GAUGE_TYPE)
@@ -2627,8 +2563,7 @@ send_chunk(SSL* client_ssl, int client_fd, char* data)
 
    m = pgexporter_vappend(m, 2,
                           data,
-                          "\r\n"
-                          );
+                          "\r\n");
 
    msg.kind = 0;
    msg.length = strlen(m);
@@ -2724,7 +2659,7 @@ safe_prometheus_key(char* key)
       return "";
    }
 
-   escaped = (char*) malloc(strlen(key) + safe_prometheus_key_additional_length(key) + 1);
+   escaped = (char*)malloc(strlen(key) + safe_prometheus_key_additional_length(key) + 1);
    while (key[i] != '\0')
    {
       if (key[i] == '.')
@@ -2828,7 +2763,7 @@ pgexporter_init_prometheus_cache(size_t* p_size, void** p_shmem)
    cache_size = metrics_cache_size_to_alloc();
    struct_size = sizeof(struct prometheus_cache);
 
-   if (pgexporter_create_shared_memory(struct_size + cache_size, config->hugepage, (void*) &cache))
+   if (pgexporter_create_shared_memory(struct_size + cache_size, config->hugepage, (void*)&cache))
    {
       goto error;
    }
@@ -2877,8 +2812,8 @@ metrics_cache_size_to_alloc(void)
    if (is_metrics_cache_configured())
    {
       cache_size = config->metrics_cache_max_size > 0
-            ? MIN(config->metrics_cache_max_size, PROMETHEUS_MAX_CACHE_SIZE)
-            : PROMETHEUS_DEFAULT_CACHE_SIZE;
+                      ? MIN(config->metrics_cache_max_size, PROMETHEUS_MAX_CACHE_SIZE)
+                      : PROMETHEUS_DEFAULT_CACHE_SIZE;
    }
 
    return cache_size;

@@ -60,7 +60,7 @@ typedef struct yaml_column
    char* name;
    char* description;
    char* type;
-} __attribute__ ((aligned (64))) yaml_column_t;
+} __attribute__((aligned(64))) yaml_column_t;
 
 // Query's Value's Structure
 typedef struct yaml_query
@@ -73,7 +73,7 @@ typedef struct yaml_query
 
    // For extensions
    char* version_str;
-} __attribute__ ((aligned (64))) yaml_query_t;
+} __attribute__((aligned(64))) yaml_query_t;
 
 // Metric's Value's Structure
 typedef struct yaml_metric
@@ -85,7 +85,7 @@ typedef struct yaml_metric
    char* collector;
    char* server;
    bool exec_on_all_dbs;
-} __attribute__ ((aligned (64))) yaml_metric_t;
+} __attribute__((aligned(64))) yaml_metric_t;
 
 // Config's Structure
 typedef struct yaml_config
@@ -97,7 +97,7 @@ typedef struct yaml_config
    // For extensions
    bool is_extension;
    char* extension_name;
-} __attribute__ ((aligned (64))) yaml_config_t;
+} __attribute__((aligned(64))) yaml_config_t;
 
 // Possible states of YAML parser (for additional check over libyaml's state)
 typedef enum {
@@ -171,7 +171,7 @@ pgexporter_read_metrics_configuration(void* shmem)
    char** yaml_files = NULL;
    char* yaml_path = NULL;
 
-   config = (struct configuration*) shmem;
+   config = (struct configuration*)shmem;
    idx_metrics = config->number_of_metrics;
 
    if (pgexporter_is_file(config->metrics_path))
@@ -193,8 +193,7 @@ pgexporter_read_metrics_configuration(void* shmem)
          yaml_path = pgexporter_vappend(yaml_path, 3,
                                         config->metrics_path,
                                         "/",
-                                        yaml_files[i]
-                                        );
+                                        yaml_files[i]);
 
          if (pgexporter_read_yaml(config->prometheus, idx_metrics, yaml_path, &number_of_metrics))
          {
@@ -606,11 +605,10 @@ parse_yaml(FILE* file, yaml_config_t* yaml_config)
 
       switch (event.type)
       {
-
          case YAML_NO_EVENT:
             goto error;
 
-         /* Start */
+            /* Start */
 
          case YAML_STREAM_START_EVENT:
             if (state != PARSER_INIT)
@@ -639,7 +637,7 @@ parse_yaml(FILE* file, yaml_config_t* yaml_config)
             state = PARSER_MAP_START;
             break;
 
-         /* Keys */
+            /* Keys */
 
          case YAML_SCALAR_EVENT:
             if (state != PARSER_VALUE && state != PARSER_MAP_START && state != PARSER_SEQ_END)
@@ -650,7 +648,7 @@ parse_yaml(FILE* file, yaml_config_t* yaml_config)
             state = PARSER_KEY;
 
             buf = NULL;
-            buf = pgexporter_append(buf, (char*) event.data.scalar.value);
+            buf = pgexporter_append(buf, (char*)event.data.scalar.value);
 
             if (!strcmp(buf, "extension"))
             {
@@ -683,7 +681,7 @@ parse_yaml(FILE* file, yaml_config_t* yaml_config)
             buf = NULL;
             break;
 
-         /* End */
+            /* End */
 
          case YAML_MAPPING_END_EVENT:
             if (state != PARSER_VALUE && state != PARSER_SEQ_END)
@@ -714,14 +712,12 @@ parse_yaml(FILE* file, yaml_config_t* yaml_config)
 
          default:
             goto error;
-
       }
 
       if (event.type != YAML_STREAM_END_EVENT)
       {
          yaml_event_delete(&event);
       }
-
    }
    while (event.type != YAML_STREAM_END_EVENT);
 
@@ -763,11 +759,10 @@ parse_metrics(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
 
       switch (event_ptr->type)
       {
-
          case YAML_NO_EVENT:
             goto error;
 
-         /* Start */
+            /* Start */
 
          case YAML_SEQUENCE_START_EVENT:
             if (*state_ptr != PARSER_KEY)
@@ -788,7 +783,7 @@ parse_metrics(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
             *state_ptr = PARSER_MAP_START;
             break;
 
-         /* Keys */
+            /* Keys */
 
          case YAML_SCALAR_EVENT:
             if (*state_ptr != PARSER_VALUE && *state_ptr != PARSER_MAP_START && *state_ptr != PARSER_SEQ_END)
@@ -799,7 +794,7 @@ parse_metrics(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
             *state_ptr = PARSER_KEY;
 
             buf = NULL;
-            buf = pgexporter_append(buf, (char*) event_ptr->data.scalar.value);
+            buf = pgexporter_append(buf, (char*)event_ptr->data.scalar.value);
 
             if (!strcmp(buf, "tag"))
             {
@@ -859,7 +854,7 @@ parse_metrics(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
             buf = NULL;
             break;
 
-         /* End */
+            /* End */
 
          case YAML_MAPPING_END_EVENT:
             if (*state_ptr != PARSER_VALUE && *state_ptr != PARSER_SEQ_END)
@@ -881,7 +876,6 @@ parse_metrics(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
 
          default:
             goto error;
-
       }
 
       yaml_event_delete(event_ptr);
@@ -922,11 +916,10 @@ parse_queries(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
 
       switch (event_ptr->type)
       {
-
          case YAML_NO_EVENT:
             goto error;
 
-         /* Start */
+            /* Start */
 
          case YAML_SEQUENCE_START_EVENT:
             if (*state_ptr != PARSER_KEY)
@@ -949,7 +942,7 @@ parse_queries(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
             *state_ptr = PARSER_MAP_START;
             break;
 
-         /* Keys */
+            /* Keys */
 
          case YAML_SCALAR_EVENT:
             if (*state_ptr != PARSER_VALUE && *state_ptr != PARSER_MAP_START && *state_ptr != PARSER_SEQ_END)
@@ -960,7 +953,7 @@ parse_queries(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
             *state_ptr = PARSER_KEY;
 
             buf = NULL;
-            buf = pgexporter_append(buf, (char*) event_ptr->data.scalar.value);
+            buf = pgexporter_append(buf, (char*)event_ptr->data.scalar.value);
 
             if (!strcmp(buf, "query"))
             {
@@ -980,7 +973,7 @@ parse_queries(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
                }
                else
                {
-                  if (parse_int(parser_ptr, event_ptr, state_ptr, (int*) &(*queries)[*n_queries].version))
+                  if (parse_int(parser_ptr, event_ptr, state_ptr, (int*)&(*queries)[*n_queries].version))
                   {
                      goto error;
                   }
@@ -1002,7 +995,7 @@ parse_queries(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
             buf = NULL;
             break;
 
-         /* End */
+            /* End */
 
          case YAML_MAPPING_END_EVENT:
             if (*state_ptr != PARSER_VALUE && *state_ptr != PARSER_SEQ_END)
@@ -1023,9 +1016,7 @@ parse_queries(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
 
          default:
             goto error;
-
       }
-
    }
    while (1);
 
@@ -1055,7 +1046,6 @@ parse_columns(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
 
    do
    {
-
       if (!yaml_parser_parse(parser_ptr, event_ptr))
       {
          yaml_event_delete(event_ptr);
@@ -1064,11 +1054,10 @@ parse_columns(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
 
       switch (event_ptr->type)
       {
-
          case YAML_NO_EVENT:
             goto error;
 
-         /* Start */
+            /* Start */
 
          case YAML_SEQUENCE_START_EVENT:
             if (*state_ptr != PARSER_KEY)
@@ -1089,7 +1078,7 @@ parse_columns(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
             *state_ptr = PARSER_MAP_START;
             break;
 
-         /* Keys */
+            /* Keys */
 
          case YAML_SCALAR_EVENT:
             if (*state_ptr != PARSER_VALUE && *state_ptr != PARSER_MAP_START && *state_ptr != PARSER_SEQ_END)
@@ -1100,7 +1089,7 @@ parse_columns(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
             *state_ptr = PARSER_KEY;
 
             buf = NULL;
-            buf = pgexporter_append(buf, (char*) event_ptr->data.scalar.value);
+            buf = pgexporter_append(buf, (char*)event_ptr->data.scalar.value);
 
             if (!strcmp(buf, "name"))
             {
@@ -1137,7 +1126,7 @@ parse_columns(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
             buf = NULL;
             break;
 
-         /* End */
+            /* End */
 
          case YAML_MAPPING_END_EVENT:
             if (*state_ptr != PARSER_VALUE && *state_ptr != PARSER_SEQ_END)
@@ -1158,9 +1147,7 @@ parse_columns(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
 
          default:
             goto error;
-
       }
-
    }
    while (event_ptr->type != YAML_SEQUENCE_END_EVENT);
 
@@ -1190,7 +1177,7 @@ parse_itoc(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* s
       return 1;
    }
 
-   *dest = atoi((char*) event_ptr->data.scalar.value);
+   *dest = atoi((char*)event_ptr->data.scalar.value);
    yaml_event_delete(event_ptr);
    return 0;
 }
@@ -1205,7 +1192,7 @@ parse_int(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* st
       return 1;
    }
 
-   *dest = atoi((char*) event_ptr->data.scalar.value);
+   *dest = atoi((char*)event_ptr->data.scalar.value);
    yaml_event_delete(event_ptr);
    return 0;
 }
@@ -1221,7 +1208,7 @@ parse_string(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t*
    }
 
    *dest = NULL;
-   *dest = pgexporter_append(*dest, (char*) event_ptr->data.scalar.value);
+   *dest = pgexporter_append(*dest, (char*)event_ptr->data.scalar.value);
    yaml_event_delete(event_ptr);
    return 0;
 }
@@ -1300,7 +1287,6 @@ free_yaml_config(yaml_config_t* config)
 static void
 free_yaml_metrics(yaml_metric_t** metrics, size_t n_metrics)
 {
-
    for (size_t i = 0; i < n_metrics; i++)
    {
       if ((*metrics)[i].tag)
@@ -1332,7 +1318,7 @@ free_yaml_metrics(yaml_metric_t** metrics, size_t n_metrics)
 static void
 free_yaml_queries(yaml_query_t** queries, size_t n_queries)
 {
-   for (size_t i = 0 ; i < n_queries; i++)
+   for (size_t i = 0; i < n_queries; i++)
    {
       if ((*queries)[i].query)
       {
@@ -1449,12 +1435,11 @@ semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t*
       // Queries
       for (int j = 0; j < yaml_config->metrics[i].n_queries; j++)
       {
-
          struct pg_query_alts* new_query = NULL;
          void* new_query_shmem = NULL;
 
          pgexporter_create_shared_memory(sizeof(struct pg_query_alts), HUGEPAGE_OFF, &new_query_shmem);
-         new_query = (struct pg_query_alts*) new_query_shmem;
+         new_query = (struct pg_query_alts*)new_query_shmem;
 
          new_query->node.n_columns = MIN(yaml_config->metrics[i].queries[j].n_columns, MAX_NUMBER_OF_COLUMNS);
 
@@ -1464,7 +1449,6 @@ semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t*
          // Columns
          for (int k = 0; k < new_query->node.n_columns; k++)
          {
-
             // Name
             if (yaml_config->metrics[i].queries[j].columns[k].name)
             {
@@ -1501,7 +1485,6 @@ semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t*
                pgexporter_log_error("pgexporter: unexpected type %s", yaml_config->metrics[i].queries[j].columns[k].type);
                return 1;
             }
-
          }
 
          if (yaml_config->metrics[i].queries[j].version == 0)
@@ -1725,7 +1708,7 @@ semantics_extension_yaml(struct configuration* config, yaml_config_t* yaml_confi
          void* new_query_shmem = NULL;
 
          pgexporter_create_shared_memory(sizeof(struct ext_query_alts), HUGEPAGE_OFF, &new_query_shmem);
-         new_query = (struct ext_query_alts*) new_query_shmem;
+         new_query = (struct ext_query_alts*)new_query_shmem;
 
          new_query->node.n_columns = MIN(yaml_config->metrics[i].queries[j].n_columns, MAX_NUMBER_OF_COLUMNS);
 

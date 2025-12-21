@@ -49,7 +49,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 
-#define CHUNK_SIZE 32768
+#define CHUNK_SIZE   32768
 
 #define PAGE_UNKNOWN 0
 #define PAGE_HOME    1
@@ -248,8 +248,7 @@ badrequest_page(int client_fd)
                              "HTTP/1.1 400 Bad Request\r\n",
                              "Date: ",
                              &time_buf[0],
-                             "\r\n"
-                             );
+                             "\r\n");
 
    msg.kind = 0;
    msg.length = strlen(data);
@@ -284,8 +283,7 @@ unknown_page(int client_fd)
                              "HTTP/1.1 403 Forbidden\r\n",
                              "Date: ",
                              &time_buf[0],
-                             "\r\n"
-                             );
+                             "\r\n");
 
    msg.kind = 0;
    msg.length = strlen(data);
@@ -320,8 +318,7 @@ home_page(int client_fd)
                              &time_buf[0],
                              "\r\n",
                              "Transfer-Encoding: chunked\r\n",
-                             "\r\n"
-                             );
+                             "\r\n");
 
    msg.kind = 0;
    msg.length = strlen(data);
@@ -348,8 +345,7 @@ home_page(int client_fd)
                              "  <p>\n",
                              "  <a href=\"https://pgexporter.github.io/\">pgexporter.github.io/</a>\n",
                              "</body>\n",
-                             "</html>\n"
-                             );
+                             "</html>\n");
 
    send_chunk(client_fd, data);
    free(data);
@@ -538,8 +534,7 @@ bad_request(int client_fd)
                              "HTTP/1.1 400 Bad Request\r\n",
                              "Date: ",
                              &time_buf[0],
-                             "\r\n"
-                             );
+                             "\r\n");
 
    msg.kind = 0;
    msg.length = strlen(data);
@@ -654,7 +649,7 @@ pgexporter_bridge_init_cache(size_t* p_size, void** p_shmem)
    cache_size = bridge_cache_size_to_alloc();
    struct_size = sizeof(struct prometheus_cache);
 
-   if (pgexporter_create_shared_memory(struct_size + cache_size, config->hugepage, (void*) &cache))
+   if (pgexporter_create_shared_memory(struct_size + cache_size, config->hugepage, (void*)&cache))
    {
       goto error;
    }
@@ -851,7 +846,7 @@ pgexporter_bridge_json_init_cache(size_t* p_size, void** p_shmem)
    cache_size = bridge_json_cache_size_to_alloc();
    struct_size = sizeof(struct prometheus_cache);
 
-   if (pgexporter_create_shared_memory(struct_size + cache_size, config->hugepage, (void*) &cache))
+   if (pgexporter_create_shared_memory(struct_size + cache_size, config->hugepage, (void*)&cache))
    {
       goto error;
    }

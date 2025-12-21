@@ -55,7 +55,7 @@ pgexporter_copy_extension_query_alts(struct ext_query_alts* src, struct ext_quer
    }
 
    pgexporter_create_shared_memory(sizeof(struct ext_query_alts), HUGEPAGE_OFF, &new_query_alt);
-   local_dst = (struct ext_query_alts*) new_query_alt;
+   local_dst = (struct ext_query_alts*)new_query_alt;
 
    local_dst->height = src->height;
    local_dst->ext_version = src->ext_version;

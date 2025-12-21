@@ -51,7 +51,7 @@ typedef struct json_column
    char* name;
    char* description;
    char* type;
-} __attribute__ ((aligned (64))) json_column_t;
+} __attribute__((aligned(64))) json_column_t;
 
 // Query's Value's Structure
 typedef struct json_query
@@ -61,7 +61,7 @@ typedef struct json_query
    char version;
    json_column_t* columns;
    int n_columns;
-} __attribute__ ((aligned (64))) json_query_t;
+} __attribute__((aligned(64))) json_query_t;
 
 // Metric's Value's Structure
 typedef struct json_metric
@@ -73,7 +73,7 @@ typedef struct json_metric
    char* collector;
    char* server;
    bool exec_on_all_dbs;
-} __attribute__ ((aligned (64))) json_metric_t;
+} __attribute__((aligned(64))) json_metric_t;
 
 // Config's Structure
 typedef struct json_config
@@ -81,7 +81,7 @@ typedef struct json_config
    json_metric_t* metrics;
    int n_metrics;
    char default_version;
-} __attribute__ ((aligned (64))) json_config_t;
+} __attribute__((aligned(64))) json_config_t;
 
 // Parses the value of `metrics` array in JSON
 static int parse_metrics(struct json* metrics_array, json_config_t* config);
@@ -129,7 +129,7 @@ pgexporter_read_json_metrics_configuration(void* shmem)
    char** json_files = NULL;
    char* json_path = NULL;
 
-   config = (struct configuration*) shmem;
+   config = (struct configuration*)shmem;
    idx_metrics = config->number_of_metrics;
 
    if (pgexporter_is_file(config->metrics_path))
@@ -152,8 +152,7 @@ pgexporter_read_json_metrics_configuration(void* shmem)
          json_path = pgexporter_vappend(json_path, 3,
                                         config->metrics_path,
                                         "/",
-                                        json_files[i]
-                                        );
+                                        json_files[i]);
 
          if (pgexporter_read_json(config->prometheus, idx_metrics, json_path, &number_of_metrics))
          {
@@ -459,7 +458,7 @@ parse_columns(struct json* columns_array, json_query_t* query)
       }
       else
       {
-         current_column->description = strdup("");     // empty default
+         current_column->description = strdup(""); // empty default
       }
       if (pgexporter_json_contains_key(column, "name"))
       {
@@ -467,7 +466,7 @@ parse_columns(struct json* columns_array, json_query_t* query)
       }
       else
       {
-         current_column->name = strdup("");     // empty default
+         current_column->name = strdup(""); // empty default
       }
 
       // Check if this is a histogram type
@@ -574,7 +573,7 @@ parse_metrics(struct json* metrics_array, json_config_t* config)
       }
       else
       {
-         current_metric->sort = strdup("name");     // default
+         current_metric->sort = strdup("name"); // default
       }
 
       if (pgexporter_json_contains_key(metric, "server"))
@@ -583,12 +582,12 @@ parse_metrics(struct json* metrics_array, json_config_t* config)
       }
       else
       {
-         current_metric->server = strdup("both");     // default
+         current_metric->server = strdup("both"); // default
       }
 
       if (pgexporter_json_contains_key(metric, "database"))
       {
-         char* database = (char*) pgexporter_json_get(metric, "database");
+         char* database = (char*)pgexporter_json_get(metric, "database");
          if (!strcmp("all", database))
          {
             pgexporter_log_debug("Executing metric \"%s\" on all databases: ENABLED", iter->key);
@@ -707,7 +706,7 @@ free_json_columns(json_column_t** columns, size_t n_columns)
 static void
 free_json_queries(json_query_t** queries, size_t n_queries)
 {
-   for (size_t i = 0 ; i < n_queries; i++)
+   for (size_t i = 0; i < n_queries; i++)
    {
       if ((*queries)[i].query)
       {
@@ -841,7 +840,7 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
          void* new_query_shmem = NULL;
 
          pgexporter_create_shared_memory(sizeof(struct pg_query_alts), HUGEPAGE_OFF, &new_query_shmem);
-         new_query = (struct pg_query_alts*) new_query_shmem;
+         new_query = (struct pg_query_alts*)new_query_shmem;
 
          new_query->node.n_columns = MIN(json_config->metrics[i].queries[j].n_columns, MAX_NUMBER_OF_COLUMNS);
 

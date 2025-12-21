@@ -50,14 +50,14 @@
  */
 struct pg_query_alts
 {
-   char pg_version;               /**< Minimum required postgres version to run query */
-   struct query_alts_base node;   /**< Inherit base fields */
+   char pg_version;             /**< Minimum required postgres version to run query */
+   struct query_alts_base node; /**< Inherit base fields */
 
    /* AVL Tree */
-   unsigned int height;          /**< Node's height, 1 if leaf, 0 if NULL */
-   struct pg_query_alts* left;   /**< Left child node */
-   struct pg_query_alts* right;  /**< Right child node */
-} __attribute__ ((aligned (64)));
+   unsigned int height;         /**< Node's height, 1 if leaf, 0 if NULL */
+   struct pg_query_alts* left;  /**< Left child node */
+   struct pg_query_alts* right; /**< Right child node */
+} __attribute__((aligned(64)));
 
 /**
  * @brief Get the query alternative for a given server version
@@ -75,7 +75,7 @@ pgexporter_get_pg_query_alt(struct pg_query_alts* root, int server);
  * @return pg_query_alts* Returns root of AVL Tree. Can ignore.
  */
 struct pg_query_alts*
-pgexporter_insert_pg_node_avl (struct pg_query_alts* root, struct pg_query_alts** new_node);
+pgexporter_insert_pg_node_avl(struct pg_query_alts* root, struct pg_query_alts** new_node);
 
 /**
  * @brief Copy query alternative from `src` to `dst`

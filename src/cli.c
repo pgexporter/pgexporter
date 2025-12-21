@@ -54,21 +54,21 @@
 
 #include <openssl/ssl.h>
 
-#define HELP 99
+#define HELP                   99
 
-#define COMMAND_RESET "reset"
-#define COMMAND_RELOAD "reload"
-#define COMMAND_PING "ping"
-#define COMMAND_SHUTDOWN "shutdown"
-#define COMMAND_STATUS "status"
+#define COMMAND_RESET          "reset"
+#define COMMAND_RELOAD         "reload"
+#define COMMAND_PING           "ping"
+#define COMMAND_SHUTDOWN       "shutdown"
+#define COMMAND_STATUS         "status"
 #define COMMAND_STATUS_DETAILS "status-details"
-#define COMMAND_CONF "conf"
-#define COMMAND_CLEAR "clear"
+#define COMMAND_CONF           "conf"
+#define COMMAND_CLEAR          "clear"
 
-#define OUTPUT_FORMAT_JSON "json"
-#define OUTPUT_FORMAT_TEXT "text"
+#define OUTPUT_FORMAT_JSON     "json"
+#define OUTPUT_FORMAT_TEXT     "text"
 
-#define UNSPECIFIED "Unspecified"
+#define UNSPECIFIED            "Unspecified"
 
 static void help_shutdown(void);
 static void help_ping(void);
@@ -87,7 +87,7 @@ static int conf_ls(SSL* ssl, int socket, uint8_t compression, uint8_t encryption
 static int conf_get(SSL* ssl, int socket, char* config_key, uint8_t compression, uint8_t encryption, int32_t output_format);
 static int conf_set(SSL* ssl, int socket, char* config_key, char* config_value, uint8_t compression, uint8_t encryption, int32_t output_format);
 
-static int  process_result(SSL* ssl, int socket, int32_t output_format);
+static int process_result(SSL* ssl, int socket, int32_t output_format);
 static int process_get_result(SSL* ssl, int socket, char* config_key, int32_t output_format);
 static int process_set_result(SSL* ssl, int socket, char* config_key, int32_t output_format);
 
@@ -146,6 +146,7 @@ usage(void)
    printf("Report bugs: %s\n", PGEXPORTER_ISSUES);
 }
 
+// clang-format off
 const struct pgexporter_command command_table[] = {
    {
       .command = "ping",
@@ -220,7 +221,7 @@ const struct pgexporter_command command_table[] = {
       .log_message = "<clear prometheus>"
    }
 };
-
+// clang-format on
 int
 main(int argc, char** argv)
 {
@@ -254,6 +255,7 @@ main(int argc, char** argv)
    int num_options = 0;
    int num_results = 0;
 
+   // clang-format off
    cli_option options[] = {
       {"c", "config", true},
       {"h", "host", true},
@@ -268,7 +270,7 @@ main(int argc, char** argv)
       {"C", "compress", true},
       {"E", "encrypt", true}
    };
-
+   // clang-format on
    num_options = sizeof(options) / sizeof(cli_option);
    cli_result results[num_options];
 
@@ -987,7 +989,7 @@ process_get_result(SSL* ssl, int socket, char* config_key, int32_t output_format
       goto error;
    }
 
-   if (!config_key)  // error response | complete configuration
+   if (!config_key) // error response | complete configuration
    {
       json_res = (struct json*)res;
 
@@ -1169,7 +1171,7 @@ get_config_key_result(char* config_key, struct json* j, uintptr_t* r, int32_t ou
       goto error;
    }
    memcpy(config_key_copy, config_key, config_key_len);
-   config_key_copy[config_key_len] = '\0';  // Null terminate
+   config_key_copy[config_key_len] = '\0'; // Null terminate
 
    if (!config_key_copy)
    {
@@ -1310,7 +1312,7 @@ get_config_key_result(char* config_key, struct json* j, uintptr_t* r, int32_t ou
 
    pgexporter_json_iterator_destroy(iter);
 
-   if (!config_value)  // if key doesn't match with any field in configuration
+   if (!config_value) // if key doesn't match with any field in configuration
    {
       goto error;
    }

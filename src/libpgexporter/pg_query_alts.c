@@ -45,7 +45,6 @@ static struct pg_query_alts* node_left_rotate(struct pg_query_alts* root);
 void
 pgexporter_copy_pg_query_alts(struct pg_query_alts** dst, struct pg_query_alts* src)
 {
-
    if (!src)
    {
       return;
@@ -54,7 +53,7 @@ pgexporter_copy_pg_query_alts(struct pg_query_alts** dst, struct pg_query_alts* 
    void* new_query_alt = NULL;
 
    pgexporter_create_shared_memory(sizeof(struct pg_query_alts), HUGEPAGE_OFF, &new_query_alt);
-   *dst = (struct pg_query_alts*) new_query_alt;
+   *dst = (struct pg_query_alts*)new_query_alt;
 
    (*dst)->height = src->height;
    (*dst)->node.is_histogram = src->node.is_histogram;
@@ -83,13 +82,12 @@ get_node_balance(struct pg_query_alts* A)
 static struct pg_query_alts*
 node_right_rotate(struct pg_query_alts* root)
 {
-
    if (!root || !root->left)
    {
       return root;
    }
 
-   struct pg_query_alts* A, * B;
+   struct pg_query_alts *A, *B;
 
    A = root, B = root->left;
 
@@ -105,13 +103,12 @@ node_right_rotate(struct pg_query_alts* root)
 static struct pg_query_alts*
 node_left_rotate(struct pg_query_alts* root)
 {
-
    if (!root || !root->right)
    {
       return root;
    }
 
-   struct pg_query_alts* A, * B;
+   struct pg_query_alts *A, *B;
 
    A = root, B = root->right;
 
@@ -160,7 +157,6 @@ pgexporter_insert_pg_node_avl(struct pg_query_alts* root, struct pg_query_alts**
    }
    else if (get_node_balance(root) < -1)
    {
-
       if (get_node_balance(root->right) == 1) //R
       {
          root->right = node_right_rotate(root->right);
@@ -213,7 +209,6 @@ pgexporter_get_pg_query_alt(struct pg_query_alts* root, int server)
    {
       return last;
    }
-
 }
 
 void
@@ -228,7 +223,6 @@ pgexporter_free_pg_query_alts(struct configuration* config)
 void
 pgexporter_free_pg_node_avl(struct pg_query_alts** root)
 {
-
    if (!root || !(*root))
    {
       return;

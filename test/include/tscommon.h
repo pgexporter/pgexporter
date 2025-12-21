@@ -36,7 +36,7 @@ extern "C" {
 
 #include "pgexporter.h"
 
-#define PRIMARY_SERVER 0
+#define PRIMARY_SERVER   0
 #define ENV_VAR_BASE_DIR "PGEXPORTER_TEST_BASE_DIR"
 
 extern char TEST_BASE_DIR[MAX_PATH];

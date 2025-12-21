@@ -48,7 +48,7 @@
 
 FILE* log_file;
 
-time_t next_log_rotation_age;  /* number of seconds at which the next location will happen */
+time_t next_log_rotation_age; /* number of seconds at which the next location will happen */
 
 char current_log_path[MAX_PATH]; /* the current log file */
 
@@ -61,6 +61,7 @@ static void log_file_rotate(void);
 
 static void output_log_line(char* l);
 
+// clang-format off
 static char* levels[] =
 {
    "TRACE",
@@ -70,7 +71,9 @@ static char* levels[] =
    "ERROR",
    "FATAL"
 };
+// clang-format on
 
+// clang-format off
 static char* colors[] =
 {
    "\x1b[37m",
@@ -80,7 +83,7 @@ static char* colors[] =
    "\x1b[31m",
    "\x1b[35m"
 };
-
+// clang-format on
 /**
  *
  */
@@ -566,8 +569,7 @@ log_rotation_enabled(void)
 
    // log rotation is enabled if either log_rotation_age or
    // log_rotation_size is enabled
-   return config->log_rotation_age != PGEXPORTER_LOGGING_ROTATION_DISABLED
-          || config->log_rotation_size != PGEXPORTER_LOGGING_ROTATION_DISABLED;
+   return config->log_rotation_age != PGEXPORTER_LOGGING_ROTATION_DISABLED || config->log_rotation_size != PGEXPORTER_LOGGING_ROTATION_DISABLED;
 }
 
 static void

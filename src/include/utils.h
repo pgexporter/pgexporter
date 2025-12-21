@@ -74,15 +74,15 @@ struct pgexporter_command
    const char* subcommand;                         /**< The subcommand if there is one */
    const int accepted_argument_count[MISC_LENGTH]; /**< The argument count */
 
-   const int action;                               /**< The specific action */
-   const char* default_argument;                   /**< The default argument */
-   const char* log_message;                        /**< The log message used */
+   const int action;             /**< The specific action */
+   const char* default_argument; /**< The default argument */
+   const char* log_message;      /**< The log message used */
 
    /* Deprecation information */
-   bool deprecated;                                /**< Is the command deprecated */
-   unsigned int deprecated_since_major;            /**< Deprecated since major version */
-   unsigned int deprecated_since_minor;            /**< Deprecated since minor version */
-   const char* deprecated_by;                      /**< Deprecated by this command */
+   bool deprecated;                     /**< Is the command deprecated */
+   unsigned int deprecated_since_major; /**< Deprecated since major version */
+   unsigned int deprecated_since_minor; /**< Deprecated since minor version */
+   const char* deprecated_by;           /**< Deprecated by this command */
 };
 
 /** @struct pgexporter_parsed_command
@@ -95,7 +95,7 @@ struct pgexporter_command
 struct pgexporter_parsed_command
 {
    const struct pgexporter_command* cmd; /**< The command */
-   char* args[MISC_LENGTH];            /**< The arguments */
+   char* args[MISC_LENGTH];              /**< The arguments */
 };
 
 /**

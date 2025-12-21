@@ -42,22 +42,22 @@ extern "C" {
  */
 struct tuple
 {
-   int server;                    /**< The server */
-   char** data;                   /**< The data */
-   struct tuple* next;            /**< The next tuple */
-} __attribute__ ((aligned (64)));
+   int server;         /**< The server */
+   char** data;        /**< The data */
+   struct tuple* next; /**< The next tuple */
+} __attribute__((aligned(64)));
 
 /** @struct query
  * Defines a query
  */
 struct query
 {
-   char tag[PROMETHEUS_LENGTH];                             /**< The tag */
-   char names[MAX_NUMBER_OF_COLUMNS][PROMETHEUS_LENGTH];    /**< The column names */
-   int number_of_columns;                                   /**< The number of columns */
+   char tag[PROMETHEUS_LENGTH];                          /**< The tag */
+   char names[MAX_NUMBER_OF_COLUMNS][PROMETHEUS_LENGTH]; /**< The column names */
+   int number_of_columns;                                /**< The number of columns */
 
-   struct tuple* tuples;                                    /**< The tuples */
-} __attribute__ ((aligned (64)));
+   struct tuple* tuples; /**< The tuples */
+} __attribute__((aligned(64)));
 
 /**
  * @struct query_alts_base
@@ -75,12 +75,12 @@ struct query
  */
 struct query_alts_base
 {
-   char query[MAX_QUERY_LENGTH];                   /**< Query String */
-   struct column columns[MAX_NUMBER_OF_COLUMNS];   /**< Columns of query */
-   int n_columns;                                  /**< No. of columns */
-   bool is_histogram;                              /**< Is the query for a histogram metric */
+   char query[MAX_QUERY_LENGTH];                 /**< Query String */
+   struct column columns[MAX_NUMBER_OF_COLUMNS]; /**< Columns of query */
+   int n_columns;                                /**< No. of columns */
+   bool is_histogram;                            /**< Is the query for a histogram metric */
 
-} __attribute__ ((aligned (64)));
+} __attribute__((aligned(64)));
 
 /**
  * Check if user has pg_monitor role

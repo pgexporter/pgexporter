@@ -58,15 +58,15 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#define SECURITY_INVALID  -2
-#define SECURITY_REJECT   -1
-#define SECURITY_TRUST     0
-#define SECURITY_PASSWORD  3
-#define SECURITY_MD5       5
-#define SECURITY_SCRAM256 10
-#define SECURITY_ALL      99
+#define SECURITY_INVALID            -2
+#define SECURITY_REJECT             -1
+#define SECURITY_TRUST              0
+#define SECURITY_PASSWORD           3
+#define SECURITY_MD5                5
+#define SECURITY_SCRAM256           10
+#define SECURITY_ALL                99
 
-#define NUMBER_OF_SECURITY_MESSAGES    5
+#define NUMBER_OF_SECURITY_MESSAGES 5
 #define SECURITY_BUFFER_SIZE        1024
 
 static signed char has_security;
@@ -94,19 +94,19 @@ static int client_proof(char* password, char* salt, int salt_length, int iterati
                         char* server_first_message, size_t server_first_message_length,
                         char* client_final_message_wo_proof, size_t client_final_message_wo_proof_length,
                         unsigned char** result, size_t* result_length);
-static int  salted_password(char* password, char* salt, int salt_length, int iterations, unsigned char** result, int* result_length);
-static int  salted_password_key(unsigned char* salted_password, int salted_password_length, char* key,
-                                unsigned char** result, int* result_length);
-static int  stored_key(unsigned char* client_key, int client_key_length, unsigned char** result, int* result_length);
-static int  generate_salt(char** salt, int* size);
-static int  server_signature(char* password, char* salt, int salt_length, int iterations,
-                             char* server_key, int server_key_length,
-                             char* client_first_message_bare, size_t client_first_message_bare_length,
-                             char* server_first_message, size_t server_first_message_length,
-                             char* client_final_message_wo_proof, size_t client_final_message_wo_proof_length,
-                             unsigned char** result, size_t* result_length);
+static int salted_password(char* password, char* salt, int salt_length, int iterations, unsigned char** result, int* result_length);
+static int salted_password_key(unsigned char* salted_password, int salted_password_length, char* key,
+                               unsigned char** result, int* result_length);
+static int stored_key(unsigned char* client_key, int client_key_length, unsigned char** result, int* result_length);
+static int generate_salt(char** salt, int* size);
+static int server_signature(char* password, char* salt, int salt_length, int iterations,
+                            char* server_key, int server_key_length,
+                            char* client_first_message_bare, size_t client_first_message_bare_length,
+                            char* server_first_message, size_t server_first_message_length,
+                            char* client_final_message_wo_proof, size_t client_final_message_wo_proof_length,
+                            unsigned char** result, size_t* result_length);
 
-static int  create_ssl_client(SSL_CTX* ctx, char* key, char* cert, char* root, int socket, SSL** ssl);
+static int create_ssl_client(SSL_CTX* ctx, char* key, char* cert, char* root, int socket, SSL** ssl);
 
 int
 pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl)
@@ -1864,7 +1864,6 @@ pgexporter_tls_valid(void)
             pgexporter_log_error("TLS private key file must have at least 0640 permissions when owned by root: %s", config->tls_key_file);
             goto error;
          }
-
       }
       else
       {
@@ -2632,7 +2631,7 @@ int
 pgexporter_create_ssl_server(SSL_CTX* ctx, char* key, char* cert, char* root, int socket, SSL** ssl)
 {
    SSL* s = NULL;
-   STACK_OF(X509_NAME) * root_cert_list = NULL;
+   STACK_OF(X509_NAME)* root_cert_list = NULL;
 
    if (strlen(cert) == 0)
    {
@@ -2751,7 +2750,7 @@ pgexporter_extract_server_parameters(struct deque** server_parameters)
          data = &security_messages[i][0];
          offset = 0;
 
-         while (offset < (size_t) data_length)
+         while (offset < (size_t)data_length)
          {
             offset = pgexporter_extract_message_offset(offset, data, &msg);
             if (msg->kind == 'S')

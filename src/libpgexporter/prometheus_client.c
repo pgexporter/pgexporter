@@ -55,14 +55,14 @@ static int add_attribute(struct deque* attributes, char* key, char* value);
 static int add_value(struct deque* values, time_t timestamp, char* value);
 static int add_line(struct prometheus_metric* metric, char* line, int endpoint, time_t timestamp);
 
-static void  prometheus_metric_destroy_cb(uintptr_t data);
+static void prometheus_metric_destroy_cb(uintptr_t data);
 static char* deque_string_cb(uintptr_t data, int32_t format, char* tag, int indent);
 static char* prometheus_metric_string_cb(uintptr_t data, int32_t format, char* tag, int indent);
-static void  prometheus_attributes_destroy_cb(uintptr_t data);
+static void prometheus_attributes_destroy_cb(uintptr_t data);
 static char* prometheus_attributes_string_cb(uintptr_t data, int32_t format, char* tag, int indent);
-static void  prometheus_value_destroy_cb(uintptr_t data);
+static void prometheus_value_destroy_cb(uintptr_t data);
 static char* prometheus_value_string_cb(uintptr_t data, int32_t format, char* tag, int indent);
-static void  prometheus_attribute_destroy_cb(uintptr_t data);
+static void prometheus_attribute_destroy_cb(uintptr_t data);
 static char* prometheus_attribute_string_cb(uintptr_t data, int32_t format, char* tag, int indent);
 
 int
@@ -490,7 +490,7 @@ attributes_find_create(struct deque* definitions, struct deque* input,
    /* Ok, create a new one */
    if (!found)
    {
-      m = (struct prometheus_attributes*)malloc(sizeof (struct prometheus_attributes));
+      m = (struct prometheus_attributes*)malloc(sizeof(struct prometheus_attributes));
       if (m == NULL)
       {
          goto error;
@@ -690,7 +690,7 @@ add_attribute(struct deque* attributes, char* key, char* value)
       goto error;
    }
 
-   pgexporter_deque_add_with_config(attributes, NULL, (uintptr_t) attr, &vc);
+   pgexporter_deque_add_with_config(attributes, NULL, (uintptr_t)attr, &vc);
 
    return 0;
 
@@ -728,7 +728,7 @@ add_line(struct prometheus_metric* metric, char* line, int endpoint, time_t time
       goto error;
    }
 
-   line_cpy = strdup(line);  /* strtok modifies the string. */
+   line_cpy = strdup(line); /* strtok modifies the string. */
    if (line_cpy == NULL)
    {
       goto error;
@@ -839,15 +839,15 @@ parse_body_to_bridge(int endpoint, time_t timestamp, char* body, struct promethe
                              .to_string = &prometheus_metric_string_cb};
    struct prometheus_metric* metric = NULL;
 
-   line = strtok_r(body, "\n", &saveptr);  /* We ideally should not care if body is modified. */
+   line = strtok_r(body, "\n", &saveptr); /* We ideally should not care if body is modified. */
 
    while (line != NULL)
    {
       if ((!strcmp(line, "") || !strcmp(line, "\r")) &&
-          metric != NULL && metric->definitions->size > 0)  /* Basically empty strings, empty lines, or empty Windows lines. */
+          metric != NULL && metric->definitions->size > 0) /* Basically empty strings, empty lines, or empty Windows lines. */
       {
          /* Previous metric is over. */
-         pgexporter_art_insert_with_config(bridge->metrics, (char*) metric->name, (uintptr_t) metric, &vc);
+         pgexporter_art_insert_with_config(bridge->metrics, (char*)metric->name, (uintptr_t)metric, &vc);
 
          metric = NULL;
          continue;

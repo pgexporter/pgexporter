@@ -267,11 +267,7 @@ pgexporter_read_configuration(void* shm, char* filename)
          }
          else
          {
-            if (pgexporter_starts_with(line, "unix_socket_dir") || pgexporter_starts_with(line, "metrics_path")
-                || pgexporter_starts_with(line, "log_path") || pgexporter_starts_with(line, "tls_cert_file")
-                || pgexporter_starts_with(line, "tls_key_file") || pgexporter_starts_with(line, "tls_ca_file")
-                || pgexporter_starts_with(line, "metrics_cert_file") || pgexporter_starts_with(line, "metrics_key_file")
-                || pgexporter_starts_with(line, "metrics_ca_file"))
+            if (pgexporter_starts_with(line, "unix_socket_dir") || pgexporter_starts_with(line, "metrics_path") || pgexporter_starts_with(line, "log_path") || pgexporter_starts_with(line, "tls_cert_file") || pgexporter_starts_with(line, "tls_key_file") || pgexporter_starts_with(line, "tls_ca_file") || pgexporter_starts_with(line, "metrics_cert_file") || pgexporter_starts_with(line, "metrics_key_file") || pgexporter_starts_with(line, "metrics_ca_file"))
             {
                extract_syskey_value(line, &key, &value);
             }
@@ -925,7 +921,6 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (!strcmp(section, "pgexporter"))
                   {
                      config->hugepage = as_hugepage(value);
-
                   }
                   else
                   {
@@ -1055,7 +1050,6 @@ pgexporter_read_configuration(void* shm, char* filename)
 
    if (strlen(srv.name) > 0)
    {
-
       for (int j = 0; j < idx_server - 1; j++)
       {
          if (!strcmp(srv.name, config->servers[j].name))
@@ -1783,7 +1777,6 @@ error:
    pgexporter_stop_logging();
 
    exit(1);
-
 }
 
 void
@@ -2404,7 +2397,6 @@ error:
    pgexporter_stop_logging();
 
    exit(1);
-
 }
 
 static void
@@ -3218,8 +3210,7 @@ as_bytes(char* str, long* bytes, long default_bytes)
          // allow a 'B' suffix on a multiplier
          // like for instance 'MB', but don't allow it
          // for bytes themselves ('BB')
-         if (multiplier == 1
-             || (str[i] != 'b' && str[i] != 'B'))
+         if (multiplier == 1 || (str[i] != 'b' && str[i] != 'B'))
          {
             // another non-digit char not allowed
             goto error;
@@ -3287,7 +3278,7 @@ as_endpoints(char* str, struct configuration* config, bool reload)
    char host[MISC_LENGTH] = {0};
    char port[6] = {0};
 
-   token = strtok((char*) str, ",");
+   token = strtok((char*)str, ",");
 
    while (token != NULL && idx < NUMBER_OF_ENDPOINTS)
    {
@@ -3463,10 +3454,7 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    config->log_level = reload->log_level;
    // if the log main parameters have changed, we need
    // to restart the logging system
-   if (strncmp(config->log_path, reload->log_path, MISC_LENGTH)
-       || config->log_rotation_size != reload->log_rotation_size
-       || config->log_rotation_age != reload->log_rotation_age
-       || config->log_mode != reload->log_mode)
+   if (strncmp(config->log_path, reload->log_path, MISC_LENGTH) || config->log_rotation_size != reload->log_rotation_size || config->log_rotation_age != reload->log_rotation_age || config->log_mode != reload->log_mode)
    {
       pgexporter_log_debug("Log restart triggered!");
       pgexporter_stop_logging();
@@ -3689,5 +3677,4 @@ pgexporter_is_binary_file(const char* path)
 
 error:
    return true;
-
 }

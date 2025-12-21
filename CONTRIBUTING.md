@@ -7,16 +7,20 @@ and documentation.
 
 This document will hopefully help you contribute to pgexporter.
 
-* [Legal](#legal)
-* [Reporting an issue](#reporting-an-issue)
-* [Setup your build environment](#setup-your-build-environment)
-* [Building the main branch](#building-the-main-branch)
-* [Before you contribute](#before-you-contribute)
-* [Code reviews](#code-reviews)
-* [Coding Guidelines](#coding-guidelines)
-* [Discuss a Feature](#discuss-a-feature)
-* [Development](#development)
-* [Code Style](#code-style)
+- [Contributing guide](#contributing-guide)
+  - [Legal](#legal)
+  - [Reporting an issue](#reporting-an-issue)
+  - [Running with docker](#running-with-docker)
+  - [Setup your build environment](#setup-your-build-environment)
+  - [Building the main branch](#building-the-main-branch)
+  - [Before you contribute](#before-you-contribute)
+  - [Code reviews](#code-reviews)
+  - [Coding Guidelines](#coding-guidelines)
+  - [Discuss a Feature](#discuss-a-feature)
+  - [Development](#development)
+  - [Policy and guidelines for using AI](#policy-and-guidelines-for-using-ai)
+    - [Using AI for communication](#using-ai-for-communication)
+  - [Code Style](#code-style)
 
 ## Legal
 
@@ -37,7 +41,7 @@ Follow [this](./doc/manual/en/13-docker.md) to build using docker
 For Red Hat RPM based distributions use the following command:
 
 ```
-dnf install git gcc cmake make libev libev-devel openssl openssl-devel systemd systemd-devel python3-docutils libyaml libyaml-devel zlib zlib-devel libzstd libzstd-devel lz4 lz4-devel bzip2 bzip2-devel libasan libasan-static
+dnf install git gcc clang clang-analyzer clang-tools-extra cmake make libev libev-devel openssl openssl-devel systemd systemd-devel python3-docutils libyaml libyaml-devel zlib zlib-devel libzstd libzstd-devel lz4 lz4-devel bzip2 bzip2-devel libasan libasan-static
 ```
 
 in order to get the necessary dependencies.
@@ -194,10 +198,10 @@ Here are some concrete guidelines for using LLMs as part of your communication w
 
 Please, follow the coding style of the project.
 
-You can use the [uncrustify](http://uncrustify.sourceforge.net/) tool to help with the formatting, by running
+You can use the [clang-format](https://clang.llvm.org/docs/ClangFormat.html) tool to help with the formatting, by running
 
 ```
-./uncrustify.sh
+./clang-format.sh
 ```
 
 and verify the changes.

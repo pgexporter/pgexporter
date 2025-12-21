@@ -62,7 +62,7 @@
 #endif
 
 #ifndef EVBACKEND_IOURING
-#define EVBACKEND_IOURING  0x00000080U
+#define EVBACKEND_IOURING 0x00000080U
 #endif
 
 extern char** environ;
@@ -325,13 +325,13 @@ pgexporter_extract_message_from_data(char type, void* data, size_t data_size, st
 signed char
 pgexporter_read_byte(void* data)
 {
-   return (signed char) *((char*)data);
+   return (signed char)*((char*)data);
 }
 
 uint8_t
 pgexporter_read_uint8(void* data)
 {
-   return (uint8_t) *((char*)data);
+   return (uint8_t)*((char*)data);
 }
 
 int16_t
@@ -884,7 +884,7 @@ pgexporter_set_proc_title(int argc, char** argv, char* s1, char* s2)
 
 #else
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || \
-   defined(__OpenBSD__))
+     defined(__OpenBSD__))
    setproctitle("-pgexporter: %s%s%s", s1 != NULL ? s1 : "",
                 s1 != NULL && s2 != NULL ? "/" : "", s2 != NULL ? s2 : "");
 #elif defined(HAVE_DARWIN)
@@ -957,7 +957,7 @@ pgexporter_vappend(char* orig, unsigned int n_str, ...)
       fin_len = orig_len = 0;
    }
 
-   strings = (char**) malloc(n_str * sizeof(char*));
+   strings = (char**)malloc(n_str * sizeof(char*));
    if (strings == NULL)
    {
       pgexporter_log_error("malloc failed for strings array");
@@ -972,7 +972,7 @@ pgexporter_vappend(char* orig, unsigned int n_str, ...)
       fin_len += strlen(strings[i]);
    }
 
-   char* new_str = (char*) realloc(orig, fin_len + 1);
+   char* new_str = (char*)realloc(orig, fin_len + 1);
    if (new_str == NULL)
    {
       pgexporter_log_error("realloc failed for appended string");
@@ -1030,7 +1030,6 @@ pgexporter_format_and_append(char* buf, char* format, ...)
    free(formatted_str);
 
    return buf;
-
 }
 
 char*
@@ -1148,8 +1147,7 @@ pgexporter_directory_size(char* directory)
          p = pgexporter_vappend(p, 3,
                                 directory,
                                 "/",
-                                entry->d_name
-                                );
+                                entry->d_name);
 
          memset(&st, 0, sizeof(struct stat));
 
@@ -1172,8 +1170,7 @@ pgexporter_directory_size(char* directory)
          p = pgexporter_vappend(p, 3,
                                 directory,
                                 "/",
-                                entry->d_name
-                                );
+                                entry->d_name);
 
          memset(&st, 0, sizeof(struct stat));
 
@@ -2034,8 +2031,7 @@ pgexporter_read_version(char* directory, char** version)
 
    filename = pgexporter_vappend(filename, 2,
                                  directory,
-                                 "/PG_VERSION"
-                                 );
+                                 "/PG_VERSION");
 
    file = fopen(filename, "r");
    if (file == NULL)
@@ -2086,8 +2082,7 @@ pgexporter_read_wal(char* directory, char** wal)
 
    pgwal = pgexporter_vappend(pgwal, 2,
                               directory,
-                              "/pg_wal/"
-                              );
+                              "/pg_wal/");
 
    number_of_wal_files = 0;
    wal_files = NULL;
@@ -2389,13 +2384,13 @@ parse_command(int argc,
       command_index = default_command_match;
       subcommand = "";
    }
-   else if (command_index == -1)  /* Command was matched, but subcommand was not */
+   else if (command_index == -1) /* Command was matched, but subcommand was not */
    {
       if (subcommand)
       {
          warnx("Unknown subcommand '%s' for command '%s'\n", subcommand, command);
       }
-      else  /* User did not type a subcommand */
+      else /* User did not type a subcommand */
       {
          warnx("Command '%s' requires a subcommand\n", command);
       }
@@ -2431,12 +2426,11 @@ parse_command(int argc,
    {
       parsed->args[i] = argv[i + offset];
    }
-   parsed->args[0] = parsed->args[0] ? parsed->args[0] : (char*) parsed->cmd->default_argument;
+   parsed->args[0] = parsed->args[0] ? parsed->args[0] : (char*)parsed->cmd->default_argument;
 
    /* Warn the user if there is enough information about deprecation */
-   if (parsed->cmd->deprecated
-       && pgexporter_version_ge(parsed->cmd->deprecated_since_major,
-                                parsed->cmd->deprecated_since_minor, 0))
+   if (parsed->cmd->deprecated && pgexporter_version_ge(parsed->cmd->deprecated_since_major,
+                                                        parsed->cmd->deprecated_since_minor, 0))
    {
       warnx("command <%s> has been deprecated by <%s> since version %d.%d",
             parsed->cmd->command,
@@ -2451,9 +2445,7 @@ parse_command(int argc,
 unsigned int
 pgexporter_version_as_number(unsigned int major, unsigned int minor, unsigned int patch)
 {
-   return (patch % 100)
-          + (minor % 100) * 100
-          + (major % 100) * 10000;
+   return (patch % 100) + (minor % 100) * 100 + (major % 100) * 10000;
 }
 
 unsigned int
@@ -2502,11 +2494,11 @@ is_wal_file(char* file)
 int
 pgexporter_resolve_path(char* orig_path, char** new_path)
 {
-   #if defined(HAVE_DARWIN) || defined(HAVE_OSX)
-      #define GET_ENV(name) getenv(name)
-   #else
-      #define GET_ENV(name) secure_getenv(name)
-   #endif
+#if defined(HAVE_DARWIN) || defined(HAVE_OSX)
+#define GET_ENV(name) getenv(name)
+#else
+#define GET_ENV(name) secure_getenv(name)
+#endif
 
    char* res = NULL;
    char* env_res = NULL;
@@ -2526,10 +2518,7 @@ pgexporter_resolve_path(char* orig_path, char** new_path)
    {
       char* ch = NULL;
 
-      bool valid_env_char = orig_path[idx] == '_'
-                            || (orig_path[idx] >= 'A' && orig_path[idx] <= 'Z')
-                            || (orig_path[idx] >= 'a' && orig_path[idx] <= 'z')
-                            || (orig_path[idx] >= '0' && orig_path[idx] <= '9');
+      bool valid_env_char = orig_path[idx] == '_' || (orig_path[idx] >= 'A' && orig_path[idx] <= 'Z') || (orig_path[idx] >= 'a' && orig_path[idx] <= 'z') || (orig_path[idx] >= '0' && orig_path[idx] <= '9');
       if (in_env && !valid_env_char)
       {
          in_env = false;
@@ -2612,13 +2601,12 @@ error:
    return 1;
 }
 
-__attribute__((unused))
-static bool
+__attribute__((unused)) static bool
 calculate_offset(uint64_t addr, uint64_t* offset, char** filepath)
 {
 #if defined(HAVE_LINUX) && defined(HAVE_EXECINFO_H)
    char line[256];
-   char* start, * end, * base_offset, * filepath_ptr;
+   char *start, *end, *base_offset, *filepath_ptr;
    uint64_t start_addr, end_addr, base_offset_value;
    FILE* fp;
    bool success = false;
@@ -2699,7 +2687,7 @@ pgexporter_backtrace(void)
 int
 pgexporter_backtrace_string(char** s)
 {
-#ifdef  HAVE_EXECINFO_H
+#ifdef HAVE_EXECINFO_H
    void* bt[1024];
    char* log_str = NULL;
    size_t bt_size;
@@ -3089,7 +3077,10 @@ hvsnprintf(char* buf, size_t n, const char* fmt, va_list ap)
       }
 
       /* Length modifier */
-      enum { LM_NONE, LM_L, LM_LL, LM_Z } lm = LM_NONE;
+      enum { LM_NONE,
+             LM_L,
+             LM_LL,
+             LM_Z } lm = LM_NONE;
       if (*p == 'l')
       {
          p++;

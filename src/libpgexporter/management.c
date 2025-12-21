@@ -612,7 +612,7 @@ pgexporter_management_read_json(SSL* ssl, int socket, uint8_t* compression, uint
             decompressed = NULL;
             break;
          default:
-            s = (char*) transfer_buffer;
+            s = (char*)transfer_buffer;
             transfer_buffer = NULL;
             break;
       }

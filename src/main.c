@@ -91,9 +91,9 @@ static void reload_cb(struct ev_loop* loop, ev_signal* w, int revents);
 static void coredump_cb(struct ev_loop* loop, ev_signal* w, int revents);
 static bool accept_fatal(int error);
 static bool reload_configuration(void);
-static int  create_pidfile(void);
+static int create_pidfile(void);
 static void remove_pidfile(void);
-static int  create_lockfile(int port);
+static int create_lockfile(int port);
 static void remove_lockfile(int port);
 static void shutdown_ports(void);
 
@@ -489,9 +489,9 @@ main(int argc, char** argv)
          if (collector_idx > NUMBER_OF_COLLECTORS)
          {
             warnx("pgexporter: Too many collectors specified.");
-      #ifdef HAVE_SYSTEMD
+#ifdef HAVE_SYSTEMD
             sd_notify(0, "STATUS=pgexporter: Too many collectors specified.");
-      #endif
+#endif
             exit(1);
          }
 
@@ -785,7 +785,6 @@ main(int argc, char** argv)
    /* Internal Metrics Collectors YAML File, not to be used with YAML/JSON  */
    if (json_path == NULL && yaml_path == NULL)
    {
-
       if (pgexporter_read_internal_yaml_metrics(config, true))
       {
 #ifdef HAVE_SYSTEMD
@@ -890,9 +889,9 @@ main(int argc, char** argv)
    if (pgexporter_setup_extensions_path(config, argv[0], &bin_path))
    {
       warnx("pgexporter: Failed to setup extensions path");
-   #ifdef HAVE_SYSTEMD
+#ifdef HAVE_SYSTEMD
       sd_notify(0, "STATUS=Failed to setup extensions path");
-   #endif
+#endif
       exit(1);
    }
 
@@ -1155,7 +1154,8 @@ main(int argc, char** argv)
    sd_notifyf(0,
               "READY=1\n"
               "STATUS=Running\n"
-              "MAINPID=%lu", (unsigned long)getpid());
+              "MAINPID=%lu",
+              (unsigned long)getpid());
 #endif
 
    pgexporter_open_connections();
@@ -1170,9 +1170,9 @@ main(int argc, char** argv)
    if (pgexporter_load_extension_yamls(config))
    {
       warnx("pgexporter: Failed to load extension YAMLs");
-   #ifdef HAVE_SYSTEMD
+#ifdef HAVE_SYSTEMD
       sd_notify(0, "STATUS=Failed to load extension YAMLs");
-   #endif
+#endif
       exit(1);
    }
    while (keep_running)

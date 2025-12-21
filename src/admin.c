@@ -27,7 +27,7 @@
  */
 
 #if defined(HAVE_DARWIN)
-    #define secure_getenv getenv
+#define secure_getenv getenv
 #endif
 
 /* pgexporter */
@@ -71,6 +71,7 @@ static int list_users(char* users_path, int32_t output_format);
 static char* generate_password(int pwd_length);
 static int create_response(char* users_path, struct json* json, struct json** response);
 
+// clang-format off
 const struct pgexporter_command command_table[] =
 {
    {
@@ -114,7 +115,7 @@ const struct pgexporter_command command_table[] =
       .log_message = "<user ls>",
    },
 };
-
+// clang-format on
 static void
 version(void)
 {
@@ -293,7 +294,6 @@ main(int argc, char** argv)
       }
       else if (parsed.cmd->action == MANAGEMENT_REMOVE_USER)
       {
-
          if (remove_user(file_path, username, output_format))
          {
             errx(1, "Error for <user del>");
@@ -301,12 +301,10 @@ main(int argc, char** argv)
       }
       else if (parsed.cmd->action == MANAGEMENT_LIST_USERS)
       {
-
          if (list_users(file_path, output_format))
          {
             errx(1, "Error for <user ls>");
          }
-
       }
    }
 
