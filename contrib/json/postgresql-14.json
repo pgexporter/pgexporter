@@ -2,6 +2,10 @@
   "version": 14,
   "metrics": [
     {
+      "tag": "postgresql_primary",
+      "collector": "primary",
+      "sort": "name",
+      "server": "both",
       "queries": [
         {
           "query": "SELECT ( CASE pg_is_in_recovery() WHEN 'f' THEN 't' ELSE 'f' END );",
@@ -13,13 +17,12 @@
             }
           ]
         }
-      ],
-      "tag": "postgresql_primary",
-      "sort": "name",
-      "collector": "primary",
-      "server": "both"
+      ]
     },
     {
+      "tag": "pg_database_size",
+      "collector": "db",
+      "sort": "data",
       "queries": [
         {
           "query": "SELECT datname, pg_database_size(datname) FROM pg_database;",
@@ -35,12 +38,12 @@
             }
           ]
         }
-      ],
-      "tag": "pg_database_size",
-      "sort": "data",
-      "collector": "db"
+      ]
     },
     {
+      "tag": "pg_locks_count",
+      "collector": "locks",
+      "sort": "data",
       "queries": [
         {
           "query": "SELECT pg_database.datname as database, tmp.mode, COALESCE(count, 0) as count FROM ( VALUES ('accesssharelock'), ('rowsharelock'), ('rowexclusivelock'), ('shareupdateexclusivelock'), ('sharelock'), ('sharerowexclusivelock'), ('exclusivelock'), ('accessexclusivelock'), ('sireadlock') ) AS tmp(mode) CROSS JOIN pg_database LEFT JOIN ( SELECT database, lower(mode) AS mode, count(*) AS count FROM pg_locks WHERE database IS NOT NULL GROUP BY database, lower(mode) ) AS tmp2 ON tmp.mode = tmp2.mode AND pg_database.oid = tmp2.database ORDER BY 1, 2;",
@@ -60,12 +63,12 @@
             }
           ]
         }
-      ],
-      "tag": "pg_locks_count",
-      "sort": "data",
-      "collector": "locks"
+      ]
     },
     {
+      "tag": "pg_replication_slots",
+      "collector": "replication",
+      "sort": "data",
       "queries": [
         {
           "query": "SELECT slot_name, slot_type, database, active, temporary FROM pg_replication_slots;",
@@ -95,12 +98,11 @@
             }
           ]
         }
-      ],
-      "tag": "pg_replication_slots",
-      "sort": "data",
-      "collector": "replication"
+      ]
     },
     {
+      "tag": "pg_stat_bgwriter",
+      "collector": "stat_bgwriter",
       "queries": [
         {
           "query": "SELECT buffers_alloc, buffers_backend, buffers_backend_fsync, buffers_checkpoint, buffers_clean, checkpoint_sync_time, checkpoint_write_time, checkpoints_req, checkpoints_timed, maxwritten_clean FROM pg_stat_bgwriter;",
@@ -158,53 +160,11 @@
             }
           ]
         }
-      ],
-      "tag": "pg_stat_bgwriter",
-      "collector": "stat_bgwriter"
+      ]
     },
     {
-      "queries": [
-        {
-          "query": "SELECT datname, confl_tablespace, confl_lock, confl_snapshot, confl_bufferpin, confl_deadlock FROM pg_stat_database_conflicts WHERE datname IS NOT NULL ORDER BY datname;",
-          "version": 10,
-          "columns": [
-            {
-              "name": "database",
-              "type": "label"
-            },
-            {
-              "name": "confl_tablespace",
-              "type": "counter",
-              "description": "pg_stat_database_conflicts_confl_tablespace"
-            },
-            {
-              "name": "confl_lock",
-              "type": "counter",
-              "description": "pg_stat_database_conflicts_confl_lock"
-            },
-            {
-              "name": "confl_snapshot",
-              "type": "counter",
-              "description": "pg_stat_database_conflicts_confl_snapshot"
-            },
-            {
-              "name": "confl_bufferpin",
-              "type": "counter",
-              "description": "pg_stat_database_conflicts_confl_bufferpin"
-            },
-            {
-              "name": "confl_deadlock",
-              "type": "counter",
-              "description": "pg_stat_database_conflicts_confl_deadlock"
-            }
-          ]
-        }
-      ],
-      "tag": "pg_stat_database_conflicts",
-      "sort": "data",
-      "collector": "stat_conflicts"
-    },
-    {
+      "tag": "pg_process_idle_seconds",
+      "collector": "idle_procs",
       "queries": [
         {
           "query": "WITH metrics AS ( SELECT application_name, SUM(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - state_change))::bigint)::float AS process_idle_seconds_sum, COUNT(*) AS process_idle_seconds_count FROM pg_stat_activity WHERE state = 'idle' GROUP BY application_name ), buckets AS ( SELECT application_name, le, SUM( CASE WHEN EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - state_change)) <= le THEN 1 ELSE 0 END )::bigint AS bucket FROM pg_stat_activity, UNNEST(ARRAY[1, 2, 5, 15, 30, 60, 90, 120, 300]) AS le GROUP BY application_name, le ORDER BY application_name, le ) SELECT application_name, process_idle_seconds_sum as seconds_sum, process_idle_seconds_count as seconds_count, ARRAY_AGG(le) AS seconds, ARRAY_AGG(bucket) AS seconds_bucket FROM metrics JOIN buckets USING (application_name) GROUP BY 1, 2, 3;",
@@ -221,11 +181,11 @@
             }
           ]
         }
-      ],
-      "tag": "pg_process_idle_seconds",
-      "collector": "idle_procs"
+      ]
     },
     {
+      "tag": "pg_available_extensions",
+      "collector": "available_extensions",
       "queries": [
         {
           "query": "SELECT COUNT(*) AS extensions FROM pg_available_extensions;",
@@ -237,11 +197,11 @@
             }
           ]
         }
-      ],
-      "tag": "pg_available_extensions",
-      "collector": "available_extensions"
+      ]
     },
     {
+      "tag": "pg_installed_extensions",
+      "collector": "installed_extensions",
       "queries": [
         {
           "query": "SELECT array_agg(extname) AS extensions, count(*) FROM pg_extension;",
@@ -257,11 +217,12 @@
             }
           ]
         }
-      ],
-      "tag": "pg_installed_extensions",
-      "collector": "installed_extensions"
+      ]
     },
     {
+      "tag": "pg_file_settings",
+      "collector": "file_settings",
+      "sort": "data",
       "queries": [
         {
           "query": "SELECT sourcefile, COUNT(*), ( CASE applied WHEN 't' THEN 'true' ELSE 'false' END ) as applied FROM pg_file_settings WHERE applied = 't' GROUP BY sourcefile, applied;",
@@ -281,12 +242,12 @@
             }
           ]
         }
-      ],
-      "tag": "pg_file_settings",
-      "sort": "data",
-      "collector": "file_settings"
+      ]
     },
     {
+      "tag": "pg_indexes",
+      "collector": "indexes",
+      "sort": "data",
       "queries": [
         {
           "query": "SELECT schemaname, tablename, COUNT(*) FROM pg_indexes GROUP BY schemaname,tablename;",
@@ -306,12 +267,11 @@
             }
           ]
         }
-      ],
-      "tag": "pg_indexes",
-      "sort": "data",
-      "collector": "indexes"
+      ]
     },
     {
+      "tag": "pg_matviews",
+      "collector": "matviews",
       "queries": [
         {
           "query": "SELECT COUNT(*) FROM pg_matviews WHERE ispopulated = 't' GROUP BY ispopulated;",
@@ -323,11 +283,11 @@
             }
           ]
         }
-      ],
-      "tag": "pg_matviews",
-      "collector": "matviews"
+      ]
     },
     {
+      "tag": "pg_role",
+      "collector": "roles",
       "queries": [
         {
           "query": "SELECT COUNT(*) FROM pg_roles;",
@@ -339,11 +299,12 @@
             }
           ]
         }
-      ],
-      "tag": "pg_role",
-      "collector": "roles"
+      ]
     },
     {
+      "tag": "pg_rule",
+      "collector": "rules",
+      "sort": "data",
       "queries": [
         {
           "query": "SELECT tablename, COUNT(*) FROM pg_rules GROUP BY tablename;",
@@ -359,12 +320,12 @@
             }
           ]
         }
-      ],
-      "tag": "pg_rule",
-      "sort": "data",
-      "collector": "rules"
+      ]
     },
     {
+      "tag": "pg_shadow",
+      "collector": "auth_type",
+      "sort": "data",
       "queries": [
         {
           "query": "SELECT ( CASE WHEN rolpassword LIKE 'md5%' THEN 'MD5' WHEN rolpassword LIKE 'SCRAM-SHA-256$%' THEN 'SCRAM-SHA-256' ELSE 'UNENCRYPTED' END ) AS encryption_type, COUNT(*) FROM pg_authid WHERE rolname != 'postgres' GROUP BY encryption_type;",
@@ -380,12 +341,11 @@
             }
           ]
         }
-      ],
-      "tag": "pg_shadow",
-      "sort": "data",
-      "collector": "auth_type"
+      ]
     },
     {
+      "tag": "pg_usr_evt_trigger",
+      "collector": "usr_evt_trigger",
       "queries": [
         {
           "query": "SELECT COUNT(*) FROM pg_event_trigger JOIN pg_authid ON pg_event_trigger.oid = pg_authid.oid WHERE rolname != 'postgres';",
@@ -397,11 +357,12 @@
             }
           ]
         }
-      ],
-      "tag": "pg_usr_evt_trigger",
-      "collector": "usr_evt_trigger"
+      ]
     },
     {
+      "tag": "pg_db_conn",
+      "collector": "connections",
+      "sort": "data",
       "queries": [
         {
           "query": "SELECT datname, count(*) FROM pg_stat_activity WHERE datname IS NOT NULL GROUP BY datname;",
@@ -417,12 +378,12 @@
             }
           ]
         }
-      ],
-      "tag": "pg_db_conn",
-      "sort": "data",
-      "collector": "connections"
+      ]
     },
     {
+      "tag": "pg_db_conn_ssl",
+      "collector": "connections",
+      "sort": "data",
       "queries": [
         {
           "query": "SELECT datname, count(*) FROM pg_stat_ssl JOIN pg_stat_activity ON pg_stat_activity.pid = pg_stat_ssl.pid WHERE ssl = 't' AND datname IS NOT NULL GROUP BY datname;",
@@ -438,12 +399,11 @@
             }
           ]
         }
-      ],
-      "tag": "pg_db_conn_ssl",
-      "sort": "data",
-      "collector": "connections"
+      ]
     },
     {
+      "tag": "pg_statio_all_tables",
+      "collector": "statio_all_tables",
       "queries": [
         {
           "query": "SELECT COUNT(heap_blks_read) AS heap_blks_read, COUNT(heap_blks_hit) AS heap_blks_hit, COUNT(idx_blks_read) as idx_blks_read, COUNT(idx_blks_hit) AS idx_blks_hit, COUNT(toast_blks_read) AS toast_blks_read, COUNT(toast_blks_hit) AS toast_blks_hit, COUNT(tidx_blks_read) AS tidx_blks_read, COUNT(tidx_blks_hit) AS tidx_blks_hit FROM pg_statio_all_tables;",
@@ -491,11 +451,11 @@
             }
           ]
         }
-      ],
-      "tag": "pg_statio_all_tables",
-      "collector": "statio_all_tables"
+      ]
     },
     {
+      "tag": "pg_statio_all_sequences",
+      "collector": "statio_all_sequences",
       "queries": [
         {
           "query": "SELECT COUNT(blks_read) AS blks_read, COUNT(blks_hit) AS blks_hit FROM pg_statio_all_sequences;",
@@ -513,11 +473,12 @@
             }
           ]
         }
-      ],
-      "tag": "pg_statio_all_sequences",
-      "collector": "statio_all_sequences"
+      ]
     },
     {
+      "tag": "pg_stat_user_functions",
+      "collector": "stat_user_functions",
+      "sort": "data",
       "queries": [
         {
           "query": "SELECT funcname, calls, self_time, total_time FROM pg_stat_user_functions;",
@@ -544,12 +505,12 @@
             }
           ]
         }
-      ],
-      "tag": "pg_stat_user_functions",
-      "sort": "data",
-      "collector": "stat_user_functions"
+      ]
     },
     {
+      "tag": "pg_stat_replication",
+      "collector": "stat_replication",
+      "sort": "data",
       "queries": [
         {
           "query": "SELECT COUNT(*), application_name FROM pg_stat_replication WHERE state = 'streaming' GROUP BY application_name;",
@@ -565,12 +526,12 @@
             }
           ]
         }
-      ],
-      "tag": "pg_stat_replication",
-      "sort": "data",
-      "collector": "stat_replication"
+      ]
     },
     {
+      "tag": "pg_stat_archiver",
+      "collector": "stat_archiver",
+      "sort": "data",
       "queries": [
         {
           "query": "SELECT archived_count, (EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_archived_time)) * 1000)::bigint AS success_time_elapsed_ms, failed_count, (EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_failed_time)) * 1000)::bigint AS failure_time_elapsed_ms FROM pg_stat_archiver;",
@@ -598,45 +559,12 @@
             }
           ]
         }
-      ],
-      "tag": "pg_stat_archiver",
-      "sort": "data",
-      "collector": "stat_archiver"
+      ]
     },
     {
-      "queries": [
-        {
-          "query": "SELECT SUM(idx_scan) AS idx_scans, SUM(idx_tup_read) AS idx_tup_reads, SUM(idx_tup_fetch) AS idx_tup_fetchs, relname FROM pg_stat_all_indexes WHERE (current_database() = 'postgres' OR schemaname NOT LIKE 'pg_%') GROUP BY relname;",
-          "version": 10,
-          "columns": [
-            {
-              "type": "counter",
-              "name": "idx_scans",
-              "description": "Number of index scans on the table's indexes."
-            },
-            {
-              "type": "counter",
-              "name": "idx_tup_reads",
-              "description": "Number of index entries returned by scans on the table's indexes."
-            },
-            {
-              "type": "counter",
-              "name": "idx_tup_fetchs",
-              "description": "Number of rows fetched by simple index scans on the table's indexes."
-            },
-            {
-              "type": "label",
-              "name": "relname"
-            }
-          ]
-        }
-      ],
-      "tag": "stat_all_indexes",
+      "tag": "pg_db_vacuum",
+      "collector": "db_vacuum",
       "sort": "data",
-      "collector": "pg_stat_all_indexes",
-      "database": "all"
-    },
-    {
       "queries": [
         {
           "query": "SELECT datname, age(datfrozenxid) as age FROM pg_database;",
@@ -654,12 +582,12 @@
             }
           ]
         }
-      ],
-      "tag": "pg_db_vacuum",
-      "sort": "data",
-      "collector": "db_vacuum"
+      ]
     },
     {
+      "tag": "pg_view_vacuum",
+      "collector": "db_vacuum",
+      "sort": "data",
       "queries": [
         {
           "query": "SELECT c.oid::regclass as table_name, greatest(age(c.relfrozenxid),age(t.relfrozenxid)) as age FROM pg_class c LEFT JOIN pg_class t ON c.reltoastrelid = t.oid WHERE c.relkind IN ('r', 'm');",
@@ -677,12 +605,67 @@
             }
           ]
         }
-      ],
-      "tag": "pg_view_vacuum",
-      "sort": "data",
-      "collector": "db_vacuum"
+      ]
     },
     {
+      "tag": "pg_blocked_vacuum",
+      "collector": "blocked_vacuum",
+      "sort": "data",
+      "queries": [
+        {
+          "query": "SELECT blocked.pid AS blocked_pid, blocked.datname AS blocked_database, blocked.usename AS blocked_user, blocked.query AS blocked_query, EXTRACT(EPOCH FROM age(now(), blocked.query_start))::bigint AS blocked_duration_seconds, blocking.pid AS blocking_pid, blocking.datname AS blocking_database, blocking.usename AS blocking_user, blocking.query AS blocking_query, EXTRACT(EPOCH FROM age(now(), blocking.query_start))::bigint AS blocking_duration_seconds FROM pg_stat_activity blocked JOIN pg_locks blocked_locks ON blocked.pid = blocked_locks.pid JOIN pg_locks blocking_locks ON blocked_locks.relation = blocking_locks.relation AND blocked_locks.pid != blocking_locks.pid JOIN pg_stat_activity blocking ON blocking.pid = blocking_locks.pid WHERE (blocked.query ILIKE '%VACUUM%' OR blocked.query ILIKE '%AUTOVACUUM%') AND NOT blocked_locks.granted AND blocking_locks.granted ORDER BY blocked_duration_seconds DESC;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "blocked_pid",
+              "type": "label"
+            },
+            {
+              "name": "blocked_database",
+              "type": "label"
+            },
+            {
+              "name": "blocked_user",
+              "type": "label"
+            },
+            {
+              "name": "blocked_query",
+              "type": "label"
+            },
+            {
+              "name": "blocked_duration_seconds",
+              "type": "gauge",
+              "description": "Duration in seconds that the vacuum has been blocked"
+            },
+            {
+              "name": "blocking_pid",
+              "type": "label"
+            },
+            {
+              "name": "blocking_database",
+              "type": "label"
+            },
+            {
+              "name": "blocking_user",
+              "type": "label"
+            },
+            {
+              "name": "blocking_query",
+              "type": "label"
+            },
+            {
+              "name": "blocking_duration_seconds",
+              "type": "gauge",
+              "description": "Duration in seconds that the blocking query has been running"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "pg_wal_last_received",
+      "collector": "wal_last_received",
+      "server": "replica",
       "queries": [
         {
           "query": "SELECT CASE WHEN sender_host LIKE '/%' THEN sender_host ELSE sender_host || ':' || sender_port::text END AS sender, (EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_msg_send_time)) * 1000)::bigint AS time_elapsed_ms FROM pg_stat_wal_receiver;",
@@ -698,12 +681,11 @@
             }
           ]
         }
-      ],
-      "tag": "pg_wal_last_received",
-      "collector": "wal_last_received",
-      "server": "replica"
+      ]
     },
     {
+      "tag": "pg_gss_auth",
+      "collector": "gssapi",
       "queries": [
         {
           "query": "SELECT COUNT(*) FROM pg_stat_gssapi JOIN pg_stat_activity ON pg_stat_gssapi.pid = pg_stat_activity.pid WHERE gss_authenticated = 't' AND datname IS NOT NULL;",
@@ -715,11 +697,11 @@
             }
           ]
         }
-      ],
-      "tag": "pg_gss_auth",
-      "collector": "gssapi"
+      ]
     },
     {
+      "tag": "pg_encrypted_conn",
+      "collector": "encryted_conns",
       "queries": [
         {
           "query": "SELECT COUNT(*) FROM pg_stat_gssapi JOIN pg_stat_activity ON pg_stat_gssapi.pid = pg_stat_activity.pid WHERE encrypted = 't' AND datname IS NOT NULL;",
@@ -731,11 +713,11 @@
             }
           ]
         }
-      ],
-      "tag": "pg_encrypted_conn",
-      "collector": "encryted_conns"
+      ]
     },
     {
+      "tag": "pg_shmem_allocations",
+      "collector": "shmem_size",
       "queries": [
         {
           "query": "SELECT SUM(sum) AS size_sum, '1' AS size_count, array_agg((bucket - 1) * (50000))::int[] AS size, array_agg(count)::int[] AS size_bucket FROM ( SELECT width_bucket(allocated_size, 0, 5000000, 100) AS bucket, COUNT(*), SUM(allocated_size) FROM pg_shmem_allocations GROUP BY bucket ORDER BY bucket ) t;",
@@ -748,11 +730,12 @@
             }
           ]
         }
-      ],
-      "tag": "pg_shmem_allocations",
-      "collector": "shmem_size"
+      ]
     },
     {
+      "tag": "pg_stat_progress_vacuum",
+      "collector": "vacuum_progress",
+      "sort": "data",
       "queries": [
         {
           "query": "SELECT p.pid, a.datname, a.usename, a.query, p.phase, p.heap_blks_total, p.heap_blks_scanned, p.heap_blks_vacuumed, p.index_vacuum_count, p.max_dead_tuples, p.num_dead_tuples, CASE WHEN p.heap_blks_total > 0 THEN round(100 * p.heap_blks_scanned / p.heap_blks_total, 2) ELSE 0 END AS pct_scan_completed FROM pg_stat_progress_vacuum p JOIN pg_stat_activity a USING (pid) ORDER BY p.pid;",
@@ -815,15 +798,275 @@
             }
           ]
         }
-      ],
-      "tag": "pg_stat_progress_vacuum",
-      "sort": "data",
-      "collector": "vacuum_progress"
+      ]
     },
     {
+      "tag": "pg_stat_progress_analyze",
+      "collector": "analyze_progress",
+      "sort": "data",
+      "queries": [
+        {
+          "query": "SELECT p.pid, a.datname, a.usename, p.phase, p.sample_blks_total, p.sample_blks_scanned, p.ext_stats_total, p.ext_stats_computed, p.child_tables_total, p.child_tables_done, CASE WHEN p.sample_blks_total > 0 THEN ROUND(100 * p.sample_blks_scanned / p.sample_blks_total, 2) ELSE 0 END AS pct_sample_completed, CASE WHEN p.child_tables_total > 0 THEN ROUND(100 * p.child_tables_done / p.child_tables_total, 2) ELSE 0 END AS pct_child_tables_completed FROM pg_stat_progress_analyze p JOIN pg_stat_activity a USING (pid) ORDER BY p.pid;",
+          "version": 13,
+          "columns": [
+            {
+              "name": "pid",
+              "type": "label"
+            },
+            {
+              "name": "datname",
+              "type": "label"
+            },
+            {
+              "name": "usename",
+              "type": "label"
+            },
+            {
+              "name": "phase",
+              "type": "label"
+            },
+            {
+              "name": "sample_blks_total",
+              "type": "gauge",
+              "description": "Total blocks to sample"
+            },
+            {
+              "name": "sample_blks_scanned",
+              "type": "gauge",
+              "description": "Blocks sampled so far"
+            },
+            {
+              "name": "ext_stats_total",
+              "type": "gauge",
+              "description": "Total extended statistics to compute"
+            },
+            {
+              "name": "ext_stats_computed",
+              "type": "gauge",
+              "description": "Extended statistics computed"
+            },
+            {
+              "name": "child_tables_total",
+              "type": "gauge",
+              "description": "Total child tables to analyze"
+            },
+            {
+              "name": "child_tables_done",
+              "type": "gauge",
+              "description": "Child tables analyzed"
+            },
+            {
+              "name": "pct_sample_completed",
+              "type": "gauge",
+              "description": "Percentage of sampling completed"
+            },
+            {
+              "name": "pct_child_tables_completed",
+              "type": "gauge",
+              "description": "Percentage of child tables completed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "pg_stat_user_tables_vacuum",
+      "collector": "stat_user_tables",
+      "sort": "data",
+      "database": "all",
+      "queries": [
+        {
+          "query": "SELECT schemaname, relname, n_live_tup, n_dead_tup, CASE WHEN n_live_tup > 0 THEN ROUND((n_dead_tup::numeric / n_live_tup::numeric) * 100, 2) ELSE 0 END AS dead_rows_pct, n_mod_since_analyze, n_ins_since_vacuum, COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_vacuum))::bigint, -1) AS last_vacuum_seconds, COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_autovacuum))::bigint, -1) AS last_autovacuum_seconds, COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_analyze))::bigint, -1) AS last_analyze_seconds, COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_autoanalyze))::bigint, -1) AS last_autoanalyze_seconds, vacuum_count, autovacuum_count, analyze_count, autoanalyze_count FROM pg_stat_user_tables ORDER BY n_dead_tup DESC;",
+          "version": 13,
+          "columns": [
+            {
+              "name": "schemaname",
+              "type": "label"
+            },
+            {
+              "name": "relname",
+              "type": "label"
+            },
+            {
+              "name": "n_live_tup",
+              "type": "gauge",
+              "description": "Estimated number of live rows"
+            },
+            {
+              "name": "n_dead_tup",
+              "type": "gauge",
+              "description": "Estimated number of dead rows"
+            },
+            {
+              "name": "dead_rows_pct",
+              "type": "gauge",
+              "description": "Percentage of dead rows relative to live rows"
+            },
+            {
+              "name": "n_mod_since_analyze",
+              "type": "gauge",
+              "description": "Estimated number of rows modified since last analyze"
+            },
+            {
+              "name": "n_ins_since_vacuum",
+              "type": "gauge",
+              "description": "Estimated number of rows inserted since last vacuum"
+            },
+            {
+              "name": "last_vacuum_seconds",
+              "type": "gauge",
+              "description": "Seconds since last manual vacuum (-1 if never)"
+            },
+            {
+              "name": "last_autovacuum_seconds",
+              "type": "gauge",
+              "description": "Seconds since last autovacuum (-1 if never)"
+            },
+            {
+              "name": "last_analyze_seconds",
+              "type": "gauge",
+              "description": "Seconds since last manual analyze (-1 if never)"
+            },
+            {
+              "name": "last_autoanalyze_seconds",
+              "type": "gauge",
+              "description": "Seconds since last autoanalyze (-1 if never)"
+            },
+            {
+              "name": "vacuum_count",
+              "type": "counter",
+              "description": "Number of times this table has been manually vacuumed"
+            },
+            {
+              "name": "autovacuum_count",
+              "type": "counter",
+              "description": "Number of times this table has been vacuumed by autovacuum"
+            },
+            {
+              "name": "analyze_count",
+              "type": "counter",
+              "description": "Number of times this table has been manually analyzed"
+            },
+            {
+              "name": "autoanalyze_count",
+              "type": "counter",
+              "description": "Number of times this table has been analyzed by autoanalyze"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "pg_table_ratio",
+      "collector": "table_activity_ratio",
+      "sort": "data",
+      "database": "all",
+      "queries": [
+        {
+          "query": "WITH table_activity AS ( SELECT s.schemaname, s.relname, si.heap_blks_read + si.idx_blks_read AS blocks_read, s.seq_tup_read + s.idx_tup_fetch AS tuples_read, c.relpages * (s.n_tup_ins + s.n_tup_upd + s.n_tup_del) / CASE WHEN c.reltuples = 0 THEN 1 ELSE c.reltuples END AS blocks_write, s.n_tup_ins + s.n_tup_upd + s.n_tup_del AS tuples_write FROM pg_stat_user_tables AS s JOIN pg_statio_user_tables AS si ON s.relid = si.relid JOIN pg_class c ON c.oid = s.relid WHERE (s.n_tup_ins + s.n_tup_upd + s.n_tup_del) > 0 AND (si.heap_blks_read + si.idx_blks_read) > 0 ) SELECT schemaname, relname, blocks_read, tuples_read, blocks_write, tuples_write, CASE WHEN (blocks_read + blocks_write) = 0 THEN 0 ELSE ROUND(100.0 * blocks_write / (blocks_read + blocks_write))::int END AS ratio_write, CASE WHEN (blocks_read + blocks_write) = 0 THEN 0 ELSE ROUND(100.0 * blocks_read / (blocks_read + blocks_write))::int END AS ratio_read FROM table_activity ORDER BY (blocks_read + blocks_write) DESC;",
+          "version": 13,
+          "columns": [
+            {
+              "name": "schemaname",
+              "type": "label"
+            },
+            {
+              "name": "relname",
+              "type": "label"
+            },
+            {
+              "name": "blocks_read",
+              "type": "counter",
+              "description": "Total blocks read from disk (heap + index)"
+            },
+            {
+              "name": "tuples_read",
+              "type": "counter",
+              "description": "Total number of tuples read (sequential + index scans)"
+            },
+            {
+              "name": "blocks_write",
+              "type": "gauge",
+              "description": "Estimated blocks affected by write operations"
+            },
+            {
+              "name": "tuples_write",
+              "type": "counter",
+              "description": "Total number of tuples inserted, updated, or deleted"
+            },
+            {
+              "name": "ratio_write",
+              "type": "gauge",
+              "description": "Percentage of I/O activity that is writes (0-100)"
+            },
+            {
+              "name": "ratio_read",
+              "type": "gauge",
+              "description": "Percentage of I/O activity that is reads (0-100)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "pg_table_bloat",
+      "collector": "table_bloat",
+      "sort": "data",
+      "database": "all",
+      "queries": [
+        {
+          "query": "SELECT schemaname, tblname, real_size AS table_size, extra_size AS bloat_size, ROUND(extra_ratio::numeric, 2) AS bloat_ratio_pct, tblpages, est_tblpages, bs AS block_size FROM ( SELECT schemaname, tblname, bs*tblpages AS real_size, (tblpages-est_tblpages)*bs AS extra_size, CASE WHEN tblpages > 0 THEN 100 * (tblpages-est_tblpages)/tblpages::numeric ELSE 0 END AS extra_ratio, tblpages, est_tblpages, bs FROM ( SELECT n.nspname AS schemaname, c.relname AS tblname, c.relpages AS tblpages, CEIL(c.reltuples/((current_setting('block_size')::integer-24)/100)) AS est_tblpages, current_setting('block_size')::integer AS bs FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relkind = 'r' AND n.nspname NOT IN ('information_schema', 'pg_catalog', 'pg_toast') AND n.nspname NOT LIKE 'pg_temp_%' ) AS bloat_calc ) AS bloat_summary WHERE tblpages > 0 ORDER BY extra_size DESC;",
+          "version": 13,
+          "columns": [
+            {
+              "name": "schemaname",
+              "type": "label"
+            },
+            {
+              "name": "tblname",
+              "type": "label"
+            },
+            {
+              "name": "table_size",
+              "type": "gauge",
+              "description": "Actual table size in bytes"
+            },
+            {
+              "name": "bloat_size",
+              "type": "gauge",
+              "description": "Estimated bloat size in bytes"
+            },
+            {
+              "name": "bloat_ratio_pct",
+              "type": "gauge",
+              "description": "Bloat ratio as percentage"
+            },
+            {
+              "name": "tblpages",
+              "type": "gauge",
+              "description": "Actual number of pages used by table"
+            },
+            {
+              "name": "est_tblpages",
+              "type": "gauge",
+              "description": "Estimated number of pages needed"
+            },
+            {
+              "name": "block_size",
+              "type": "gauge",
+              "description": "Database block size in bytes"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "pg_mem_ctx",
+      "collector": "mem_ctx",
       "queries": [
         {
           "query": "SELECT COUNT(*) AS contexts, parent, SUM(free_bytes) AS free_bytes, SUM(used_bytes) AS used_bytes, SUM(total_bytes) AS total_bytes FROM pg_backend_memory_contexts WHERE parent!='' GROUP BY parent;",
+          "version": 14,
           "columns": [
             {
               "name": "contexts",
@@ -851,14 +1094,15 @@
             }
           ]
         }
-      ],
-      "tag": "pg_mem_ctx",
-      "collector": "mem_ctx"
+      ]
     },
     {
+      "tag": "pg_stat_wal",
+      "collector": "stat_wal",
       "queries": [
         {
           "query": "SELECT wal_records, wal_fpi, wal_bytes, wal_buffers_full, wal_write, wal_sync, wal_write_time, wal_sync_time FROM pg_stat_wal;",
+          "version": 14,
           "columns": [
             {
               "name": "wal_records",
@@ -902,199 +1146,15 @@
             }
           ]
         }
-      ],
-      "tag": "pg_stat_wal",
-      "collector": "stat_wal"
+      ]
     },
     {
+      "tag": "pg_stat_database",
+      "collector": "stat_db",
       "queries": [
         {
-          "query": "SELECT datname, blk_read_time, blk_write_time, blks_hit, blks_read, deadlocks, temp_files, temp_bytes, tup_returned, tup_fetched, tup_inserted, tup_updated, tup_deleted, xact_commit, xact_rollback, conflicts, numbackends FROM pg_stat_database WHERE datname IS NOT NULL ORDER BY datname;",
-          "columns": [
-            {
-              "name": "database",
-              "type": "label"
-            },
-            {
-              "name": "blk_read_time",
-              "type": "counter",
-              "description": "pg_stat_database_blk_read_time"
-            },
-            {
-              "name": "blk_write_time",
-              "type": "counter",
-              "description": "pg_stat_database_blk_write_time"
-            },
-            {
-              "name": "blks_hit",
-              "type": "counter",
-              "description": "pg_stat_database_blks_hit"
-            },
-            {
-              "name": "blks_read",
-              "type": "counter",
-              "description": "pg_stat_database_blks_read"
-            },
-            {
-              "name": "deadlocks",
-              "type": "counter",
-              "description": "pg_stat_database_deadlocks"
-            },
-            {
-              "name": "temp_files",
-              "type": "gauge",
-              "description": "pg_stat_database_temp_files"
-            },
-            {
-              "name": "temp_bytes",
-              "type": "gauge",
-              "description": "pg_stat_database_temp_bytes"
-            },
-            {
-              "name": "tup_returned",
-              "type": "counter",
-              "description": "pg_stat_database_tup_returned"
-            },
-            {
-              "name": "tup_fetched",
-              "type": "counter",
-              "description": "pg_stat_database_tup_fetched"
-            },
-            {
-              "name": "tup_inserted",
-              "type": "counter",
-              "description": "pg_stat_database_tup_inserted"
-            },
-            {
-              "name": "tup_updated",
-              "type": "counter",
-              "description": "pg_stat_database_tup_updated"
-            },
-            {
-              "name": "tup_deleted",
-              "type": "counter",
-              "description": "pg_stat_database_tup_deleted"
-            },
-            {
-              "name": "xact_commit",
-              "type": "counter",
-              "description": "pg_stat_database_xact_commit"
-            },
-            {
-              "name": "xact_rollback",
-              "type": "counter",
-              "description": "pg_stat_database_xact_rollback"
-            },
-            {
-              "name": "conflicts",
-              "type": "counter",
-              "description": "pg_stat_database_conflicts"
-            },
-            {
-              "name": "numbackends",
-              "type": "gauge",
-              "description": "pg_stat_database_numbackends"
-            }
-          ],
-          "version": 10
-        },
-        {
-          "query": "SELECT datname, blk_read_time, blk_write_time, blks_hit, blks_read, deadlocks, temp_files, temp_bytes, tup_returned, tup_fetched, tup_inserted, tup_updated, tup_deleted, xact_commit, xact_rollback, conflicts, numbackends, checksum_failures FROM pg_stat_database WHERE datname IS NOT NULL ORDER BY datname;",
-          "columns": [
-            {
-              "name": "database",
-              "type": "label"
-            },
-            {
-              "name": "blk_read_time",
-              "type": "counter",
-              "description": "pg_stat_database_blk_read_time"
-            },
-            {
-              "name": "blk_write_time",
-              "type": "counter",
-              "description": "pg_stat_database_blk_write_time"
-            },
-            {
-              "name": "blks_hit",
-              "type": "counter",
-              "description": "pg_stat_database_blks_hit"
-            },
-            {
-              "name": "blks_read",
-              "type": "counter",
-              "description": "pg_stat_database_blks_read"
-            },
-            {
-              "name": "deadlocks",
-              "type": "counter",
-              "description": "pg_stat_database_deadlocks"
-            },
-            {
-              "name": "temp_files",
-              "type": "gauge",
-              "description": "pg_stat_database_temp_files"
-            },
-            {
-              "name": "temp_bytes",
-              "type": "gauge",
-              "description": "pg_stat_database_temp_bytes"
-            },
-            {
-              "name": "tup_returned",
-              "type": "counter",
-              "description": "pg_stat_database_tup_returned"
-            },
-            {
-              "name": "tup_fetched",
-              "type": "counter",
-              "description": "pg_stat_database_tup_fetched"
-            },
-            {
-              "name": "tup_inserted",
-              "type": "counter",
-              "description": "pg_stat_database_tup_inserted"
-            },
-            {
-              "name": "tup_updated",
-              "type": "counter",
-              "description": "pg_stat_database_tup_updated"
-            },
-            {
-              "name": "tup_deleted",
-              "type": "counter",
-              "description": "pg_stat_database_tup_deleted"
-            },
-            {
-              "name": "xact_commit",
-              "type": "counter",
-              "description": "pg_stat_database_xact_commit"
-            },
-            {
-              "name": "xact_rollback",
-              "type": "counter",
-              "description": "pg_stat_database_xact_rollback"
-            },
-            {
-              "name": "conflicts",
-              "type": "counter",
-              "description": "pg_stat_database_conflicts"
-            },
-            {
-              "name": "numbackends",
-              "type": "gauge",
-              "description": "pg_stat_database_numbackends"
-            },
-            {
-              "name": "checksum_failures",
-              "type": "gauge",
-              "description": "pg_stat_database_checksum_failures"
-            }
-          ],
-          "version": 12
-        },
-        {
           "query": "SELECT datname, blk_read_time, blk_write_time, blks_hit, blks_read, deadlocks, temp_files, temp_bytes, tup_returned, tup_fetched, tup_inserted, tup_updated, tup_deleted, xact_commit, xact_rollback, conflicts, numbackends, checksum_failures, session_time, active_time, idle_in_transaction_time, sessions, sessions_abandoned, sessions_fatal, sessions_killed FROM pg_stat_database WHERE datname IS NOT NULL ORDER BY datname;",
+          "version": 14,
           "columns": [
             {
               "name": "database",
@@ -1222,255 +1282,82 @@
             }
           ]
         }
-      ],
-      "tag": "pg_stat_database",
-      "collector": "stat_db"
+      ]
     },
     {
-      "queries": [
-        {
-          "query": "SELECT schemaname, relname, n_live_tup, n_dead_tup, CASE WHEN n_live_tup > 0 THEN ROUND((n_dead_tup::numeric / n_live_tup::numeric) * 100, 2) ELSE 0 END AS dead_rows_pct, n_mod_since_analyze, n_ins_since_vacuum, COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_vacuum))::bigint, -1) AS last_vacuum_seconds, COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_autovacuum))::bigint, -1) AS last_autovacuum_seconds, COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_analyze))::bigint, -1) AS last_analyze_seconds, COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_autoanalyze))::bigint, -1) AS last_autoanalyze_seconds, vacuum_count, autovacuum_count, analyze_count, autoanalyze_count FROM pg_stat_user_tables ORDER BY n_dead_tup DESC;",
-          "version": 13,
-          "columns": [
-            {
-              "name": "schemaname",
-              "type": "label"
-            },
-            {
-              "name": "relname",
-              "type": "label"
-            },
-            {
-              "name": "n_live_tup",
-              "type": "gauge",
-              "description": "Estimated number of live rows"
-            },
-            {
-              "name": "n_dead_tup",
-              "type": "gauge",
-              "description": "Estimated number of dead rows"
-            },
-            {
-              "name": "dead_rows_pct",
-              "type": "gauge",
-              "description": "Percentage of dead rows relative to live rows"
-            },
-            {
-              "name": "n_mod_since_analyze",
-              "type": "gauge",
-              "description": "Estimated number of rows modified since last analyze"
-            },
-            {
-              "name": "n_ins_since_vacuum",
-              "type": "gauge",
-              "description": "Estimated number of rows inserted since last vacuum"
-            },
-            {
-              "name": "last_vacuum_seconds",
-              "type": "gauge",
-              "description": "Seconds since last manual vacuum (-1 if never)"
-            },
-            {
-              "name": "last_autovacuum_seconds",
-              "type": "gauge",
-              "description": "Seconds since last autovacuum (-1 if never)"
-            },
-            {
-              "name": "last_analyze_seconds",
-              "type": "gauge",
-              "description": "Seconds since last manual analyze (-1 if never)"
-            },
-            {
-              "name": "last_autoanalyze_seconds",
-              "type": "gauge",
-              "description": "Seconds since last autoanalyze (-1 if never)"
-            },
-            {
-              "name": "vacuum_count",
-              "type": "counter",
-              "description": "Number of times this table has been manually vacuumed"
-            },
-            {
-              "name": "autovacuum_count",
-              "type": "counter",
-              "description": "Number of times this table has been vacuumed by autovacuum"
-            },
-            {
-              "name": "analyze_count",
-              "type": "counter",
-              "description": "Number of times this table has been manually analyzed"
-            },
-            {
-              "name": "autoanalyze_count",
-              "type": "counter",
-              "description": "Number of times this table has been analyzed by autoanalyze"
-            }
-          ]
-        }
-      ],
-      "tag": "pg_stat_user_tables_vacuum",
+      "tag": "pg_stat_database_conflicts",
+      "collector": "stat_conflicts",
       "sort": "data",
-      "collector": "stat_user_tables",
-      "database": "all"
-    },
-    {
       "queries": [
         {
-          "query": "WITH table_activity AS ( SELECT s.schemaname, s.relname, si.heap_blks_read + si.idx_blks_read AS blocks_read, s.seq_tup_read + s.idx_tup_fetch AS tuples_read, c.relpages * (s.n_tup_ins + s.n_tup_upd + s.n_tup_del) / CASE WHEN c.reltuples = 0 THEN 1 ELSE c.reltuples END AS blocks_write, s.n_tup_ins + s.n_tup_upd + s.n_tup_del AS tuples_write FROM pg_stat_user_tables AS s JOIN pg_statio_user_tables AS si ON s.relid = si.relid JOIN pg_class c ON c.oid = s.relid WHERE (s.n_tup_ins + s.n_tup_upd + s.n_tup_del) > 0 AND (si.heap_blks_read + si.idx_blks_read) > 0 ) SELECT schemaname, relname, blocks_read, tuples_read, blocks_write, tuples_write, CASE WHEN (blocks_read + blocks_write) = 0 THEN 0 ELSE ROUND(100.0 * blocks_write / (blocks_read + blocks_write))::int END AS ratio_write, CASE WHEN (blocks_read + blocks_write) = 0 THEN 0 ELSE ROUND(100.0 * blocks_read / (blocks_read + blocks_write))::int END AS ratio_read FROM table_activity ORDER BY (blocks_read + blocks_write) DESC;",
-          "version": 13,
-          "columns": [
-            {
-              "name": "schemaname",
-              "type": "label"
-            },
-            {
-              "name": "relname",
-              "type": "label"
-            },
-            {
-              "name": "blocks_read",
-              "type": "counter",
-              "description": "Total blocks read from disk (heap + index)"
-            },
-            {
-              "name": "tuples_read",
-              "type": "counter",
-              "description": "Total number of tuples read (sequential + index scans)"
-            },
-            {
-              "name": "blocks_write",
-              "type": "gauge",
-              "description": "Estimated blocks affected by write operations"
-            },
-            {
-              "name": "tuples_write",
-              "type": "counter",
-              "description": "Total number of tuples inserted, updated, or deleted"
-            },
-            {
-              "name": "ratio_write",
-              "type": "gauge",
-              "description": "Percentage of I/O activity that is writes (0-100)"
-            },
-            {
-              "name": "ratio_read",
-              "type": "gauge",
-              "description": "Percentage of I/O activity that is reads (0-100)"
-            }
-          ]
-        }
-      ],
-      "tag": "pg_table_ratio",
-      "sort": "data",
-      "collector": "table_activity_ratio",
-      "database": "all"
-    },
-    {
-      "queries": [
-        {
-          "query": "SELECT schemaname, tblname, real_size AS table_size, extra_size AS bloat_size, ROUND(extra_ratio::numeric, 2) AS bloat_ratio_pct, tblpages, est_tblpages, bs AS block_size FROM ( SELECT schemaname, tblname, bs*tblpages AS real_size, (tblpages-est_tblpages)*bs AS extra_size, CASE WHEN tblpages > 0 THEN 100 * (tblpages-est_tblpages)/tblpages::numeric ELSE 0 END AS extra_ratio, tblpages, est_tblpages, bs FROM ( SELECT n.nspname AS schemaname, c.relname AS tblname, c.relpages AS tblpages, CEIL(c.reltuples/((current_setting('block_size')::integer-24)/100)) AS est_tblpages, current_setting('block_size')::integer AS bs FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relkind = 'r' AND n.nspname NOT IN ('information_schema', 'pg_catalog', 'pg_toast') AND n.nspname NOT LIKE 'pg_temp_%' ) AS bloat_calc ) AS bloat_summary WHERE tblpages > 0 ORDER BY extra_size DESC;",
-          "version": 13,
-          "columns": [
-            {
-              "name": "schemaname",
-              "type": "label"
-            },
-            {
-              "name": "tblname",
-              "type": "label"
-            },
-            {
-              "name": "table_size",
-              "type": "gauge",
-              "description": "Actual table size in bytes"
-            },
-            {
-              "name": "bloat_size",
-              "type": "gauge",
-              "description": "Estimated bloat size in bytes"
-            },
-            {
-              "name": "bloat_ratio_pct",
-              "type": "gauge",
-              "description": "Bloat ratio as percentage"
-            },
-            {
-              "name": "tblpages",
-              "type": "gauge",
-              "description": "Actual number of pages used by table"
-            },
-            {
-              "name": "est_tblpages",
-              "type": "gauge",
-              "description": "Estimated number of pages needed"
-            },
-            {
-              "name": "block_size",
-              "type": "gauge",
-              "description": "Database block size in bytes"
-            }
-          ]
-        }
-      ],
-      "tag": "pg_table_bloat",
-      "sort": "data",
-      "collector": "table_bloat",
-      "database": "all"
-    },
-    {
-      "queries": [
-        {
-          "query": "SELECT blocked.pid AS blocked_pid, blocked.datname AS blocked_database, blocked.usename AS blocked_user, blocked.query AS blocked_query, EXTRACT(EPOCH FROM age(now(), blocked.query_start))::bigint AS blocked_duration_seconds, blocking.pid AS blocking_pid, blocking.datname AS blocking_database, blocking.usename AS blocking_user, blocking.query AS blocking_query, EXTRACT(EPOCH FROM age(now(), blocking.query_start))::bigint AS blocking_duration_seconds FROM pg_stat_activity blocked JOIN pg_locks blocked_locks ON blocked.pid = blocked_locks.pid JOIN pg_locks blocking_locks ON blocked_locks.relation = blocking_locks.relation AND blocked_locks.pid != blocking_locks.pid JOIN pg_stat_activity blocking ON blocking.pid = blocking_locks.pid WHERE (blocked.query ILIKE '%VACUUM%' OR blocked.query ILIKE '%AUTOVACUUM%') AND NOT blocked_locks.granted AND blocking_locks.granted ORDER BY blocked_duration_seconds DESC;",
+          "query": "SELECT datname, confl_tablespace, confl_lock, confl_snapshot, confl_bufferpin, confl_deadlock FROM pg_stat_database_conflicts WHERE datname IS NOT NULL ORDER BY datname;",
           "version": 10,
           "columns": [
             {
-              "name": "blocked_pid",
+              "name": "database",
               "type": "label"
             },
             {
-              "name": "blocked_database",
-              "type": "label"
+              "name": "confl_tablespace",
+              "type": "counter",
+              "description": "pg_stat_database_conflicts_confl_tablespace"
             },
             {
-              "name": "blocked_user",
-              "type": "label"
+              "name": "confl_lock",
+              "type": "counter",
+              "description": "pg_stat_database_conflicts_confl_lock"
             },
             {
-              "name": "blocked_query",
-              "type": "label"
+              "name": "confl_snapshot",
+              "type": "counter",
+              "description": "pg_stat_database_conflicts_confl_snapshot"
             },
             {
-              "name": "blocked_duration_seconds",
-              "type": "gauge",
-              "description": "Duration in seconds that the vacuum has been blocked"
+              "name": "confl_bufferpin",
+              "type": "counter",
+              "description": "pg_stat_database_conflicts_confl_bufferpin"
             },
             {
-              "name": "blocking_pid",
-              "type": "label"
-            },
-            {
-              "name": "blocking_database",
-              "type": "label"
-            },
-            {
-              "name": "blocking_user",
-              "type": "label"
-            },
-            {
-              "name": "blocking_query",
-              "type": "label"
-            },
-            {
-              "name": "blocking_duration_seconds",
-              "type": "gauge",
-              "description": "Duration in seconds that the blocking query has been running"
+              "name": "confl_deadlock",
+              "type": "counter",
+              "description": "pg_stat_database_conflicts_confl_deadlock"
             }
           ]
         }
-      ],
-      "tag": "pg_blocked_vacuum",
+      ]
+    },
+    {
+      "tag": "pg_stat_all_indexes",
+      "collector": "stat_all_indexes",
       "sort": "data",
-      "collector": "blocked_vacuum"
+      "database": "all",
+      "queries": [
+        {
+          "query": "SELECT SUM(idx_scan) AS idx_scans, SUM(idx_tup_read) AS idx_tup_reads, SUM(idx_tup_fetch) AS idx_tup_fetchs, relname FROM pg_stat_all_indexes GROUP BY relname;",
+          "version": 10,
+          "columns": [
+            {
+              "type": "counter",
+              "name": "idx_scans",
+              "description": "Number of index scans on the table's indexes."
+            },
+            {
+              "type": "counter",
+              "name": "idx_tup_reads",
+              "description": "Number of index entries returned by scans on the table's indexes."
+            },
+            {
+              "type": "counter",
+              "name": "idx_tup_fetchs",
+              "description": "Number of rows fetched by simple index scans on the table's indexes."
+            },
+            {
+              "type": "label",
+              "name": "relname"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -8,3 +8,10 @@ vendor/
 .ccls
 compile_commands.json
 .DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
