@@ -200,6 +200,13 @@ else ()
   message(FATAL_ERROR "LibYAML needed")
 endif()
 
+find_package(Python3 COMPONENTS Interpreter)
+if (Python3_FOUND)
+  message(STATUS "Python3 found: ${Python3_EXECUTABLE}")
+else()
+  message(STATUS "Python3 not found; contrib file generation will be skipped")
+endif()
+
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/")
 
 add_subdirectory(doc)
@@ -211,3 +218,20 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test")
 else()
   message(STATUS "Test directory not found, skipping tests")
 endif()
+
+#
+# Custom target to regenerate contrib files
+#
+if(Python3_FOUND)
+  set(GENERATOR_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/generate_contrib.py")
+  set(INTERNAL_H "${CMAKE_CURRENT_SOURCE_DIR}/src/include/internal.h")
+  
+  add_custom_target(
+    generate-contrib
+    COMMAND ${Python3_EXECUTABLE} ${GENERATOR_SCRIPT}
+            --internal-h ${INTERNAL_H}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Regenerating contrib YAML/JSON files from internal.h"
+  )
+endif()
+

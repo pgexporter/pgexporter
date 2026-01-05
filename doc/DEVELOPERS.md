@@ -378,6 +378,23 @@ git checkout -b mywork main
 
 Remember to verify the compile and execution of the code
 
+### Editing Queries and Metrics
+
+When modifying queries or metrics in `src/include/internal.h`:
+
+1. Make your changes to `src/include/internal.h`
+2. Regenerate the contrib files:
+   ```bash
+   make generate-contrib
+   ```
+   Or from the repo root:
+   ```bash
+   python3 scripts/generate_contrib.py --internal-h src/include/internal.h
+   ```
+3. Commit both `src/include/internal.h` and the regenerated `contrib/yaml/*.yaml` and `contrib/json/*.json` files together
+
+The generator parses `internal.h` (the single source of truth), validates schemas, and outputs YAML and JSON for PostgreSQL 13–18. Manual edits to contrib files will be detected and rejected by the CI drift check.
+
 ### AUTHORS
 
 Remember to add your name to
