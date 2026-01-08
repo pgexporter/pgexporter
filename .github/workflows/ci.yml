@@ -31,9 +31,9 @@ jobs:
         run: |
           ./clang-format.sh
           if ! git diff --quiet; then
-            git diff --name-only
+            git diff
             echo ""
-            echo "Please run './clang-format.sh' and commit the changes."
+            echo "Please run './clang-format.sh' and commit the changes. Note, that clang-format 21+ is required"
             exit 1
           fi
 
