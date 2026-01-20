@@ -896,6 +896,10 @@ version_information(SSL* client_ssl, int client_fd)
          {
             all = pgexporter_merge_queries(all, query, SORT_NAME);
          }
+         else
+         {
+            pgexporter_log_error("Failed to query version for server %s", config->servers[server].name);
+         }
          query = NULL;
       }
    }
@@ -969,6 +973,10 @@ uptime_information(SSL* client_ssl, int client_fd)
          {
             all = pgexporter_merge_queries(all, query, SORT_NAME);
          }
+         else
+         {
+            pgexporter_log_error("Failed to query uptime for server %s", config->servers[server].name);
+         }
          query = NULL;
       }
    }
@@ -1035,6 +1043,10 @@ primary_information(SSL* client_ssl, int client_fd)
          if (ret == 0)
          {
             all = pgexporter_merge_queries(all, query, SORT_NAME);
+         }
+         else
+         {
+            pgexporter_log_error("Failed to query primary for server %s", config->servers[server].name);
          }
          query = NULL;
       }
@@ -1205,6 +1217,10 @@ settings_information(SSL* client_ssl, int client_fd)
          if (ret == 0)
          {
             all = pgexporter_merge_queries(all, query, SORT_DATA0);
+         }
+         else
+         {
+            pgexporter_log_error("Failed to query settings for server %s", config->servers[server].name);
          }
          query = NULL;
       }
@@ -1377,6 +1393,11 @@ extension_metrics(SSL* client_ssl, int client_fd)
             {
                ext_temp->error = pgexporter_custom_query(server, query_alt->node.query, prom->tag, query_alt->node.n_columns, names, &ext_temp->query);
                ext_temp->sort_type = prom->sort_type;
+            }
+
+            if (ext_temp->error != 0)
+            {
+               pgexporter_log_error("Failed to execute extension query for server %s, extension %s, tag %s", config->servers[server].name, ext_info->name, prom->tag);
             }
 
             free(names);
@@ -1578,6 +1599,11 @@ custom_metrics(SSL* client_ssl, int client_fd)
             {
                temp->error = pgexporter_custom_query(server, query_alt->node.query, prom->tag, query_alt->node.n_columns, names, &temp->query);
                temp->sort_type = prom->sort_type;
+            }
+
+            if (temp->error != 0)
+            {
+               pgexporter_log_error("Failed to execute custom query for server %s, database %s, tag %s", config->servers[server].name, database, prom->tag);
             }
 
             pgexporter_snprintf(temp->database, DB_NAME_LENGTH, "%s", database);

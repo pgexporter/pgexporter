@@ -105,6 +105,7 @@ pgexporter_init_configuration(void* shm)
    config = (struct configuration*)shm;
 
    config->metrics = -1;
+   config->metrics_query_timeout = 0;
    config->cache = true;
    config->number_of_metric_names = 0;
    memset(config->metric_names, 0, sizeof(config->metric_names));
@@ -400,6 +401,20 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (!strcmp(section, "pgexporter"))
                   {
                      if (as_seconds(value, &config->metrics_cache_max_age, 0))
+                     {
+                        unknown = true;
+                     }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "metrics_query_timeout"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     if (as_int(value, &config->metrics_query_timeout))
                      {
                         unknown = true;
                      }
@@ -1197,6 +1212,11 @@ pgexporter_validate_configuration(void* shm)
       }
    }
 
+   if (config->metrics_query_timeout > 0 && config->metrics_query_timeout < 50)
+   {
+      pgexporter_log_warn("metrics_query_timeout=%dms is too low, using 50ms minimum", config->metrics_query_timeout);
+      config->metrics_query_timeout = 50;
+   }
    return 0;
 }
 
@@ -1991,6 +2011,14 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
          }
          pgexporter_json_put(response, key, (uintptr_t)config->metrics_cache_max_age, ValueInt64);
       }
+      else if (!strcmp(key, "metrics_query_timeout"))
+      {
+         if (as_int(config_value, &config->metrics_query_timeout))
+         {
+            unknown = true;
+         }
+         pgexporter_json_put(response, key, (uintptr_t)config->metrics_query_timeout, ValueInt64);
+      }
       else if (!strcmp(key, "metrics_path"))
       {
          max = strlen(config_value);
@@ -2413,6 +2441,7 @@ add_configuration_response(struct json* res)
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_PATH, (uintptr_t)config->metrics_path, ValueString);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, (uintptr_t)config->metrics_cache_max_age, ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_SIZE, (uintptr_t)config->metrics_cache_max_size, ValueInt64);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_QUERY_TIMEOUT, (uintptr_t)config->metrics_query_timeout, ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE, (uintptr_t)config->bridge, ValueInt64);
 
    if (config->number_of_endpoints > 0)
@@ -3378,6 +3407,7 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    memcpy(config->host, reload->host, MISC_LENGTH);
    config->metrics = reload->metrics;
    config->metrics_cache_max_age = reload->metrics_cache_max_age;
+   config->metrics_query_timeout = reload->metrics_query_timeout;
    if (restart_int("metrics_cache_max_size", config->metrics_cache_max_size, reload->metrics_cache_max_size))
    {
       changed = true;

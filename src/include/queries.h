@@ -114,6 +114,15 @@ int
 pgexporter_query_execute(int server, char* sql, char* tag, struct query** query);
 
 /**
+ * Execute a command that doesn't return result sets
+ * @param server The server
+ * @param sql The SQL command to execute
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_execute_command(int server, char* sql);
+
+/**
  * Query PostgreSQL version
  * @param server The server
  * @param query The resulting query

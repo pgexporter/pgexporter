@@ -52,6 +52,7 @@ static int process_server_parameters(int server, struct deque* server_parameters
 static int pgexporter_detect_databases(int server);
 static int pgexporter_detect_extensions(int server);
 static int pgexporter_connect_db(int server, char* database);
+static void pgexporter_apply_metrics_timeout(int server);
 
 int
 pgexporter_check_pg_monitor_role(int server)
@@ -176,6 +177,8 @@ pgexporter_open_connections(void)
 
             pgexporter_detect_databases(server);
             pgexporter_detect_extensions(server);
+
+            pgexporter_apply_metrics_timeout(server);
          }
          else
          {
@@ -242,6 +245,92 @@ int
 pgexporter_query_execute(int server, char* sql, char* tag, struct query** query)
 {
    return query_execute(server, sql, tag, -1, NULL, query);
+}
+
+int
+pgexporter_execute_command(int server, char* sql)
+{
+   int status;
+   bool cont = true;
+   struct message qmsg = {0};
+   struct message* msg = NULL;
+   size_t size;
+   char* content = NULL;
+   void* data = NULL;
+   size_t data_size = 0;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   size = 1 + 4 + strlen(sql) + 1;
+   content = (char*)malloc(size);
+   memset(content, 0, size);
+
+   pgexporter_write_byte(content, 'Q');
+   pgexporter_write_int32(content + 1, size - 1);
+   pgexporter_write_string(content + 5, sql);
+
+   qmsg.kind = 'Q';
+   qmsg.length = size;
+   qmsg.data = content;
+
+   status = pgexporter_write_message(config->servers[server].ssl, config->servers[server].fd, &qmsg);
+   if (status != MESSAGE_STATUS_OK)
+   {
+      pgexporter_log_error("pgexporter_execute_command: failed to write message");
+      goto error;
+   }
+
+   while (cont)
+   {
+      status = pgexporter_read_block_message(config->servers[server].ssl, config->servers[server].fd, &msg);
+
+      if (status == MESSAGE_STATUS_OK)
+      {
+         data = data_append(data, data_size, msg->data, msg->length);
+         data_size += msg->length;
+
+         if (pgexporter_has_message('Z', data, data_size))
+         {
+            cont = false;
+         }
+      }
+      else
+      {
+         pgexporter_log_error("pgexporter_execute_command: failed to read message, status=%d", status);
+         goto error;
+      }
+
+      pgexporter_clear_message();
+      msg = NULL;
+   }
+
+   /* Check for errors */
+   if (pgexporter_has_message('E', data, data_size))
+   {
+      pgexporter_log_error("pgexporter_execute_command: found error message in response");
+      goto error;
+   }
+
+   if (!pgexporter_has_message('C', data, data_size))
+   {
+      pgexporter_log_error("pgexporter_execute_command: no CommandComplete message found");
+      goto error;
+   }
+
+   free(content);
+   free(data);
+
+   return 0;
+
+error:
+   pgexporter_log_error("pgexporter_execute_command: command failed");
+
+   pgexporter_clear_message();
+   free(content);
+   free(data);
+
+   return 1;
 }
 
 int
@@ -1045,10 +1134,15 @@ pgexporter_connect_db(int server, char* database)
       }
    }
 
-   return pgexporter_server_authenticate(server, database == NULL ? "postgres" : database,
-                                         &config->users[user].username[0], &config->users[user].password[0],
-                                         &config->servers[server].ssl,
-                                         &config->servers[server].fd);
+   int ret = pgexporter_server_authenticate(server, database == NULL ? "postgres" : database,
+                                            &config->users[user].username[0], &config->users[user].password[0],
+                                            &config->servers[server].ssl,
+                                            &config->servers[server].fd);
+   if (ret == 0)
+   {
+      pgexporter_apply_metrics_timeout(server);
+   }
+   return ret;
 }
 
 int
@@ -1070,4 +1164,30 @@ pgexporter_switch_db(int server, char* database)
 
 error:
    return ret;
+}
+
+static void
+pgexporter_apply_metrics_timeout(int server)
+{
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (config->metrics_query_timeout > 0)
+   {
+      char* set_query = pgexporter_append(NULL, "SET statement_timeout = ");
+      set_query = pgexporter_append_int(set_query, config->metrics_query_timeout);
+      set_query = pgexporter_append(set_query, ";");
+      if (pgexporter_execute_command(server, set_query) != 0)
+      {
+         pgexporter_log_debug("Failed to set statement_timeout=%dms on server '%s'",
+                              config->metrics_query_timeout, &config->servers[server].name[0]);
+      }
+      else
+      {
+         pgexporter_log_debug("Set statement_timeout=%dms on server '%s'",
+                              config->metrics_query_timeout, &config->servers[server].name[0]);
+      }
+      free(set_query);
+   }
 }

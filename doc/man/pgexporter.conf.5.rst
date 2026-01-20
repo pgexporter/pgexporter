@@ -52,6 +52,11 @@ metrics_cache_max_size
   M or MB (megabytes), G or GB (gigabytes).
   Default is 256k
 
+metrics_query_timeout
+  The timeout in milliseconds for metric SQL queries.
+  If set to 0, no timeout is applied. Minimum value is 50ms when set
+  Default is 0
+
 bridge
   The bridge port
 
