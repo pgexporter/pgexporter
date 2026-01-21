@@ -42,9 +42,27 @@ Then the Prometheus service will query your pgexporter metrics every 15 seconds 
 
 ## Grafana Dashboard
 
-Although Prometheus provides capacity of querying and monitoring metrics, we can not customize graphs for each metric and provide a unified view. As a result, we use Grafana to help us manage all graphs together, we also provide dashboards which can be imported to Grafana.
+Although Prometheus provides capacity of querying and monitoring metrics, we can not customize graphs for each metric and provide a unified view. As a result, we use Grafana to help us manage all graphs together.
 
-### Installation
+### Quick Start (Docker Compose)
+
+For a complete, pre-configured environment, we recommended using the Docker Compose setup provided in `contrib/grafana`. This automatically starts Grafana 12+ and Prometheus, and provisions all dashboards.
+
+1.  Navigate to the directory:
+    ```sh
+    $ cd contrib/grafana
+    ```
+
+2.  Start the stack:
+    ```sh
+    $ docker compose up -d
+    ```
+
+3.  Access Grafana at `http://localhost:3000` (User: `admin`, Password: `admin`).
+
+#### All dashboards are automatically provisioned, so no manual import is needed.
+
+### Installation (Manual)
 
 First of all, we should install Grafana in the computer you need to monitor pgexporter metrics. Installation instructions for your preferred operating system is provided in the official [Grafana Installation page](https://grafana.com/docs/grafana/latest/setup-grafana/installation/):
 
@@ -114,28 +132,59 @@ Then "Run Query":
 
 ### Importing pgexporter dashboard
 
-You could also use pgexporter dashboards which are available in [contrib/grafana](../../contrib/grafana/) directory. Navigate to Click Home -> Dashboards -> New Dashboard and import a new dashboard.
+You could also use pgexporter dashboards which are available in [contrib/grafana](../../contrib/grafana/) directory. Navigate to **Home -> Dashboards -> New -> Import**.
 
 ![image](../images/grafana_import_dashboard.png)
 
-Select "Upload dashboard as JSON file", next select a JSON file based on your Postgres version from [contrib/grafana](../../contrib/grafana/) directory and finally click on "Import".
+We provide 6 version-specific dashboards to support the unique features of each PostgreSQL version:
+
+*   `postgresql_dashboard_pg13.json`
+*   `postgresql_dashboard_pg14.json` (+ Memory Contexts)
+*   `postgresql_dashboard_pg15.json` (+ Memory Contexts)
+*   `postgresql_dashboard_pg16.json` (+ pg_stat_io)
+*   `postgresql_dashboard_pg17.json` (+ Wait Events)
+*   `postgresql_dashboard_pg18.json` (+ Wait Events)
+
+Select **"Upload dashboard as JSON file"**, choose the file matching your PostgreSQL version from the [contrib/grafana](../../contrib/grafana/) directory, select your Prometheus datasource, and click **"Import"**.
 
 You will now be able to view important metrics which pgexporter provides.
 
 ![image](../images/grafana_pgexporter_dashboard.png)
 
-Based on your Postgres version you will be able to see sections related to
+The dashboard organizes metrics into logical sections:
+
 #### System Health
-Instance Status (Primary/Replica indicator), Database Connections, Database Sizes, Transaction Rates, Database Locks
+Instance Status (Primary/Replica), Database Connections, Database Sizes, Transaction Rates, Database Locks.
+
+![image](../images/grafana_pgexporter_dashboard_system_health.png)
 
 #### Performance Indicators
-Cache Hit Ratio, Disk Reads, Tuple Operations (Select, Insert, Update, Delete), Background Writer Activity, Deadlocks & Conflicts
+Cache Hit Ratio, Disk Reads, Tuple Operations (Select/Insert/Update/Delete), Background Writer Activity, Deadlocks & Conflicts.
 
-#### WAL & Replication
-WAL Generation, Replication Status, WAL Archiving, Database Age (Transaction ID Wraparound)
+![image](../images/grafana_pgexporter_dashboard_perf_indicator.png)
 
 #### Query Analysis
-Most Executed Queries, Slowest Queries, Highest WAL Usage Queries, Index Usage
+Most Executed Queries, Slowest Queries, Highest WAL Usage Queries, Index Usage (requires `pg_stat_statements`).
 
-#### Advanced Metrics
-I/O Operations by Backend Type , Memory Usage by Context , Wait Events Statistics , Session Workload Statistics , Logical Replication Statistics.
+![image](../images/grafana_pgexporter_dashboard_queryanalysis.png)
+
+#### Memory & I/O (Version Dependent)
+*   **PG14+**: Memory Usage by Context (Used/Free/Total)
+*   **PG16+**: Detailed I/O statistics (Reads/Writes/Extends per backend type)
+*   **PG17+**: Wait Events analysis (Pie chart breakdown by type)
+
+![image](../images/grafana_pgexporter_dashboard_memory.png)
+
+
+#### WAL & Replication
+WAL Generation, Replication Status, WAL Archiving, Transaction ID Wraparound (Database Age).
+
+![image](../images/grafana_pgexporter_dashboard_wal_replication.png)
+
+### Switching Datasources
+
+If you have configured multiple Prometheus datasources (e.g., for different PostgreSQL servers), you can easily switch between them using the datasource dropdown at the top of the dashboard.
+
+![image](../images/grafana_datasource_select.png)
+
+Select the desired datasource from the dropdown to view metrics from that specific server.

@@ -18,8 +18,20 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 3,
-  "links": [],
+  "id": null,
+  "links": [
+    {
+      "title": "pgexporter Dashboards",
+      "type": "dashboards",
+      "tags": [
+        "pgexporter"
+      ],
+      "icon": "external link",
+      "asDropdown": true,
+      "includeVars": true,
+      "keepTime": true
+    }
+  ],
   "panels": [
     {
       "collapsed": false,
@@ -37,7 +49,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Shows if the instance is a primary or replica",
       "fieldConfig": {
@@ -103,7 +115,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "pgexporter_postgresql_primary",
           "refId": "A"
@@ -115,7 +127,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Number of database connections",
       "fieldConfig": {
@@ -197,7 +209,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "pgexporter_pg_db_conn",
           "legendFormat": "{{database}}",
@@ -210,7 +222,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Database sizes in bytes",
       "fieldConfig": {
@@ -265,7 +277,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "pgexporter_pg_database_size",
           "legendFormat": "{{database}}",
@@ -278,7 +290,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Transaction rates by database",
       "fieldConfig": {
@@ -356,7 +368,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_database_xact_commit[5m])",
           "legendFormat": "Commits - {{database}}",
@@ -365,7 +377,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_database_xact_rollback[5m])",
           "legendFormat": "Rollbacks - {{database}}",
@@ -378,7 +390,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Locks by database and mode",
       "fieldConfig": {
@@ -454,7 +466,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "pgexporter_pg_locks_count",
           "legendFormat": "{{database}} - {{mode}}",
@@ -480,9 +492,9 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Cache hit ratio vs. disk reads",
+      "description": "Buffer cache efficiency. Below 95% indicates excessive disk I/O - consider increasing shared_buffers or optimizing queries. Below 90% is critical.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -537,7 +549,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "100 * (sum(pgexporter_pg_stat_database_blks_hit) / (sum(pgexporter_pg_stat_database_blks_hit) + sum(pgexporter_pg_stat_database_blks_read)))",
           "legendFormat": "Cache Hit Ratio",
@@ -550,7 +562,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Disk reads by database",
       "fieldConfig": {
@@ -628,7 +640,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_database_blks_read[5m])",
           "legendFormat": "{{database}}",
@@ -641,7 +653,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Tuple operations (select, insert, update, delete)",
       "fieldConfig": {
@@ -719,7 +731,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_database_tup_returned[5m])",
           "legendFormat": "Returned - {{database}}",
@@ -728,7 +740,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_database_tup_fetched[5m])",
           "legendFormat": "Fetched - {{database}}",
@@ -737,7 +749,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_database_tup_inserted[5m])",
           "legendFormat": "Inserted - {{database}}",
@@ -746,7 +758,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_database_tup_updated[5m])",
           "legendFormat": "Updated - {{database}}",
@@ -755,7 +767,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_database_tup_deleted[5m])",
           "legendFormat": "Deleted - {{database}}",
@@ -768,7 +780,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Background writer metrics",
       "fieldConfig": {
@@ -859,7 +871,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_bgwriter_buffers_checkpoint[5m])",
           "legendFormat": "Buffers checkpoint",
@@ -868,7 +880,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_bgwriter_buffers_clean[5m])",
           "legendFormat": "Buffers clean",
@@ -877,7 +889,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_bgwriter_buffers_backend[5m])",
           "legendFormat": "Buffers backend",
@@ -887,7 +899,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_bgwriter_checkpoint_write_time[5m])",
           "legendFormat": "Checkpoint write time",
@@ -897,7 +909,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_bgwriter_checkpoint_sync_time[5m])",
           "legendFormat": "Checkpoint sync time",
@@ -911,7 +923,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Deadlocks and conflicts by database",
       "fieldConfig": {
@@ -993,7 +1005,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_database_deadlocks[5m])",
           "legendFormat": "Deadlocks - {{database}}",
@@ -1002,7 +1014,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_database_conflicts[5m])",
           "legendFormat": "Conflicts - {{database}}",
@@ -1028,7 +1040,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "WAL statistics",
       "fieldConfig": {
@@ -1123,7 +1135,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_wal_wal_records[5m])",
           "legendFormat": "WAL Records",
@@ -1132,7 +1144,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_wal_wal_fpi[5m])",
           "legendFormat": "WAL FPI",
@@ -1141,7 +1153,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_wal_wal_bytes[5m])",
           "legendFormat": "WAL Bytes",
@@ -1154,7 +1166,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Replication slots status",
       "fieldConfig": {
@@ -1232,7 +1244,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "pgexporter_pg_replication_slots_active",
           "legendFormat": "Active - {{slot_name}} ({{slot_type}})",
@@ -1241,7 +1253,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "pgexporter_pg_stat_replication",
           "legendFormat": "Streaming WAL - {{application_name}}",
@@ -1254,7 +1266,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "WAL archiver statistics",
       "fieldConfig": {
@@ -1349,7 +1361,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "pgexporter_pg_stat_archiver_archived_count",
           "legendFormat": "Archived Files",
@@ -1358,7 +1370,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "pgexporter_pg_stat_archiver_success_time_elapsed_ms",
           "legendFormat": "Time Since Success (ms)",
@@ -1367,7 +1379,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "pgexporter_pg_stat_archiver_failure_time_elapsed_ms",
           "legendFormat": "Time Since Failure (ms)",
@@ -1380,7 +1392,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Age of databases since last vacuum",
       "fieldConfig": {
@@ -1435,7 +1447,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "pgexporter_pg_db_vacuum_age",
           "legendFormat": "{{datname}}",
@@ -1461,7 +1473,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Most frequently executed queries",
       "fieldConfig": {
@@ -1517,7 +1529,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "topk(10, pgexporter_pg_stat_statements_calls)",
           "format": "time_series",
@@ -1531,9 +1543,9 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Slowest executing queries",
+      "description": "Top 10 slowest queries by total execution time. Yellow (>100ms) indicates optimization candidates. Red (>1s) requires immediate attention. Requires pg_stat_statements extension.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1587,7 +1599,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "topk(10, pgexporter_pg_stat_statements_total_exec_time)",
           "format": "time_series",
@@ -1601,7 +1613,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Queries with highest WAL usage",
       "fieldConfig": {
@@ -1657,7 +1669,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "topk(10, pgexporter_pg_stat_statements_wal_bytes)",
           "format": "time_series",
@@ -1671,7 +1683,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Index usage statistics",
       "fieldConfig": {
@@ -1748,7 +1760,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_all_indexes_idx_scans[5m])",
           "legendFormat": "Index Scans - {{relname}}",
@@ -1757,7 +1769,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_all_indexes_idx_tup_reads[5m])",
           "legendFormat": "Tuples Read - {{relname}}",
@@ -1766,7 +1778,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_all_indexes_idx_tup_fetchs[5m])",
           "legendFormat": "Tuples Fetched - {{relname}}",
@@ -1792,7 +1804,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "PostgreSQL I/O operations by backend type (PostgreSQL 16+)",
       "fieldConfig": {
@@ -1887,7 +1899,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_io_reads[5m])",
           "legendFormat": "Reads - {{backend_type}}",
@@ -1896,7 +1908,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_io_writes[5m])",
           "legendFormat": "Writes - {{backend_type}}",
@@ -1905,7 +1917,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_io_read_time[5m])",
           "legendFormat": "Read Time - {{backend_type}}",
@@ -1914,7 +1926,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "rate(pgexporter_pg_stat_io_write_time[5m])",
           "legendFormat": "Write Time - {{backend_type}}",
@@ -1927,9 +1939,9 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "${DS_PROMETHEUS}"
       },
-      "description": "PostgreSQL memory usage by context (PostgreSQL 14+)",
+      "description": "PostgreSQL backend memory allocation by context. High 'Used' values in specific contexts may indicate memory leaks or inefficient queries. Available in PostgreSQL 14+.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2005,7 +2017,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "pgexporter_pg_mem_ctx_used_bytes",
           "legendFormat": "Used - {{parent}}",
@@ -2014,7 +2026,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${DS_PROMETHEUS}"
           },
           "expr": "pgexporter_pg_mem_ctx_free_bytes",
           "legendFormat": "Free - {{parent}}",
@@ -2026,22 +2038,74 @@
     }
   ],
   "refresh": "30s",
-  "schemaVersion": 41,
+  "schemaVersion": 39,
   "tags": [
-    "postgresql",
     "pgexporter",
-    "database"
+    "postgresql",
+    "monitoring",
+    "pg16"
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "name": "DS_PROMETHEUS",
+        "type": "datasource",
+        "label": "Prometheus",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0
+      },
+      {
+        "name": "server",
+        "type": "query",
+        "label": "Server",
+        "query": "label_values(pgexporter_postgresql_primary, server)",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {},
+        "hide": 0
+      },
+      {
+        "name": "database",
+        "type": "query",
+        "label": "Database",
+        "query": "label_values(pgexporter_pg_stat_database_numbackends, database)",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {},
+        "hide": 0
+      }
+    ]
   },
   "time": {
     "from": "now-6h",
     "to": "now"
   },
-  "timepicker": {},
+  "timepicker": {
+    "refresh_intervals": [
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m"
+    ]
+  },
   "timezone": "browser",
   "title": "PostgreSQL 16 Performance Dashboard - pgexporter",
-  "uid": "postgresql-pgexporter-dashboard",
-  "version": 1
+  "uid": "pgexporter-pg16",
+  "version": 1,
+  "description": "PostgreSQL 16 monitoring dashboard using pgexporter metrics. Includes system health, performance indicators, replication status, and I/O statistics.",
+  "liveNow": false
 }
