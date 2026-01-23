@@ -798,8 +798,6 @@ add_line(struct prometheus_metric* metric, char* line, int endpoint, time_t time
       goto error;
    }
 
-   pgexporter_log_info("Attributes: %p %p", attributes, attributes != NULL ? attributes->attributes : 0);
-
    if (add_value(attributes->values, timestamp, line_value))
    {
       goto error;
