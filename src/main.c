@@ -1166,6 +1166,11 @@ main(int argc, char** argv)
                            config->servers[i].fd != -1 ? "true" : "false");
    }
 
+   /* Close connections after validation - child processes will create their own.
+    * SSL objects cannot be shared across fork(), so keeping them open here
+    * would just cause memory leaks when children reset the shared memory pointers. */
+   pgexporter_close_connections();
+
    /* Extension metrics */
    if (pgexporter_load_extension_yamls(config))
    {
@@ -1234,6 +1239,8 @@ main(int argc, char** argv)
                                     prometheus_cache_shmem_size);
 
    pgexporter_memory_destroy();
+
+   OPENSSL_cleanup();
 
    if (daemon || stop)
    {
