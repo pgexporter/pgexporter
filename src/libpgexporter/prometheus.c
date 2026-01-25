@@ -259,6 +259,8 @@ pgexporter_prometheus(SSL* client_ssl, int client_fd)
    pgexporter_memory_destroy();
    pgexporter_stop_logging();
 
+   OPENSSL_cleanup();
+
    exit(0);
 
 error:
@@ -270,6 +272,8 @@ error:
 
    pgexporter_memory_destroy();
    pgexporter_stop_logging();
+
+   OPENSSL_cleanup();
 
    exit(1);
 }
@@ -376,7 +380,8 @@ resolve_page(struct message* msg)
    char* from = NULL;
    int index;
 
-   if (msg->length < 3 || strncmp((char*)msg->data, "GET", 3) != 0)
+   if (msg == NULL || msg->data == NULL || msg->length < 3 ||
+       strncmp((char*)msg->data, "GET", 3) != 0)
    {
       pgexporter_log_debug("Prometheus: Not a GET request");
       return BAD_REQUEST;
@@ -385,9 +390,14 @@ resolve_page(struct message* msg)
    index = 4;
    from = (char*)msg->data + index;
 
-   while (pgexporter_read_byte(msg->data + index) != ' ')
+   while (index < msg->length && pgexporter_read_byte(msg->data + index) != ' ')
    {
       index++;
+   }
+
+   if (index >= msg->length)
+   {
+      return BAD_REQUEST;
    }
 
    pgexporter_write_byte(msg->data + index, '\0');
@@ -725,6 +735,8 @@ retry_cache_locking:
    return 0;
 
 error:
+
+   pgexporter_close_connections();
 
    free(data);
 
@@ -1863,6 +1875,18 @@ append:
       {
          data = NULL;
 
+         /* Free previous iteration's allocations */
+         for (int i = 0; i < n_bounds; i++)
+         {
+            free(bounds_arr[i]);
+            bounds_arr[i] = NULL;
+         }
+         for (int i = 0; i < n_buckets; i++)
+         {
+            free(buckets_arr[i]);
+            buckets_arr[i] = NULL;
+         }
+
          /* bucket */
          char* bounds_str = pgexporter_get_column_by_name(names[2], temp->query, current);
          parse_list(bounds_str, bounds_arr, &n_bounds);
@@ -2576,6 +2600,11 @@ send_chunk(SSL* client_ssl, int client_fd, char* data)
 
    memset(&msg, 0, sizeof(struct message));
 
+   if (data == NULL)
+   {
+      return MESSAGE_STATUS_ERROR;
+   }
+
    m = malloc(20);
 
    if (m == NULL)
@@ -2590,6 +2619,10 @@ send_chunk(SSL* client_ssl, int client_fd, char* data)
    m = pgexporter_vappend(m, 2,
                           data,
                           "\r\n");
+   if (m == NULL)
+   {
+      goto error;
+   }
 
    msg.kind = 0;
    msg.length = strlen(m);
@@ -2895,6 +2928,11 @@ metrics_cache_append(char* data)
       return false;
    }
 
+   if (data == NULL)
+   {
+      return false;
+   }
+
    origin_length = strlen(cache->data);
    append_length = strlen(data);
    // need to append the data to the cache
@@ -2911,7 +2949,7 @@ metrics_cache_append(char* data)
 
    // append the data to the data field
    memcpy(cache->data + origin_length, data, append_length);
-   cache->data[origin_length + append_length + 1] = '\0';
+   cache->data[origin_length + append_length] = '\0';
    return true;
 }
 

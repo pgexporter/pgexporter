@@ -133,6 +133,11 @@ pgexporter_open_connections(void)
          if (!pgexporter_connection_isvalid(config->servers[server].ssl, config->servers[server].fd))
          {
             pgexporter_disconnect(config->servers[server].fd);
+            if (config->servers[server].ssl != NULL)
+            {
+               pgexporter_close_ssl(config->servers[server].ssl);
+               config->servers[server].ssl = NULL;
+            }
             config->servers[server].fd = -1;
          }
       }
@@ -146,6 +151,13 @@ pgexporter_open_connections(void)
             {
                user = usr;
             }
+         }
+         if (user == -1)
+         {
+            pgexporter_log_error("No user '%s' configured for server '%s'",
+                                 &config->servers[server].username[0],
+                                 &config->servers[server].name[0]);
+            continue;
          }
 
          config->servers[server].new = false;
@@ -168,10 +180,16 @@ pgexporter_open_connections(void)
             {
                pgexporter_log_fatal("Server '%s': pg_monitor role check failed. pgexporter cannot function without proper permissions.",
                                     &config->servers[server].name[0]);
+               if (config->servers[server].ssl != NULL)
+               {
+                  pgexporter_close_ssl(config->servers[server].ssl);
+                  config->servers[server].ssl = NULL;
+               }
                pgexporter_disconnect(config->servers[server].fd);
                config->servers[server].fd = -1;
                config->servers[server].new = false;
                config->servers[server].state = SERVER_UNKNOWN;
+               pgexporter_close_connections();
                exit(1);
             }
 
@@ -191,8 +209,6 @@ pgexporter_open_connections(void)
 void
 pgexporter_close_connections(void)
 {
-   int ret;
-   bool nuke;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
@@ -201,42 +217,18 @@ pgexporter_close_connections(void)
    {
       if (config->servers[server].fd != -1)
       {
-         nuke = true;
+         pgexporter_write_terminate(config->servers[server].ssl, config->servers[server].fd);
 
-         if (config->cache)
+         if (config->servers[server].ssl != NULL)
          {
-            if (config->servers[server].new)
-            {
-               ret = pgexporter_transfer_connection_write(server);
-
-               if (ret == 0)
-               {
-                  config->servers[server].new = false;
-               }
-            }
-
-            if (!config->servers[server].new)
-            {
-               nuke = false;
-            }
-         }
-
-         if (nuke)
-         {
-            pgexporter_write_terminate(config->servers[server].ssl, config->servers[server].fd);
-            if (config->servers[server].ssl != NULL)
-            {
-               pgexporter_close_ssl(config->servers[server].ssl);
-            }
-            else
-            {
-               pgexporter_disconnect(config->servers[server].fd);
-            }
+            pgexporter_close_ssl(config->servers[server].ssl);
             config->servers[server].ssl = NULL;
-            config->servers[server].fd = -1;
-            config->servers[server].new = false;
-            config->servers[server].state = SERVER_UNKNOWN;
          }
+
+         pgexporter_disconnect(config->servers[server].fd);
+         config->servers[server].fd = -1;
+         config->servers[server].new = false;
+         config->servers[server].state = SERVER_UNKNOWN;
       }
    }
 }
@@ -1133,6 +1125,13 @@ pgexporter_connect_db(int server, char* database)
          user = usr;
       }
    }
+   if (user == -1)
+   {
+      pgexporter_log_error("No user '%s' configured for server '%s'",
+                           &config->servers[server].username[0],
+                           &config->servers[server].name[0]);
+      return AUTH_ERROR;
+   }
 
    int ret = pgexporter_server_authenticate(server, database == NULL ? "postgres" : database,
                                             &config->users[user].username[0], &config->users[user].password[0],
@@ -1153,7 +1152,22 @@ pgexporter_switch_db(int server, char* database)
 
    config = (struct configuration*)shmem;
 
-   pgexporter_disconnect(config->servers[server].fd);
+   if (config->servers[server].fd != -1)
+   {
+      pgexporter_write_terminate(config->servers[server].ssl, config->servers[server].fd);
+      if (config->servers[server].ssl != NULL)
+      {
+         pgexporter_close_ssl(config->servers[server].ssl);
+         pgexporter_disconnect(config->servers[server].fd);
+      }
+      else
+      {
+         pgexporter_disconnect(config->servers[server].fd);
+      }
+      config->servers[server].ssl = NULL;
+      config->servers[server].fd = -1;
+   }
+
    ret = pgexporter_connect_db(server, database);
    if (ret != 0)
    {
