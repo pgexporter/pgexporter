@@ -196,10 +196,15 @@ metrics:
       description: Number of DB connections with SSL.
 - tag: pg_statio_all_tables
   collector: statio_all_tables
+  database: all
   queries:
-  - query: SELECT COUNT(heap_blks_read) AS heap_blks_read, COUNT(heap_blks_hit) AS heap_blks_hit, COUNT(idx_blks_read) as idx_blks_read, COUNT(idx_blks_hit) AS idx_blks_hit, COUNT(toast_blks_read) AS toast_blks_read, COUNT(toast_blks_hit) AS toast_blks_hit, COUNT(tidx_blks_read) AS tidx_blks_read, COUNT(tidx_blks_hit) AS tidx_blks_hit FROM pg_statio_all_tables;
+  - query: SELECT schemaname, relname, heap_blks_read AS heap_blks_read, heap_blks_hit AS heap_blks_hit, idx_blks_read as idx_blks_read, idx_blks_hit AS idx_blks_hit, toast_blks_read AS toast_blks_read, toast_blks_hit AS toast_blks_hit, tidx_blks_read AS tidx_blks_read, tidx_blks_hit AS tidx_blks_hit FROM pg_statio_all_tables;
     version: 10
     columns:
+    - name: schemaname
+      type: label
+    - name: relname
+      type: label
     - name: heap_blks_read
       type: counter
       description: Number of disk blocks read in postgres db.
@@ -226,10 +231,15 @@ metrics:
       description: Number of buffer hits read from postgres db's TOAST table indexes.
 - tag: pg_statio_all_sequences
   collector: statio_all_sequences
+  database: all
   queries:
-  - query: SELECT COUNT(blks_read) AS blks_read, COUNT(blks_hit) AS blks_hit FROM pg_statio_all_sequences;
+  - query: SELECT schemaname, relname, blks_read AS blks_read, blks_hit AS blks_hit FROM pg_statio_all_sequences;
     version: 10
     columns:
+    - name: schemaname
+      type: label
+    - name: relname
+      type: label
     - name: blks_read
       type: counter
       description: Number of disk blocks read from sequences in postgres db.
