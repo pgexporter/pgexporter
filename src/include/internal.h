@@ -494,17 +494,23 @@ extern "C" {
                       "# All tables statio\n"                                                                                                                                           \
                       "  - queries:\n"                                                                                                                                                  \
                       "    - query: SELECT\n"                                                                                                                                           \
-                      "                COUNT(heap_blks_read) AS heap_blks_read,\n"                                                                                                      \
-                      "                COUNT(heap_blks_hit) AS heap_blks_hit,\n"                                                                                                        \
-                      "                COUNT(idx_blks_read) as idx_blks_read,\n"                                                                                                        \
-                      "                COUNT(idx_blks_hit) AS idx_blks_hit,\n"                                                                                                          \
-                      "                COUNT(toast_blks_read) AS toast_blks_read,\n"                                                                                                    \
-                      "                COUNT(toast_blks_hit) AS toast_blks_hit,\n"                                                                                                      \
-                      "                COUNT(tidx_blks_read) AS tidx_blks_read,\n"                                                                                                      \
-                      "                COUNT(tidx_blks_hit) AS tidx_blks_hit\n"                                                                                                         \
+                      "                schemaname,\n"                                                                                                                                   \
+                      "                relname,\n"                                                                                                                                      \
+                      "                heap_blks_read AS heap_blks_read,\n"                                                                                                             \
+                      "                heap_blks_hit AS heap_blks_hit,\n"                                                                                                               \
+                      "                idx_blks_read as idx_blks_read,\n"                                                                                                               \
+                      "                idx_blks_hit AS idx_blks_hit,\n"                                                                                                                 \
+                      "                toast_blks_read AS toast_blks_read,\n"                                                                                                           \
+                      "                toast_blks_hit AS toast_blks_hit,\n"                                                                                                             \
+                      "                tidx_blks_read AS tidx_blks_read,\n"                                                                                                             \
+                      "                tidx_blks_hit AS tidx_blks_hit\n"                                                                                                                \
                       "              FROM pg_statio_all_tables;\n"                                                                                                                      \
                       "      version: 10\n"                                                                                                                                             \
                       "      columns:\n"                                                                                                                                                \
+                      "        - name: schemaname\n"                                                                                                                                    \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: relname\n"                                                                                                                                       \
+                      "          type: label\n"                                                                                                                                         \
                       "        - name: heap_blks_read\n"                                                                                                                                \
                       "          type: counter\n"                                                                                                                                       \
                       "          description: Number of disk blocks read in postgres db.\n"                                                                                             \
@@ -531,15 +537,22 @@ extern "C" {
                       "          description: Number of buffer hits read from postgres db's TOAST table indexes.\n"                                                                     \
                       "    tag: pg_statio_all_tables\n"                                                                                                                                 \
                       "    collector: statio_all_tables\n"                                                                                                                              \
+                      "    database: all\n"                                                                                                                                             \
                       "\n"                                                                                                                                                              \
                       "# All sequences statio\n"                                                                                                                                        \
                       "  - queries:\n"                                                                                                                                                  \
                       "    - query: SELECT\n"                                                                                                                                           \
-                      "                COUNT(blks_read) AS blks_read,\n"                                                                                                                \
-                      "                COUNT(blks_hit) AS blks_hit\n"                                                                                                                   \
+                      "                schemaname,\n"                                                                                                                                   \
+                      "                relname,\n"                                                                                                                                      \
+                      "                blks_read AS blks_read,\n"                                                                                                                       \
+                      "                blks_hit AS blks_hit\n"                                                                                                                          \
                       "              FROM pg_statio_all_sequences;\n"                                                                                                                   \
                       "      version: 10\n"                                                                                                                                             \
                       "      columns:\n"                                                                                                                                                \
+                      "        - name: schemaname\n"                                                                                                                                    \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: relname\n"                                                                                                                                       \
+                      "          type: label\n"                                                                                                                                         \
                       "        - name: blks_read\n"                                                                                                                                     \
                       "          type: counter\n"                                                                                                                                       \
                       "          description: Number of disk blocks read from sequences in postgres db.\n"                                                                              \
@@ -548,6 +561,7 @@ extern "C" {
                       "          description: Number of buffer hits read from sequences in postgres db.\n"                                                                              \
                       "    tag: pg_statio_all_sequences\n"                                                                                                                              \
                       "    collector: statio_all_sequences\n"                                                                                                                           \
+                      "    database: all\n"                                                                                                                                             \
                       "\n"                                                                                                                                                              \
                       "# Stat user functions\n"                                                                                                                                         \
                       "  - queries:\n"                                                                                                                                                  \
