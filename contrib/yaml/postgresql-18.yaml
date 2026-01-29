@@ -215,7 +215,7 @@ metrics:
 - tag: pg_statio_all_tables
   collector: statio_all_tables
   queries:
-  - query: SELECT COUNT(heap_blks_read) AS heap_blks_read, COUNT(heap_blks_hit) AS heap_blks_hit, COUNT(idx_blks_read) as idx_blks_read, COUNT(idx_blks_hit) AS idx_blks_hit, COUNT(toast_blks_read) AS toast_blks_read, COUNT(toast_blks_hit) AS toast_blks_hit, COUNT(tidx_blks_read) AS tidx_blks_read, COUNT(tidx_blks_hit) AS tidx_blks_hit FROM pg_statio_all_tables;
+  - query: SELECT SUM(heap_blks_read) AS heap_blks_read, SUM(heap_blks_hit) AS heap_blks_hit, SUM(idx_blks_read) as idx_blks_read, SUM(idx_blks_hit) AS idx_blks_hit, SUM(toast_blks_read) AS toast_blks_read, SUM(toast_blks_hit) AS toast_blks_hit, SUM(tidx_blks_read) AS tidx_blks_read, SUM(tidx_blks_hit) AS tidx_blks_hit FROM pg_statio_all_tables;
     version: 10
     columns:
     - name: heap_blks_read
@@ -245,7 +245,7 @@ metrics:
 - tag: pg_statio_all_sequences
   collector: statio_all_sequences
   queries:
-  - query: SELECT COUNT(blks_read) AS blks_read, COUNT(blks_hit) AS blks_hit FROM pg_statio_all_sequences;
+  - query: SELECT SUM(blks_read) AS blks_read, SUM(blks_hit) AS blks_hit FROM pg_statio_all_sequences;
     version: 10
     columns:
     - name: blks_read

@@ -491,14 +491,14 @@ extern "C" {
                       "# All tables statio\n"                                                                                                                                           \
                       "  - queries:\n"                                                                                                                                                  \
                       "    - query: SELECT\n"                                                                                                                                           \
-                      "                COUNT(heap_blks_read) AS heap_blks_read,\n"                                                                                                      \
-                      "                COUNT(heap_blks_hit) AS heap_blks_hit,\n"                                                                                                        \
-                      "                COUNT(idx_blks_read) as idx_blks_read,\n"                                                                                                        \
-                      "                COUNT(idx_blks_hit) AS idx_blks_hit,\n"                                                                                                          \
-                      "                COUNT(toast_blks_read) AS toast_blks_read,\n"                                                                                                    \
-                      "                COUNT(toast_blks_hit) AS toast_blks_hit,\n"                                                                                                      \
-                      "                COUNT(tidx_blks_read) AS tidx_blks_read,\n"                                                                                                      \
-                      "                COUNT(tidx_blks_hit) AS tidx_blks_hit\n"                                                                                                         \
+                      "                SUM(heap_blks_read) AS heap_blks_read,\n"                                                                                                        \
+                      "                SUM(heap_blks_hit) AS heap_blks_hit,\n"                                                                                                          \
+                      "                SUM(idx_blks_read) as idx_blks_read,\n"                                                                                                          \
+                      "                SUM(idx_blks_hit) AS idx_blks_hit,\n"                                                                                                            \
+                      "                SUM(toast_blks_read) AS toast_blks_read,\n"                                                                                                      \
+                      "                SUM(toast_blks_hit) AS toast_blks_hit,\n"                                                                                                        \
+                      "                SUM(tidx_blks_read) AS tidx_blks_read,\n"                                                                                                        \
+                      "                SUM(tidx_blks_hit) AS tidx_blks_hit\n"                                                                                                           \
                       "              FROM pg_statio_all_tables;\n"                                                                                                                      \
                       "      version: 10\n"                                                                                                                                             \
                       "      columns:\n"                                                                                                                                                \
@@ -532,8 +532,8 @@ extern "C" {
                       "# All sequences statio\n"                                                                                                                                        \
                       "  - queries:\n"                                                                                                                                                  \
                       "    - query: SELECT\n"                                                                                                                                           \
-                      "                COUNT(blks_read) AS blks_read,\n"                                                                                                                \
-                      "                COUNT(blks_hit) AS blks_hit\n"                                                                                                                   \
+                      "                SUM(blks_read) AS blks_read,\n"                                                                                                                  \
+                      "                SUM(blks_hit) AS blks_hit\n"                                                                                                                     \
                       "              FROM pg_statio_all_sequences;\n"                                                                                                                   \
                       "      version: 10\n"                                                                                                                                             \
                       "      columns:\n"                                                                                                                                                \
