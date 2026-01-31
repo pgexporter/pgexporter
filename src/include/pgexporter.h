@@ -372,6 +372,7 @@ struct configuration
    size_t metrics_cache_max_size; /**< Number of bytes max to cache the Prometheus response */
    int metrics_query_timeout;     /**< Timeout in milliseconds for metric queries */
    int management;                /**< The management port */
+   int console;                   /**< The console port */
 
    int bridge;                        /**< The bridge port */
    int bridge_cache_max_age;          /**< Number of seconds to cache the bridge response */
