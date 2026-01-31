@@ -3076,6 +3076,31 @@ hvsnprintf(char* buf, size_t n, const char* fmt, va_list ap)
          }
       }
 
+      /* Parse precision */
+      int precision = -1;
+      if (*p == '.')
+      {
+         p++;
+         if (*p == '*')
+         {
+            precision = va_arg(ap, int);
+            p++;
+         }
+         else
+         {
+            precision = 0;
+            while (isdigit((unsigned char)*p))
+            {
+               precision = precision * 10 + (*p - '0');
+               p++;
+            }
+         }
+         if (precision < 0)
+         {
+            precision = -1;
+         }
+      }
+
       /* Length modifier */
       enum { LM_NONE,
              LM_L,
@@ -3119,7 +3144,18 @@ hvsnprintf(char* buf, size_t n, const char* fmt, va_list ap)
                s = "(null)";
             }
             size_t cur = (out != NULL) ? strlen(out) : 0;
-            append_bounded(&out, s, cur, cap);
+            if (precision >= 0)
+            {
+               for (int i = 0; s[i] != '\0' && i < precision && cur < cap; i++)
+               {
+                  append_char_bounded(&out, s[i], cur, cap);
+                  cur++;
+               }
+            }
+            else
+            {
+               append_bounded(&out, s, cur, cap);
+            }
             break;
          }
          case 'c':
