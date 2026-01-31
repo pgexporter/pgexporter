@@ -3335,10 +3335,17 @@ int
 pgexporter_snprintf(char* buf, size_t n, const char* fmt, ...)
 {
    va_list ap;
+   va_list ap_copy;
    int ret;
 
    va_start(ap, fmt);
-   ret = hvsnprintf(buf, n, fmt, ap);
+   va_copy(ap_copy, ap);
+   ret = vsnprintf(buf, n, fmt, ap_copy);
+   va_end(ap_copy);
+   if (ret < 0)
+   {
+      ret = hvsnprintf(buf, n, fmt, ap);
+   }
    va_end(ap);
 
    return ret;
