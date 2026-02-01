@@ -85,6 +85,7 @@ typedef struct yaml_metric
    char* collector;
    char* server;
    bool exec_on_all_dbs;
+   bool optional;
 } __attribute__((aligned(64))) yaml_metric_t;
 
 // Config's Structure
@@ -137,6 +138,9 @@ static int parse_string(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, pars
 
 // Parse 'database' key in YAML
 static int parse_exec_all_dbs(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, bool* exec_on_all_dbs);
+
+// Parse 'optional' key in YAML
+static int parse_optional(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, bool* optional);
 
 // Parse a scalar value in YAML
 static int parse_value(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr);
@@ -845,6 +849,13 @@ parse_metrics(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
                   goto error;
                }
             }
+            else if (!strcmp(buf, "optional"))
+            {
+               if (parse_optional(parser_ptr, event_ptr, state_ptr, &(*metrics)[*n_metrics].optional))
+               {
+                  goto error;
+               }
+            }
             else
             {
                goto error;
@@ -1243,6 +1254,33 @@ error:
 }
 
 static int
+parse_optional(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, bool* optional)
+{
+   char* dest = NULL;
+
+   if (parse_string(parser_ptr, event_ptr, state_ptr, &dest))
+   {
+      goto error;
+   }
+
+   if (!strcmp(dest, "true"))
+   {
+      *optional = true;
+   }
+   else
+   {
+      *optional = false;
+   }
+
+   free(dest);
+   return 0;
+
+error:
+   free(dest);
+   return 1;
+}
+
+static int
 parse_value(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr)
 {
    yaml_event_delete(event_ptr);
@@ -1431,6 +1469,7 @@ semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t*
       }
 
       prom->exec_on_all_dbs = yaml_config->metrics[i].exec_on_all_dbs;
+      prom->optional = yaml_config->metrics[i].optional;
 
       // Queries
       for (int j = 0; j < yaml_config->metrics[i].n_queries; j++)

@@ -255,7 +255,7 @@ def build_metric_for_version(
     }
     
     # Add optional top-level fields if present
-    for field in ['sort', 'server', 'database']:
+    for field in ['sort', 'server', 'database', 'optional']:
         if field in metric:
             output_metric[field] = metric[field]
     
