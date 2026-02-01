@@ -1531,7 +1531,7 @@ extension_metrics(prometheus_metrics_container_t* container)
    }
 
    ext_temp = ext_q_list;
-   column_store_t ext_store[PROMETHEUS_LENGTH] = {0};
+   column_store_t ext_store[MAX_METRIC_COLUMNS] = {0};
    int ext_n_store = 0;
 
    while (ext_temp)
@@ -1746,7 +1746,7 @@ custom_metrics(prometheus_metrics_container_t* container)
 
    /* Tuples */
    temp = q_list;
-   column_store_t store[PROMETHEUS_LENGTH] = {0};
+   column_store_t store[MAX_METRIC_COLUMNS] = {0};
    int n_store = 0;
 
    while (temp)
@@ -2202,6 +2202,12 @@ append:
          return;
       }
 
+      if (idx >= MAX_METRIC_COLUMNS)
+      {
+         pgexporter_log_warn("Maximum metric columns (%d) exceeded, skipping", MAX_METRIC_COLUMNS);
+         return;
+      }
+
       (*n_store)++;
 
       store[idx].type = HISTOGRAM_TYPE;
@@ -2258,6 +2264,12 @@ handle_default_gauge_counter(column_store_t* store, int* n_store, query_list_t* 
 
       if (idx >= (*n_store))
       {
+         if (idx >= MAX_METRIC_COLUMNS)
+         {
+            pgexporter_log_warn("Maximum metric columns (%d) exceeded, skipping", MAX_METRIC_COLUMNS);
+            continue;
+         }
+
          (*n_store)++;
          memcpy(store[idx].name, temp->query_alt->node.columns[i].name, MISC_LENGTH);
          store[idx].type = temp->query_alt->node.columns[i].type;
@@ -2361,6 +2373,12 @@ handle_default_histogram(column_store_t* store, int* n_store, query_list_t* temp
 
    if (idx >= (*n_store))
    {
+      if (idx >= MAX_METRIC_COLUMNS)
+      {
+         pgexporter_log_warn("Maximum metric columns (%d) exceeded, skipping", MAX_METRIC_COLUMNS);
+         return;
+      }
+
       (*n_store)++;
 
       store[idx].type = HISTOGRAM_TYPE;
@@ -2618,6 +2636,12 @@ append:
       else
       {
          /* New Column */
+         if (idx >= MAX_METRIC_COLUMNS)
+         {
+            pgexporter_log_warn("Maximum metric columns (%d) exceeded, skipping", MAX_METRIC_COLUMNS);
+            continue;
+         }
+
          (*n_store)++;
 
          memcpy(store[idx].name, temp->query_alt->node.columns[i].name, MIN(PROMETHEUS_LENGTH - 1, strlen(temp->query_alt->node.columns[i].name)));
