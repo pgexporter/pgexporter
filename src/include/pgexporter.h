@@ -76,6 +76,7 @@ extern "C" {
 #define NUMBER_OF_EXTENSIONS         64
 #define NUMBER_OF_DATABASES          64
 #define NUMBER_OF_METRIC_NAMES       1024
+#define MAX_METRIC_COLUMNS           2048
 
 #define STATE_FREE                   0
 #define STATE_IN_USE                 1
