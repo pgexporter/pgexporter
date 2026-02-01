@@ -223,6 +223,7 @@
       "tag": "pg_file_settings",
       "collector": "file_settings",
       "sort": "data",
+      "optional": true,
       "queries": [
         {
           "query": "SELECT sourcefile, COUNT(*), ( CASE applied WHEN 't' THEN 'true' ELSE 'false' END ) as applied FROM pg_file_settings WHERE applied = 't' GROUP BY sourcefile, applied;",
@@ -326,6 +327,7 @@
       "tag": "pg_shadow",
       "collector": "auth_type",
       "sort": "data",
+      "optional": true,
       "queries": [
         {
           "query": "SELECT ( CASE WHEN rolpassword LIKE 'md5%' THEN 'MD5' WHEN rolpassword LIKE 'SCRAM-SHA-256$%' THEN 'SCRAM-SHA-256' ELSE 'UNENCRYPTED' END ) AS encryption_type, COUNT(*) FROM pg_authid WHERE rolname != 'postgres' GROUP BY encryption_type;",
@@ -346,6 +348,7 @@
     {
       "tag": "pg_usr_evt_trigger",
       "collector": "usr_evt_trigger",
+      "optional": true,
       "queries": [
         {
           "query": "SELECT COUNT(*) FROM pg_event_trigger JOIN pg_authid ON pg_event_trigger.oid = pg_authid.oid WHERE rolname != 'postgres';",

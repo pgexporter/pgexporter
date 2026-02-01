@@ -27,6 +27,7 @@ Sara Nabih <nabihsara8@gmail.com>
 Mahmoud Hamdy (TutTrue) <mahmoud.hamdy5113@gmail.com>
 Somye Mahajan <mahajan.somye@gmail.com>
 Shashank Singh <shashanksgh3@gmail.com>
+Abdelrhman Sersawy <abdelrhmansersawy@gmail.com>
 ```
 
 ## Contributing

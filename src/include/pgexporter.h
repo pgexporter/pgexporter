@@ -332,6 +332,7 @@ struct prometheus
    int sort_type;                        /**< Sorting type of multi queries 0--SORT_NAME 1--SORT_DATA0 */
    int server_query_type;                /**< Query type 0--SERVER_QUERY_BOTH 1--SERVER_QUERY_PRIMARY 2--SERVER_QUERY_REPLICA */
    bool exec_on_all_dbs;                 /**< Execute on all databases */
+   bool optional;                        /**< If true, suppress warning on query failure */
    char collector[MAX_COLLECTOR_LENGTH]; /**< Collector Tag for query */
    struct pg_query_alts* pg_root;        /**< Root of the Query Alternatives' AVL Tree for PostgreSQL core queries*/
    struct ext_query_alts* ext_root;      /**< Root of the Query Alternatives' AVL Tree for PostgreSQL extension queries*/

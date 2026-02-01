@@ -1615,7 +1615,14 @@ custom_metrics(SSL* client_ssl, int client_fd)
 
             if (temp->error != 0)
             {
-               pgexporter_log_warn("Failed to execute custom query for server %s, database %s, tag %s", config->servers[server].name, database, prom->tag);
+               if (prom->optional)
+               {
+                  pgexporter_log_debug("Failed to execute custom query for server %s, database %s, tag %s", config->servers[server].name, database, prom->tag);
+               }
+               else
+               {
+                  pgexporter_log_warn("Failed to execute custom query for server %s, database %s, tag %s", config->servers[server].name, database, prom->tag);
+               }
             }
 
             pgexporter_snprintf(temp->database, DB_NAME_LENGTH, "%s", database);

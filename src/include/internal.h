@@ -356,6 +356,7 @@ extern "C" {
                       "        - name: applied\n"                                                                                                                                       \
                       "          type: label\n"                                                                                                                                         \
                       "    tag: pg_file_settings\n"                                                                                                                                     \
+                      "    optional: true\n"                                                                                                                                            \
                       "    sort: data\n"                                                                                                                                                \
                       "    collector: file_settings\n"                                                                                                                                  \
                       "\n"                                                                                                                                                              \
@@ -437,6 +438,7 @@ extern "C" {
                       "        - type: gauge\n"                                                                                                                                         \
                       "          description: Number of users with authentication type.\n"                                                                                              \
                       "    tag: pg_shadow\n"                                                                                                                                            \
+                      "    optional: true\n"                                                                                                                                            \
                       "    sort: data\n"                                                                                                                                                \
                       "    collector: auth_type\n"                                                                                                                                      \
                       "\n"                                                                                                                                                              \
@@ -452,6 +454,7 @@ extern "C" {
                       "        - type: gauge\n"                                                                                                                                         \
                       "          description: Number of user defined event triggers.\n"                                                                                                 \
                       "    tag: pg_usr_evt_trigger\n"                                                                                                                                   \
+                      "    optional: true\n"                                                                                                                                            \
                       "    collector: usr_evt_trigger\n"                                                                                                                                \
                       "\n"                                                                                                                                                              \
                       "# Get number of database connections\n"                                                                                                                          \

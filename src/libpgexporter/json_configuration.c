@@ -73,6 +73,7 @@ typedef struct json_metric
    char* collector;
    char* server;
    bool exec_on_all_dbs;
+   bool optional;
 } __attribute__((aligned(64))) json_metric_t;
 
 // Config's Structure
@@ -605,6 +606,23 @@ parse_metrics(struct json* metrics_array, json_config_t* config)
          current_metric->exec_on_all_dbs = false;
       }
 
+      if (pgexporter_json_contains_key(metric, "optional"))
+      {
+         char* optional = (char*)pgexporter_json_get(metric, "optional");
+         if (!strcmp("true", optional))
+         {
+            current_metric->optional = true;
+         }
+         else
+         {
+            current_metric->optional = false;
+         }
+      }
+      else
+      {
+         current_metric->optional = false; // default
+      }
+
       if (pgexporter_json_contains_key(metric, "queries"))
       {
          struct json* queries = (struct json*)pgexporter_json_get(metric, "queries");
@@ -832,6 +850,7 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
 
       // Execute on all databases
       prom->exec_on_all_dbs = json_config->metrics[i].exec_on_all_dbs;
+      prom->optional = json_config->metrics[i].optional;
 
       // Queries
       for (int j = 0; j < json_config->metrics[i].n_queries; j++)
