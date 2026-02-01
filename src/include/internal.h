@@ -1539,7 +1539,7 @@ extern "C" {
                       "                SELECT\n"                                                                                                                                        \
                       "                  schemaname,\n"                                                                                                                                 \
                       "                  tblname,\n"                                                                                                                                    \
-                      "                  bs*tblpages AS real_size,\n"                                                                                                                   \
+                      "                  bs*tblpages::bigint AS real_size,\n"                                                                                                           \
                       "                  (tblpages-est_tblpages)*bs AS extra_size,\n"                                                                                                   \
                       "                  CASE WHEN tblpages > 0\n"                                                                                                                      \
                       "                    THEN 100 * (tblpages-est_tblpages)/tblpages::numeric\n"                                                                                      \

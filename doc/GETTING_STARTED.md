@@ -58,12 +58,15 @@ Next we create a section called `[primary]` which has the information about our
 [PostgreSQL](https://www.postgresql.org) instance. In this case it is running
 on `localhost` on port `5432` and we will use the `pgexporter` user account to connect.
 
-The `pgexporter` user must have the `pg_monitor` role and have access to the `postgres` database,
-so for example
+The `pgexporter` user must have the `pg_monitor` role and have access to the `postgres` database.
+In addition, `pgexporter` must have (read) access to the `pg_file_settings` as well as `pg_authid` tables and it must be allowed to use the `pg_show_all_file_settings` function.
+So for example
 
 ```
 CREATE ROLE pgexporter WITH NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION LOGIN PASSWORD 'secretpassword';
 GRANT pg_monitor TO pgexporter;
+GRANT SELECT ON TABLE pg_file_settings, pg_authid TO pgexporter;
+GRANT EXECUTE ON FUNCTION pg_show_all_file_settings TO pgexporter;
 ```
 
 and in `pg_hba.conf`

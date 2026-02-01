@@ -133,12 +133,14 @@ Now, we are ready to start PostgreSQL
 pg_ctl -D DB -l /tmp/ start
 ```
 
-Lets connect, add the pgexporter user
+Lets connect, add the pgexporter user and grant required permissions
 
 ```
 psql postgres
 CREATE ROLE pgexporter WITH NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION LOGIN PASSWORD 'pgexporter';
 GRANT pg_monitor TO pgexporter;
+GRANT SELECT ON TABLE pg_file_settings, pg_authid TO pgexporter;
+GRANT EXECUTE ON FUNCTION pg_show_all_file_settings TO pgexporter;
 \q
 ```
 
