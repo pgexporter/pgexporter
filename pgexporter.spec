@@ -4,11 +4,11 @@ Release:       1%{dist}
 Summary:       Prometheus exporter for PostgreSQL
 License:       BSD
 URL:           https://github.com/pgexporter/pgexporter
-Source0:       https://github.com/pgexporter/pgexporter/archive/%{version}.tar.gz
+Source0:       %{name}-%{version}.tar.gz
 
-BuildRequires: gcc cmake make python3-docutils zlib zlib-devel libzstd libzstd-devel lz4 lz4-devel bzip2 bzip2-devel
-BuildRequires: libev libev-devel openssl openssl-devel systemd systemd-devel libyaml libyaml-devel
-Requires:      libev openssl systemd libyaml zlib libzstd lz4 bzip2
+BuildRequires: gcc cmake make python3-docutils zlib zlib-devel libzstd libzstd-devel lz4 lz4-devel bzip2 bzip2-devel libev libev-devel
+BuildRequires: openssl openssl-devel systemd systemd-devel libyaml libyaml-devel liburing-devel
+Requires:      libev openssl systemd libyaml zlib libzstd lz4 bzip2 liburing
 
 %description
 Prometheus exporter for PostgreSQL
@@ -20,7 +20,7 @@ Prometheus exporter for PostgreSQL
 
 %{__mkdir} build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake -DCMAKE_BUILD_TYPE=Release -DDOCS=OFF ..
 %{__make}
 
 %install
@@ -29,8 +29,16 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__mkdir} -p %{buildroot}%{_bindir}
 %{__mkdir} -p %{buildroot}%{_libdir}
 %{__mkdir} -p %{buildroot}%{_docdir}/%{name}/etc
+%{__mkdir} -p %{buildroot}%{_docdir}/%{name}/images
+%{__mkdir} -p %{buildroot}%{_docdir}/%{name}/manual/en
+%{__mkdir} -p %{buildroot}%{_docdir}/%{name}/man
 %{__mkdir} -p %{buildroot}%{_docdir}/%{name}/shell_comp
 %{__mkdir} -p %{buildroot}%{_docdir}/%{name}/yaml
+%{__mkdir} -p %{buildroot}%{_docdir}/%{name}/json
+%{__mkdir} -p %{buildroot}%{_docdir}/%{name}/grafana
+%{__mkdir} -p %{buildroot}%{_docdir}/%{name}/grafana/provisioning/dashboards
+%{__mkdir} -p %{buildroot}%{_docdir}/%{name}/grafana/provisioning/datasources
+%{__mkdir} -p %{buildroot}%{_docdir}/%{name}/views
 %{__mkdir} -p %{buildroot}%{_docdir}/%{name}/prometheus_scrape
 %{__mkdir} -p %{buildroot}%{_mandir}/man1
 %{__mkdir} -p %{buildroot}%{_mandir}/man5
@@ -46,16 +54,30 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/GETTING_STARTED.md %{buildroot}%{_docdir}/%{name}/GETTING_STARTED.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/RPM.md %{buildroot}%{_docdir}/%{name}/RPM.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/YAML.md %{buildroot}%{_docdir}/%{name}/YAML.md
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/DEVELOPERS.md %{buildroot}%{_docdir}/%{name}/DEVELOPERS.md
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/TEST.md %{buildroot}%{_docdir}/%{name}/TEST.md
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/JSON.md %{buildroot}%{_docdir}/%{name}/JSON.md
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/BRIDGE.md %{buildroot}%{_docdir}/%{name}/BRIDGE.md
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/VIEWS.md %{buildroot}%{_docdir}/%{name}/VIEWS.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/etc/pgexporter.service %{buildroot}%{_docdir}/%{name}/etc/pgexporter.service
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/images/* %{buildroot}%{_docdir}/%{name}/images/
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/manual/en/* %{buildroot}%{_docdir}/%{name}/manual/en/
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/man/*.rst %{buildroot}%{_docdir}/%{name}/man/
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/shell_comp/pgexporter_comp.bash %{buildroot}%{_docdir}/%{name}/shell_comp/pgexporter_comp.bash
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/shell_comp/pgexporter_comp.zsh %{buildroot}%{_docdir}/%{name}/shell_comp/pgexporter_comp.zsh
-%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-13.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-13.yaml
-%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-14.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-14.yaml
-%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-15.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-15.yaml
-%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/postgresql-16.yaml %{buildroot}%{_docdir}/%{name}/yaml/postgresql-16.yaml
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/yaml/*.yaml %{buildroot}%{_docdir}/%{name}/yaml/
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/prometheus_scrape/extra.info %{buildroot}%{_docdir}/%{name}/prometheus_scrape/extra.info
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/prometheus_scrape/prometheus.py %{buildroot}%{_docdir}/%{name}/prometheus_scrape/prometheus.py
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/prometheus_scrape/README.md %{buildroot}%{_docdir}/%{name}/prometheus_scrape/README.md
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/json/*.json %{buildroot}%{_docdir}/%{name}/json/
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/grafana/*.json %{buildroot}%{_docdir}/%{name}/grafana/
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/grafana/*.yml %{buildroot}%{_docdir}/%{name}/grafana/
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/grafana/provisioning/dashboards/*.yml %{buildroot}%{_docdir}/%{name}/grafana/provisioning/dashboards/
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/grafana/provisioning/datasources/*.yml %{buildroot}%{_docdir}/%{name}/grafana/provisioning/datasources/
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/grafana/README.md %{buildroot}%{_docdir}/%{name}/grafana/README.md
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/grafana/TESTING.md %{buildroot}%{_docdir}/%{name}/grafana/TESTING.md
+
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/views/pg_system_views_extractor.sql %{buildroot}%{_docdir}/%{name}/views/pg_system_views_extractor.sql
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/extensions/pg_stat_statements.yaml %{buildroot}%{_datadir}/%{name}/extensions/pg_stat_statements.yaml
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/extensions/pg_buffercache.yaml %{buildroot}%{_datadir}/%{name}/extensions/pg_buffercache.yaml
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/extensions/pgcrypto.yaml %{buildroot}%{_datadir}/%{name}/extensions/pgcrypto.yaml
@@ -89,20 +111,29 @@ cd %{buildroot}%{_libdir}/
 %files
 %license %{_docdir}/%{name}/LICENSE
 %{_docdir}/%{name}/ARCHITECTURE.md
+%{_docdir}/%{name}/BRIDGE.md
 %{_docdir}/%{name}/CODE_OF_CONDUCT.md
 %{_docdir}/%{name}/CLI.md
 %{_docdir}/%{name}/CONFIGURATION.md
+%{_docdir}/%{name}/DEVELOPERS.md
 %{_docdir}/%{name}/GETTING_STARTED.md
+%{_docdir}/%{name}/JSON.md
 %{_docdir}/%{name}/README.md
 %{_docdir}/%{name}/RPM.md
+%{_docdir}/%{name}/TEST.md
+%{_docdir}/%{name}/VIEWS.md
 %{_docdir}/%{name}/YAML.md
 %{_docdir}/%{name}/etc/pgexporter.service
+%{_docdir}/%{name}/images/
+%{_docdir}/%{name}/manual/en/
+%{_docdir}/%{name}/man/*.rst
 %{_docdir}/%{name}/shell_comp/pgexporter_comp.bash
 %{_docdir}/%{name}/shell_comp/pgexporter_comp.zsh
-%{_docdir}/%{name}/yaml/postgresql-13.yaml
-%{_docdir}/%{name}/yaml/postgresql-14.yaml
-%{_docdir}/%{name}/yaml/postgresql-15.yaml
-%{_docdir}/%{name}/yaml/postgresql-16.yaml
+%{_docdir}/%{name}/yaml/
+%{_docdir}/%{name}/json/
+%{_docdir}/%{name}/grafana/
+
+%{_docdir}/%{name}/views/pg_system_views_extractor.sql
 %{_docdir}/%{name}/prometheus_scrape/extra.info
 %{_docdir}/%{name}/prometheus_scrape/prometheus.py
 %{_docdir}/%{name}/prometheus_scrape/README.md

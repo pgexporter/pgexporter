@@ -230,3 +230,7 @@ jobs:
           name: macos-generated-docs
           path: ${{ env.BUILD_DIR }}/doc/
           retention-days: 7
+
+  build-rpm:
+    needs: [format-check, contrib-check]
+    uses: ./.github/workflows/rpm-build.yml
