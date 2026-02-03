@@ -113,6 +113,18 @@ if (check)
     endif()
   endif()
   add_executable(pgexporter-test runner.c ${SOURCES})
+  if (CMAKE_C_COMPILER_ID STREQUAL "Clang")
+  target_compile_options(pgexporter-test PRIVATE
+    -fprofile-instr-generate
+    -fcoverage-mapping
+    -O0
+  )
+  target_link_options(pgexporter-test PRIVATE
+    -fprofile-instr-generate
+    -fcoverage-mapping
+  )
+endif()
+
   target_include_directories(pgexporter-test PRIVATE ${CMAKE_SOURCE_DIR}/src/include ${CMAKE_SOURCE_DIR}/test/include)
 
   if(EXISTS "/etc/debian_version")
