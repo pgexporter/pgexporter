@@ -752,15 +752,6 @@ http_build_request(struct http* connection, struct http_request* request, char**
    headers = pgexporter_append(headers, content_length);
    headers = pgexporter_append(headers, "\r\n");
 
-   if (request->method == PGEXPORTER_HTTP_POST)
-   {
-      headers = pgexporter_append(headers, "Content-Type: application/x-www-form-urlencoded\r\n");
-   }
-   else if (request->method == PGEXPORTER_HTTP_PUT)
-   {
-      headers = pgexporter_append(headers, "Content-Type: application/octet-stream\r\n");
-   }
-
    if (request->payload.headers != NULL && !pgexporter_deque_empty(request->payload.headers))
    {
       struct deque_iterator* iter = NULL;
