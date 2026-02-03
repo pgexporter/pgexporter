@@ -59,6 +59,7 @@ cmake -DCMAKE_BUILD_TYPE=Release -DDOCS=OFF ..
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/JSON.md %{buildroot}%{_docdir}/%{name}/JSON.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/BRIDGE.md %{buildroot}%{_docdir}/%{name}/BRIDGE.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/VIEWS.md %{buildroot}%{_docdir}/%{name}/VIEWS.md
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/SPONSORS.md %{buildroot}%{_docdir}/%{name}/SPONSORS.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/etc/pgexporter.service %{buildroot}%{_docdir}/%{name}/etc/pgexporter.service
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/images/* %{buildroot}%{_docdir}/%{name}/images/
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/manual/en/* %{buildroot}%{_docdir}/%{name}/manual/en/
@@ -120,6 +121,7 @@ cd %{buildroot}%{_libdir}/
 %{_docdir}/%{name}/JSON.md
 %{_docdir}/%{name}/README.md
 %{_docdir}/%{name}/RPM.md
+%{_docdir}/%{name}/SPONSORS.md
 %{_docdir}/%{name}/TEST.md
 %{_docdir}/%{name}/VIEWS.md
 %{_docdir}/%{name}/YAML.md
