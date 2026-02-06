@@ -298,6 +298,9 @@ retry_cache_locking:
       atomic_store(&config->logging_warn, 0);
       atomic_store(&config->logging_error, 0);
       atomic_store(&config->logging_fatal, 0);
+      atomic_store(&config->query_executions_total, 0);
+      atomic_store(&config->query_errors_total, 0);
+      atomic_store(&config->query_timeouts_total, 0);
 
       atomic_store(&cache->lock, STATE_FREE);
    }
@@ -547,6 +550,11 @@ home_page(SSL* client_ssl, int client_fd)
                              "  <li>pgexporter_logging_warn</li>\n",
                              "  <li>pgexporter_logging_error</li>\n",
                              "  <li>pgexporter_logging_fatal</li>\n");
+
+   data = pgexporter_vappend(data, 3,
+                             "  <li>pgexporter_query_executions_total</li>\n",
+                             "  <li>pgexporter_query_errors_total</li>\n",
+                             "  <li>pgexporter_query_timeouts_total</li>\n");
 
    send_chunk(client_ssl, client_fd, data);
    free(data);
@@ -834,6 +842,22 @@ general_information(SSL* client_ssl, int client_fd)
    data = pgexporter_append(data, "#TYPE pgexporter_logging_fatal gauge\n");
    data = pgexporter_append(data, "pgexporter_logging_fatal ");
    data = pgexporter_append_ulong(data, atomic_load(&config->logging_fatal));
+   data = pgexporter_append(data, "\n\n");
+
+   data = pgexporter_append(data, "#HELP pgexporter_query_executions_total The total number of metric queries executed\n");
+   data = pgexporter_append(data, "#TYPE pgexporter_query_executions_total counter\n");
+   data = pgexporter_append(data, "pgexporter_query_executions_total ");
+   data = pgexporter_append_ulong(data, atomic_load(&config->query_executions_total));
+   data = pgexporter_append(data, "\n\n");
+   data = pgexporter_append(data, "#HELP pgexporter_query_errors_total The total number of metric queries that failed\n");
+   data = pgexporter_append(data, "#TYPE pgexporter_query_errors_total counter\n");
+   data = pgexporter_append(data, "pgexporter_query_errors_total ");
+   data = pgexporter_append_ulong(data, atomic_load(&config->query_errors_total));
+   data = pgexporter_append(data, "\n\n");
+   data = pgexporter_append(data, "#HELP pgexporter_query_timeouts_total The total number of metric queries that timed out\n");
+   data = pgexporter_append(data, "#TYPE pgexporter_query_timeouts_total counter\n");
+   data = pgexporter_append(data, "pgexporter_query_timeouts_total ");
+   data = pgexporter_append_ulong(data, atomic_load(&config->query_timeouts_total));
    data = pgexporter_append(data, "\n\n");
 
    if (data != NULL)
