@@ -127,7 +127,7 @@ pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl
    *client_ssl = NULL;
 
    /* Receive client calls - at any point if client exits return AUTH_ERROR */
-   status = pgexporter_read_timeout_message(NULL, client_fd, config->authentication_timeout, &msg);
+   status = pgexporter_read_timeout_message(NULL, client_fd, pgexporter_time_convert(config->authentication_timeout, FORMAT_TIME_S), &msg);
    if (status != MESSAGE_STATUS_OK)
    {
       goto error;
@@ -175,7 +175,7 @@ pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl
             goto error;
          }
 
-         status = pgexporter_read_timeout_message(c_ssl, client_fd, config->authentication_timeout, &msg);
+         status = pgexporter_read_timeout_message(c_ssl, client_fd, pgexporter_time_convert(config->authentication_timeout, FORMAT_TIME_S), &msg);
          if (status != MESSAGE_STATUS_OK)
          {
             goto error;
@@ -191,7 +191,7 @@ pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl
          }
          pgexporter_clear_message();
 
-         status = pgexporter_read_timeout_message(NULL, client_fd, config->authentication_timeout, &msg);
+         status = pgexporter_read_timeout_message(NULL, client_fd, pgexporter_time_convert(config->authentication_timeout, FORMAT_TIME_S), &msg);
          if (status != MESSAGE_STATUS_OK)
          {
             goto error;
@@ -836,7 +836,7 @@ retry:
    status = pgexporter_read_timeout_message(c_ssl, client_fd, 1, &msg);
    if (status != MESSAGE_STATUS_OK)
    {
-      if (difftime(time(NULL), start_time) < config->authentication_timeout)
+      if (difftime(time(NULL), start_time) < pgexporter_time_convert(config->authentication_timeout, FORMAT_TIME_S))
       {
          if (pgexporter_socket_isvalid(client_fd))
          {
@@ -886,7 +886,7 @@ retry:
       goto error;
    }
 
-   status = pgexporter_read_timeout_message(c_ssl, client_fd, config->authentication_timeout, &msg);
+   status = pgexporter_read_timeout_message(c_ssl, client_fd, pgexporter_time_convert(config->authentication_timeout, FORMAT_TIME_S), &msg);
    if (status != MESSAGE_STATUS_OK)
    {
       goto error;

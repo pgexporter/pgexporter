@@ -49,12 +49,13 @@
 #include <unistd.h>
 #include <sys/types.h>
 
-#define CHUNK_SIZE   32768
+#define CHUNK_SIZE                       32768
+#define DEFAULT_BLOCKING_TIMEOUT_SECONDS 30
 
-#define PAGE_UNKNOWN 0
-#define PAGE_HOME    1
-#define PAGE_METRICS 2
-#define BAD_REQUEST  3
+#define PAGE_UNKNOWN                     0
+#define PAGE_HOME                        1
+#define PAGE_METRICS                     2
+#define BAD_REQUEST                      3
 
 static int resolve_page(struct message* msg);
 static int badrequest_page(int client_fd);
@@ -93,7 +94,7 @@ pgexporter_bridge(int client_fd)
    config = (struct configuration*)shmem;
 
    status = pgexporter_read_timeout_message(
-      NULL, client_fd, config->authentication_timeout, &msg);
+      NULL, client_fd, (int)pgexporter_time_convert(config->authentication_timeout, FORMAT_TIME_S), &msg);
 
    if (status != MESSAGE_STATUS_OK)
    {
@@ -151,7 +152,7 @@ pgexporter_bridge_json(int client_fd)
 
    config = (struct configuration*)shmem;
 
-   status = pgexporter_read_timeout_message(NULL, client_fd, config->authentication_timeout, &msg);
+   status = pgexporter_read_timeout_message(NULL, client_fd, (int)pgexporter_time_convert(config->authentication_timeout, FORMAT_TIME_S), &msg);
 
    if (status != MESSAGE_STATUS_OK)
    {
@@ -492,7 +493,7 @@ retry_cache_locking:
    else
    {
       dt = (int)difftime(time(NULL), start_time);
-      if (dt >= (config->blocking_timeout > 0 ? config->blocking_timeout : 30))
+      if (dt >= (pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S) > 0 ? pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S) : DEFAULT_BLOCKING_TIMEOUT_SECONDS))
       {
          goto error;
       }
@@ -605,7 +606,7 @@ is_bridge_cache_configured(void)
       return false;
    }
 
-   return config->bridge_cache_max_age != PROMETHEUS_BRIDGE_CACHE_DISABLED &&
+   return pgexporter_time_is_valid(config->bridge_cache_max_age) &&
           config->bridge_cache_max_size != PROMETHEUS_BRIDGE_CACHE_DISABLED;
 }
 
@@ -666,7 +667,8 @@ pgexporter_bridge_init_cache(size_t* p_size, void** p_shmem)
 
 error:
    // disable caching
-   config->bridge_cache_max_age = config->bridge_cache_max_size = PROMETHEUS_BRIDGE_CACHE_DISABLED;
+   config->bridge_cache_max_age = PGEXPORTER_TIME_DISABLED;
+   config->bridge_cache_max_size = PROMETHEUS_BRIDGE_CACHE_DISABLED;
    pgexporter_log_error("Cannot allocate shared memory for the Prometheus cache!");
    *p_size = 0;
    *p_shmem = NULL;
@@ -804,7 +806,7 @@ bridge_cache_finalize(void)
    }
 
    now = time(NULL);
-   cache->valid_until = now + config->bridge_cache_max_age;
+   cache->valid_until = now + pgexporter_time_convert(config->bridge_cache_max_age, FORMAT_TIME_S);
    return cache->valid_until > now;
 }
 
@@ -996,7 +998,7 @@ retry_cache_json_locking:
             if (!atomic_compare_exchange_strong(&cache_json->lock, &cache_json_is_free, STATE_IN_USE))
             {
                dt = (int)difftime(time(NULL), start_time);
-               if (dt >= (config->blocking_timeout > 0 ? config->blocking_timeout : 30))
+               if (dt >= (pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S) > 0 ? pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S) : DEFAULT_BLOCKING_TIMEOUT_SECONDS))
                {
                   goto error;
                }
@@ -1009,7 +1011,7 @@ retry_cache_json_locking:
       else
       {
          dt = (int)difftime(time(NULL), start_time);
-         if (dt >= (config->blocking_timeout > 0 ? config->blocking_timeout : 30))
+         if (dt >= (pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S) > 0 ? pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S) : DEFAULT_BLOCKING_TIMEOUT_SECONDS))
          {
             goto error;
          }
@@ -1160,7 +1162,7 @@ retry_cache_locking:
       if (!atomic_compare_exchange_strong(&cache->lock, &cache_is_free, STATE_IN_USE))
       {
          dt = (int)difftime(time(NULL), start_time);
-         if (dt >= (config->blocking_timeout > 0 ? config->blocking_timeout : 30))
+         if (dt >= (pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S) > 0 ? pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S) : DEFAULT_BLOCKING_TIMEOUT_SECONDS))
          {
             goto error;
          }

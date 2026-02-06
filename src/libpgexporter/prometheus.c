@@ -51,19 +51,20 @@
 #include <unistd.h>
 #include <sys/types.h>
 
-#define CHUNK_SIZE                  32768
+#define CHUNK_SIZE                       32768
+#define DEFAULT_BLOCKING_TIMEOUT_SECONDS 30
 
-#define PAGE_UNKNOWN                0
-#define PAGE_HOME                   1
-#define PAGE_METRICS                2
-#define BAD_REQUEST                 3
+#define PAGE_UNKNOWN                     0
+#define PAGE_HOME                        1
+#define PAGE_METRICS                     2
+#define BAD_REQUEST                      3
 
-#define MAX_ARR_LENGTH              256
-#define NUMBER_OF_HISTOGRAM_COLUMNS 4
+#define MAX_ARR_LENGTH                   256
+#define NUMBER_OF_HISTOGRAM_COLUMNS      4
 
-#define INPUT_NO                    0
-#define INPUT_DATA                  1
-#define INPUT_WAL                   2
+#define INPUT_NO                         0
+#define INPUT_DATA                       1
+#define INPUT_WAL                        2
 
 /**
  * This is a linked list of queries with the data received from the server
@@ -189,7 +190,7 @@ pgexporter_prometheus(SSL* client_ssl, int client_fd)
          char* path = "/";
          char* base_url = NULL;
 
-         if (pgexporter_read_timeout_message(NULL, client_fd, config->authentication_timeout, &msg) != MESSAGE_STATUS_OK)
+         if (pgexporter_read_timeout_message(NULL, client_fd, (int)pgexporter_time_convert(config->authentication_timeout, FORMAT_TIME_S), &msg) != MESSAGE_STATUS_OK)
          {
             pgexporter_log_error("Failed to read message");
             goto error;
@@ -227,7 +228,7 @@ pgexporter_prometheus(SSL* client_ssl, int client_fd)
          exit(0);
       }
    }
-   status = pgexporter_read_timeout_message(client_ssl, client_fd, config->authentication_timeout, &msg);
+   status = pgexporter_read_timeout_message(client_ssl, client_fd, (int)pgexporter_time_convert(config->authentication_timeout, FORMAT_TIME_S), &msg);
 
    if (status != MESSAGE_STATUS_OK)
    {
@@ -721,7 +722,7 @@ retry_cache_locking:
    else
    {
       dt = (int)difftime(time(NULL), start_time);
-      if (dt >= (config->blocking_timeout > 0 ? config->blocking_timeout : 30))
+      if (dt >= (pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S) > 0 ? pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S) : DEFAULT_BLOCKING_TIMEOUT_SECONDS))
       {
          goto error;
       }
@@ -2786,7 +2787,7 @@ is_metrics_cache_configured(void)
       return false;
    }
 
-   return config->metrics_cache_max_age != PGEXPORTER_PROMETHEUS_CACHE_DISABLED;
+   return pgexporter_time_is_valid(config->metrics_cache_max_age);
 }
 
 /**
@@ -2846,7 +2847,8 @@ pgexporter_init_prometheus_cache(size_t* p_size, void** p_shmem)
 
 error:
    // disable caching
-   config->metrics_cache_max_age = config->metrics_cache_max_size = PGEXPORTER_PROMETHEUS_CACHE_DISABLED;
+   config->metrics_cache_max_size = PGEXPORTER_PROMETHEUS_CACHE_DISABLED;
+   config->metrics_cache_max_age = PGEXPORTER_TIME_DISABLED;
    pgexporter_log_error("Cannot allocate shared memory for the Prometheus cache!");
    *p_size = 0;
    *p_shmem = NULL;
@@ -2986,7 +2988,7 @@ metrics_cache_finalize(void)
    }
 
    now = time(NULL);
-   cache->valid_until = now + config->metrics_cache_max_age;
+   cache->valid_until = now + pgexporter_time_convert(config->metrics_cache_max_age, FORMAT_TIME_S);
    return cache->valid_until > now;
 }
 

@@ -38,6 +38,7 @@ main(int argc, char* argv[])
    Suite* cli_suite;
    Suite* database_suite;
    Suite* http_suite;
+   Suite* configuration_suite;
    SRunner* sr;
 
    pgexporter_test_environment_create();
@@ -45,9 +46,11 @@ main(int argc, char* argv[])
    cli_suite = pgexporter_test_cli_suite();
    database_suite = pgexporter_test_database_suite();
    http_suite = pgexporter_test_http_suite();
+   configuration_suite = pgexporter_test_configuration_suite();
 
    sr = srunner_create(cli_suite);
    srunner_add_suite(sr, database_suite);
+   srunner_add_suite(sr, configuration_suite);
    srunner_add_suite(sr, http_suite);
    srunner_set_log(sr, "-");
    srunner_set_fork_status(sr, CK_NOFORK);
