@@ -29,6 +29,7 @@
 /* pgexporter */
 #include <openssl/crypto.h>
 #include <pgexporter.h>
+#include <art.h>
 #include <extension.h>
 #include <http.h>
 #include <logging.h>
@@ -112,6 +113,44 @@ typedef struct column_store
    int sort_type;
 } column_store_t;
 
+/**
+ * ART-based metric value with timestamp
+ */
+typedef struct prometheus_metric_value
+{
+   time_t timestamp;
+   char* value;
+   char* help;
+   char* type;
+   int sort_type;
+} prometheus_metric_value_t;
+
+/**
+ * ART-based metrics container for each category
+ */
+typedef struct prometheus_metrics_container
+{
+   struct art* general_metrics;
+   struct art* server_metrics;
+   struct art* version_metrics;
+   struct art* uptime_metrics;
+   struct art* primary_metrics;
+   struct art* core_metrics;
+   struct art* extension_metrics;
+   struct art* extension_list_metrics;
+   struct art* settings_metrics;
+   struct art* custom_metrics;
+} prometheus_metrics_container_t;
+
+static void prometheus_metric_value_destroy_cb(uintptr_t data);
+static char* prometheus_metric_value_string_cb(uintptr_t data, int32_t format, char* tag, int indent);
+static int create_metrics_container(prometheus_metrics_container_t** container);
+static void destroy_metrics_container(prometheus_metrics_container_t* container);
+static int add_metric_to_art(struct art* art_tree, char* key, char* value,
+                             char* help, char* type, int sort_type);
+static void output_art_metrics(SSL* client_ssl, int client_fd, struct art* art_tree);
+static void output_all_metrics(SSL* client_ssl, int client_fd, prometheus_metrics_container_t* container);
+
 static int resolve_page(struct message* msg);
 static int badrequest_page(SSL* client_ssl, int client_fd);
 static int unknown_page(SSL* client_ssl, int client_fd);
@@ -124,16 +163,16 @@ static bool collector_pass(const char* collector);
 
 static void add_column_to_store(column_store_t* store, int n_store, char* data, int sort_type, struct tuple* current);
 
-static void general_information(SSL* client_ssl, int client_fd);
-static void core_information(SSL* client_ssl, int client_fd);
-static void extension_list_information(SSL* client_ssl, int client_fd);
-static void server_information(SSL* client_ssl, int client_fd);
-static void version_information(SSL* client_ssl, int client_fd);
-static void uptime_information(SSL* client_ssl, int client_fd);
-static void primary_information(SSL* client_ssl, int client_fd);
-static void settings_information(SSL* client_ssl, int client_fd);
-static void custom_metrics(SSL* client_ssl, int client_fd); // Handles custom metrics provided in YAML format, both internal and external
-static void extension_metrics(SSL* client_ssl, int client_fd);
+static void general_information(prometheus_metrics_container_t* container);
+static void core_information(prometheus_metrics_container_t* container);
+static void extension_list_information(prometheus_metrics_container_t* container);
+static void server_information(prometheus_metrics_container_t* container);
+static void version_information(prometheus_metrics_container_t* container);
+static void uptime_information(prometheus_metrics_container_t* container);
+static void primary_information(prometheus_metrics_container_t* container);
+static void settings_information(prometheus_metrics_container_t* container);
+static void custom_metrics(prometheus_metrics_container_t* container); // Handles custom metrics provided in YAML format, both internal and external
+static void extension_metrics(prometheus_metrics_container_t* container);
 static void prometheus_endpoints_information(SSL* client_ssl, int client_fd);
 static void append_help_info(char** data, char* tag, char* name, char* description);
 static void append_type_info(char** data, char* tag, char* name, int typeId);
@@ -682,18 +721,31 @@ retry_cache_locking:
 
          pgexporter_open_connections();
 
-         /* General Metric Collector */
-         general_information(client_ssl, client_fd);
-         core_information(client_ssl, client_fd);
-         server_information(client_ssl, client_fd);
-         version_information(client_ssl, client_fd);
-         uptime_information(client_ssl, client_fd);
-         primary_information(client_ssl, client_fd);
-         settings_information(client_ssl, client_fd);
-         extension_list_information(client_ssl, client_fd);
+         /* ART-based metrics container */
+         prometheus_metrics_container_t* container = NULL;
+         if (create_metrics_container(&container))
+         {
+            pgexporter_log_error("Failed to create metrics container");
+            goto error;
+         }
 
-         custom_metrics(client_ssl, client_fd);
-         extension_metrics(client_ssl, client_fd);
+         /* General Metric Collector */
+         general_information(container);
+         version_information(container);
+         uptime_information(container);
+         primary_information(container);
+         server_information(container);
+         core_information(container);
+         extension_list_information(container);
+         settings_information(container);
+         custom_metrics(container);
+         extension_metrics(container);
+
+         /* Output ART metrics */
+         output_all_metrics(client_ssl, client_fd, container);
+
+         /* Destroy container */
+         destroy_metrics_container(container);
 
          pgexporter_close_connections();
 
@@ -802,51 +854,69 @@ collector_pass(const char* collector)
 }
 
 static void
-general_information(SSL* client_ssl, int client_fd)
+general_information(prometheus_metrics_container_t* container)
 {
    char* data = NULL;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
 
-   data = pgexporter_vappend(data, 4,
+   /* pgexporter_state */
+   data = pgexporter_vappend(data, 3,
                              "#HELP pgexporter_state The state of pgexporter\n",
                              "#TYPE pgexporter_state gauge\n",
-                             "pgexporter_state 1\n",
-                             "\n");
+                             "pgexporter_state 1\n");
+   add_metric_to_art(container->general_metrics, "pgexporter_state", data, NULL, NULL, 0);
+   free(data);
+   data = NULL;
 
-   data = pgexporter_append(data, "#HELP pgexporter_logging_info The number of INFO logging statements\n");
-   data = pgexporter_append(data, "#TYPE pgexporter_logging_info gauge\n");
-   data = pgexporter_append(data, "pgexporter_logging_info ");
+   /* pgexporter_logging_info */
+   data = pgexporter_vappend(data, 3,
+                             "#HELP pgexporter_logging_info The number of INFO logging statements\n",
+                             "#TYPE pgexporter_logging_info gauge\n",
+                             "pgexporter_logging_info ");
    data = pgexporter_append_ulong(data, atomic_load(&config->logging_info));
-   data = pgexporter_append(data, "\n\n");
-   data = pgexporter_append(data, "#HELP pgexporter_logging_warn The number of WARN logging statements\n");
-   data = pgexporter_append(data, "#TYPE pgexporter_logging_warn gauge\n");
-   data = pgexporter_append(data, "pgexporter_logging_warn ");
-   data = pgexporter_append_ulong(data, atomic_load(&config->logging_warn));
-   data = pgexporter_append(data, "\n\n");
-   data = pgexporter_append(data, "#HELP pgexporter_logging_error The number of ERROR logging statements\n");
-   data = pgexporter_append(data, "#TYPE pgexporter_logging_error gauge\n");
-   data = pgexporter_append(data, "pgexporter_logging_error ");
-   data = pgexporter_append_ulong(data, atomic_load(&config->logging_error));
-   data = pgexporter_append(data, "\n\n");
-   data = pgexporter_append(data, "#HELP pgexporter_logging_fatal The number of FATAL logging statements\n");
-   data = pgexporter_append(data, "#TYPE pgexporter_logging_fatal gauge\n");
-   data = pgexporter_append(data, "pgexporter_logging_fatal ");
-   data = pgexporter_append_ulong(data, atomic_load(&config->logging_fatal));
-   data = pgexporter_append(data, "\n\n");
+   data = pgexporter_append(data, "\n");
+   add_metric_to_art(container->general_metrics, "pgexporter_logging_info", data, NULL, NULL, 0);
+   free(data);
+   data = NULL;
 
-   if (data != NULL)
-   {
-      send_chunk(client_ssl, client_fd, data);
-      metrics_cache_append(data);
-      free(data);
-      data = NULL;
-   }
+   /* pgexporter_logging_warn */
+   data = pgexporter_vappend(data, 3,
+                             "#HELP pgexporter_logging_warn The number of WARN logging statements\n",
+                             "#TYPE pgexporter_logging_warn gauge\n",
+                             "pgexporter_logging_warn ");
+   data = pgexporter_append_ulong(data, atomic_load(&config->logging_warn));
+   data = pgexporter_append(data, "\n");
+   add_metric_to_art(container->general_metrics, "pgexporter_logging_warn", data, NULL, NULL, 0);
+   free(data);
+   data = NULL;
+
+   /* pgexporter_logging_error */
+   data = pgexporter_vappend(data, 3,
+                             "#HELP pgexporter_logging_error The number of ERROR logging statements\n",
+                             "#TYPE pgexporter_logging_error gauge\n",
+                             "pgexporter_logging_error ");
+   data = pgexporter_append_ulong(data, atomic_load(&config->logging_error));
+   data = pgexporter_append(data, "\n");
+   add_metric_to_art(container->general_metrics, "pgexporter_logging_error", data, NULL, NULL, 0);
+   free(data);
+   data = NULL;
+
+   /* pgexporter_logging_fatal */
+   data = pgexporter_vappend(data, 3,
+                             "#HELP pgexporter_logging_fatal The number of FATAL logging statements\n",
+                             "#TYPE pgexporter_logging_fatal gauge\n",
+                             "pgexporter_logging_fatal ");
+   data = pgexporter_append_ulong(data, atomic_load(&config->logging_fatal));
+   data = pgexporter_append(data, "\n");
+   add_metric_to_art(container->general_metrics, "pgexporter_logging_fatal", data, NULL, NULL, 0);
+   free(data);
+   data = NULL;
 }
 
 static void
-server_information(SSL* client_ssl, int client_fd)
+server_information(prometheus_metrics_container_t* container)
 {
    char* data = NULL;
    struct configuration* config;
@@ -873,19 +943,17 @@ server_information(SSL* client_ssl, int client_fd)
       }
       data = pgexporter_append(data, "\n");
    }
-   data = pgexporter_append(data, "\n");
 
    if (data != NULL)
    {
-      send_chunk(client_ssl, client_fd, data);
-      metrics_cache_append(data);
+      add_metric_to_art(container->server_metrics, "pgexporter_postgresql_active", data, NULL, NULL, 0);
       free(data);
       data = NULL;
    }
 }
 
 static void
-version_information(SSL* client_ssl, int client_fd)
+version_information(prometheus_metrics_container_t* container)
 {
    int ret;
    int server;
@@ -947,12 +1015,9 @@ version_information(SSL* client_ssl, int client_fd)
             current = current->next;
          }
 
-         data = pgexporter_append(data, "\n");
-
          if (data != NULL)
          {
-            send_chunk(client_ssl, client_fd, data);
-            metrics_cache_append(data);
+            add_metric_to_art(container->version_metrics, "pgexporter_postgresql_version", data, NULL, NULL, 0);
             free(data);
             data = NULL;
          }
@@ -963,7 +1028,7 @@ version_information(SSL* client_ssl, int client_fd)
 }
 
 static void
-uptime_information(SSL* client_ssl, int client_fd)
+uptime_information(prometheus_metrics_container_t* container)
 {
    int ret;
    int server;
@@ -1019,12 +1084,9 @@ uptime_information(SSL* client_ssl, int client_fd)
             current = current->next;
          }
 
-         data = pgexporter_append(data, "\n");
-
          if (data != NULL)
          {
-            send_chunk(client_ssl, client_fd, data);
-            metrics_cache_append(data);
+            add_metric_to_art(container->uptime_metrics, "pgexporter_postgresql_uptime", data, NULL, NULL, 0);
             free(data);
             data = NULL;
          }
@@ -1035,7 +1097,7 @@ uptime_information(SSL* client_ssl, int client_fd)
 }
 
 static void
-primary_information(SSL* client_ssl, int client_fd)
+primary_information(prometheus_metrics_container_t* container)
 {
    int ret;
    int server;
@@ -1096,12 +1158,9 @@ primary_information(SSL* client_ssl, int client_fd)
             current = current->next;
          }
 
-         data = pgexporter_append(data, "\n");
-
          if (data != NULL)
          {
-            send_chunk(client_ssl, client_fd, data);
-            metrics_cache_append(data);
+            add_metric_to_art(container->primary_metrics, "pgexporter_postgresql_primary", data, NULL, NULL, 0);
             free(data);
             data = NULL;
          }
@@ -1112,29 +1171,27 @@ primary_information(SSL* client_ssl, int client_fd)
 }
 
 static void
-core_information(SSL* client_ssl, int client_fd)
+core_information(prometheus_metrics_container_t* container)
 {
    char* data = NULL;
 
-   data = pgexporter_vappend(data, 6,
+   data = pgexporter_vappend(data, 5,
                              "#HELP pgexporter_version The pgexporter version\n",
                              "#TYPE pgexporter_version counter\n",
                              "pgexporter_version{pgexporter_version=\"",
                              VERSION,
-                             "\"} 1\n",
-                             "\n");
+                             "\"} 1\n");
 
    if (data != NULL)
    {
-      send_chunk(client_ssl, client_fd, data);
-      metrics_cache_append(data);
+      add_metric_to_art(container->core_metrics, "pgexporter_version", data, NULL, NULL, 0);
       free(data);
       data = NULL;
    }
 }
 
 static void
-extension_list_information(SSL* client_ssl, int client_fd)
+extension_list_information(prometheus_metrics_container_t* container)
 {
    char* data = NULL;
    char* safe_key1 = NULL;
@@ -1191,23 +1248,21 @@ extension_list_information(SSL* client_ssl, int client_fd)
       }
    }
 
-   data = pgexporter_append(data, "\n");
-
    if (data != NULL)
    {
-      send_chunk(client_ssl, client_fd, data);
-      metrics_cache_append(data);
+      add_metric_to_art(container->extension_list_metrics, "pgexporter_postgresql_extension_info", data, NULL, NULL, 0);
       free(data);
       data = NULL;
    }
 }
 
 static void
-settings_information(SSL* client_ssl, int client_fd)
+settings_information(prometheus_metrics_container_t* container)
 {
    int ret;
    char* data = NULL;
    char* safe_key = NULL;
+   char* metric_key = NULL;
    struct query* all = NULL;
    struct query* query = NULL;
    struct tuple* current = NULL;
@@ -1257,6 +1312,11 @@ settings_information(SSL* client_ssl, int client_fd)
                                    "_",
                                    safe_key,
                                    " gauge\n");
+         metric_key = pgexporter_vappend(NULL, 4,
+                                         "pgexporter_",
+                                         &all->tag[0],
+                                         "_",
+                                         safe_key);
          safe_prometheus_key_free(safe_key);
 
 data:
@@ -1279,14 +1339,13 @@ data:
             goto data;
          }
 
-         if (data != NULL)
+         if (data != NULL && metric_key != NULL)
          {
-            data = pgexporter_append(data, "\n");
-
-            send_chunk(client_ssl, client_fd, data);
-            metrics_cache_append(data);
+            add_metric_to_art(container->settings_metrics, metric_key, data, NULL, NULL, 0);
             free(data);
             data = NULL;
+            free(metric_key);
+            metric_key = NULL;
          }
 
          current = current->next;
@@ -1295,8 +1354,11 @@ data:
 
    if (data != NULL)
    {
-      send_chunk(client_ssl, client_fd, data);
-      metrics_cache_append(data);
+      if (metric_key != NULL)
+      {
+         add_metric_to_art(container->settings_metrics, metric_key, data, NULL, NULL, 0);
+         free(metric_key);
+      }
       free(data);
       data = NULL;
    }
@@ -1305,7 +1367,7 @@ data:
 }
 
 static void
-extension_metrics(SSL* client_ssl, int client_fd)
+extension_metrics(prometheus_metrics_container_t* container)
 {
    struct configuration* config = NULL;
    char* data = NULL;
@@ -1471,8 +1533,7 @@ extension_metrics(SSL* client_ssl, int client_fd)
 
    if (data)
    {
-      send_chunk(client_ssl, client_fd, data);
-      metrics_cache_append(data);
+      add_metric_to_art(container->extension_metrics, "extension_metrics", data, NULL, NULL, 0);
       free(data);
       data = NULL;
    }
@@ -1493,7 +1554,7 @@ extension_metrics(SSL* client_ssl, int client_fd)
 }
 
 static void
-custom_metrics(SSL* client_ssl, int client_fd)
+custom_metrics(prometheus_metrics_container_t* container)
 {
    struct configuration* config = NULL;
    char* data = NULL;
@@ -1688,8 +1749,7 @@ custom_metrics(SSL* client_ssl, int client_fd)
 
    if (data)
    {
-      send_chunk(client_ssl, client_fd, data);
-      metrics_cache_append(data);
+      add_metric_to_art(container->custom_metrics, "custom_metrics", data, NULL, NULL, 0);
       free(data);
       data = NULL;
    }
@@ -3090,4 +3150,225 @@ next:
          connection = NULL;
       }
    }
+}
+
+/**
+ * Destroy callback for prometheus_metric_value_t
+ * Called automatically when ART is destroyed
+ */
+static void
+prometheus_metric_value_destroy_cb(uintptr_t data)
+{
+   prometheus_metric_value_t* m = NULL;
+
+   m = (prometheus_metric_value_t*)data;
+
+   if (m != NULL)
+   {
+      free(m->value);
+      free(m->help);
+      free(m->type);
+   }
+
+   free(m);
+}
+
+/**
+ * String callback for prometheus_metric_value_t (for JSON/debug output)
+ */
+static char*
+prometheus_metric_value_string_cb(uintptr_t data, int32_t format, char* tag, int indent)
+{
+   char* s = NULL;
+   prometheus_metric_value_t* m = NULL;
+
+   (void)format;
+   (void)tag;
+   (void)indent;
+
+   m = (prometheus_metric_value_t*)data;
+
+   if (m != NULL)
+   {
+      s = pgexporter_append(s, m->value);
+   }
+
+   return s;
+}
+
+/**
+ * Create a metrics container with ARTs for each category
+ */
+static int
+create_metrics_container(prometheus_metrics_container_t** container)
+{
+   prometheus_metrics_container_t* c = NULL;
+
+   *container = NULL;
+
+   c = (prometheus_metrics_container_t*)malloc(sizeof(prometheus_metrics_container_t));
+   if (c == NULL)
+   {
+      pgexporter_log_error("Failed to allocate metrics container");
+      goto error;
+   }
+
+   memset(c, 0, sizeof(prometheus_metrics_container_t));
+
+   if (pgexporter_art_create(&c->general_metrics) ||
+       pgexporter_art_create(&c->server_metrics) ||
+       pgexporter_art_create(&c->version_metrics) ||
+       pgexporter_art_create(&c->uptime_metrics) ||
+       pgexporter_art_create(&c->primary_metrics) ||
+       pgexporter_art_create(&c->core_metrics) ||
+       pgexporter_art_create(&c->extension_metrics) ||
+       pgexporter_art_create(&c->extension_list_metrics) ||
+       pgexporter_art_create(&c->settings_metrics) ||
+       pgexporter_art_create(&c->custom_metrics))
+   {
+      pgexporter_log_error("Failed to create ART for metrics container");
+      goto error;
+   }
+
+   *container = c;
+
+   return 0;
+
+error:
+   destroy_metrics_container(c);
+   return 1;
+}
+
+/**
+ * Destroy a metrics container and all its ARTs
+ * The destroy callbacks will free all metric values
+ */
+static void
+destroy_metrics_container(prometheus_metrics_container_t* container)
+{
+   if (container == NULL)
+   {
+      return;
+   }
+
+   pgexporter_art_destroy(container->general_metrics);
+   pgexporter_art_destroy(container->server_metrics);
+   pgexporter_art_destroy(container->version_metrics);
+   pgexporter_art_destroy(container->uptime_metrics);
+   pgexporter_art_destroy(container->primary_metrics);
+   pgexporter_art_destroy(container->core_metrics);
+   pgexporter_art_destroy(container->extension_metrics);
+   pgexporter_art_destroy(container->extension_list_metrics);
+   pgexporter_art_destroy(container->settings_metrics);
+   pgexporter_art_destroy(container->custom_metrics);
+
+   free(container);
+}
+
+/**
+ * Add a metric to an ART with proper destroy callback
+ */
+static int
+add_metric_to_art(struct art* art_tree, char* key, char* value,
+                  char* help, char* type, int sort_type)
+{
+   prometheus_metric_value_t* m = NULL;
+   struct value_config vc = {.destroy_data = &prometheus_metric_value_destroy_cb,
+                             .to_string = &prometheus_metric_value_string_cb};
+
+   m = (prometheus_metric_value_t*)malloc(sizeof(prometheus_metric_value_t));
+   if (m == NULL)
+   {
+      pgexporter_log_error("Failed to allocate metric value");
+      goto error;
+   }
+
+   memset(m, 0, sizeof(prometheus_metric_value_t));
+
+   m->timestamp = 0; /* Needed for cache */
+   m->value = value ? pgexporter_append(NULL, value) : NULL;
+   m->help = help ? pgexporter_append(NULL, help) : NULL;
+   m->type = type ? pgexporter_append(NULL, type) : NULL;
+   m->sort_type = sort_type;
+
+   if (pgexporter_art_insert_with_config(art_tree, key, (uintptr_t)m, &vc))
+   {
+      pgexporter_log_error("Failed to insert metric into ART");
+      goto error;
+   }
+
+   return 0;
+
+error:
+   if (m != NULL)
+   {
+      free(m->value);
+      free(m->help);
+      free(m->type);
+      free(m);
+   }
+   return 1;
+}
+
+/**
+ * Output all metrics from an ART in sorted order
+ */
+static void
+output_art_metrics(SSL* client_ssl, int client_fd, struct art* art_tree)
+{
+   char* data = NULL;
+   struct art_iterator* iter = NULL;
+
+   if (art_tree == NULL)
+   {
+      return;
+   }
+
+   if (pgexporter_art_iterator_create(art_tree, &iter))
+   {
+      return;
+   }
+
+   while (pgexporter_art_iterator_next(iter))
+   {
+      prometheus_metric_value_t* m = (prometheus_metric_value_t*)iter->value->data;
+
+      if (m != NULL && m->value != NULL)
+      {
+         data = pgexporter_append(data, m->value);
+         data = pgexporter_append(data, "\n");
+      }
+   }
+
+   if (data != NULL)
+   {
+      send_chunk(client_ssl, client_fd, data);
+      metrics_cache_append(data);
+      free(data);
+   }
+
+   pgexporter_art_iterator_destroy(iter);
+}
+
+/**
+ * Output all metrics from all categories in the container
+ */
+static void
+output_all_metrics(SSL* client_ssl, int client_fd, prometheus_metrics_container_t* container)
+{
+   if (container == NULL)
+   {
+      return;
+   }
+
+   output_art_metrics(client_ssl, client_fd, container->general_metrics);
+   output_art_metrics(client_ssl, client_fd, container->server_metrics);
+   output_art_metrics(client_ssl, client_fd, container->version_metrics);
+   output_art_metrics(client_ssl, client_fd, container->uptime_metrics);
+   output_art_metrics(client_ssl, client_fd, container->primary_metrics);
+   output_art_metrics(client_ssl, client_fd, container->core_metrics);
+   output_art_metrics(client_ssl, client_fd, container->extension_metrics);
+   output_art_metrics(client_ssl, client_fd, container->extension_list_metrics);
+   output_art_metrics(client_ssl, client_fd, container->settings_metrics);
+   output_art_metrics(client_ssl, client_fd, container->custom_metrics);
 }
