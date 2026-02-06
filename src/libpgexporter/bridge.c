@@ -49,12 +49,13 @@
 #include <unistd.h>
 #include <sys/types.h>
 
-#define CHUNK_SIZE   32768
+#define CHUNK_SIZE                       32768
+#define DEFAULT_BLOCKING_TIMEOUT_SECONDS 30
 
-#define PAGE_UNKNOWN 0
-#define PAGE_HOME    1
-#define PAGE_METRICS 2
-#define BAD_REQUEST  3
+#define PAGE_UNKNOWN                     0
+#define PAGE_HOME                        1
+#define PAGE_METRICS                     2
+#define BAD_REQUEST                      3
 
 static int resolve_page(struct message* msg);
 static int badrequest_page(int client_fd);
@@ -492,7 +493,7 @@ retry_cache_locking:
    else
    {
       dt = (int)difftime(time(NULL), start_time);
-      if (dt >= (config->blocking_timeout > 0 ? config->blocking_timeout : 30))
+      if (dt >= (pgexporter_time_as_seconds(config->blocking_timeout) > 0 ? pgexporter_time_as_seconds(config->blocking_timeout) : DEFAULT_BLOCKING_TIMEOUT_SECONDS))
       {
          goto error;
       }
@@ -996,7 +997,7 @@ retry_cache_json_locking:
             if (!atomic_compare_exchange_strong(&cache_json->lock, &cache_json_is_free, STATE_IN_USE))
             {
                dt = (int)difftime(time(NULL), start_time);
-               if (dt >= (config->blocking_timeout > 0 ? config->blocking_timeout : 30))
+               if (dt >= (pgexporter_time_as_seconds(config->blocking_timeout) > 0 ? pgexporter_time_as_seconds(config->blocking_timeout) : DEFAULT_BLOCKING_TIMEOUT_SECONDS))
                {
                   goto error;
                }
@@ -1009,7 +1010,7 @@ retry_cache_json_locking:
       else
       {
          dt = (int)difftime(time(NULL), start_time);
-         if (dt >= (config->blocking_timeout > 0 ? config->blocking_timeout : 30))
+         if (dt >= (pgexporter_time_as_seconds(config->blocking_timeout) > 0 ? pgexporter_time_as_seconds(config->blocking_timeout) : DEFAULT_BLOCKING_TIMEOUT_SECONDS))
          {
             goto error;
          }
@@ -1160,7 +1161,7 @@ retry_cache_locking:
       if (!atomic_compare_exchange_strong(&cache->lock, &cache_is_free, STATE_IN_USE))
       {
          dt = (int)difftime(time(NULL), start_time);
-         if (dt >= (config->blocking_timeout > 0 ? config->blocking_timeout : 30))
+         if (dt >= (pgexporter_time_as_seconds(config->blocking_timeout) > 0 ? pgexporter_time_as_seconds(config->blocking_timeout) : DEFAULT_BLOCKING_TIMEOUT_SECONDS))
          {
             goto error;
          }

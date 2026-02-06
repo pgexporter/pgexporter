@@ -51,19 +51,20 @@
 #include <unistd.h>
 #include <sys/types.h>
 
-#define CHUNK_SIZE                  32768
+#define CHUNK_SIZE                       32768
+#define DEFAULT_BLOCKING_TIMEOUT_SECONDS 30
 
-#define PAGE_UNKNOWN                0
-#define PAGE_HOME                   1
-#define PAGE_METRICS                2
-#define BAD_REQUEST                 3
+#define PAGE_UNKNOWN                     0
+#define PAGE_HOME                        1
+#define PAGE_METRICS                     2
+#define BAD_REQUEST                      3
 
-#define MAX_ARR_LENGTH              256
-#define NUMBER_OF_HISTOGRAM_COLUMNS 4
+#define MAX_ARR_LENGTH                   256
+#define NUMBER_OF_HISTOGRAM_COLUMNS      4
 
-#define INPUT_NO                    0
-#define INPUT_DATA                  1
-#define INPUT_WAL                   2
+#define INPUT_NO                         0
+#define INPUT_DATA                       1
+#define INPUT_WAL                        2
 
 /**
  * This is a linked list of queries with the data received from the server
@@ -721,7 +722,7 @@ retry_cache_locking:
    else
    {
       dt = (int)difftime(time(NULL), start_time);
-      if (dt >= (config->blocking_timeout > 0 ? config->blocking_timeout : 30))
+      if (dt >= (pgexporter_time_as_seconds(config->blocking_timeout) > 0 ? pgexporter_time_as_seconds(config->blocking_timeout) : DEFAULT_BLOCKING_TIMEOUT_SECONDS))
       {
          goto error;
       }
