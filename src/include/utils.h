@@ -884,6 +884,45 @@ pgexporter_is_valid_metric_name(char* name);
 int
 pgexporter_normalize_path(char* directory_path, char* filename, char* default_path, char* path_buffer, size_t buffer_size);
 
+/**
+ * Time format specifiers for pgexporter_time_format()
+ */
+enum pgexporter_time_format_t {
+   FORMAT_TIME_MS,        /**< Milliseconds */
+   FORMAT_TIME_S,         /**< Seconds */
+   FORMAT_TIME_MIN,       /**< Minutes */
+   FORMAT_TIME_HOUR,      /**< Hours */
+   FORMAT_TIME_DAY,       /**< Days */
+   FORMAT_TIME_TIMESTAMP, /**< Timestamp */
+};
+
+/**
+ * Convert a time value to a raw integer in the specified unit
+ * @param t The time value
+ * @param fmt The output format
+ * @return The time in the requested unit
+ */
+int64_t
+pgexporter_time_convert(pgexporter_time_t t, enum pgexporter_time_format_t fmt);
+
+/**
+ * Check if a time value is valid (non-zero, non-disabled)
+ * @param t The time value
+ * @return true if enabled, otherwise false
+ */
+bool
+pgexporter_time_is_valid(pgexporter_time_t t);
+
+/**
+ * Format a time value into a string
+ * @param t The time value
+ * @param fmt The output format
+ * @param output The output string
+ * @return 0 on success, otherwise 1
+ */
+int
+pgexporter_time_format(pgexporter_time_t t, enum pgexporter_time_format_t fmt, char** output);
+
 #ifdef __cplusplus
 }
 #endif

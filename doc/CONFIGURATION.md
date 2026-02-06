@@ -26,12 +26,12 @@ See a [sample](./etc/pgexporter.conf) configuration for running `pgexporter` on 
 | unix_socket_dir | | String | Yes | The Unix Domain Socket location. Can interpolate environment variables (e.g., `$HOME`) |
 | metrics | | Int | Yes | The metrics port |
 | metrics_path | | String | No | Path to customized metrics (either a YAML file or a directory with YAML files). Can interpolate environment variables (e.g., `$HOME`) |
-| metrics_cache_max_age | 0 | String | No | The number of seconds to keep in cache a Prometheus (metrics) response. If set to zero, the caching will be disabled. Can be a string with a suffix, like `2m` to indicate 2 minutes |
+| metrics_cache_max_age | 0 | String | No | The duration to keep in cache a Prometheus (metrics) response. If set to zero, the caching will be disabled. Supports suffixes: 'ms' (milliseconds), 's' (seconds, default), 'm' (minutes), 'h' (hours), 'd' (days), 'w' (weeks). |
 | metrics_cache_max_size | 256k | String | No | The maximum amount of data to keep in cache when serving Prometheus responses. Changes require restart. This parameter determines the size of memory allocated for the cache even if `metrics_cache_max_age` or `metrics` are disabled. Its value, however, is taken into account only if `metrics_cache_max_age` is set to a non-zero value. Supports suffixes: 'B' (bytes), the default if omitted, 'K' or 'KB' (kilobytes), 'M' or 'MB' (megabytes), 'G' or 'GB' (gigabytes).|
-| metrics_query_timeout | 0 | Int | No | The timeout in milliseconds for metric SQL queries. If set to 0, no timeout is applied. Minimum value is 50ms when set |
+| metrics_query_timeout | 0 | String | No | The timeout for metric SQL queries. If set to 0, no timeout is applied. Minimum value is 50ms when set. Supports suffixes: 'ms' (milliseconds, default), 's' (seconds), 'm' (minutes), 'h' (hours), 'd' (days), 'w' (weeks). |
 | bridge | | Int | No | The bridge port |
 | bridge_endpoints | | String | No | A comma-separated list of bridge endpoints specified by host:port |
-| bridge_cache_max_age | `5m` | String | No | The number of seconds to keep in cache a Prometheus (metrics) response. If set to zero, the caching will be disabled. Can be a string with a suffix, like `2m` to indicate 2 minutes |
+| bridge_cache_max_age | `5m` | String | No | The duration to keep in cache a Prometheus (metrics) response. If set to zero, the caching will be disabled. Supports suffixes: 'ms' (milliseconds), 's' (seconds, default), 'm' (minutes), 'h' (hours), 'd' (days), 'w' (weeks). |
 | bridge_cache_max_size | `10M` | String | No | The maximum amount of data to keep in cache when serving bridge responses. Changes require restart. If set to zero, the caching will be disabled. Supports suffixes: 'B' (bytes), the default if omitted, 'K' or 'KB' (kilobytes), 'M' or 'MB' (megabytes), 'G' or 'GB' (gigabytes).|
 | bridge_json | | Int | No | The bridge JSON port |
 | bridge_json_cache_max_size | `10M` | String | No | The maximum amount of data to keep in cache when serving bridge JSON responses. Changes require restart. Supports suffixes: 'B' (bytes), the default if omitted, 'K' or 'KB' (kilobytes), 'M' or 'MB' (megabytes), 'G' or 'GB' (gigabytes).|
@@ -40,11 +40,12 @@ See a [sample](./etc/pgexporter.conf) configuration for running `pgexporter` on 
 | log_type | console | String | No | The logging type (console, file, syslog) |
 | log_level | info | String | No | The logging level, any of the (case insensitive) strings `FATAL`, `ERROR`, `WARN`, `INFO` and `DEBUG` (that can be more specific as `DEBUG1` thru `DEBUG5`). Debug level greater than 5 will be set to `DEBUG5`. Not recognized values will make the log_level be `INFO` |
 | log_path | pgexporter.log | String | No | The log file location. Can be a strftime(3) compatible string. Can interpolate environment variables (e.g., `$HOME`) |
-| log_rotation_age | 0 | String | No | The age that will trigger a log file rotation. If expressed as a positive number, is managed as seconds. Supports suffixes: 'S' (seconds, the default), 'M' (minutes), 'H' (hours), 'D' (days), 'W' (weeks). A value of `0` disables. |
+| log_rotation_age | 0 | String | No | The age that will trigger a log file rotation. If expressed as a positive number, is managed as seconds. Supports suffixes: 'ms' (milliseconds), 's' (seconds, default), 'm' (minutes), 'h' (hours), 'd' (days), 'w' (weeks). A value of `0` disables. |
 | log_rotation_size | 0 | String | No | The size of the log file that will trigger a log rotation. Supports suffixes: 'B' (bytes), the default if omitted, 'K' or 'KB' (kilobytes), 'M' or 'MB' (megabytes), 'G' or 'GB' (gigabytes). A value of `0` (with or without suffix) disables. |
 | log_line_prefix | %Y-%m-%d %H:%M:%S | String | No | A strftime(3) compatible string to use as prefix for every log line. Must be quoted if contains spaces. |
 | log_mode | append | String | No | Append to or create the log file (append, create) |
-| blocking_timeout | 30 | Int | No | The number of seconds the process will be blocking for a connection (disable = 0) |
+| blocking_timeout | 30s | String | No | The duration the process will be blocking for a connection (disable = 0). Supports suffixes: 'ms' (milliseconds), 's' (seconds, default), 'm' (minutes), 'h' (hours), 'd' (days), 'w' (weeks). |
+| authentication_timeout | 5s | String | No | The duration allowed for authentication. Supports suffixes: 'ms' (milliseconds), 's' (seconds, default), 'm' (minutes), 'h' (hours), 'd' (days), 'w' (weeks). |
 | tls | `off` | Bool | No | Enable Transport Layer Security (TLS) |
 | tls_cert_file | | String | No | Certificate file for TLS. This file must be owned by either the user running pgexporter or root. Can interpolate environment variables (e.g., `$HOME`) |
 | tls_key_file | | String | No | Private key file for TLS. This file must be owned by either the user running pgexporter or root. Additionally permissions must be at least `0640` when owned by root or `0600` otherwise. Can interpolate environment variables (e.g., `$HOME`) |

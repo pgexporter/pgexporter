@@ -1247,20 +1247,20 @@ pgexporter_apply_metrics_timeout(int server)
 
    config = (struct configuration*)shmem;
 
-   if (config->metrics_query_timeout > 0)
+   if (pgexporter_time_is_valid(config->metrics_query_timeout))
    {
       char* set_query = pgexporter_append(NULL, "SET statement_timeout = ");
-      set_query = pgexporter_append_int(set_query, config->metrics_query_timeout);
+      set_query = pgexporter_append_int(set_query, (int)pgexporter_time_convert(config->metrics_query_timeout, FORMAT_TIME_MS));
       set_query = pgexporter_append(set_query, ";");
       if (pgexporter_execute_command(server, set_query) != 0)
       {
-         pgexporter_log_debug("Failed to set statement_timeout=%dms on server '%s'",
-                              config->metrics_query_timeout, &config->servers[server].name[0]);
+         pgexporter_log_debug("Failed to set statement_timeout=%" PRId64 "ms on server '%s'",
+                              pgexporter_time_convert(config->metrics_query_timeout, FORMAT_TIME_MS), &config->servers[server].name[0]);
       }
       else
       {
-         pgexporter_log_debug("Set statement_timeout=%dms on server '%s'",
-                              config->metrics_query_timeout, &config->servers[server].name[0]);
+         pgexporter_log_debug("Set statement_timeout=%" PRId64 "ms on server '%s'",
+                              pgexporter_time_convert(config->metrics_query_timeout, FORMAT_TIME_MS), &config->servers[server].name[0]);
       }
       free(set_query);
    }

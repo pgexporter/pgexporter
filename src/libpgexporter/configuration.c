@@ -48,6 +48,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -76,8 +77,8 @@ static int as_hugepage(char* str);
 static int as_server_type(char* str);
 static unsigned int as_update_process_title(char* str, unsigned int default_policy);
 static int as_logging_rotation_size(char* str, size_t* size);
-static int as_logging_rotation_age(char* str, int* age);
-static int as_seconds(char* str, int* age, int default_age);
+static int as_logging_rotation_age(char* str, pgexporter_time_t* time);
+static int as_milliseconds(char* str, pgexporter_time_t* time, pgexporter_time_t default_age);
 static int as_bytes(char* str, long* bytes, long default_bytes);
 static int as_endpoints(char* str, struct configuration* config, bool reload);
 static bool transfer_configuration(struct configuration* config, struct configuration* reload);
@@ -105,13 +106,13 @@ pgexporter_init_configuration(void* shm)
    config = (struct configuration*)shm;
 
    config->metrics = -1;
-   config->metrics_query_timeout = 0;
+   config->metrics_query_timeout = PGEXPORTER_TIME_DISABLED;
    config->cache = true;
    config->number_of_metric_names = 0;
    memset(config->metric_names, 0, sizeof(config->metric_names));
 
    config->bridge = -1;
-   config->bridge_cache_max_age = 300;
+   config->bridge_cache_max_age = PGEXPORTER_TIME_SEC(300);
    config->bridge_cache_max_size = PROMETHEUS_DEFAULT_BRIDGE_CACHE_SIZE;
    config->bridge_json = -1;
    config->bridge_json_cache_max_size = PROMETHEUS_DEFAULT_BRIDGE_JSON_CACHE_SIZE;
@@ -123,8 +124,8 @@ pgexporter_init_configuration(void* shm)
    }
    config->tls = false;
 
-   config->blocking_timeout = 30;
-   config->authentication_timeout = 5;
+   config->blocking_timeout = PGEXPORTER_TIME_SEC(30);
+   config->authentication_timeout = PGEXPORTER_TIME_SEC(5);
 
    config->keep_alive = true;
    config->nodelay = true;
@@ -403,7 +404,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                {
                   if (!strcmp(section, "pgexporter"))
                   {
-                     if (as_seconds(value, &config->metrics_cache_max_age, 0))
+                     if (as_milliseconds(value, &config->metrics_cache_max_age, PGEXPORTER_TIME_DISABLED))
                      {
                         unknown = true;
                      }
@@ -417,7 +418,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                {
                   if (!strcmp(section, "pgexporter"))
                   {
-                     if (as_int(value, &config->metrics_query_timeout))
+                     if (as_milliseconds(value, &config->metrics_query_timeout, PGEXPORTER_TIME_DISABLED))
                      {
                         unknown = true;
                      }
@@ -482,7 +483,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                {
                   if (!strcmp(section, "pgexporter"))
                   {
-                     if (as_seconds(value, &config->bridge_cache_max_age, 300))
+                     if (as_milliseconds(value, &config->bridge_cache_max_age, PGEXPORTER_TIME_SEC(300)))
                      {
                         unknown = true;
                      }
@@ -716,7 +717,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                {
                   if (!strcmp(section, "pgexporter"))
                   {
-                     if (as_int(value, &config->blocking_timeout))
+                     if (as_milliseconds(value, &config->blocking_timeout, PGEXPORTER_TIME_SEC(30)))
                      {
                         unknown = true;
                      }
@@ -1215,10 +1216,10 @@ pgexporter_validate_configuration(void* shm)
       }
    }
 
-   if (config->metrics_query_timeout > 0 && config->metrics_query_timeout < 50)
+   if (pgexporter_time_is_valid(config->metrics_query_timeout) && pgexporter_time_convert(config->metrics_query_timeout, FORMAT_TIME_MS) < 50)
    {
-      pgexporter_log_warn("metrics_query_timeout=%dms is too low, using 50ms minimum", config->metrics_query_timeout);
-      config->metrics_query_timeout = 50;
+      pgexporter_log_warn("metrics_query_timeout=%" PRId64 "ms is too low, using 50ms minimum", pgexporter_time_convert(config->metrics_query_timeout, FORMAT_TIME_MS));
+      config->metrics_query_timeout = PGEXPORTER_TIME_MS(50);
    }
    return 0;
 }
@@ -2008,19 +2009,19 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       }
       else if (!strcmp(key, "metrics_cache_max_age"))
       {
-         if (as_seconds(config_value, &config->metrics_cache_max_age, 0))
+         if (as_milliseconds(config_value, &config->metrics_cache_max_age, PGEXPORTER_TIME_DISABLED))
          {
             unknown = true;
          }
-         pgexporter_json_put(response, key, (uintptr_t)config->metrics_cache_max_age, ValueInt64);
+         pgexporter_json_put(response, key, (uintptr_t)pgexporter_time_convert(config->metrics_cache_max_age, FORMAT_TIME_S), ValueInt64);
       }
       else if (!strcmp(key, "metrics_query_timeout"))
       {
-         if (as_int(config_value, &config->metrics_query_timeout))
+         if (as_milliseconds(config_value, &config->metrics_query_timeout, PGEXPORTER_TIME_DISABLED))
          {
             unknown = true;
          }
-         pgexporter_json_put(response, key, (uintptr_t)config->metrics_query_timeout, ValueInt64);
+         pgexporter_json_put(response, key, (uintptr_t)pgexporter_time_convert(config->metrics_query_timeout, FORMAT_TIME_MS), ValueInt64);
       }
       else if (!strcmp(key, "metrics_path"))
       {
@@ -2063,11 +2064,11 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       }
       else if (!strcmp(key, "bridge_cache_max_age"))
       {
-         if (as_seconds(config_value, &config->bridge_cache_max_age, 0))
+         if (as_milliseconds(config_value, &config->bridge_cache_max_age, PGEXPORTER_TIME_DISABLED))
          {
             unknown = true;
          }
-         pgexporter_json_put(response, key, (uintptr_t)config->bridge_cache_max_age, ValueInt64);
+         pgexporter_json_put(response, key, (uintptr_t)pgexporter_time_convert(config->bridge_cache_max_age, FORMAT_TIME_S), ValueInt64);
       }
       else if (!strcmp(key, "bridge_json"))
       {
@@ -2221,11 +2222,11 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       }
       else if (!strcmp(key, "blocking_timeout"))
       {
-         if (as_int(config_value, &config->blocking_timeout))
+         if (as_milliseconds(config_value, &config->blocking_timeout, PGEXPORTER_TIME_SEC(30)))
          {
             unknown = true;
          }
-         pgexporter_json_put(response, key, (uintptr_t)config->blocking_timeout, ValueInt64);
+         pgexporter_json_put(response, key, (uintptr_t)pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S), ValueInt64);
       }
       else if (!strcmp(key, "pidfile"))
       {
@@ -2276,7 +2277,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
          {
             unknown = true;
          }
-         pgexporter_json_put(response, key, (uintptr_t)config->log_rotation_age, ValueInt32);
+         pgexporter_json_put(response, key, (uintptr_t)pgexporter_time_convert(config->log_rotation_age, FORMAT_TIME_S), ValueInt32);
       }
       else if (!strcmp(key, "log_line_prefix"))
       {
@@ -2442,9 +2443,9 @@ add_configuration_response(struct json* res)
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_UNIX_SOCKET_DIR, (uintptr_t)config->unix_socket_dir, ValueString);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS, (uintptr_t)config->metrics, ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_PATH, (uintptr_t)config->metrics_path, ValueString);
-   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, (uintptr_t)config->metrics_cache_max_age, ValueInt64);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, (uintptr_t)pgexporter_time_convert(config->metrics_cache_max_age, FORMAT_TIME_S), ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_SIZE, (uintptr_t)config->metrics_cache_max_size, ValueInt64);
-   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_QUERY_TIMEOUT, (uintptr_t)config->metrics_query_timeout, ValueInt64);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_QUERY_TIMEOUT, (uintptr_t)pgexporter_time_convert(config->metrics_query_timeout, FORMAT_TIME_MS), ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE, (uintptr_t)config->bridge, ValueInt64);
 
    if (config->number_of_endpoints > 0)
@@ -2467,7 +2468,7 @@ add_configuration_response(struct json* res)
    }
 
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_ENDPOINTS, (uintptr_t)data, ValueString);
-   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_CACHE_MAX_AGE, (uintptr_t)config->bridge_cache_max_age, ValueInt64);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_CACHE_MAX_AGE, (uintptr_t)pgexporter_time_convert(config->bridge_cache_max_age, FORMAT_TIME_S), ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_CACHE_MAX_SIZE, (uintptr_t)config->bridge_cache_max_size, ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_JSON, (uintptr_t)config->bridge_json, ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_JSON_CACHE_MAX_SIZE, (uintptr_t)config->bridge_json_cache_max_size, ValueInt64);
@@ -2476,11 +2477,11 @@ add_configuration_response(struct json* res)
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_LOG_TYPE, (uintptr_t)config->log_type, ValueInt32);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_LOG_LEVEL, (uintptr_t)config->log_level, ValueInt32);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_LOG_PATH, (uintptr_t)config->log_path, ValueString);
-   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_LOG_ROTATION_AGE, (uintptr_t)config->log_rotation_age, ValueInt64);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_LOG_ROTATION_AGE, (uintptr_t)pgexporter_time_convert(config->log_rotation_age, FORMAT_TIME_S), ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_LOG_ROTATION_SIZE, (uintptr_t)config->log_rotation_size, ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_LOG_LINE_PREFIX, (uintptr_t)config->log_line_prefix, ValueString);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_LOG_MODE, (uintptr_t)config->log_mode, ValueInt32);
-   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BLOCKING_TIMEOUT, (uintptr_t)config->blocking_timeout, ValueInt64);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BLOCKING_TIMEOUT, (uintptr_t)pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S), ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_TLS, (uintptr_t)config->tls, ValueBool);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_TLS_CERT_FILE, (uintptr_t)config->tls_cert_file, ValueString);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_TLS_CA_FILE, (uintptr_t)config->tls_ca_file, ValueString);
@@ -3074,50 +3075,55 @@ as_logging_rotation_size(char* str, size_t* size)
 
 /**
  * Parses the log_rotation_age string.
- * The string accepts
+ * The string accepts:
+ * - ms for milliseconds
  * - s for seconds
  * - m for minutes
  * - h for hours
  * - d for days
  * - w for weeks
  *
- * The default is expressed in seconds.
- * The function sets the number of rotationg age as minutes.
+ * The default is expressed in milliseconds.
  * Returns 1 for errors, 0 for correct parsing.
  *
+ * @param str the value to parse as retrieved from the configuration
+ * @param time a pointer to the value that is going to store
+ *        the resulting number of milliseconds
+ * @return 0 on success, 1 on error
  */
 static int
-as_logging_rotation_age(char* str, int* age)
+as_logging_rotation_age(char* str, pgexporter_time_t* time)
 {
-   return as_seconds(str, age, PGEXPORTER_LOGGING_ROTATION_DISABLED);
+   return as_milliseconds(str, time, PGEXPORTER_TIME_DISABLED);
 }
 
 /**
- * Parses an age string, providing the resulting value as seconds.
+ * Parses an age string, providing the resulting value as milliseconds.
  * An age string is expressed by a number and a suffix that indicates
  * the multiplier. Accepted suffixes, case insensitive, are:
+ * - ms for milliseconds
  * - s for seconds
  * - m for minutes
  * - h for hours
  * - d for days
  * - w for weeks
  *
- * The default is expressed in seconds.
+ * The default is expressed in milliseconds.
  *
  * @param str the value to parse as retrieved from the configuration
  * @param age a pointer to the value that is going to store
- *        the resulting number of seconds
- * @param default_age a value to set when the parsing is unsuccesful
-
+ *        the resulting number of milliseconds
+ * @param default_age a value to set when the parsing is unsuccessful
+ *
  */
 static int
-as_seconds(char* str, int* age, int default_age)
+as_milliseconds(char* str, pgexporter_time_t* age, pgexporter_time_t default_age)
 {
-   int multiplier = 1;
+   int64_t multiplier = 1000;
    int index;
    char value[MISC_LENGTH];
    bool multiplier_set = false;
-   int i_value = default_age;
+   int i_value = 0;
 
    if (is_empty_string(str))
    {
@@ -3139,30 +3145,43 @@ as_seconds(char* str, int* age, int default_age)
       }
       else if (isalpha(str[i]) && !multiplier_set)
       {
-         if (str[i] == 's' || str[i] == 'S')
+         // Check for 'ms'
+         if ((str[i] == 'm' || str[i] == 'M') &&
+             i + 1 < strlen(str) &&
+             (str[i + 1] == 's' || str[i + 1] == 'S'))
          {
             multiplier = 1;
+            multiplier_set = true;
+            i++; // Skip the 's' in 'ms'
+         }
+         else if (str[i] == 's' || str[i] == 'S')
+         {
+            multiplier = 1000;
             multiplier_set = true;
          }
          else if (str[i] == 'm' || str[i] == 'M')
          {
-            multiplier = 60;
+            multiplier = 60 * 1000;
             multiplier_set = true;
          }
          else if (str[i] == 'h' || str[i] == 'H')
          {
-            multiplier = 3600;
+            multiplier = 3600 * 1000;
             multiplier_set = true;
          }
          else if (str[i] == 'd' || str[i] == 'D')
          {
-            multiplier = 24 * 3600;
+            multiplier = 24 * 3600 * 1000;
             multiplier_set = true;
          }
          else if (str[i] == 'w' || str[i] == 'W')
          {
-            multiplier = 24 * 3600 * 7;
+            multiplier = 7 * 24 * 3600 * 1000;
             multiplier_set = true;
+         }
+         else
+         {
+            goto error;
          }
       }
       else
@@ -3179,7 +3198,7 @@ as_seconds(char* str, int* age, int default_age)
       // must be a positive number!
       if (i_value >= 0)
       {
-         *age = i_value * multiplier;
+         *age = PGEXPORTER_TIME_MS(i_value * multiplier);
       }
       else
       {
@@ -3487,7 +3506,7 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    config->log_level = reload->log_level;
    // if the log main parameters have changed, we need
    // to restart the logging system
-   if (strncmp(config->log_path, reload->log_path, MISC_LENGTH) || config->log_rotation_size != reload->log_rotation_size || config->log_rotation_age != reload->log_rotation_age || config->log_mode != reload->log_mode)
+   if (strncmp(config->log_path, reload->log_path, MISC_LENGTH) || config->log_rotation_size != reload->log_rotation_size || pgexporter_time_convert(config->log_rotation_age, FORMAT_TIME_MS) != pgexporter_time_convert(reload->log_rotation_age, FORMAT_TIME_MS) || config->log_mode != reload->log_mode)
    {
       pgexporter_log_debug("Log restart triggered!");
       pgexporter_stop_logging();

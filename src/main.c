@@ -942,7 +942,7 @@ main(int argc, char** argv)
       errx(1, "Error in creating and initializing prometheus cache shared memory");
    }
 
-   if (config->bridge > 0 && config->bridge_cache_max_age > 0 && config->bridge_cache_max_size > 0)
+   if (config->bridge > 0 && pgexporter_time_is_valid(config->bridge_cache_max_age) && config->bridge_cache_max_size > 0)
    {
       if (pgexporter_bridge_init_cache(&bridge_cache_shmem_size, &bridge_cache_shmem))
       {
