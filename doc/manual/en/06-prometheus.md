@@ -28,6 +28,18 @@ Tallies the total number of error (ERROR level) messages from pgexporter, often 
 
 Records the total count of fatal (FATAL level) errors encountered by pgexporter, usually indicating service termination.
 
+## pgexporter_query_executions_total
+
+Counts the total number of metric queries executed by pgexporter across all monitored servers.
+
+## pgexporter_query_errors_total
+
+Counts the total number of metric queries that failed to execute successfully.
+
+## pgexporter_query_timeouts_total
+
+Counts the total number of metric queries that timed out (typically due to `metrics_query_timeout`).
+
 ## pgexporter_version
 
 Exposes the version of the running pgexporter service through labels.
