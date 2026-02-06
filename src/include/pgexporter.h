@@ -162,6 +162,39 @@ extern "C" {
            __typeof__ (b) _b = (b);  \
            _a < _b ? _a : _b; })
 
+/**
+ * Duration type stored as milliseconds (int64_t).
+ * Provides type safety for time-based configuration options.
+ */
+typedef int64_t pgexporter_time_t;
+
+#define PGEXPORTER_TIME_MS(ms)   ((pgexporter_time_t)(ms))
+#define PGEXPORTER_TIME_SEC(s)   ((pgexporter_time_t)((s) * 1000LL))
+#define PGEXPORTER_TIME_MIN(m)   ((pgexporter_time_t)((m) * 60000LL))
+#define PGEXPORTER_TIME_HOUR(h)  ((pgexporter_time_t)((h) * 3600000LL))
+#define PGEXPORTER_TIME_DAY(d)   ((pgexporter_time_t)((d) * 86400000LL))
+
+#define PGEXPORTER_TIME_DISABLED ((pgexporter_time_t)0)
+#define PGEXPORTER_TIME_INFINITE ((pgexporter_time_t)(-1))
+
+static inline int64_t
+pgexporter_time_as_ms(pgexporter_time_t t)
+{
+   return t;
+}
+
+static inline int
+pgexporter_time_as_seconds(pgexporter_time_t t)
+{
+   return (int)(t / 1000);
+}
+
+static inline int
+pgexporter_time_as_minutes(pgexporter_time_t t)
+{
+   return (int)(t / 60000);
+}
+
 /*
  * Common piece of code to perform a sleeping.
  *
@@ -367,29 +400,29 @@ struct configuration
    char admins_path[MAX_PATH];        /**< The admins path */
    char extensions_path[MAX_PATH];    /**< The extensions path, containing metric files */
 
-   char host[MISC_LENGTH];        /**< The host */
-   int metrics;                   /**< The metrics port */
-   int metrics_cache_max_age;     /**< Number of seconds to cache the Prometheus response */
-   size_t metrics_cache_max_size; /**< Number of bytes max to cache the Prometheus response */
-   int metrics_query_timeout;     /**< Timeout in milliseconds for metric queries */
-   int management;                /**< The management port */
+   char host[MISC_LENGTH];                  /**< The host */
+   int metrics;                             /**< The metrics port */
+   pgexporter_time_t metrics_cache_max_age; /**< Cache duration for Prometheus response */
+   size_t metrics_cache_max_size;           /**< Number of bytes max to cache the Prometheus response */
+   pgexporter_time_t metrics_query_timeout; /**< Timeout for metric queries */
+   int management;                          /**< The management port */
 
-   int bridge;                        /**< The bridge port */
-   int bridge_cache_max_age;          /**< Number of seconds to cache the bridge response */
-   size_t bridge_cache_max_size;      /**< Number of bytes max to cache the bridge response */
-   int bridge_json;                   /**< The bridge port */
-   size_t bridge_json_cache_max_size; /**< Number of bytes max to cache the bridge response */
+   int bridge;                             /**< The bridge port */
+   pgexporter_time_t bridge_cache_max_age; /**< Cache duration for bridge response */
+   size_t bridge_cache_max_size;           /**< Number of bytes max to cache the bridge response */
+   int bridge_json;                        /**< The bridge port */
+   size_t bridge_json_cache_max_size;      /**< Number of bytes max to cache the bridge response */
 
    bool cache; /**< Cache connection */
 
-   int log_type;                      /**< The logging type */
-   int log_level;                     /**< The logging level */
-   char log_path[MISC_LENGTH];        /**< The logging path */
-   int log_mode;                      /**< The logging mode */
-   size_t log_rotation_size;          /**< bytes to force log rotation */
-   int log_rotation_age;              /**< minutes for log rotation */
-   char log_line_prefix[MISC_LENGTH]; /**< The logging prefix */
-   atomic_schar log_lock;             /**< The logging lock */
+   int log_type;                       /**< The logging type */
+   int log_level;                      /**< The logging level */
+   char log_path[MISC_LENGTH];         /**< The logging path */
+   int log_mode;                       /**< The logging mode */
+   size_t log_rotation_size;           /**< bytes to force log rotation */
+   pgexporter_time_t log_rotation_age; /**< Log rotation interval */
+   char log_line_prefix[MISC_LENGTH];  /**< The logging prefix */
+   atomic_schar log_lock;              /**< The logging lock */
 
    bool tls;                     /**< Is TLS enabled */
    char tls_cert_file[MAX_PATH]; /**< TLS certificate path */
@@ -400,9 +433,9 @@ struct configuration
    char metrics_key_file[MAX_PATH];  /**< Metrics TLS key path */
    char metrics_ca_file[MAX_PATH];   /**< Metrics TLS CA certificate path */
 
-   int blocking_timeout;       /**< The blocking timeout in seconds */
-   int authentication_timeout; /**< The authentication timeout in seconds */
-   char pidfile[MAX_PATH];     /**< File containing the PID */
+   pgexporter_time_t blocking_timeout;       /**< The blocking timeout */
+   pgexporter_time_t authentication_timeout; /**< The authentication timeout */
+   char pidfile[MAX_PATH];                   /**< File containing the PID */
 
    unsigned int update_process_title; /**< Behaviour for updating the process title */
 
