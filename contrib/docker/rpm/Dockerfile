@@ -4,7 +4,20 @@ FROM almalinux:$OS_VERSION-minimal
 
 RUN microdnf upgrade -y
 RUN microdnf install -y git gcc cmake make rpm-build rpm-devel rpmlint diffutils patch rpmdevtools chrpath
-RUN microdnf install --enablerepo=crb -y check-devel zlib-devel bzip2-devel lz4-devel libev-devel libatomic openssl-devel python3-docutils doxygen libyaml-devel lz4 systemd-devel
+RUN microdnf install --enablerepo=crb -y \
+    check-devel \
+    zlib-devel \
+    bzip2-devel \
+    lz4-devel \
+    libev-devel \
+    libatomic \
+    liburing-devel \
+    openssl-devel \
+    python3-docutils \
+    doxygen \
+    libyaml-devel \
+    lz4 \
+    systemd-devel
 RUN microdnf clean all && rm -rf /var/cache/yum
 WORKDIR /root
 RUN rpmdev-setuptree
