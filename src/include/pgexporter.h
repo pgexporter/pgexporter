@@ -426,10 +426,13 @@ struct configuration
 
    char metrics_path[MAX_PATH]; /**< The metrics path */
 
-   atomic_ulong logging_info;  /**< Logging: INFO */
-   atomic_ulong logging_warn;  /**< Logging: WARN */
-   atomic_ulong logging_error; /**< Logging: ERROR */
-   atomic_ulong logging_fatal; /**< Logging: FATAL */
+   atomic_ulong logging_info;           /**< Logging: INFO */
+   atomic_ulong logging_warn;           /**< Logging: WARN */
+   atomic_ulong logging_error;          /**< Logging: ERROR */
+   atomic_ulong logging_fatal;          /**< Logging: FATAL */
+   atomic_ulong query_executions_total; /**< Query executions */
+   atomic_ulong query_errors_total;     /**< Query errors */
+   atomic_ulong query_timeouts_total;   /**< Query timeouts */
 
    char collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];       /**< List of collectors in total */
    char global_extensions[MAX_EXTENSIONS_CONFIG_LENGTH];              /**< Global extensions configuration */

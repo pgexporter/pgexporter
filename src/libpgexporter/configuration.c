@@ -143,6 +143,9 @@ pgexporter_init_configuration(void* shm)
    atomic_init(&config->logging_warn, 0);
    atomic_init(&config->logging_error, 0);
    atomic_init(&config->logging_fatal, 0);
+   atomic_init(&config->query_executions_total, 0);
+   atomic_init(&config->query_errors_total, 0);
+   atomic_init(&config->query_timeouts_total, 0);
 
    for (int i = 0; i < NUMBER_OF_METRICS; i++)
    {
