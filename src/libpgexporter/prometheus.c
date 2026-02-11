@@ -125,6 +125,7 @@ static bool collector_pass(const char* collector);
 static void add_column_to_store(column_store_t* store, int n_store, char* data, int sort_type, struct tuple* current);
 
 static void general_information(SSL* client_ssl, int client_fd);
+static void query_statistics_information(SSL* client_ssl, int client_fd);
 static void core_information(SSL* client_ssl, int client_fd);
 static void extension_list_information(SSL* client_ssl, int client_fd);
 static void server_information(SSL* client_ssl, int client_fd);
@@ -548,6 +549,11 @@ home_page(SSL* client_ssl, int client_fd)
                              "  <li>pgexporter_logging_error</li>\n",
                              "  <li>pgexporter_logging_fatal</li>\n");
 
+   data = pgexporter_vappend(data, 3,
+                             "  <li>pgexporter_query_executions_total</li>\n",
+                             "  <li>pgexporter_query_errors_total</li>\n",
+                             "  <li>pgexporter_query_timeouts_total</li>\n");
+
    send_chunk(client_ssl, client_fd, data);
    free(data);
    data = NULL;
@@ -695,6 +701,8 @@ retry_cache_locking:
          custom_metrics(client_ssl, client_fd);
          extension_metrics(client_ssl, client_fd);
 
+         query_statistics_information(client_ssl, client_fd);
+
          pgexporter_close_connections();
 
          prometheus_endpoints_information(client_ssl, client_fd);
@@ -834,6 +842,39 @@ general_information(SSL* client_ssl, int client_fd)
    data = pgexporter_append(data, "#TYPE pgexporter_logging_fatal gauge\n");
    data = pgexporter_append(data, "pgexporter_logging_fatal ");
    data = pgexporter_append_ulong(data, atomic_load(&config->logging_fatal));
+   data = pgexporter_append(data, "\n\n");
+
+   if (data != NULL)
+   {
+      send_chunk(client_ssl, client_fd, data);
+      metrics_cache_append(data);
+      free(data);
+      data = NULL;
+   }
+}
+
+static void
+query_statistics_information(SSL* client_ssl, int client_fd)
+{
+   char* data = NULL;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   data = pgexporter_append(data, "#HELP pgexporter_query_executions_total The total number of metric queries executed\n");
+   data = pgexporter_append(data, "#TYPE pgexporter_query_executions_total counter\n");
+   data = pgexporter_append(data, "pgexporter_query_executions_total ");
+   data = pgexporter_append_ulong(data, atomic_load(&config->query_executions_total));
+   data = pgexporter_append(data, "\n\n");
+   data = pgexporter_append(data, "#HELP pgexporter_query_errors_total The total number of metric queries that failed\n");
+   data = pgexporter_append(data, "#TYPE pgexporter_query_errors_total counter\n");
+   data = pgexporter_append(data, "pgexporter_query_errors_total ");
+   data = pgexporter_append_ulong(data, atomic_load(&config->query_errors_total));
+   data = pgexporter_append(data, "\n\n");
+   data = pgexporter_append(data, "#HELP pgexporter_query_timeouts_total The total number of metric queries that timed out\n");
+   data = pgexporter_append(data, "#TYPE pgexporter_query_timeouts_total counter\n");
+   data = pgexporter_append(data, "pgexporter_query_timeouts_total ");
+   data = pgexporter_append_ulong(data, atomic_load(&config->query_timeouts_total));
    data = pgexporter_append(data, "\n\n");
 
    if (data != NULL)

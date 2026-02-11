@@ -43,7 +43,10 @@
 /* system */
 #include <stdlib.h>
 
+#define SQLSTATE_QUERY_CANCELED "57014"
+
 static int query_execute(int server, char* qs, char* tag, int columns, char* names[], struct query** query);
+static bool is_query_timeout_error(struct message* error_msg);
 static void* data_append(void* orig, size_t orig_size, void* n, size_t n_size);
 static int create_D_tuple(int server, int number_of_columns, struct message* msg, struct tuple** tuple);
 static int get_number_of_columns(struct message* msg);
@@ -660,6 +663,49 @@ pgexporter_get_column_by_name(char* name, struct query* query, struct tuple* tup
    return NULL;
 }
 
+static bool
+is_query_timeout_error(struct message* error_msg)
+{
+   bool is_timeout = false;
+   if (error_msg != NULL && error_msg->length > 5)
+   {
+      char* payload = (char*)error_msg->data;
+      size_t offset = 5; /* kind (1) + length (4) */
+
+      while (offset < error_msg->length)
+      {
+         char field_type = payload[offset];
+         if (field_type == '\0')
+         {
+            break;
+         }
+
+         char* value = pgexporter_read_string(payload + offset + 1);
+
+         if (field_type == 'C')
+         {
+            if (!strcmp(value, SQLSTATE_QUERY_CANCELED))
+            {
+               is_timeout = true;
+               break;
+            }
+         }
+         else if (field_type == 'M')
+         {
+            if (strstr(value, "statement timeout") != NULL || strstr(value, "canceling statement due to user request") != NULL)
+            {
+               is_timeout = true;
+               break;
+            }
+         }
+
+         offset += 1 + strlen(value) + 1;
+      }
+   }
+
+   return is_timeout;
+}
+
 static int
 query_execute(int server, char* qs, char* tag, int columns, char* names[], struct query** query)
 {
@@ -678,8 +724,11 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
    size_t data_size = 0;
    size_t offset = 0;
    struct configuration* config;
+   bool query_timeout = false;
 
    config = (struct configuration*)shmem;
+
+   atomic_fetch_add(&config->query_executions_total, 1);
 
    *query = NULL;
 
@@ -729,6 +778,12 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
 
    if (pgexporter_has_message('E', data, data_size))
    {
+      struct message* error_msg = NULL;
+      if (!pgexporter_extract_message_from_data('E', data, data_size, &error_msg))
+      {
+         query_timeout = is_query_timeout_error(error_msg);
+         pgexporter_free_message(error_msg);
+      }
       goto error;
    }
 
@@ -808,6 +863,11 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
    return 0;
 
 error:
+   atomic_fetch_add(&config->query_errors_total, 1);
+   if (query_timeout)
+   {
+      atomic_fetch_add(&config->query_timeouts_total, 1);
+   }
    if (q != NULL)
    {
       pgexporter_free_query(q);
