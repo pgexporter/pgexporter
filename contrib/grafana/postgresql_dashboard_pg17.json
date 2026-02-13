@@ -1475,6 +1475,210 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
+      "description": "Total metric queries executed since pgexporter started",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "yellow",
+                "value": 1000
+              },
+              {
+                "color": "orange",
+                "value": 10000
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 108
+      },
+      "id": 27,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_query_executions_total",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Query Executions",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Total metric queries that failed",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "yellow",
+                "value": 10
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 108
+      },
+      "id": 28,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_query_errors_total",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Query Errors",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Total metric queries that timed out",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "yellow",
+                "value": 5
+              },
+              {
+                "color": "red",
+                "value": 50
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 108
+      },
+      "id": 29,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_query_timeouts_total",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Query Timeouts",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "description": "Most frequently executed queries",
       "fieldConfig": {
         "defaults": {
@@ -1506,7 +1710,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 108
+        "y": 115
       },
       "id": 19,
       "options": {
@@ -1576,7 +1780,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 118
+        "y": 125
       },
       "id": 20,
       "options": {
@@ -1646,7 +1850,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 128
+        "y": 135
       },
       "id": 21,
       "options": {
@@ -1737,7 +1941,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 138
+        "y": 145
       },
       "id": 22,
       "options": {
@@ -1794,7 +1998,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 148
+        "y": 155
       },
       "id": 23,
       "panels": [],
@@ -1876,7 +2080,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 149
+        "y": 156
       },
       "id": 24,
       "options": {
@@ -1994,7 +2198,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 157
+        "y": 164
       },
       "id": 25,
       "options": {
@@ -2062,7 +2266,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 165
+        "y": 172
       },
       "id": 26,
       "options": {
