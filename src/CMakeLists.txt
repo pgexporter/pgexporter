@@ -8,6 +8,46 @@ set(SOURCES ${SOURCE_FILES} ${HEADER_FILES})
 # Always default to OFF
 set(ENABLE_COVERAGE OFF)
 
+function(pgexporter_require_shared_libs)
+  foreach(lib_var IN LISTS ARGN)
+    if (NOT DEFINED ${lib_var})
+      continue()
+    endif()
+
+    set(updated_libs "")
+    foreach(lib IN LISTS ${lib_var})
+      if (IS_ABSOLUTE "${lib}" AND lib MATCHES "\\.a$")
+        get_filename_component(lib_dir "${lib}" DIRECTORY)
+        get_filename_component(lib_name "${lib}" NAME_WE)
+        string(REGEX REPLACE "^lib" "" lib_base "${lib_name}")
+        set(shared_lib "")
+        if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+          file(GLOB shared_candidates
+            "${lib_dir}/${lib_name}.dylib*"
+            "${lib_dir}/${lib_base}.dylib*")
+        else()
+          file(GLOB shared_candidates
+            "${lib_dir}/${lib_name}.so*"
+            "${lib_dir}/${lib_base}.so*")
+        endif()
+
+        if (shared_candidates)
+          list(GET shared_candidates 0 shared_lib)
+        endif()
+
+        if (shared_lib)
+          list(APPEND updated_libs "${shared_lib}")
+        else()
+          message(FATAL_ERROR "Static library detected: ${lib}. Shared libraries are required.")
+        endif()
+      else()
+        list(APPEND updated_libs "${lib}")
+      endif()
+    endforeach()
+    set(${lib_var} "${updated_libs}" PARENT_SCOPE)
+  endforeach()
+endfunction()
+
 #
 # OS
 #
@@ -36,6 +76,19 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     ${LZ4_INCLUDE_DIRS}
   )
 
+  pgexporter_require_shared_libs(
+    LIBEV_LIBRARIES
+    OPENSSL_CRYPTO_LIBRARY
+    OPENSSL_SSL_LIBRARY
+    LIBYAML_LIBRARIES
+    LIBATOMIC_LIBRARY
+    THREAD_LIBRARY
+    ZLIB_LIBRARIES
+    BZIP2_LIBRARIES
+    ZSTD_LIBRARIES
+    LZ4_LIBRARIES
+  )
+
   #
   # Library directories
   #
@@ -62,7 +115,7 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   add_compile_options(-D_BSD_SOURCE)
   add_compile_options(-D_DEFAULT_SOURCE)
   add_compile_options(-D__BSD_VISIBLE)
-  
+
   # Include directories
   include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -75,7 +128,19 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     ${ZSTD_INCLUDE_DIRS}
     ${LZ4_INCLUDE_DIRS}
   )
-  
+
+  pgexporter_require_shared_libs(
+    LIBEV_LIBRARIES
+    OPENSSL_CRYPTO_LIBRARY
+    OPENSSL_SSL_LIBRARY
+    LIBYAML_LIBRARIES
+    THREAD_LIBRARY
+    ZLIB_LIBRARIES
+    BZIP2_LIBRARIES
+    ZSTD_LIBRARIES
+    LZ4_LIBRARIES
+  )
+
   # Library directories
   link_libraries(
     ${LIBEV_LIBRARIES}
@@ -109,6 +174,18 @@ else()
     ${BZIP2_INCLUDE_DIRS}
     ${ZSTD_INCLUDE_DIRS}
     ${LZ4_INCLUDE_DIRS}
+  )
+
+  pgexporter_require_shared_libs(
+    LIBEV_LIBRARIES
+    OPENSSL_CRYPTO_LIBRARY
+    OPENSSL_SSL_LIBRARY
+    LIBYAML_LIBRARIES
+    THREAD_LIBRARY
+    ZLIB_LIBRARIES
+    BZIP2_LIBRARIES
+    ZSTD_LIBRARIES
+    LZ4_LIBRARIES
   )
 
   #
