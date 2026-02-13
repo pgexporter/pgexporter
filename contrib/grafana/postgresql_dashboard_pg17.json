@@ -1735,7 +1735,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(10, pgexporter_pg_stat_statements_calls)",
+          "expr": "topk(10, pgexporter_pg_stat_statements_most_executed_calls)",
           "format": "time_series",
           "legendFormat": "{{query}}",
           "refId": "A"
@@ -1805,7 +1805,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(10, pgexporter_pg_stat_statements_total_exec_time)",
+          "expr": "topk(10, pgexporter_pg_stat_statements_slowest_execution_total_exec_time)",
           "format": "time_series",
           "legendFormat": "{{query}}",
           "refId": "A"
@@ -1875,7 +1875,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(10, pgexporter_pg_stat_statements_wal_bytes)",
+          "expr": "topk(10, pgexporter_pg_stat_statements_highest_wal_wal_bytes)",
           "format": "time_series",
           "legendFormat": "{{query}}",
           "refId": "A"
