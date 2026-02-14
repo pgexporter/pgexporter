@@ -2652,6 +2652,37 @@ extern "C" {
                       "    tag: pg_wait_events\n"                                                                                                                                       \
                       "    sort: data\n"                                                                                                                                                \
                       "    collector: wait_events \n"                                                                                                                                   \
+                      "\n"                                                                                                                                                              \
+                      "# long_running_transactions()\n"                                                                                                                                 \
+                      "  - queries:\n"                                                                                                                                                  \
+                      "    - query: SELECT\n"                                                                                                                                           \
+                      "                pid,\n"                                                                                                                                          \
+                      "                datname,\n"                                                                                                                                      \
+                      "                usename,\n"                                                                                                                                      \
+                      "                EXTRACT(EPOCH FROM (clock_timestamp() - xact_start))::bigint AS age_seconds,\n"                                                                  \
+                      "                query\n"                                                                                                                                         \
+                      "              FROM pg_stat_activity\n"                                                                                                                           \
+                      "              WHERE state IS DISTINCT FROM 'idle'\n"                                                                                                             \
+                      "                AND query NOT LIKE 'autovacuum:%'\n"                                                                                                             \
+                      "                AND xact_start IS NOT NULL\n"                                                                                                                    \
+                      "                AND pid <> pg_backend_pid()\n"                                                                                                                   \
+                      "              ORDER BY age_seconds DESC;\n"                                                                                                                      \
+                      "      version: 10\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: pid\n"                                                                                                                                           \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: datname\n"                                                                                                                                       \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: usename\n"                                                                                                                                       \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: age_seconds\n"                                                                                                                                   \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Age of the transaction in seconds since xact_start\n"                                                                                     \
+                      "        - name: query\n"                                                                                                                                         \
+                      "          type: label\n"                                                                                                                                         \
+                      "    tag: pg_long_running_transactions\n"                                                                                                                         \
+                      "    sort: data\n"                                                                                                                                                \
+                      "    collector: long_running_txns\n"                                                                                                                              \
                       "\n"
 #ifdef __cplusplus
 }

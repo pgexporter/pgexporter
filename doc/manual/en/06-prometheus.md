@@ -3671,6 +3671,18 @@ Reports the total disk space used by each database, measured in bytes.
 | server | The configured name/identifier for the PostgreSQL server. |
 | database | The name of the database being measured. |
 
+## pgexporter_pg_long_running_transactions_age_seconds
+
+Age of the transaction in seconds since `xact_start`, excluding idle and autovacuum sessions.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pid | Process ID of the backend. |
+| datname | Database name. |
+| usename | User name. |
+| query | The SQL query text being executed. |
+
 ## pgexporter_pg_locks_count
 
 Counts the current number of active locks, broken down by database and lock mode (e.g., AccessShareLock, RowExclusiveLock).

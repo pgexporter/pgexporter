@@ -6327,3 +6327,12 @@ pgexporter_pg_qualstats_predicate_stats_by_query_avg_filtered_per_exec
 * queryid: Query identifier.
 * query: SQL query text.
 Version: 2.0.2+
+
+pgexporter_pg_long_running_transactions_age_seconds
++ Age of the transaction in seconds since xact_start, excluding idle and autovacuum sessions.
+* server: The configured name/identifier for the PostgreSQL server.
+* pid: Process ID of the backend.
+* datname: Database name.
+* usename: User name.
+* query: The SQL query text being executed.
+Version: 10+

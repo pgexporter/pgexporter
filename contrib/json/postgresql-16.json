@@ -1582,6 +1582,40 @@
           ]
         }
       ]
+    },
+    {
+      "tag": "pg_long_running_transactions",
+      "collector": "long_running_txns",
+      "sort": "data",
+      "queries": [
+        {
+          "query": "SELECT pid, datname, usename, EXTRACT(EPOCH FROM (clock_timestamp() - xact_start))::bigint AS age_seconds, query FROM pg_stat_activity WHERE state IS DISTINCT FROM 'idle' AND query NOT LIKE 'autovacuum:%' AND xact_start IS NOT NULL AND pid <> pg_backend_pid() ORDER BY age_seconds DESC;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "pid",
+              "type": "label"
+            },
+            {
+              "name": "datname",
+              "type": "label"
+            },
+            {
+              "name": "usename",
+              "type": "label"
+            },
+            {
+              "name": "age_seconds",
+              "type": "gauge",
+              "description": "Age of the transaction in seconds since xact_start"
+            },
+            {
+              "name": "query",
+              "type": "label"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
