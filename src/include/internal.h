@@ -618,7 +618,8 @@ extern "C" {
                       "  - queries:\n"                                                                                                                                                  \
                       "    - query: SELECT\n"                                                                                                                                           \
                       "                datname,\n"                                                                                                                                      \
-                      "                age(datfrozenxid) as age\n"                                                                                                                      \
+                      "                age(datfrozenxid) as age,\n"                                                                                                                     \
+                      "                mxid_age(datminmxid) as age_datminmxid\n"                                                                                                        \
                       "              FROM pg_database;\n"                                                                                                                               \
                       "      version: 10\n"                                                                                                                                             \
                       "      columns:\n"                                                                                                                                                \
@@ -628,6 +629,9 @@ extern "C" {
                       "        - type: counter\n"                                                                                                                                       \
                       "          name: age\n"                                                                                                                                           \
                       "          description: Age since last vaccum.\n"                                                                                                                 \
+                      "        - type: counter\n"                                                                                                                                       \
+                      "          name: age_datminmxid\n"                                                                                                                                \
+                      "          description: Multixact age since last vacuum.\n"                                                                                                       \
                       "    tag: pg_db_vacuum\n"                                                                                                                                         \
                       "    sort: data\n"                                                                                                                                                \
                       "    collector: db_vacuum\n"                                                                                                                                      \
