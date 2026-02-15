@@ -4033,6 +4033,15 @@ Represents the age (number of transactions) of the oldest unfrozen transaction I
 | server | The configured name/identifier for the PostgreSQL server. |
 | datname | The name of the database. |
 
+## pgexporter_pg_db_vacuum_age_datminmxid
+
+Represents the multixact age (number of multixacts) of the oldest unfrozen multixact ID (`datminmxid`) within each database. Useful for monitoring multixact wraparound risk.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| datname | The name of the database. |
+
 ## pgexporter_pg_view_vacuum_age
 
 Reports the age (number of transactions) of the oldest unfrozen transaction ID (`relfrozenxid`) for each table or materialized view (including TOAST tables). Indicates need for vacuuming.

@@ -309,7 +309,7 @@ metrics:
   collector: db_vacuum
   sort: data
   queries:
-  - query: SELECT datname, age(datfrozenxid) as age FROM pg_database;
+  - query: SELECT datname, age(datfrozenxid) as age, mxid_age(datminmxid) as age_datminmxid FROM pg_database;
     version: 10
     columns:
     - type: label
@@ -318,6 +318,9 @@ metrics:
     - type: counter
       name: age
       description: Age since last vaccum.
+    - type: counter
+      name: age_datminmxid
+      description: Multixact age since last vacuum.
 - tag: pg_view_vacuum
   collector: db_vacuum
   sort: data

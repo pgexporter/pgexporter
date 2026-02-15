@@ -535,7 +535,7 @@
       "sort": "data",
       "queries": [
         {
-          "query": "SELECT datname, age(datfrozenxid) as age FROM pg_database;",
+          "query": "SELECT datname, age(datfrozenxid) as age, mxid_age(datminmxid) as age_datminmxid FROM pg_database;",
           "version": 10,
           "columns": [
             {
@@ -547,6 +547,11 @@
               "type": "counter",
               "name": "age",
               "description": "Age since last vaccum."
+            },
+            {
+              "type": "counter",
+              "name": "age_datminmxid",
+              "description": "Multixact age since last vacuum."
             }
           ]
         }
