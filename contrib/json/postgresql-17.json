@@ -657,6 +657,84 @@
       ]
     },
     {
+      "tag": "pg_stat_walreceiver",
+      "collector": "stat_walreceiver",
+      "server": "replica",
+      "queries": [
+        {
+          "query": "SELECT COALESCE(slot_name, '') AS slot_name, COALESCE(status, '') AS status, (receive_start_lsn - '0/0') % (2^52)::bigint AS receive_start_lsn, receive_start_tli, (written_lsn - '0/0') % (2^52)::bigint AS written_lsn, (flushed_lsn - '0/0') % (2^52)::bigint AS flushed_lsn, received_tli, extract(epoch from last_msg_send_time) AS last_msg_send_time, extract(epoch from last_msg_receipt_time) AS last_msg_receipt_time, (latest_end_lsn - '0/0') % (2^52)::bigint AS latest_end_lsn, extract(epoch from latest_end_time) AS latest_end_time, COALESCE(sender_host, '') AS sender_host, COALESCE(sender_port, 0) AS sender_port FROM pg_stat_wal_receiver;",
+          "version": 13,
+          "columns": [
+            {
+              "name": "slot_name",
+              "type": "label",
+              "description": "Replication slot name."
+            },
+            {
+              "name": "status",
+              "type": "label",
+              "description": "WAL receiver activity status."
+            },
+            {
+              "name": "receive_start_lsn",
+              "type": "counter",
+              "description": "First WAL position received."
+            },
+            {
+              "name": "receive_start_tli",
+              "type": "gauge",
+              "description": "Timeline of first WAL position received."
+            },
+            {
+              "name": "written_lsn",
+              "type": "counter",
+              "description": "Last WAL position written to disk."
+            },
+            {
+              "name": "flushed_lsn",
+              "type": "counter",
+              "description": "Last WAL position flushed to disk."
+            },
+            {
+              "name": "received_tli",
+              "type": "gauge",
+              "description": "Timeline of last WAL position received."
+            },
+            {
+              "name": "last_msg_send_time",
+              "type": "counter",
+              "description": "Epoch timestamp of last message sent by sender."
+            },
+            {
+              "name": "last_msg_receipt_time",
+              "type": "counter",
+              "description": "Epoch timestamp of last message received."
+            },
+            {
+              "name": "latest_end_lsn",
+              "type": "counter",
+              "description": "Latest WAL end position reported to sender."
+            },
+            {
+              "name": "latest_end_time",
+              "type": "counter",
+              "description": "Epoch timestamp of latest end position report."
+            },
+            {
+              "name": "sender_host",
+              "type": "label",
+              "description": "Upstream sender host."
+            },
+            {
+              "name": "sender_port",
+              "type": "gauge",
+              "description": "Upstream sender port."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "tag": "pg_gss_auth",
       "collector": "gssapi",
       "queries": [

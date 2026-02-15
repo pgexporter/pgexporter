@@ -3992,6 +3992,116 @@ Counts active WAL streaming replication connections, grouped by the `application
 | application_name | The application name reported by the replication connection. |
 | state | Hardcoded to 'streaming' in the query. |
 
+## pgexporter_pg_stat_walreceiver_receive_start_lsn
+
+First WAL byte+1 position when receiver is started (numeric representation).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server (the replica). |
+| slot_name | Replication slot name. |
+| status | WAL receiver activity status. |
+| sender_host | Upstream sender host. |
+
+## pgexporter_pg_stat_walreceiver_receive_start_tli
+
+Timeline number of first WAL byte+1 position when receiver is started.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server (the replica). |
+| slot_name | Replication slot name. |
+| status | WAL receiver activity status. |
+| sender_host | Upstream sender host. |
+
+## pgexporter_pg_stat_walreceiver_written_lsn
+
+Last WAL byte+1 position written to disk (numeric representation).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server (the replica). |
+| slot_name | Replication slot name. |
+| status | WAL receiver activity status. |
+| sender_host | Upstream sender host. |
+
+## pgexporter_pg_stat_walreceiver_flushed_lsn
+
+Last WAL byte+1 position flushed to disk (numeric representation).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server (the replica). |
+| slot_name | Replication slot name. |
+| status | WAL receiver activity status. |
+| sender_host | Upstream sender host. |
+
+## pgexporter_pg_stat_walreceiver_received_tli
+
+Timeline number of last WAL byte+1 position received.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server (the replica). |
+| slot_name | Replication slot name. |
+| status | WAL receiver activity status. |
+| sender_host | Upstream sender host. |
+
+## pgexporter_pg_stat_walreceiver_last_msg_send_time
+
+Epoch timestamp of last message sent by the WAL sender.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server (the replica). |
+| slot_name | Replication slot name. |
+| status | WAL receiver activity status. |
+| sender_host | Upstream sender host. |
+
+## pgexporter_pg_stat_walreceiver_last_msg_receipt_time
+
+Epoch timestamp of last message received from the WAL sender.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server (the replica). |
+| slot_name | Replication slot name. |
+| status | WAL receiver activity status. |
+| sender_host | Upstream sender host. |
+
+## pgexporter_pg_stat_walreceiver_latest_end_lsn
+
+Last WAL byte+1 position reported to the WAL sender (numeric representation).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server (the replica). |
+| slot_name | Replication slot name. |
+| status | WAL receiver activity status. |
+| sender_host | Upstream sender host. |
+
+## pgexporter_pg_stat_walreceiver_latest_end_time
+
+Epoch timestamp of last report sent to the WAL sender.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server (the replica). |
+| slot_name | Replication slot name. |
+| status | WAL receiver activity status. |
+| sender_host | Upstream sender host. |
+
+## pgexporter_pg_stat_walreceiver_sender_port
+
+Port number of the upstream WAL sender.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server (the replica). |
+| slot_name | Replication slot name. |
+| status | WAL receiver activity status. |
+| sender_host | Upstream sender host. |
+
 ## pgexporter_pg_stat_archiver_archived_count
 
 Reflects `archived_count` from `pg_stat_archiver`: the total number of WAL files successfully archived since server start.

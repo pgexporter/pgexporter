@@ -728,6 +728,68 @@ extern "C" {
                       "    collector: wal_last_received\n"                                                                                                                              \
                       "    server: replica\n"                                                                                                                                           \
                       "\n"                                                                                                                                                              \
+                      "# WAL receiver statistics\n"                                                                                                                                     \
+                      "  - queries:\n"                                                                                                                                                  \
+                      "    - query: SELECT\n"                                                                                                                                           \
+                      "              COALESCE(slot_name, '') AS slot_name,\n"                                                                                                           \
+                      "              COALESCE(status, '') AS status,\n"                                                                                                                 \
+                      "              (receive_start_lsn - '0/0') % (2^52)::bigint AS receive_start_lsn,\n"                                                                              \
+                      "              receive_start_tli,\n"                                                                                                                              \
+                      "              (written_lsn - '0/0') % (2^52)::bigint AS written_lsn,\n"                                                                                          \
+                      "              (flushed_lsn - '0/0') % (2^52)::bigint AS flushed_lsn,\n"                                                                                          \
+                      "              received_tli,\n"                                                                                                                                   \
+                      "              extract(epoch from last_msg_send_time) AS last_msg_send_time,\n"                                                                                   \
+                      "              extract(epoch from last_msg_receipt_time) AS last_msg_receipt_time,\n"                                                                             \
+                      "              (latest_end_lsn - '0/0') % (2^52)::bigint AS latest_end_lsn,\n"                                                                                    \
+                      "              extract(epoch from latest_end_time) AS latest_end_time,\n"                                                                                         \
+                      "              COALESCE(sender_host, '') AS sender_host,\n"                                                                                                       \
+                      "              COALESCE(sender_port, 0) AS sender_port\n"                                                                                                         \
+                      "              FROM pg_stat_wal_receiver;\n"                                                                                                                      \
+                      "      version: 13\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: slot_name\n"                                                                                                                                     \
+                      "          type: label\n"                                                                                                                                         \
+                      "          description: Replication slot name.\n"                                                                                                                 \
+                      "        - name: status\n"                                                                                                                                        \
+                      "          type: label\n"                                                                                                                                         \
+                      "          description: WAL receiver activity status.\n"                                                                                                          \
+                      "        - name: receive_start_lsn\n"                                                                                                                             \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: First WAL position received.\n"                                                                                                           \
+                      "        - name: receive_start_tli\n"                                                                                                                             \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Timeline of first WAL position received.\n"                                                                                               \
+                      "        - name: written_lsn\n"                                                                                                                                   \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Last WAL position written to disk.\n"                                                                                                     \
+                      "        - name: flushed_lsn\n"                                                                                                                                   \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Last WAL position flushed to disk.\n"                                                                                                     \
+                      "        - name: received_tli\n"                                                                                                                                  \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Timeline of last WAL position received.\n"                                                                                                \
+                      "        - name: last_msg_send_time\n"                                                                                                                            \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Epoch timestamp of last message sent by sender.\n"                                                                                        \
+                      "        - name: last_msg_receipt_time\n"                                                                                                                         \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Epoch timestamp of last message received.\n"                                                                                              \
+                      "        - name: latest_end_lsn\n"                                                                                                                                \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Latest WAL end position reported to sender.\n"                                                                                            \
+                      "        - name: latest_end_time\n"                                                                                                                               \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Epoch timestamp of latest end position report.\n"                                                                                         \
+                      "        - name: sender_host\n"                                                                                                                                   \
+                      "          type: label\n"                                                                                                                                         \
+                      "          description: Upstream sender host.\n"                                                                                                                  \
+                      "        - name: sender_port\n"                                                                                                                                   \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Upstream sender port.\n"                                                                                                                  \
+                      "    tag: pg_stat_walreceiver\n"                                                                                                                                  \
+                      "    collector: stat_walreceiver\n"                                                                                                                               \
+                      "    server: replica\n"                                                                                                                                           \
+                      "\n"                                                                                                                                                              \
                       "#\n"                                                                                                                                                             \
                       "# PostgreSQL 12\n"                                                                                                                                               \
                       "#\n"                                                                                                                                                             \

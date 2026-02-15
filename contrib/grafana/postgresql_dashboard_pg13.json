@@ -1042,106 +1042,6 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Replication slots status",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 75
-      },
-      "id": 14,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "11.6.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "expr": "pgexporter_pg_replication_slots_active",
-          "legendFormat": "Active - {{slot_name}} ({{slot_type}})",
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "expr": "pgexporter_pg_stat_replication",
-          "legendFormat": "Streaming WAL - {{application_name}}",
-          "refId": "B"
-        }
-      ],
-      "title": "Replication Status",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
       "description": "WAL archiver statistics",
       "fieldConfig": {
         "defaults": {
@@ -1209,10 +1109,10 @@
         ]
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
         "x": 0,
-        "y": 83
+        "w": 12,
+        "h": 8,
+        "y": 75
       },
       "id": 15,
       "options": {
@@ -1268,6 +1168,174 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
+      "description": "Replication slots status",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "w": 12,
+        "h": 8,
+        "y": 75
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_replication_slots_active",
+          "legendFormat": "Active - {{slot_name}} ({{slot_type}})",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_stat_replication",
+          "legendFormat": "Streaming WAL - {{application_name}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Replication Status",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Multixact age of databases since last vacuum",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "yellow",
+                "value": 100000000
+              },
+              {
+                "color": "red",
+                "value": 180000000
+              }
+            ]
+          },
+          "unit": "locale"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "w": 12,
+        "h": 8,
+        "y": 83
+      },
+      "id": 35,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 10,
+        "minVizWidth": 0,
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_db_vacuum_age_datminmxid",
+          "legendFormat": "{{datname}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Database Age (MultiXact ID Wraparound)",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "description": "Age of databases since last vacuum",
       "fieldConfig": {
         "defaults": {
@@ -1296,10 +1364,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
         "x": 12,
-        "y": 91
+        "w": 12,
+        "h": 8,
+        "y": 83
       },
       "id": 16,
       "options": {
@@ -1336,7 +1404,123 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Multixact age of databases since last vacuum",
+      "description": "WAL receiver LSN positions for monitoring replication progress on replica servers",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "LSN (numeric)",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "w": 12,
+        "h": 8,
+        "y": 91
+      },
+      "id": 36,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_stat_walreceiver_receive_start_lsn",
+          "legendFormat": "Receive Start LSN ({{slot_name}})",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_stat_walreceiver_written_lsn",
+          "legendFormat": "Written LSN ({{slot_name}})",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_stat_walreceiver_flushed_lsn",
+          "legendFormat": "Flushed LSN ({{slot_name}})",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_stat_walreceiver_latest_end_lsn",
+          "legendFormat": "Latest End LSN ({{slot_name}})",
+          "refId": "D"
+        }
+      ],
+      "title": "WAL Receiver LSN Positions",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Time lag between WAL sender and receiver messages. High values indicate replication delay.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1351,30 +1535,30 @@
               },
               {
                 "color": "yellow",
-                "value": 100000000
+                "value": 5
               },
               {
                 "color": "red",
-                "value": 180000000
+                "value": 30
               }
             ]
           },
-          "unit": "locale"
+          "unit": "s"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "x": 12,
         "w": 12,
-        "x": 0,
+        "h": 8,
         "y": 91
       },
-      "id": 35,
+      "id": 37,
       "options": {
-        "displayMode": "gradient",
-        "minVizHeight": 10,
-        "minVizWidth": 0,
-        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -1382,7 +1566,8 @@
           "fields": "",
           "values": false
         },
-        "showUnfilled": true
+        "textMode": "auto",
+        "wideLayout": true
       },
       "pluginVersion": "11.6.0",
       "targets": [
@@ -1391,13 +1576,131 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "pgexporter_pg_db_vacuum_age_datminmxid",
-          "legendFormat": "{{datname}}",
+          "expr": "pgexporter_pg_stat_walreceiver_last_msg_receipt_time - pgexporter_pg_stat_walreceiver_last_msg_send_time",
+          "legendFormat": "Message Lag ({{slot_name}})",
           "refId": "A"
         }
       ],
-      "title": "Database Age (MultiXact ID Wraparound)",
-      "type": "bargauge"
+      "title": "WAL Receiver Lag",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "WAL receiver connection and status information",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "status"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "streaming": {
+                        "color": "green",
+                        "index": 0,
+                        "text": "Streaming"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 0,
+        "w": 24,
+        "h": 5,
+        "y": 99
+      },
+      "id": 38,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_stat_walreceiver_received_tli",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": false,
+              "__name__": true
+            },
+            "renameByName": {
+              "Value": "Timeline",
+              "sender_host": "Sender Host",
+              "sender_port": "Sender Port",
+              "slot_name": "Slot Name",
+              "status": "Status",
+              "server": "Server"
+            }
+          }
+        }
+      ],
+      "title": "WAL Receiver Status",
+      "type": "table"
     },
     {
       "collapsed": false,
@@ -1405,7 +1708,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 99
+        "y": 104
       },
       "id": 17,
       "panels": [],
@@ -1448,7 +1751,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 100
+        "y": 105
       },
       "id": 27,
       "options": {
@@ -1516,7 +1819,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 100
+        "y": 105
       },
       "id": 28,
       "options": {
@@ -1584,7 +1887,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 100
+        "y": 105
       },
       "id": 29,
       "options": {
@@ -1652,7 +1955,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 107
+        "y": 112
       },
       "id": 18,
       "options": {
@@ -1722,7 +2025,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 117
+        "y": 122
       },
       "id": 19,
       "options": {
@@ -1792,7 +2095,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 127
+        "y": 132
       },
       "id": 20,
       "options": {
@@ -1883,7 +2186,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 137
+        "y": 142
       },
       "id": 21,
       "options": {
@@ -1940,7 +2243,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 147
+        "y": 152
       },
       "id": 30,
       "panels": [],
@@ -1984,7 +2287,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 148
+        "y": 153
       },
       "id": 34,
       "options": {
@@ -2079,7 +2382,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 148
+        "y": 153
       },
       "id": 32,
       "options": {
@@ -2154,7 +2457,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 155
+        "y": 160
       },
       "id": 33,
       "options": {

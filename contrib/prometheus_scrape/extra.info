@@ -3190,6 +3190,86 @@ pgexporter_pg_wal_last_received
 * sender: The address/identifier of the upstream WAL sender.
 Version: 11+
 
+pgexporter_pg_stat_walreceiver_receive_start_lsn
++ First WAL byte+1 position when receiver is started (numeric representation).
+* server: The configured name/identifier for the PostgreSQL server (the replica).
+* slot_name: Replication slot name.
+* status: WAL receiver activity status.
+* sender_host: Upstream sender host.
+Version: 13+
+
+pgexporter_pg_stat_walreceiver_receive_start_tli
++ Timeline number of first WAL byte+1 position when receiver is started.
+* server: The configured name/identifier for the PostgreSQL server (the replica).
+* slot_name: Replication slot name.
+* status: WAL receiver activity status.
+* sender_host: Upstream sender host.
+Version: 13+
+
+pgexporter_pg_stat_walreceiver_written_lsn
++ Last WAL byte+1 position written to disk (numeric representation).
+* server: The configured name/identifier for the PostgreSQL server (the replica).
+* slot_name: Replication slot name.
+* status: WAL receiver activity status.
+* sender_host: Upstream sender host.
+Version: 13+
+
+pgexporter_pg_stat_walreceiver_flushed_lsn
++ Last WAL byte+1 position flushed to disk (numeric representation).
+* server: The configured name/identifier for the PostgreSQL server (the replica).
+* slot_name: Replication slot name.
+* status: WAL receiver activity status.
+* sender_host: Upstream sender host.
+Version: 13+
+
+pgexporter_pg_stat_walreceiver_received_tli
++ Timeline number of last WAL byte+1 position received.
+* server: The configured name/identifier for the PostgreSQL server (the replica).
+* slot_name: Replication slot name.
+* status: WAL receiver activity status.
+* sender_host: Upstream sender host.
+Version: 13+
+
+pgexporter_pg_stat_walreceiver_last_msg_send_time
++ Epoch timestamp of last message sent by the WAL sender.
+* server: The configured name/identifier for the PostgreSQL server (the replica).
+* slot_name: Replication slot name.
+* status: WAL receiver activity status.
+* sender_host: Upstream sender host.
+Version: 13+
+
+pgexporter_pg_stat_walreceiver_last_msg_receipt_time
++ Epoch timestamp of last message received from the WAL sender.
+* server: The configured name/identifier for the PostgreSQL server (the replica).
+* slot_name: Replication slot name.
+* status: WAL receiver activity status.
+* sender_host: Upstream sender host.
+Version: 13+
+
+pgexporter_pg_stat_walreceiver_latest_end_lsn
++ Last WAL byte+1 position reported to the WAL sender (numeric representation).
+* server: The configured name/identifier for the PostgreSQL server (the replica).
+* slot_name: Replication slot name.
+* status: WAL receiver activity status.
+* sender_host: Upstream sender host.
+Version: 13+
+
+pgexporter_pg_stat_walreceiver_latest_end_time
++ Epoch timestamp of last report sent to the WAL sender.
+* server: The configured name/identifier for the PostgreSQL server (the replica).
+* slot_name: Replication slot name.
+* status: WAL receiver activity status.
+* sender_host: Upstream sender host.
+Version: 13+
+
+pgexporter_pg_stat_walreceiver_sender_port
++ Port number of the upstream WAL sender.
+* server: The configured name/identifier for the PostgreSQL server (the replica).
+* slot_name: Replication slot name.
+* status: WAL receiver activity status.
+* sender_host: Upstream sender host.
+Version: 13+
+
 pgexporter_pg_wait_events_count
 + Counts the occurrences of different wait event types encountered by backends since statistics were reset (from `pg_stat_get_wait_backend` or similar).
 * server: The configured name/identifier for the PostgreSQL server.
