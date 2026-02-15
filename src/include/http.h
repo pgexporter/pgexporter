@@ -52,6 +52,9 @@ extern "C" {
 #define PGEXPORTER_HTTP_STATUS_OK    0
 #define PGEXPORTER_HTTP_STATUS_ERROR 1
 
+/* HTTP max header size */
+#define MAX_HEADER_SIZE 4096
+
 /** @struct http_payload
  * Defines shared HTTP message content
  */
