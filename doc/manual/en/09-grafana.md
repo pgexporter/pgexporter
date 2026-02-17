@@ -38,7 +38,7 @@ $ prometheus
 
 Then the Prometheus service will query your pgexporter metrics every 15 seconds and package them as time-series data. You can query your pgexporter metrics and watch their changes as time passed in Prometheus web page (default port is `9090`).
 
-![image](../images/prometheus_metrics.png)
+![image](../../images/prometheus_metrics.png)
 
 ## Grafana Dashboard
 
@@ -104,37 +104,37 @@ Verify the status is "active (running)".
 #### Configuration
 You can now browse Grafana web page with default port `3000`, default user `admin` and default password `admin`.
 
-![image](../images/grafana_login.png)
+![image](../../images/grafana_login.png)
 
 Set the new password.
 
-![image](../images/grafana_home.png)
+![image](../../images/grafana_home.png)
 
 Then you can create Prometheus data source of pgexporter. Click Menu -> Connections -> Data Sources -> "Add data source" -> Prometheus.
 
-![image](../images/grafana_menu.png)
+![image](../../images/grafana_menu.png)
 
-![image](../images/grafana_add_data_source.png)
+![image](../../images/grafana_add_data_source.png)
 
-![image](../images/grafana_add_data_source_prometheus.png)
+![image](../../images/grafana_add_data_source_prometheus.png)
 
 Then configure the data source and then "Save & test":
 
-![image](../images/grafana_add_prometheus.png)
+![image](../../images/grafana_add_prometheus.png)
 
 Then you can explore dashboards with queries in "Expore" (Home -> Explore):
 
-![image](../images/grafana_add_dashboard.png)
+![image](../../images/grafana_add_dashboard.png)
 
 Then "Run Query":
 
-![image](../images/grafana_graph.png)
+![image](../../images/grafana_graph.png)
 
 ### Importing pgexporter dashboard
 
 You could also use pgexporter dashboards which are available in [contrib/grafana](../../contrib/grafana/) directory. Navigate to **Home -> Dashboards -> New -> Import**.
 
-![image](../images/grafana_import_dashboard.png)
+![image](../../images/grafana_import_dashboard.png)
 
 We provide 6 version-specific dashboards to support the unique features of each PostgreSQL version:
 
@@ -149,42 +149,42 @@ Select **"Upload dashboard as JSON file"**, choose the file matching your Postgr
 
 You will now be able to view important metrics which pgexporter provides.
 
-![image](../images/grafana_pgexporter_dashboard.png)
+![image](../../images/grafana_pgexporter_dashboard.png)
 
 The dashboard organizes metrics into logical sections:
 
 #### System Health
 Instance Status (Primary/Replica), Database Connections, Database Sizes, Transaction Rates, Database Locks.
 
-![image](../images/grafana_pgexporter_dashboard_system_health.png)
+![image](../../images/grafana_pgexporter_dashboard_system_health.png)
 
 #### Performance Indicators
 Cache Hit Ratio, Disk Reads, Tuple Operations (Select/Insert/Update/Delete), Background Writer Activity, Deadlocks & Conflicts.
 
-![image](../images/grafana_pgexporter_dashboard_perf_indicator.png)
+![image](../../images/grafana_pgexporter_dashboard_perf_indicator.png)
 
 #### Query Analysis
 Most Executed Queries, Slowest Queries, Highest WAL Usage Queries, Index Usage (requires `pg_stat_statements`).
 
-![image](../images/grafana_pgexporter_dashboard_queryanalysis.png)
+![image](../../images/grafana_pgexporter_dashboard_queryanalysis.png)
 
 #### Memory & I/O (Version Dependent)
 *   **PG14+**: Memory Usage by Context (Used/Free/Total)
 *   **PG16+**: Detailed I/O statistics (Reads/Writes/Extends per backend type)
 *   **PG17+**: Wait Events analysis (Pie chart breakdown by type)
 
-![image](../images/grafana_pgexporter_dashboard_memory.png)
+![image](../../images/grafana_pgexporter_dashboard_memory.png)
 
 
 #### WAL & Replication
 WAL Generation, Replication Status, WAL Archiving, Transaction ID Wraparound (Database Age).
 
-![image](../images/grafana_pgexporter_dashboard_wal_replication.png)
+![image](../../images/grafana_pgexporter_dashboard_wal_replication.png)
 
 ### Switching Datasources
 
 If you have configured multiple Prometheus datasources (e.g., for different PostgreSQL servers), you can easily switch between them using the datasource dropdown at the top of the dashboard.
 
-![image](../images/grafana_datasource_select.png)
+![image](../../images/grafana_datasource_select.png)
 
 Select the desired datasource from the dropdown to view metrics from that specific server.
