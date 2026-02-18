@@ -74,6 +74,7 @@ extern "C" {
 #define NUMBER_OF_COLLECTORS         256
 #define NUMBER_OF_ENDPOINTS          32
 #define NUMBER_OF_EXTENSIONS         64
+#define NUMBER_OF_ALERTS             64
 #define NUMBER_OF_DATABASES          64
 #define NUMBER_OF_METRIC_NAMES       1024
 #define MAX_METRIC_COLUMNS           2048
@@ -117,6 +118,20 @@ extern "C" {
 #define SERVER_QUERY_BOTH            0 /* Default */
 #define SERVER_QUERY_PRIMARY         1
 #define SERVER_QUERY_REPLICA         2
+
+enum alert_operator {
+   ALERT_OPERATOR_GT, /* ">"  */
+   ALERT_OPERATOR_LT, /* "<"  */
+   ALERT_OPERATOR_GE, /* ">=" */
+   ALERT_OPERATOR_LE, /* "<=" */
+   ALERT_OPERATOR_EQ, /* "==" */
+   ALERT_OPERATOR_NE  /* "!=" */
+};
+
+enum alert_type {
+   ALERT_TYPE_QUERY,     /* Runs SQL, compares result vs threshold */
+   ALERT_TYPE_CONNECTION /* No SQL, checks fd == -1 */
+};
 
 #define SERVER_UNDERTERMINED_VERSION 0
 
@@ -375,6 +390,22 @@ struct endpoint
    int port;               /**< The port */
 } __attribute__((aligned(64)));
 
+/** @struct alert_definition
+ * Defines an alert metric loaded from YAML
+ */
+struct alert_definition
+{
+   char name[PROMETHEUS_LENGTH];                 /**< The alert name */
+   char description[PROMETHEUS_LENGTH];          /**< The HELP description */
+   char query[MAX_QUERY_LENGTH];                 /**< The SQL query (empty for connection alerts) */
+   enum alert_type alert_type;                   /**< ALERT_TYPE_QUERY or ALERT_TYPE_CONNECTION */
+   enum alert_operator operator;                 /**< Comparison operator */
+   double threshold;                             /**< Threshold value */
+   bool servers_all;                             /**< Target all servers */
+   int number_of_servers;                        /**< Number of target servers */
+   char servers[NUMBER_OF_SERVERS][MISC_LENGTH]; /**< Target server names */
+} __attribute__((aligned(64)));
+
 /** @struct configuration
  * Defines the configuration and state of pgexporter
  */
@@ -384,6 +415,7 @@ struct configuration
    char users_path[MAX_PATH];         /**< The users path */
    char admins_path[MAX_PATH];        /**< The admins path */
    char extensions_path[MAX_PATH];    /**< The extensions path, containing metric files */
+   char alerts_path[MAX_PATH];        /**< The alerts path */
 
    char host[MISC_LENGTH];                  /**< The host */
    int metrics;                             /**< The metrics port */
@@ -399,7 +431,8 @@ struct configuration
    int bridge_json;                        /**< The bridge port */
    size_t bridge_json_cache_max_size;      /**< Number of bytes max to cache the bridge response */
 
-   bool cache; /**< Cache connection */
+   bool cache;          /**< Cache connection */
+   bool alerts_enabled; /**< Is alerting enabled */
 
    int log_type;                       /**< The logging type */
    int log_level;                      /**< The logging level */
@@ -444,6 +477,9 @@ struct configuration
    int number_of_metric_names; /**< Number of unique metric names */
 
    char metrics_path[MAX_PATH]; /**< The metrics path */
+
+   int number_of_alerts;                             /**< The number of alerts */
+   struct alert_definition alerts[NUMBER_OF_ALERTS]; /**< The alert definitions */
 
    atomic_ulong logging_info;           /**< Logging: INFO */
    atomic_ulong logging_warn;           /**< Logging: WARN */

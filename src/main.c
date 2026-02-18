@@ -52,6 +52,7 @@
 #include <status.h>
 #include <utils.h>
 #include <yaml_configuration.h>
+#include <alert_configuration.h>
 #include <json_configuration.h>
 
 /* system */
@@ -409,6 +410,7 @@ usage(void)
    printf("  -A, --admins ADMINS_FILE                    Set the path to the pgexporter_admins.conf file\n");
    printf("  -Y, --yaml METRICS_FILE_DIR                 Set the path to YAML file/directory\n");
    printf("  -J, --json METRICS_FILE_DIR                 Set the path to JSON file/directory\n");
+   printf("  -a, --alerts ALERTS_FILE                    Set the path to the alert file\n");
    printf("  -D, --directory DIRECTORY                   Set the configuration directory path\n");
    printf("                                              Can also be set via PGEXPORTER_CONFIG_DIR environment variable\n");
    printf("  -d, --daemon                                Run as a daemon\n");
@@ -428,6 +430,7 @@ main(int argc, char** argv)
    char* admins_path = NULL;
    char* yaml_path = NULL;
    char* json_path = NULL;
+   char* alerts_path = NULL;
    char* bin_path = NULL;
    char* collector = NULL;
    char* directory_path = NULL;
@@ -462,6 +465,7 @@ main(int argc, char** argv)
       {"A", "admins", true},
       {"Y", "yaml", true},
       {"J", "json", true},
+      {"a", "alerts", true},
       {"d", "daemon", false},
       {"V", "version", false},
       {"?", "help", false},
@@ -508,6 +512,10 @@ main(int argc, char** argv)
       else if (!strcmp(optname, "json") || !strcmp(optname, "J"))
       {
          json_path = optarg;
+      }
+      else if (!strcmp(optname, "alerts") || !strcmp(optname, "a"))
+      {
+         alerts_path = optarg;
       }
       else if (!strcmp(optname, "daemon") || !strcmp(optname, "d"))
       {
@@ -838,6 +846,40 @@ main(int argc, char** argv)
          sd_notify(0, "STATUS=Invalid core metrics");
 #endif
          exit(1);
+      }
+   }
+
+   /* Alert definitions */
+   if (alerts_path != NULL)
+   {
+      int max = strlen(alerts_path);
+      if (max > MAX_PATH - 1)
+      {
+         max = MAX_PATH - 1;
+      }
+      memset(config->alerts_path, 0, MAX_PATH);
+      memcpy(config->alerts_path, alerts_path, max);
+   }
+
+   if (config->alerts_enabled)
+   {
+      if (pgexporter_read_internal_yaml_alerts(config))
+      {
+#ifdef HAVE_SYSTEMD
+         sd_notify(0, "STATUS=Invalid core alert definitions");
+#endif
+         exit(1);
+      }
+
+      if (strlen(config->alerts_path) > 0)
+      {
+         if (pgexporter_read_alerts_configuration(shmem))
+         {
+#ifdef HAVE_SYSTEMD
+            sd_notify(0, "STATUS=Invalid alert overrides");
+#endif
+            exit(1);
+         }
       }
    }
 

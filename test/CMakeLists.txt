@@ -35,6 +35,7 @@ set(TESTCASE_FILES
   testcases/test_database.c
   testcases/test_cli.c
   testcases/test_cache.c
+  testcases/test_alert.c
 )
 set(SOURCE_FILES ${LIB_SOURCE_FILES} ${TESTCASE_FILES} ${HEADER_FILES})
 
