@@ -390,6 +390,7 @@ struct configuration
    size_t metrics_cache_max_size;           /**< Number of bytes max to cache the Prometheus response */
    pgexporter_time_t metrics_query_timeout; /**< Timeout for metric queries */
    int management;                          /**< The management port */
+   int console;                             /**< The console port */
 
    int bridge;                             /**< The bridge port */
    pgexporter_time_t bridge_cache_max_age; /**< Cache duration for bridge response */
