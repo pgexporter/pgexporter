@@ -53,6 +53,7 @@ extern "C" {
 #define CONFIGURATION_ARGUMENT_BRIDGE_JSON_CACHE_MAX_SIZE "bridge_json_cache_max_size"
 #define CONFIGURATION_ARGUMENT_MANAGEMENT                 "management"
 #define CONFIGURATION_ARGUMENT_CACHE                      "cache"
+#define CONFIGURATION_ARGUMENT_ALERTS                     "alerts"
 #define CONFIGURATION_ARGUMENT_LOG_TYPE                   "log_type"
 #define CONFIGURATION_ARGUMENT_LOG_LEVEL                  "log_level"
 #define CONFIGURATION_ARGUMENT_LOG_PATH                   "log_path"

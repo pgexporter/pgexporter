@@ -103,6 +103,20 @@ pgexporter_test_assert_conf_set_fail(char* key, char* value);
 int
 pgexporter_test_assert_conf_get_ok(char* key, int64_t expected);
 
+/**
+ * Write content to a temporary YAML file and return its path.
+ * Caller must free the returned path and unlink the file.
+ */
+char*
+pgexporter_test_write_temp_yaml(const char* content);
+
+/**
+ * Write content to a temporary .conf file and return its path.
+ * Caller must free the returned path and unlink the file.
+ */
+char*
+pgexporter_test_write_temp_conf(const char* content);
+
 #ifdef __cplusplus
 }
 #endif
