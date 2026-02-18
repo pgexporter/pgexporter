@@ -1,0 +1,39 @@
+alerts:
+- name: test_scalar_all
+  description: Scalar all
+  type: connection
+  operator: "=="
+  threshold: -1
+  servers: all
+
+- name: test_scalar_primary
+  description: Scalar primary
+  type: connection
+  operator: "=="
+  threshold: -1
+  servers: primary
+
+- name: test_list
+  description: List of servers
+  type: connection
+  operator: "=="
+  threshold: -1
+  servers:
+    - primary
+    - replica
+
+- name: test_list_all
+  description: List with all
+  type: connection
+  operator: "=="
+  threshold: -1
+  servers:
+    - all
+    - primary
+
+- name: test_list_brackets
+  description: List with brackets
+  type: connection
+  operator: "=="
+  threshold: -1
+  servers: [primary, replica]

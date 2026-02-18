@@ -4,6 +4,16 @@
 
 [**pgexporter**][pgexporter] has the following [Prometheus][prometheus] built-in metrics.
 
+## pgexporter_alert
+
+Exposes the status of configured alerts.
+
+| Attribute | Description | Values |
+| :-------- | :---------- | :----- |
+| server | The configured name/identifier for the PostgreSQL server | 1: The alert is active (condition is met), 0: The alert is not active |
+| alert | The name of the alert | |
+| type | The type of the alert (`connection` or `query`) | |
+
 ## pgexporter_state
 
 Provides the operational status of the pgexporter service itself, indicating if it's running (1) or stopped/failed (0).

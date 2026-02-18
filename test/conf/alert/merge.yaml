@@ -1,0 +1,17 @@
+alerts:
+- name: postgresql_down
+  threshold: 42
+  operator: "!="
+  servers: primary
+
+- name: connections_high
+  threshold: 95
+  description: Overridden description
+
+- name: custom_combined_alert
+  description: Combined custom alert
+  type: query
+  query: "SELECT 99"
+  operator: ">="
+  threshold: 50
+  servers: all

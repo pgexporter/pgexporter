@@ -144,6 +144,7 @@ typedef struct prometheus_metrics_container
    struct art* extension_list_metrics;
    struct art* settings_metrics;
    struct art* custom_metrics;
+   struct art* alert_metrics;
 } prometheus_metrics_container_t;
 
 static void prometheus_metric_value_destroy_cb(uintptr_t data);
@@ -181,6 +182,7 @@ static void settings_information(prometheus_metrics_container_t* container);
 static void fips_information(prometheus_metrics_container_t* container);
 static void custom_metrics(prometheus_metrics_container_t* container); // Handles custom metrics provided in YAML format, both internal and external
 static void extension_metrics(prometheus_metrics_container_t* container);
+static void alert_information(prometheus_metrics_container_t* container);
 static void prometheus_endpoints_information(SSL* client_ssl, int client_fd);
 static void append_help_info(char** data, char* tag, char* name, char* description);
 static void append_type_info(char** data, char* tag, char* name, int typeId);
@@ -601,6 +603,15 @@ home_page(SSL* client_ssl, int client_fd)
                              "  <li>pgexporter_query_errors_total</li>\n",
                              "  <li>pgexporter_query_timeouts_total</li>\n");
 
+   data = pgexporter_vappend(data, 7,
+                             "  <li>pgexporter_alert_postgresql_down</li>\n",
+                             "  <li>pgexporter_alert_connections_high</li>\n",
+                             "  <li>pgexporter_alert_replication_lag</li>\n",
+                             "  <li>pgexporter_alert_wal_receiver_down</li>\n",
+                             "  <li>pgexporter_alert_replication_slot_inactive</li>\n",
+                             "  <li>pgexporter_alert_xid_wraparound</li>\n",
+                             "  <li>pgexporter_alert_multixact_wraparound</li>\n");
+
    send_chunk(client_ssl, client_fd, data);
    free(data);
    data = NULL;
@@ -756,6 +767,8 @@ retry_cache_locking:
          custom_metrics(container);
          extension_metrics(container);
          query_statistics_information(container);
+         alert_information(container);
+
          /* Output ART metrics */
          output_all_metrics(client_ssl, client_fd, container);
 
@@ -1531,6 +1544,151 @@ data:
    }
 
    pgexporter_free_query(all);
+}
+
+static bool
+evaluate_alert(int64_t value, enum alert_operator op, int64_t threshold)
+{
+   switch (op)
+   {
+      case ALERT_OPERATOR_GT:
+         return value > threshold;
+      case ALERT_OPERATOR_LT:
+         return value < threshold;
+      case ALERT_OPERATOR_GE:
+         return value >= threshold;
+      case ALERT_OPERATOR_LE:
+         return value <= threshold;
+      case ALERT_OPERATOR_EQ:
+         return value == threshold;
+      case ALERT_OPERATOR_NE:
+         return value != threshold;
+      default:
+         return false;
+   }
+}
+
+static void
+alert_information(prometheus_metrics_container_t* container)
+{
+   int ret;
+   int server;
+   char* data = NULL;
+   struct query* query = NULL;
+   struct configuration* config;
+   char metric_name[PROMETHEUS_LENGTH];
+
+   config = (struct configuration*)shmem;
+
+   if (!config->alerts_enabled || config->number_of_alerts == 0)
+   {
+      return;
+   }
+
+   int server_conn_valid[NUMBER_OF_SERVERS];
+   memset(server_conn_valid, -1, sizeof(server_conn_valid));
+
+   for (int a = 0; a < config->number_of_alerts; a++)
+   {
+      struct alert_definition* alert = &config->alerts[a];
+
+      pgexporter_snprintf(metric_name, sizeof(metric_name), "pgexporter_alert_%s", alert->name);
+
+      data = pgexporter_vappend(data, 5,
+                                "#HELP ", metric_name, " ", alert->description, "\n");
+      data = pgexporter_vappend(data, 3,
+                                "#TYPE ", metric_name, " gauge\n");
+
+      for (server = 0; server < config->number_of_servers; server++)
+      {
+         int firing = 0;
+
+         /* Server name filter */
+         if (!alert->servers_all && alert->number_of_servers > 0)
+         {
+            bool match = false;
+            for (int s = 0; s < alert->number_of_servers; s++)
+            {
+               if (!strcmp(alert->servers[s], config->servers[server].name))
+               {
+                  match = true;
+                  break;
+               }
+            }
+            if (!match)
+            {
+               continue;
+            }
+         }
+
+         /* Lazy connection validity check */
+         if (server_conn_valid[server] == -1)
+         {
+            server_conn_valid[server] = pgexporter_connection_isvalid(config->servers[server].ssl, config->servers[server].fd) ? 1 : 0;
+         }
+         bool conn_valid = (server_conn_valid[server] == 1);
+
+         if (alert->alert_type == ALERT_TYPE_CONNECTION)
+         {
+            firing = conn_valid ? 0 : 1;
+         }
+         else if (alert->alert_type == ALERT_TYPE_QUERY)
+         {
+            if (!conn_valid)
+            {
+               /* Server is down, skip query-based alerts */
+               firing = -1;
+            }
+            else
+            {
+               query = NULL;
+               ret = pgexporter_query_execute(server, alert->query, alert->name, &query);
+
+               if (ret == 0 && query != NULL && query->tuples != NULL)
+               {
+                  char* result_str = pgexporter_get_column(0, query->tuples);
+                  if (result_str != NULL)
+                  {
+                     int64_t value = strtoll(result_str, NULL, 10);
+                     firing = evaluate_alert(value, alert->operator, alert->threshold) ? 1 : 0;
+                  }
+               }
+               else
+               {
+                  pgexporter_log_warn("Failed to query alert '%s' for server %s",
+                                      alert->name, config->servers[server].name);
+                  firing = -1;
+               }
+
+               pgexporter_free_query(query);
+               query = NULL;
+            }
+         }
+
+         if (firing >= 0)
+         {
+            char* type_str = (alert->alert_type == ALERT_TYPE_CONNECTION) ? "connection" : "query";
+            data = pgexporter_vappend(data, 3,
+                                      metric_name, "{server=\"",
+                                      &config->servers[server].name[0]);
+            data = pgexporter_vappend(data, 5,
+                                      "\",alert=\"", alert->name,
+                                      "\",type=\"", type_str,
+                                      "\"} ");
+            data = pgexporter_append(data, firing ? "1" : "0");
+            data = pgexporter_append(data, "\n");
+         }
+      }
+
+      data = pgexporter_append(data, "\n");
+
+      if (data != NULL)
+      {
+         add_metric_to_art(container->alert_metrics, metric_name, data, NULL, NULL, 0);
+         free(data);
+         data = NULL;
+      }
+   }
 }
 
 static void
@@ -3410,7 +3568,8 @@ create_metrics_container(prometheus_metrics_container_t** container)
        pgexporter_art_create(&c->extension_metrics) ||
        pgexporter_art_create(&c->extension_list_metrics) ||
        pgexporter_art_create(&c->settings_metrics) ||
-       pgexporter_art_create(&c->custom_metrics))
+       pgexporter_art_create(&c->custom_metrics) ||
+       pgexporter_art_create(&c->alert_metrics))
    {
       pgexporter_log_error("Failed to create ART for metrics container");
       goto error;
@@ -3448,6 +3607,7 @@ destroy_metrics_container(prometheus_metrics_container_t* container)
    pgexporter_art_destroy(container->extension_list_metrics);
    pgexporter_art_destroy(container->settings_metrics);
    pgexporter_art_destroy(container->custom_metrics);
+   pgexporter_art_destroy(container->alert_metrics);
 
    free(container);
 }
@@ -3559,4 +3719,5 @@ output_all_metrics(SSL* client_ssl, int client_fd, prometheus_metrics_container_
    output_art_metrics(client_ssl, client_fd, container->extension_list_metrics);
    output_art_metrics(client_ssl, client_fd, container->settings_metrics);
    output_art_metrics(client_ssl, client_fd, container->custom_metrics);
+   output_art_metrics(client_ssl, client_fd, container->alert_metrics);
 }

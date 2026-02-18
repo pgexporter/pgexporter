@@ -1,0 +1,15 @@
+alerts:
+- name: test_down
+  description: Server is down
+  type: connection
+  operator: "=="
+  threshold: -1
+  servers: all
+
+- name: test_lag
+  description: Lag is high
+  type: query
+  query: "SELECT 1"
+  operator: ">"
+  threshold: 300
+  servers: replica

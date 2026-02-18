@@ -274,8 +274,8 @@ pgexporter_test_assert_conf_get_ok(char* key, int64_t expected)
       goto fail;
 
    if (pgexporter_management_request_conf_get(NULL, socket,
-                                               MANAGEMENT_COMPRESSION_NONE, MANAGEMENT_ENCRYPTION_NONE,
-                                               MANAGEMENT_OUTPUT_FORMAT_JSON) != 0)
+                                              MANAGEMENT_COMPRESSION_NONE, MANAGEMENT_ENCRYPTION_NONE,
+                                              MANAGEMENT_OUTPUT_FORMAT_JSON) != 0)
       goto fail;
 
    if (pgexporter_management_read_json(NULL, socket, NULL, NULL, &read) != 0)

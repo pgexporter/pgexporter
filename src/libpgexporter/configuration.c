@@ -109,6 +109,7 @@ pgexporter_init_configuration(void* shm)
    config->metrics = -1;
    config->metrics_query_timeout = PGEXPORTER_TIME_DISABLED;
    config->cache = true;
+   config->alerts_enabled = false;
    config->number_of_metric_names = 0;
    memset(config->metric_names, 0, sizeof(config->metric_names));
 
@@ -275,7 +276,7 @@ pgexporter_read_configuration(void* shm, char* filename)
          }
          else
          {
-            if (pgexporter_starts_with(line, "unix_socket_dir") || pgexporter_starts_with(line, "metrics_path") || pgexporter_starts_with(line, "log_path") || pgexporter_starts_with(line, "tls_cert_file") || pgexporter_starts_with(line, "tls_key_file") || pgexporter_starts_with(line, "tls_ca_file") || pgexporter_starts_with(line, "metrics_cert_file") || pgexporter_starts_with(line, "metrics_key_file") || pgexporter_starts_with(line, "metrics_ca_file"))
+            if (pgexporter_starts_with(line, "unix_socket_dir") || pgexporter_starts_with(line, "metrics_path") || pgexporter_starts_with(line, "alerts_path") || pgexporter_starts_with(line, "log_path") || pgexporter_starts_with(line, "tls_cert_file") || pgexporter_starts_with(line, "tls_key_file") || pgexporter_starts_with(line, "tls_ca_file") || pgexporter_starts_with(line, "metrics_cert_file") || pgexporter_starts_with(line, "metrics_key_file") || pgexporter_starts_with(line, "metrics_ca_file"))
             {
                extract_syskey_value(line, &key, &value);
             }
@@ -561,6 +562,20 @@ pgexporter_read_configuration(void* shm, char* filename)
                      unknown = true;
                   }
                }
+               else if (!strcmp(key, "alerts"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     if (as_bool(value, &config->alerts_enabled))
+                     {
+                        unknown = true;
+                     }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
                else if (!strcmp(key, "cache"))
                {
                   if (!strcmp(section, "pgexporter"))
@@ -569,6 +584,22 @@ pgexporter_read_configuration(void* shm, char* filename)
                      {
                         unknown = true;
                      }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "alerts_path"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->alerts_path, value, max);
                   }
                   else
                   {
@@ -2228,14 +2259,6 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
          }
          pgexporter_json_put(response, key, (uintptr_t)config->management, ValueInt64);
       }
-      else if (!strcmp(key, "console"))
-      {
-         if (as_int(config_value, &config->console))
-         {
-            unknown = true;
-         }
-         pgexporter_json_put(response, key, (uintptr_t)config->console, ValueInt64);
-      }
       else if (!strcmp(key, "cache"))
       {
          if (as_bool(config_value, &config->cache))
@@ -2612,6 +2635,7 @@ add_configuration_response(struct json* res)
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_JSON, (uintptr_t)config->bridge_json, ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_JSON_CACHE_MAX_SIZE, (uintptr_t)config->bridge_json_cache_max_size, ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_MANAGEMENT, (uintptr_t)config->management, ValueInt64);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_ALERTS, (uintptr_t)config->alerts_enabled, ValueBool);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_CACHE, (uintptr_t)config->cache, ValueBool);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_LOG_TYPE, (uintptr_t)config->log_type, ValueInt32);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_LOG_LEVEL, (uintptr_t)config->log_level, ValueInt32);
@@ -3636,6 +3660,7 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    }
    config->management = reload->management;
    config->cache = reload->cache;
+   config->alerts_enabled = reload->alerts_enabled;
 
    /* log_type */
    if (restart_int("log_type", config->log_type, reload->log_type))
@@ -3732,6 +3757,14 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
       copy_promethus(&config->prometheus[i], &reload->prometheus[i]);
    }
    config->number_of_metrics = reload->number_of_metrics;
+
+   /* alerts */
+   memcpy(config->alerts_path, reload->alerts_path, MAX_PATH);
+   for (int i = 0; i < reload->number_of_alerts; i++)
+   {
+      memcpy(&config->alerts[i], &reload->alerts[i], sizeof(struct alert_definition));
+   }
+   config->number_of_alerts = reload->number_of_alerts;
 
    /* endpoint */
    for (int i = 0; i < reload->number_of_endpoints; i++)

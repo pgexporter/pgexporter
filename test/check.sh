@@ -398,6 +398,8 @@ do_setup() {
   mkdir -p "$LOG_DIR" "$PG_LOG_DIR" "$COVERAGE_DIR" "$BASE_DIR"
   mkdir -p "$CONFIGURATION_DIRECTORY" "$PGCONF_DIRECTORY"
   cp -R $TEST_PG17_DIRECTORY/conf/* $PGCONF_DIRECTORY/
+  mkdir -p "$BASE_DIR/test/conf"
+  cp -R "$PROJECT_DIRECTORY/test/conf/"* "$BASE_DIR/test/conf/"
   chmod -R 777 $PG_LOG_DIR
   chmod -R 777 $PGCONF_DIRECTORY
 

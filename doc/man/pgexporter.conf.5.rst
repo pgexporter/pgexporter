@@ -89,6 +89,12 @@ management
 cache
   Cache connection. Default is on
 
+alerts
+  Enable or disable alerting. If enabled, built-in alerts are parsed and evaluated. Automatically enabled when ``--alerts`` CLI flag is used. Default is off.
+
+alerts_path
+  Path to a custom alert definitions YAML file.
+
 log_type
   The logging type (console, file, syslog). Default is console
 
