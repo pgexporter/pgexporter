@@ -132,7 +132,7 @@ Then "Run Query":
 
 ### Importing pgexporter dashboard
 
-You could also use pgexporter dashboards which are available in [contrib/grafana](../../contrib/grafana/) directory. Navigate to **Home -> Dashboards -> New -> Import**.
+You could also use pgexporter dashboards which are available in [contrib/grafana](../../../contrib/grafana/) directory. Navigate to **Home -> Dashboards -> New -> Import**.
 
 ![image](../images/grafana_import_dashboard.png)
 
@@ -145,7 +145,7 @@ We provide 6 version-specific dashboards to support the unique features of each 
 *   `postgresql_dashboard_pg17.json` (+ Wait Events)
 *   `postgresql_dashboard_pg18.json` (+ Wait Events)
 
-Select **"Upload dashboard as JSON file"**, choose the file matching your PostgreSQL version from the [contrib/grafana](../../contrib/grafana/) directory, select your Prometheus datasource, and click **"Import"**.
+Select **"Upload dashboard as JSON file"**, choose the file matching your PostgreSQL version from the [contrib/grafana](../../../contrib/grafana/) directory, select your Prometheus datasource, and click **"Import"**.
 
 You will now be able to view important metrics which pgexporter provides.
 
@@ -188,3 +188,113 @@ If you have configured multiple Prometheus datasources (e.g., for different Post
 ![image](../images/grafana_datasource_select.png)
 
 Select the desired datasource from the dropdown to view metrics from that specific server.
+
+## Alerting with Grafana
+
+In addition to dashboards, Grafana can monitor pgexporter metrics and send notifications when something goes wrong — for example, when PostgreSQL goes down, connections are running out, or replication is falling behind.
+
+### Setting Up a Contact Point
+
+Before creating alerts, you need to configure where notifications are sent. We use Slack as an example here, but Grafana also supports Email, PagerDuty, Microsoft Teams, and others (see the [Grafana Contact Points documentation](https://grafana.com/docs/grafana/latest/alerting/fundamentals/notifications/contact-points/)).
+
+First, create a Slack Incoming Webhook for the channel you want to receive alerts in (Slack -> Apps -> Incoming Webhooks -> Add New Webhook) (see the [Slack Incoming Webhooks documentation](https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/)).
+
+Then in Grafana, click Alerts & IRM -> Contact points -> "Create contact point".
+
+**Click on "Contact points".**
+
+![image](../images/grafana_alerting_contact_point.png)
+
+**Click on "Create contact point".**
+
+![image](../images/grafana_alerting_create_contact_point.png)
+
+**Set contact point**
+
+Set the name (e.g., `pgexporter-slack`), choose "Slack" as the integration type, and paste your Webhook URL. Click "Test" to verify the connection, then "Save contact point".
+
+![image](../images/grafana_alerting_set_contact_point.png)
+
+
+
+**Successful connection**
+
+![image](../images/grafana_alerting_slack_success.png)
+
+
+### Creating an Alert Rule
+
+We will create a `PostgreSQLDown` alert as an example. This alert fires when a PostgreSQL server monitored by pgexporter becomes unreachable.
+
+Click Alerts & IRM -> Alert rules -> "+ New alert rule".
+
+Enter the rule name `PostgreSQLDown`.
+
+Then define the query and condition. Select your Prometheus datasource (the one scraping pgexporter) and enter the following query:
+```promql
+pgexporter_postgresql_active == 0
+```
+
+Set the condition to fire when the query result is above `0` (i.e., at least one server is down). Click "Preview" to verify the expression.
+
+Then set the folder and labels. Choose or create a folder (e.g., `pgexporter-alerts`) and add labels such as `severity = critical`.
+
+![image](../images/grafana_alerting_new_rule.png)
+
+Next, configure the evaluation behavior. Select or create an evaluation group (e.g., `pgexporter` with interval `1m`). Set the pending period to `1m` — this means the condition must be true for 1 minute before the alert fires, which avoids false alarms from brief scrape gaps.
+
+![image](../images/grafana_alerting_evaluation.png)
+
+Then configure the notifications. Select the contact point you created earlier (e.g., `pgexporter-slack`).
+
+![image](../images/grafana_alerting_notifications.png)
+
+You can also add annotations to include useful information in the notification message:
+
+*   **Summary**: `PostgreSQL server {{ $labels.server }} is down`
+*   **Description**: `The PostgreSQL instance {{ $labels.server }} has been unreachable for more than 1 minute.`
+
+![image](../images/grafana_alerting_annotations.png)
+
+Click "Save rule and exit".
+
+![image](../images/grafana_alerting_rule_saved.png)
+
+Verify that the new rule appears in the Grafana Managed Alert Rules list.
+
+![image](../images/grafana_alerting_rule_list.png)
+
+You can repeat these steps for additional alerts. The following section lists recommended alerts you can create using pgexporter's existing metrics.
+
+### Recommended Alerts
+
+The following alerts cover the most critical conditions for PostgreSQL monitoring. For each alert, use the same steps described above — only the rule name, query, severity label, and pending period change.
+
+#### Availability
+
+| Alert Name | Severity | PromQL Expression | Pending Period |
+|------------|----------|-------------------|----------------|
+| `PgExporterDown` | critical | `pgexporter_state == 0` | 1m |
+| `PostgreSQLDown` | critical | `pgexporter_postgresql_active == 0` | 1m |
+
+#### Replication
+
+| Alert Name | Severity | PromQL Expression | Pending Period |
+|------------|----------|-------------------|----------------|
+| `PostgreSQLReplicationLagCritical` | critical | `pgexporter_pg_wal_last_received > 300000` | 2m |
+| `PostgreSQLWALReceiverDown` | critical | `pgexporter_pg_stat_walreceiver_last_msg_receipt_time - pgexporter_pg_stat_walreceiver_last_msg_send_time > 30` | 2m |
+| `PostgreSQLReplicationSlotInactive` | critical | `pgexporter_pg_replication_slots_active == 0` | 10m |
+
+#### Maintenance
+
+| Alert Name | Severity | PromQL Expression | Pending Period |
+|------------|----------|-------------------|----------------|
+| `PostgreSQLTransactionIDWraparound` | critical | `pgexporter_pg_db_vacuum_age_datfrozenxid > 1500000000` | 5m |
+| `PostgreSQLMultiXactWraparound` | critical | `pgexporter_pg_db_vacuum_age_datminmxid > 1500000000` | 5m |
+
+### Notes
+
+*   Always add a `severity` label (`critical` or `warning`) to each rule. This allows you to route critical alerts to Slack or PagerDuty and warnings to email using Grafana notification policies.
+*   pgexporter labels metrics with a `server` tag when monitoring multiple PostgreSQL servers. Use `{{ $labels.server }}` in annotations to identify which server triggered the alert.
+*   The thresholds above are sensible defaults. Adjust them based on your workload.
+*   Use longer pending periods (5m+) for noisy metrics and shorter ones (1m) for critical availability checks.

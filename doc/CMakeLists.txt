@@ -75,7 +75,7 @@ if(DOCS)
   # Manuals definitions
   set(MANUAL_OUTPUT_DIR "${CMAKE_BINARY_DIR}/doc")
   get_filename_component(PARENT_DIR ${CMAKE_BINARY_DIR} DIRECTORY)
-  set(IMAGE_DIR "${PARENT_DIR}/doc/images")
+  set(IMAGE_DIR "${PARENT_DIR}/doc/manual/images")
 
   add_custom_target(
     copy_images
