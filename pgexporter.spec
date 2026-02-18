@@ -61,7 +61,7 @@ cmake -DCMAKE_BUILD_TYPE=Release -DDOCS=OFF ..
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/VIEWS.md %{buildroot}%{_docdir}/%{name}/VIEWS.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/SPONSORS.md %{buildroot}%{_docdir}/%{name}/SPONSORS.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/etc/pgexporter.service %{buildroot}%{_docdir}/%{name}/etc/pgexporter.service
-%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/images/* %{buildroot}%{_docdir}/%{name}/images/
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/manual/images/* %{buildroot}%{_docdir}/%{name}/images/
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/manual/en/* %{buildroot}%{_docdir}/%{name}/manual/en/
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/man/*.rst %{buildroot}%{_docdir}/%{name}/man/
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/contrib/shell_comp/pgexporter_comp.bash %{buildroot}%{_docdir}/%{name}/shell_comp/pgexporter_comp.bash
