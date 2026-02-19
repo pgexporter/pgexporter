@@ -32,6 +32,7 @@ Shashank Singh <shashanksgh3@gmail.com>
 Abdelrhman Sersawy <abdelrhmansersawy@gmail.com>
 Amr Shams (NightBird) <amr.shams2015.a@gmail.com>
 Mazen Kamal <mazenkamal212@gmail.com>
+Trevor Jacob Mathews <trevorjacobmathews@gmail.com>
 ```
 
 ## Contributing
