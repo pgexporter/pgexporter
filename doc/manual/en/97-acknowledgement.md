@@ -15,12 +15,14 @@ Donglin Xie <xray20161@gmail.com>
 Saurav Pal <resyfer.dev@gmail.com>
 Jakub Jirutka <jakub@jirutka.cz>
 Andreas Wahlen <andreas.wahlen@nerou.de>
+John Hsu <hsuchen@amazon.com>
 Haoran Zhang <andrewzhr9911@gmail.com>
 Georg Pfuetzenreuter <mail@georg-pfuetzenreuter.net>
 Bassam Adnan <mailbassam@gmail.com>
 Sangkeun J.C. Kim <jchrys@me.com>
-Tejas Tyagi<tejastyagi.tt@gmail.com>
+Tejas Tyagi <tejastyagi.tt@gmail.com>
 Arshdeep Singh <balarsh535@gmail.com>
+Botir Khaltaev <btrghstk@gmail.com>
 Ahmed Osama Fathy <ahmedosamaft@gmail.com>
 Vanes Angelo <k124k3n@gmail.com>
 Sara Nabih <nabihsara8@gmail.com>
@@ -28,6 +30,7 @@ Mahmoud Hamdy (TutTrue) <mahmoud.hamdy5113@gmail.com>
 Somye Mahajan <mahajan.somye@gmail.com>
 Shashank Singh <shashanksgh3@gmail.com>
 Abdelrhman Sersawy <abdelrhmansersawy@gmail.com>
+Amr Shams (NightBird) <amr.shams2015.a@gmail.com>
 Mazen Kamal <mazenkamal212@gmail.com>
 ```
 
