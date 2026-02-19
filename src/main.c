@@ -51,6 +51,7 @@
 #include <status.h>
 #include <utils.h>
 #include <yaml_configuration.h>
+#include <alert_configuration.h>
 #include <json_configuration.h>
 
 /* system */
@@ -791,6 +792,29 @@ main(int argc, char** argv)
          sd_notify(0, "STATUS=Invalid core metrics");
 #endif
          exit(1);
+      }
+   }
+
+   /* Alert definitions */
+   if (config->alerts_enabled)
+   {
+      if (pgexporter_read_internal_yaml_alerts(config))
+      {
+#ifdef HAVE_SYSTEMD
+         sd_notify(0, "STATUS=Invalid core alert definitions");
+#endif
+         exit(1);
+      }
+
+      if (strlen(config->alerts_path) > 0)
+      {
+         if (pgexporter_read_alerts_configuration(shmem))
+         {
+#ifdef HAVE_SYSTEMD
+            sd_notify(0, "STATUS=Invalid alert overrides");
+#endif
+            exit(1);
+         }
       }
    }
 

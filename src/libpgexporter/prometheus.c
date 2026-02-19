@@ -136,6 +136,7 @@ static void primary_information(SSL* client_ssl, int client_fd);
 static void settings_information(SSL* client_ssl, int client_fd);
 static void custom_metrics(SSL* client_ssl, int client_fd); // Handles custom metrics provided in YAML format, both internal and external
 static void extension_metrics(SSL* client_ssl, int client_fd);
+static void alert_information(SSL* client_ssl, int client_fd);
 static void prometheus_endpoints_information(SSL* client_ssl, int client_fd);
 static void append_help_info(char** data, char* tag, char* name, char* description);
 static void append_type_info(char** data, char* tag, char* name, int typeId);
@@ -555,6 +556,13 @@ home_page(SSL* client_ssl, int client_fd)
                              "  <li>pgexporter_query_errors_total</li>\n",
                              "  <li>pgexporter_query_timeouts_total</li>\n");
 
+   data = pgexporter_vappend(data, 5,
+                             "  <li>pgexporter_alert_postgresql_down</li>\n",
+                             "  <li>pgexporter_alert_connections_high</li>\n",
+                             "  <li>pgexporter_alert_replication_lag</li>\n",
+                             "  <li>pgexporter_alert_replication_slot_inactive</li>\n",
+                             "  <li>pgexporter_alert_xid_wraparound</li>\n");
+
    send_chunk(client_ssl, client_fd, data);
    free(data);
    data = NULL;
@@ -698,6 +706,7 @@ retry_cache_locking:
          primary_information(client_ssl, client_fd);
          settings_information(client_ssl, client_fd);
          extension_list_information(client_ssl, client_fd);
+         alert_information(client_ssl, client_fd);
 
          custom_metrics(client_ssl, client_fd);
          extension_metrics(client_ssl, client_fd);
@@ -1344,6 +1353,122 @@ data:
    }
 
    pgexporter_free_query(all);
+}
+
+static bool
+evaluate_alert(double value, enum alert_operator op, double threshold)
+{
+   switch (op)
+   {
+      case ALERT_OPERATOR_GT:
+         return value > threshold;
+      case ALERT_OPERATOR_LT:
+         return value < threshold;
+      case ALERT_OPERATOR_GE:
+         return value >= threshold;
+      case ALERT_OPERATOR_LE:
+         return value <= threshold;
+      case ALERT_OPERATOR_EQ:
+         return value == threshold;
+      case ALERT_OPERATOR_NE:
+         return value != threshold;
+      default:
+         return false;
+   }
+}
+
+static void
+alert_information(SSL* client_ssl, int client_fd)
+{
+   int ret;
+   int server;
+   char* data = NULL;
+   struct query* query = NULL;
+   struct configuration* config;
+   char metric_name[PROMETHEUS_LENGTH];
+
+   config = (struct configuration*)shmem;
+
+   if (!config->alerts_enabled || config->number_of_alerts == 0)
+   {
+      return;
+   }
+
+   for (int a = 0; a < config->number_of_alerts; a++)
+   {
+      struct alert_definition* alert = &config->alerts[a];
+
+      pgexporter_snprintf(metric_name, sizeof(metric_name), "pgexporter_alert_%s", alert->name);
+
+      data = pgexporter_vappend(data, 5,
+                                "#HELP ", metric_name, " ", alert->description, "\n");
+      data = pgexporter_vappend(data, 3,
+                                "#TYPE ", metric_name, " gauge\n");
+
+      for (server = 0; server < config->number_of_servers; server++)
+      {
+         int firing = 0;
+
+         if (alert->alert_type == ALERT_TYPE_CONNECTION)
+         {
+            /* Connection check: fd == -1 means server is down */
+            firing = (config->servers[server].fd == -1) ? 1 : 0;
+         }
+         else if (alert->alert_type == ALERT_TYPE_QUERY)
+         {
+            if (config->servers[server].fd == -1)
+            {
+               /* Server is down, skip query-based alerts */
+               firing = -1;
+            }
+            else
+            {
+               query = NULL;
+               ret = pgexporter_query_execute(server, alert->query, alert->name, &query);
+
+               if (ret == 0 && query != NULL && query->tuples != NULL)
+               {
+                  char* result_str = pgexporter_get_column(0, query->tuples);
+                  if (result_str != NULL)
+                  {
+                     double value = atof(result_str);
+                     firing = evaluate_alert(value, alert->operator, alert->threshold) ? 1 : 0;
+                  }
+               }
+               else
+               {
+                  pgexporter_log_warn("Failed to query alert '%s' for server %s",
+                                      alert->name, config->servers[server].name);
+                  firing = -1;
+               }
+
+               pgexporter_free_query(query);
+               query = NULL;
+            }
+         }
+
+         if (firing >= 0)
+         {
+            data = pgexporter_vappend(data, 3,
+                                      metric_name, "{server=\"",
+                                      &config->servers[server].name[0]);
+            data = pgexporter_vappend(data, 2,
+                                      "\"} ",
+                                      firing ? "1" : "0");
+            data = pgexporter_append(data, "\n");
+         }
+      }
+
+      data = pgexporter_append(data, "\n");
+
+      if (data != NULL)
+      {
+         send_chunk(client_ssl, client_fd, data);
+         metrics_cache_append(data);
+         free(data);
+         data = NULL;
+      }
+   }
 }
 
 static void
