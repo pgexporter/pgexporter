@@ -29,6 +29,7 @@ Somye Mahajan <mahajan.somye@gmail.com>
 Shashank Singh <shashanksgh3@gmail.com>
 Abdelrhman Sersawy <abdelrhmansersawy@gmail.com>
 Mazen Kamal <mazenkamal212@gmail.com>
+Trevor Jacob Mathews <trevorjacobmathews@gmail.com>
 ```
 
 ## Contributing
