@@ -128,11 +128,9 @@ pgexporter_stop_logging(void)
    {
       if (log_file != NULL)
       {
-         return fclose(log_file);
-      }
-      else
-      {
-         return 1;
+         fclose(log_file);
+         errno = 0;
+         log_file = NULL;
       }
    }
    else if (config->log_type == PGEXPORTER_LOGGING_TYPE_SYSLOG)
@@ -694,6 +692,7 @@ log_file_rotate(void)
    {
       fflush(log_file);
       fclose(log_file);
+      log_file = NULL;
       log_file_open();
    }
 }
