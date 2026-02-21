@@ -29,8 +29,6 @@
 #include <tscommon.h>
 #include <tssuite.h>
 
-#include "logging.h"
-
 int
 main(int argc, char* argv[])
 {
@@ -39,6 +37,7 @@ main(int argc, char* argv[])
    Suite* database_suite;
    Suite* http_suite;
    Suite* configuration_suite;
+   Suite* cache_suite;
    SRunner* sr;
 
    pgexporter_test_environment_create();
@@ -47,11 +46,13 @@ main(int argc, char* argv[])
    database_suite = pgexporter_test_database_suite();
    http_suite = pgexporter_test_http_suite();
    configuration_suite = pgexporter_test_configuration_suite();
+   cache_suite = pgexporter_test_cache_suite();
 
    sr = srunner_create(cli_suite);
    srunner_add_suite(sr, database_suite);
    srunner_add_suite(sr, configuration_suite);
    srunner_add_suite(sr, http_suite);
+   srunner_add_suite(sr, cache_suite);
    srunner_set_log(sr, "-");
    srunner_set_fork_status(sr, CK_NOFORK);
    srunner_run(sr, NULL, NULL, CK_VERBOSE);

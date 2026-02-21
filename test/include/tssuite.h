@@ -60,4 +60,11 @@ pgexporter_test_http_suite();
 Suite*
 pgexporter_test_configuration_suite();
 
+/**
+ * Set up cache test suite for pgexporter
+ * @return The suite
+ */
+Suite*
+pgexporter_test_cache_suite();
+
 #endif
