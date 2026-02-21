@@ -42,6 +42,7 @@
 #include <ext_query_alts.h>
 #include <security.h>
 #include <shmem.h>
+#include <cache.h>
 #include <utils.h>
 
 /* system */
@@ -2909,59 +2910,31 @@ is_metrics_cache_configured(void)
 static bool
 is_metrics_cache_valid(void)
 {
-   time_t now;
-
    struct prometheus_cache* cache;
 
    cache = (struct prometheus_cache*)prometheus_cache_shmem;
 
-   if (cache->valid_until == 0 || strlen(cache->data) == 0)
-   {
-      return false;
-   }
-
-   now = time(NULL);
-   return now <= cache->valid_until;
+   return pgexporter_cache_is_valid(cache);
 }
-
 int
 pgexporter_init_prometheus_cache(size_t* p_size, void** p_shmem)
 {
-   struct prometheus_cache* cache;
-   struct configuration* config;
-   size_t cache_size = 0;
-   size_t struct_size = 0;
+   size_t cache_size;
 
-   config = (struct configuration*)shmem;
-
-   // first of all, allocate the overall cache structure
    cache_size = metrics_cache_size_to_alloc();
-   struct_size = sizeof(struct prometheus_cache);
 
-   if (pgexporter_create_shared_memory(struct_size + cache_size, config->hugepage, (void*)&cache))
+   if (pgexporter_cache_init(cache_size, p_size, p_shmem))
    {
-      goto error;
+      struct configuration* config = (struct configuration*)shmem;
+
+      config->metrics_cache_max_size = PGEXPORTER_PROMETHEUS_CACHE_DISABLED;
+      config->metrics_cache_max_age = PGEXPORTER_TIME_DISABLED;
+      pgexporter_log_error("Cannot allocate shared memory for the Prometheus cache!");
+
+      return 1;
    }
 
-   memset(cache, 0, struct_size + cache_size);
-   cache->valid_until = 0;
-   cache->size = cache_size;
-   atomic_init(&cache->lock, STATE_FREE);
-
-   // success! do the memory swap
-   *p_shmem = cache;
-   *p_size = cache_size + struct_size;
    return 0;
-
-error:
-   // disable caching
-   config->metrics_cache_max_size = PGEXPORTER_PROMETHEUS_CACHE_DISABLED;
-   config->metrics_cache_max_age = PGEXPORTER_TIME_DISABLED;
-   pgexporter_log_error("Cannot allocate shared memory for the Prometheus cache!");
-   *p_size = 0;
-   *p_shmem = NULL;
-
-   return 1;
 }
 
 /**
@@ -3010,8 +2983,7 @@ metrics_cache_invalidate(void)
 
    cache = (struct prometheus_cache*)prometheus_cache_shmem;
 
-   memset(cache->data, 0, cache->size);
-   cache->valid_until = 0;
+   pgexporter_cache_invalidate(cache);
 }
 
 /**
@@ -3034,8 +3006,6 @@ metrics_cache_invalidate(void)
 static bool
 metrics_cache_append(char* data)
 {
-   size_t origin_length = 0;
-   size_t append_length = 0;
    struct prometheus_cache* cache;
 
    cache = (struct prometheus_cache*)prometheus_cache_shmem;
@@ -3045,29 +3015,7 @@ metrics_cache_append(char* data)
       return false;
    }
 
-   if (data == NULL)
-   {
-      return false;
-   }
-
-   origin_length = strlen(cache->data);
-   append_length = strlen(data);
-   // need to append the data to the cache
-   if (origin_length + append_length >= cache->size)
-   {
-      // cannot append new data, so invalidate cache
-      pgexporter_log_debug("Cannot append %d bytes to the Prometheus cache because it will overflow the size of %d bytes (currently at %d bytes). HINT: try adjusting `metrics_cache_max_size`",
-                           append_length,
-                           cache->size,
-                           origin_length);
-      metrics_cache_invalidate();
-      return false;
-   }
-
-   // append the data to the data field
-   memcpy(cache->data + origin_length, data, append_length);
-   cache->data[origin_length + append_length] = '\0';
-   return true;
+   return pgexporter_cache_append(cache, data);
 }
 
 /**
@@ -3085,7 +3033,6 @@ metrics_cache_finalize(void)
 {
    struct configuration* config;
    struct prometheus_cache* cache;
-   time_t now;
 
    cache = (struct prometheus_cache*)prometheus_cache_shmem;
    config = (struct configuration*)shmem;
@@ -3095,11 +3042,8 @@ metrics_cache_finalize(void)
       return false;
    }
 
-   now = time(NULL);
-   cache->valid_until = now + pgexporter_time_convert(config->metrics_cache_max_age, FORMAT_TIME_S);
-   return cache->valid_until > now;
+   return pgexporter_cache_finalize(cache, config->metrics_cache_max_age);
 }
-
 static void
 prometheus_endpoints_information(SSL* client_ssl, int client_fd)
 {

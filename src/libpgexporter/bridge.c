@@ -30,6 +30,7 @@
 #include <pgexporter.h>
 #include <art.h>
 #include <bridge.h>
+#include <cache.h>
 #include <deque.h>
 #include <logging.h>
 #include <memory.h>
@@ -621,48 +622,28 @@ is_bridge_cache_configured(void)
 static bool
 is_bridge_cache_valid(void)
 {
-   time_t now;
-
    struct prometheus_cache* cache;
 
    cache = (struct prometheus_cache*)bridge_cache_shmem;
 
-   if (cache->valid_until == 0 || strlen(cache->data) == 0)
-   {
-      return false;
-   }
-
-   now = time(NULL);
-   return now <= cache->valid_until;
+   return pgexporter_cache_is_valid(cache);
 }
 
 int
 pgexporter_bridge_init_cache(size_t* p_size, void** p_shmem)
 {
-   struct prometheus_cache* cache;
    struct configuration* config;
    size_t cache_size = 0;
-   size_t struct_size = 0;
 
    config = (struct configuration*)shmem;
 
-   // first of all, allocate the overall cache structure
    cache_size = bridge_cache_size_to_alloc();
-   struct_size = sizeof(struct prometheus_cache);
 
-   if (pgexporter_create_shared_memory(struct_size + cache_size, config->hugepage, (void*)&cache))
+   if (pgexporter_cache_init(cache_size, p_size, p_shmem))
    {
       goto error;
    }
 
-   memset(cache, 0, struct_size + cache_size);
-   cache->valid_until = 0;
-   cache->size = cache_size;
-   atomic_init(&cache->lock, STATE_FREE);
-
-   // success! do the memory swap
-   *p_shmem = cache;
-   *p_size = cache_size + struct_size;
    return 0;
 
 error:
@@ -725,8 +706,7 @@ bridge_cache_invalidate(void)
 
    cache = (struct prometheus_cache*)bridge_cache_shmem;
 
-   memset(cache->data, 0, cache->size);
-   cache->valid_until = 0;
+   pgexporter_cache_invalidate(cache);
 }
 
 /**
@@ -749,8 +729,6 @@ bridge_cache_invalidate(void)
 static bool
 bridge_cache_append(char* data)
 {
-   size_t origin_length = 0;
-   size_t append_length = 0;
    struct prometheus_cache* cache;
 
    cache = (struct prometheus_cache*)bridge_cache_shmem;
@@ -760,24 +738,7 @@ bridge_cache_append(char* data)
       return false;
    }
 
-   origin_length = strlen(cache->data);
-   append_length = strlen(data);
-   // need to append the data to the cache
-   if (origin_length + append_length >= cache->size)
-   {
-      // cannot append new data, so invalidate cache
-      pgexporter_log_warn("Cannot append %d bytes to the Prometheus cache because it will overflow the size of %d bytes (currently at %d bytes). HINT: try adjusting `bridge_cache_max_size`",
-                          append_length,
-                          cache->size,
-                          origin_length);
-      bridge_cache_invalidate();
-      return false;
-   }
-
-   // append the data to the data field
-   memcpy(cache->data + origin_length, data, append_length);
-   cache->data[origin_length + append_length + 1] = '\0';
-   return true;
+   return pgexporter_cache_append(cache, data);
 }
 
 /**
@@ -795,7 +756,6 @@ bridge_cache_finalize(void)
 {
    struct configuration* config;
    struct prometheus_cache* cache;
-   time_t now;
 
    cache = (struct prometheus_cache*)bridge_cache_shmem;
    config = (struct configuration*)shmem;
@@ -805,9 +765,7 @@ bridge_cache_finalize(void)
       return false;
    }
 
-   now = time(NULL);
-   cache->valid_until = now + pgexporter_time_convert(config->bridge_cache_max_age, FORMAT_TIME_S);
-   return cache->valid_until > now;
+   return pgexporter_cache_finalize(cache, config->bridge_cache_max_age);
 }
 
 /**
@@ -837,30 +795,18 @@ is_bridge_json_cache_configured(void)
 int
 pgexporter_bridge_json_init_cache(size_t* p_size, void** p_shmem)
 {
-   struct prometheus_cache* cache;
    struct configuration* config;
    size_t cache_size = 0;
-   size_t struct_size = 0;
 
    config = (struct configuration*)shmem;
 
-   // first of all, allocate the overall cache structure
    cache_size = bridge_json_cache_size_to_alloc();
-   struct_size = sizeof(struct prometheus_cache);
 
-   if (pgexporter_create_shared_memory(struct_size + cache_size, config->hugepage, (void*)&cache))
+   if (pgexporter_cache_init(cache_size, p_size, p_shmem))
    {
       goto error;
    }
 
-   memset(cache, 0, struct_size + cache_size);
-   cache->valid_until = 0;
-   cache->size = cache_size;
-   atomic_init(&cache->lock, STATE_FREE);
-
-   // success! do the memory swap
-   *p_shmem = cache;
-   *p_size = cache_size + struct_size;
    return 0;
 
 error:
