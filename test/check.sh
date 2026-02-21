@@ -289,6 +289,8 @@ execute_testcases() {
    fi
 
    echo "Start running tests"
+   # Run tests from the project root
+   cd "$PROJECT_DIRECTORY"
    $TEST_DIRECTORY/pgexporter-test
    if [[ $? -ne 0 ]]; then
       exit 1
