@@ -321,8 +321,8 @@ extern "C" {
                       "# Get number of installed extensions.\n"                                                                                                                         \
                       "  - queries:\n"                                                                                                                                                  \
                       "    - query: SELECT\n"                                                                                                                                           \
-                      "                array_agg(extname) AS extensions,\n"                                                                                                             \
-                      "                count(*)\n"                                                                                                                                      \
+                      "                extname AS extensions,\n"                                                                                                                        \
+                      "                1 AS installed\n"                                                                                                                                \
                       "              FROM pg_extension;\n"                                                                                                                              \
                       "      version: 10\n"                                                                                                                                             \
                       "      columns:\n"                                                                                                                                                \
