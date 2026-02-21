@@ -39,6 +39,7 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -710,26 +711,19 @@ static int
 add_line(struct prometheus_metric* metric, char* line, int endpoint, time_t timestamp)
 {
    char* e = NULL;
-   char key[PROMETHEUS_LENGTH] = {0};
-   char value[PROMETHEUS_LENGTH] = {0};
-   char* token = NULL;
-   char* saveptr = NULL;
-   char* line_cpy = NULL;
    bool new = false;
    char* line_value = NULL;
    struct deque* line_attrs = NULL;
    struct prometheus_attributes* attributes = NULL;
    struct configuration* config = NULL;
+   char* p = NULL;
+   char* labels_end = NULL;
+   char* value_start = NULL;
+   char* value_end = NULL;
 
    config = (struct configuration*)shmem;
 
    if (line == NULL)
-   {
-      goto error;
-   }
-
-   line_cpy = strdup(line); /* strtok modifies the string. */
-   if (line_cpy == NULL)
    {
       goto error;
    }
@@ -748,38 +742,148 @@ add_line(struct prometheus_metric* metric, char* line, int endpoint, time_t time
       goto error;
    }
 
-   /* Lines of the form:
-    *
-    * type{key1="value1",key2="value2",...} value
-    *
-    * Tokenizing on a " " will give the value on second call.
-    * The first token can be further tokenized on "{,}".
-    */
+   p = line;
 
-   token = strtok_r(line_cpy, "{,} ", &saveptr);
-
-   while (token != NULL)
+   if (strncmp(p, metric->name, strlen(metric->name)))
    {
-      if (token == line_cpy)
+      goto error;
+   }
+
+   p += strlen(metric->name);
+
+   if (*p == '{')
+   {
+      bool in_quotes = false;
+      bool escaped = false;
+
+      p++;
+
+      labels_end = p;
+      while (*labels_end != '\0')
       {
-         /* First token is the name of the metric. So just a sanity check. */
-         if (strncmp(token, metric->name, strlen(metric->name)))
+         if (!escaped && *labels_end == '"')
+         {
+            in_quotes = !in_quotes;
+         }
+         else if (!in_quotes && *labels_end == '}')
+         {
+            break;
+         }
+
+         if (*labels_end == '\\' && !escaped)
+         {
+            escaped = true;
+         }
+         else
+         {
+            escaped = false;
+         }
+
+         labels_end++;
+      }
+
+      if (*labels_end != '}')
+      {
+         goto error;
+      }
+
+      while (p < labels_end)
+      {
+         char key[PROMETHEUS_LENGTH] = {0};
+         char value[PROMETHEUS_LENGTH] = {0};
+         size_t key_len = 0;
+         size_t value_len = 0;
+
+         while (p < labels_end && isspace((unsigned char)*p))
+         {
+            p++;
+         }
+
+         if (p >= labels_end)
+         {
+            break;
+         }
+
+         while (p < labels_end && *p != '=' && !isspace((unsigned char)*p))
+         {
+            if (key_len + 1 >= sizeof(key))
+            {
+               goto error;
+            }
+
+            key[key_len++] = *p;
+            p++;
+         }
+
+         while (p < labels_end && isspace((unsigned char)*p))
+         {
+            p++;
+         }
+
+         if (p >= labels_end || *p != '=')
          {
             goto error;
          }
-      }
-      else if (saveptr == NULL || (saveptr != NULL && *saveptr == '\0'))
-      {
-         /* Final token. */
-         line_value = strdup(token);
-      }
-      else if (strlen(token) > 0)
-      {
-         /* Assuming of the form key="value" */
-         sscanf(token, "%127[^=]", key);
-         sscanf(token + strlen(key) + 2, "%127[^\"]", value);
+         p++;
 
-         if (strlen(key) == 0 || strlen(value) == 0)
+         while (p < labels_end && isspace((unsigned char)*p))
+         {
+            p++;
+         }
+
+         if (p >= labels_end || *p != '"')
+         {
+            goto error;
+         }
+         p++;
+
+         while (p < labels_end)
+         {
+            if (*p == '"')
+            {
+               p++;
+               break;
+            }
+
+            if (*p == '\\' && (p + 1) < labels_end)
+            {
+               p++;
+
+               if (value_len + 1 >= sizeof(value))
+               {
+                  goto error;
+               }
+
+               switch (*p)
+               {
+                  case 'n':
+                     value[value_len++] = '\n';
+                     break;
+                  case 't':
+                     value[value_len++] = '\t';
+                     break;
+                  case 'r':
+                     value[value_len++] = '\r';
+                     break;
+                  default:
+                     value[value_len++] = *p;
+                     break;
+               }
+
+               p++;
+               continue;
+            }
+
+            if (value_len + 1 >= sizeof(value))
+            {
+               goto error;
+            }
+
+            value[value_len++] = *p;
+            p++;
+         }
+
+         if (key_len == 0)
          {
             goto error;
          }
@@ -788,9 +892,54 @@ add_line(struct prometheus_metric* metric, char* line, int endpoint, time_t time
          {
             goto error;
          }
+
+         while (p < labels_end && isspace((unsigned char)*p))
+         {
+            p++;
+         }
+
+         if (p < labels_end)
+         {
+            if (*p != ',')
+            {
+               goto error;
+            }
+            p++;
+         }
       }
 
-      token = strtok_r(NULL, "{,} ", &saveptr);
+      value_start = labels_end + 1;
+   }
+   else
+   {
+      value_start = p;
+   }
+
+   while (*value_start != '\0' && isspace((unsigned char)*value_start))
+   {
+      value_start++;
+   }
+
+   if (*value_start == '\0')
+   {
+      goto error;
+   }
+
+   value_end = value_start;
+   while (*value_end != '\0' && !isspace((unsigned char)*value_end))
+   {
+      value_end++;
+   }
+
+   if (value_end == value_start)
+   {
+      goto error;
+   }
+
+   line_value = strndup(value_start, (size_t)(value_end - value_start));
+   if (line_value == NULL)
+   {
+      goto error;
    }
 
    if (attributes_find_create(metric->definitions, line_attrs, &attributes, &new))
@@ -809,7 +958,6 @@ add_line(struct prometheus_metric* metric, char* line, int endpoint, time_t time
    }
 
    free(e);
-   free(line_cpy);
    free(line_value);
 
    return 0;
@@ -819,7 +967,6 @@ error:
    pgexporter_deque_destroy(line_attrs);
 
    free(e);
-   free(line_cpy);
    free(line_value);
 
    return 1;
