@@ -28,12 +28,13 @@
 
 FILE(GLOB_RECURSE LIB_SOURCE_FILES "libpgexportertest/*.c")
 FILE(GLOB_RECURSE HEADER_FILES "include/*.h")
-# Order matches main runner: cli, database, configuration, http (http last so shutdown runs last)
+# Order matches main runner: cli, database, configuration, http, cache (http last so shutdown runs last)
 set(TESTCASE_FILES
   testcases/test_http.c
   testcases/test_configuration.c
   testcases/test_database.c
   testcases/test_cli.c
+  testcases/test_cache.c
 )
 set(SOURCE_FILES ${LIB_SOURCE_FILES} ${TESTCASE_FILES} ${HEADER_FILES})
 

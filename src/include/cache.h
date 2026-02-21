@@ -26,33 +26,67 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PGEXPORTER_SHMEM_H
-#define PGEXPORTER_SHMEM_H
+#ifndef PGEXPORTER_CACHE_H
+#define PGEXPORTER_CACHE_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include <pgexporter.h>
+
 #include <stdlib.h>
 
 /**
- * Create a shared memory segment
- * @param size The size of the segment
- * @param hp Huge page value
- * @parma shmem The shared memory segment
- * @return 0 upon success, otherwise 1
+ * Initialize a prometheus cache in shared memory.
+ * @param cache_size The size of the cache data payload
+ * @param p_size Pointer to store the total allocated size
+ * @param p_shmem Pointer to store the shared memory pointer
+ * @return 0 on success, otherwise 1
  */
 int
-pgexporter_create_shared_memory(size_t size, unsigned char hp, void** shmem);
+pgexporter_cache_init(size_t cache_size, size_t* p_size, void** p_shmem);
 
 /**
- * Destroy a shared memory segment
- * @param shmem The shared memory segment
- * @param size The size
- * @return 0 upon success, otherwise 1
+ * Check if the cache is still valid.
+ * A cache is valid if it has a non-empty payload and
+ * a timestamp in the future.
+ * @param cache The cache
+ * @return true if the cache is still valid
  */
-int
-pgexporter_destroy_shared_memory(void* shmem, size_t size);
+bool
+pgexporter_cache_is_valid(struct prometheus_cache* cache);
+
+/**
+ * Invalidate the cache.
+ * The payload is zero-filled and the valid_until field
+ * is set to zero.
+ * Requires the caller to hold the lock on the cache.
+ * @param cache The cache
+ */
+void
+pgexporter_cache_invalidate(struct prometheus_cache* cache);
+
+/**
+ * Append data to the cache.
+ * If the cache would overflow, it is invalidated instead.
+ * Requires the caller to hold the lock on the cache.
+ * @param cache The cache
+ * @param data The data to append
+ * @return true if the data was appended, otherwise false
+ */
+bool
+pgexporter_cache_append(struct prometheus_cache* cache, char* data);
+
+/**
+ * Finalize the cache by setting its expiry time.
+ * Requires the caller to hold the lock on the cache.
+ * @param cache The cache
+ * @param max_age The maximum age of the cache
+ * @return true if the cache was finalized, otherwise false
+ */
+bool
+pgexporter_cache_finalize(struct prometheus_cache* cache, pgexporter_time_t max_age);
 
 #ifdef __cplusplus
 }
