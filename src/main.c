@@ -72,6 +72,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 #include <openssl/crypto.h>
 #ifdef HAVE_SYSTEMD
@@ -89,6 +90,7 @@ static void accept_management_cb(struct ev_loop* loop, struct ev_io* watcher, in
 static void shutdown_cb(struct ev_loop* loop, ev_signal* w, int revents);
 static void reload_cb(struct ev_loop* loop, ev_signal* w, int revents);
 static void coredump_cb(struct ev_loop* loop, ev_signal* w, int revents);
+static void sigchld_cb(struct ev_loop* loop, ev_signal* w, int revents);
 static bool accept_fatal(int error);
 static bool reload_configuration(void);
 static int create_pidfile(void);
@@ -387,7 +389,7 @@ main(int argc, char** argv)
    char collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];
    bool daemon = false;
    pid_t pid, sid;
-   struct signal_info signal_watcher[5];
+   struct signal_info signal_watcher[6];
    size_t shmem_size;
    size_t prometheus_cache_shmem_size = 0;
    size_t bridge_cache_shmem_size = 0;
@@ -1001,8 +1003,9 @@ main(int argc, char** argv)
    ev_signal_init((struct ev_signal*)&signal_watcher[2], shutdown_cb, SIGINT);
    ev_signal_init((struct ev_signal*)&signal_watcher[3], coredump_cb, SIGABRT);
    ev_signal_init((struct ev_signal*)&signal_watcher[4], shutdown_cb, SIGALRM);
+   ev_signal_init((struct ev_signal*)&signal_watcher[5], sigchld_cb, SIGCHLD);
 
-   for (int i = 0; i < 5; i++)
+   for (int i = 0; i < 6; i++)
    {
       signal_watcher[i].slot = -1;
       ev_signal_start(main_loop, (struct ev_signal*)&signal_watcher[i]);
@@ -1211,7 +1214,7 @@ main(int argc, char** argv)
       }
    }
 
-   for (int i = 0; i < 5; i++)
+   for (int i = 0; i < 6; i++)
    {
       ev_signal_stop(main_loop, (struct ev_signal*)&signal_watcher[i]);
    }
@@ -1945,6 +1948,15 @@ coredump_cb(struct ev_loop* loop __attribute__((unused)), ev_signal* w __attribu
 {
    pgexporter_log_info("pgexporter: core dump requested");
    abort();
+}
+
+static void
+sigchld_cb(struct ev_loop* loop __attribute__((unused)), ev_signal* w __attribute__((unused)), int revents __attribute__((unused)))
+{
+   while (waitpid(-1, NULL, WNOHANG) > 0)
+   {
+      /* Wait for child processes to finish */
+   }
 }
 
 static bool
