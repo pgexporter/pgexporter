@@ -11,6 +11,7 @@ See [Metrics](https://pgexporter.github.io/docs/pgexporter/metrics.html) for a l
 
 * Prometheus exporter
 * Bridge support with a JSON feature
+* Web console
 * Remote management
 * Transport Layer Security (TLS) v1.2+ support
 * Daemon mode
@@ -21,6 +22,8 @@ See [Getting Started](./doc/GETTING_STARTED.md) on how to get started with `pgex
 See [Configuration](./doc/CONFIGURATION.md) on how to configure `pgexporter`.
 
 See [YAML](./doc/YAML.md) on how to configure `pgexporter` with custom queries.
+
+See [Web console](./doc/CONSOLE.md) for a brief guide and screenshots.
 
 ## Overview
 
