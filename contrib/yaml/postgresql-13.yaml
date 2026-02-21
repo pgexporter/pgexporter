@@ -111,7 +111,7 @@ metrics:
 - tag: pg_installed_extensions
   collector: installed_extensions
   queries:
-  - query: SELECT array_agg(extname) AS extensions, count(*) FROM pg_extension;
+  - query: SELECT extname AS extensions, 1 AS installed FROM pg_extension;
     version: 10
     columns:
     - name: extensions
