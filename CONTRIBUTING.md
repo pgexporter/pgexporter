@@ -8,6 +8,7 @@ and documentation.
 This document will hopefully help you contribute to pgexporter.
 
 - [Contributing guide](#contributing-guide)
+  - [New Contributor Guides](#new-contributor-guides)
   - [Legal](#legal)
   - [Reporting an issue](#reporting-an-issue)
   - [Running with docker](#running-with-docker)
@@ -21,6 +22,16 @@ This document will hopefully help you contribute to pgexporter.
   - [Policy and guidelines for using AI](#policy-and-guidelines-for-using-ai)
     - [Using AI for communication](#using-ai-for-communication)
   - [Code Style](#code-style)
+
+## New Contributor Guides
+
+Before you open a PR or push force a change, please follow the [Development](#development) workflow and make sure you've done the following:
+
+1. Rebase your branch on top of `upstream/main` before pushing
+2. Follow the coding style and run `./clang-format.sh` (see [Code Style](#code-style))
+3. Build locally and make sure it compiles (see [Building the main branch](#building-the-main-branch))
+4. Add tests under `test/` covering your changes (see [doc/TEST.md](doc/TEST.md))
+5. Run the test suite locally with `./test/check.sh`
 
 ## Legal
 
@@ -157,7 +168,13 @@ git push -f origin mywork
 
 as all pull requests should be squashed and rebased.
 
-In your first pull request you need to add yourself to the `AUTHORS` file.
+In your first pull request you need to add yourself to the following files:
+```
+`AUTHORS`
+`doc/manual/en/97-acknowledgement.md`
+```
+
+New contributors are encouraged to begin with issues marked with the "community" label, which functions similarly to "good first issue".
 
 ## Policy and guidelines for using AI
 
