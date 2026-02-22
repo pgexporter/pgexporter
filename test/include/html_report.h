@@ -27,37 +27,39 @@
  *
  */
 
-#ifndef PGEXPORTER_TEST_SUITE_H
-#define PGEXPORTER_TEST_SUITE_H
+#ifndef PGEXPORTER_HTML_REPORT_H
+#define PGEXPORTER_HTML_REPORT_H
 
-#include <check.h>
-
-/**
- * Set up CLI test suite for pgexporter
- * @return The suite
- */
-Suite*
-pgexporter_test_cli_suite();
-
-/**
- * Set up database test suite for pgexporter
- * @return The suite
- */
-Suite*
-pgexporter_test_database_suite();
-
-/**
- * Set up HTTP test suite for pgexporter
- * @return The suite
- */
-Suite*
-pgexporter_test_http_suite();
-
-/**
- * Set up configuration test suite for pgexporter
- * @return The suite
- */
-Suite*
-pgexporter_test_configuration_suite();
-
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+#include "mctf.h"
+#include <stddef.h>
+
+/**
+ * Build the path for the HTML report file.
+ * Uses TEST_BASE_DIR (set by test environment) or PGEXPORTER_TEST_BASE_DIR.
+ * @param path Output buffer for the path
+ * @param size Size of the buffer
+ * @return 0 on success, 1 on failure
+ */
+int
+html_report_build_path(char* path, size_t size);
+
+/**
+ * Generate an HTML report from MCTF results.
+ * Must be called after mctf_run_tests() and before mctf_cleanup().
+ * @param path File path for the HTML report
+ * @param filter_type Filter that was used when running tests
+ * @param filter Filter string that was used
+ * @return 0 on success, 1 on failure
+ */
+int
+html_report_generate(const char* path, mctf_filter_type_t filter_type, const char* filter);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* PGEXPORTER_HTML_REPORT_H */

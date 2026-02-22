@@ -31,171 +31,186 @@
 #include <configuration.h>
 #include <shmem.h>
 #include <tscommon.h>
-#include <tssuite.h>
 #include <utils.h>
 
-// Test conf set with various time units
-START_TEST(test_configuration_accept_time)
-{
-   // Zero / disabled
-   pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "0", 0);
+#include <mctf.h>
+#include <stdlib.h>
 
-   // Seconds (response in seconds)
-   pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "10s", 10);
-
-   // Minutes (response in seconds)
-   pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "2m", 120);
-
-   // Hours (response in seconds)
-   pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "1h", 3600);
-
-   // Days (response in seconds)
-   pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "1d", 86400);
-
-   // Weeks (response in seconds)
-   pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "1w", 7 * 24 * 3600);
-
-   // Milliseconds (response in milliseconds)
-   pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_QUERY_TIMEOUT, "5ms", 5);
-
-   // Uppercase suffix
-   pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_QUERY_TIMEOUT, "50MS", 50);
-   pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_QUERY_TIMEOUT, "1S", 1000);
-   pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_QUERY_TIMEOUT, "2M", 120000);
-   pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "1H", 3600);
-   pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "1D", 86400);
-}
-END_TEST
-
-// Test conf set rejects invalid time values
-START_TEST(test_configuration_reject_invalid_time)
-{
-   // Invalid suffix
-   pgexporter_test_assert_conf_set_fail(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "10x");
-
-   // Negative value
-   pgexporter_test_assert_conf_set_fail(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "-1s");
-
-   // Mixed units
-   pgexporter_test_assert_conf_set_fail(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "1h5ms");
-   pgexporter_test_assert_conf_set_fail(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "1h 5ms");
-
-   // Space between number and unit
-   pgexporter_test_assert_conf_set_fail(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "10 s");
-
-   // Non-numeric
-   pgexporter_test_assert_conf_set_fail(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "abc");
-}
-END_TEST
-
-// Test conf get returns correct values after conf set
-START_TEST(test_configuration_get_returns_set_values)
-{
-   pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_BLOCKING_TIMEOUT, "45s", 45);
-   pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "2m", 120);
-   pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_QUERY_TIMEOUT, "500ms", 500);
-
-   pgexporter_test_assert_conf_get_ok(CONFIGURATION_ARGUMENT_BLOCKING_TIMEOUT, 45);
-   pgexporter_test_assert_conf_get_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, 120);
-   pgexporter_test_assert_conf_get_ok(CONFIGURATION_ARGUMENT_METRICS_QUERY_TIMEOUT, 500);
-}
-END_TEST
-
-// Test pgexporter_time_format produces correct strings
-START_TEST(test_configuration_time_format_output)
+MCTF_TEST(test_configuration_time_format_output)
 {
    pgexporter_time_t t;
    char* str = NULL;
    int ret;
 
-   // Milliseconds
    t = PGEXPORTER_TIME_MS(500);
    ret = pgexporter_time_format(t, FORMAT_TIME_MS, &str);
-   ck_assert_int_eq(ret, 0);
-   ck_assert_str_eq(str, "500ms");
+   MCTF_ASSERT_INT_EQ(ret, 0, cleanup, "time_format failed for milliseconds");
+   MCTF_ASSERT_STR_EQ(str, "500ms", cleanup, "time_format string mismatch for 500ms");
    free(str);
+   str = NULL;
 
-   // Seconds
    t = PGEXPORTER_TIME_SEC(10);
    ret = pgexporter_time_format(t, FORMAT_TIME_S, &str);
-   ck_assert_int_eq(ret, 0);
-   ck_assert_str_eq(str, "10s");
+   MCTF_ASSERT_INT_EQ(ret, 0, cleanup, "time_format failed for seconds");
+   MCTF_ASSERT_STR_EQ(str, "10s", cleanup, "time_format string mismatch for 10s");
    free(str);
+   str = NULL;
 
-   // Minutes
    t = PGEXPORTER_TIME_MIN(5);
    ret = pgexporter_time_format(t, FORMAT_TIME_MIN, &str);
-   ck_assert_int_eq(ret, 0);
-   ck_assert_str_eq(str, "5m");
+   MCTF_ASSERT_INT_EQ(ret, 0, cleanup, "time_format failed for minutes");
+   MCTF_ASSERT_STR_EQ(str, "5m", cleanup, "time_format string mismatch for 5m");
    free(str);
+   str = NULL;
 
-   // Hours
    t = PGEXPORTER_TIME_HOUR(2);
    ret = pgexporter_time_format(t, FORMAT_TIME_HOUR, &str);
-   ck_assert_int_eq(ret, 0);
-   ck_assert_str_eq(str, "2h");
+   MCTF_ASSERT_INT_EQ(ret, 0, cleanup, "time_format failed for hours");
+   MCTF_ASSERT_STR_EQ(str, "2h", cleanup, "time_format string mismatch for 2h");
    free(str);
+   str = NULL;
 
-   // Days
    t = PGEXPORTER_TIME_DAY(1);
    ret = pgexporter_time_format(t, FORMAT_TIME_DAY, &str);
-   ck_assert_int_eq(ret, 0);
-   ck_assert_str_eq(str, "1d");
+   MCTF_ASSERT_INT_EQ(ret, 0, cleanup, "time_format failed for days");
+   MCTF_ASSERT_STR_EQ(str, "1d", cleanup, "time_format string mismatch for 1d");
    free(str);
+   str = NULL;
 
-   // Timestamp (epoch 0)
    t = PGEXPORTER_TIME_MS(0);
    ret = pgexporter_time_format(t, FORMAT_TIME_TIMESTAMP, &str);
-   ck_assert_int_eq(ret, 0);
-   ck_assert_str_eq(str, "1970-01-01T00:00:00.000Z");
+   MCTF_ASSERT_INT_EQ(ret, 0, cleanup, "time_format failed for timestamp epoch 0");
+   MCTF_ASSERT_STR_EQ(str, "1970-01-01T00:00:00.000Z", cleanup, "time_format string mismatch for epoch 0");
    free(str);
+   str = NULL;
 
-   // Timestamp (1000ms = 1 second)
    t = PGEXPORTER_TIME_MS(1000);
    ret = pgexporter_time_format(t, FORMAT_TIME_TIMESTAMP, &str);
-   ck_assert_int_eq(ret, 0);
-   ck_assert_str_eq(str, "1970-01-01T00:00:01.000Z");
+   MCTF_ASSERT_INT_EQ(ret, 0, cleanup, "time_format failed for timestamp 1000ms");
+   MCTF_ASSERT_STR_EQ(str, "1970-01-01T00:00:01.000Z", cleanup, "time_format string mismatch for 1000ms");
    free(str);
+   str = NULL;
 
-   // Timestamp with millisecond precision
    t = PGEXPORTER_TIME_MS(1500);
    ret = pgexporter_time_format(t, FORMAT_TIME_TIMESTAMP, &str);
-   ck_assert_int_eq(ret, 0);
-   ck_assert_str_eq(str, "1970-01-01T00:00:01.500Z");
+   MCTF_ASSERT_INT_EQ(ret, 0, cleanup, "time_format failed for timestamp 1500ms");
+   MCTF_ASSERT_STR_EQ(str, "1970-01-01T00:00:01.500Z", cleanup, "time_format string mismatch for 1500ms");
    free(str);
+   str = NULL;
 
-   // Timestamp for year 2000
    t = PGEXPORTER_TIME_MS(946684800000LL);
    ret = pgexporter_time_format(t, FORMAT_TIME_TIMESTAMP, &str);
-   ck_assert_int_eq(ret, 0);
-   ck_assert_str_eq(str, "2000-01-01T00:00:00.000Z");
+   MCTF_ASSERT_INT_EQ(ret, 0, cleanup, "time_format failed for year 2000");
+   MCTF_ASSERT_STR_EQ(str, "2000-01-01T00:00:00.000Z", cleanup, "time_format string mismatch for year 2000");
    free(str);
+   str = NULL;
 
-   // NULL output should return error
    ret = pgexporter_time_format(t, FORMAT_TIME_MS, NULL);
-   ck_assert_int_eq(ret, 1);
+   MCTF_ASSERT_INT_EQ(ret, 1, cleanup, "expected error for NULL output");
+
+cleanup:
+   if (str != NULL)
+   {
+      free(str);
+   }
+   MCTF_FINISH();
 }
-END_TEST
 
-Suite*
-pgexporter_test_configuration_suite()
+MCTF_TEST(test_configuration_accept_time)
 {
-   Suite* s;
-   TCase* tc_configuration;
+   pgexporter_test_setup();
 
-   s = suite_create("pgexporter_test_configuration");
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "0", 0) == 0,
+               cleanup, "conf set failed for metrics_cache_max_age=0");
 
-   tc_configuration = tcase_create("Configuration");
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "10s", 10) == 0,
+               cleanup, "conf set failed for metrics_cache_max_age=10s");
 
-   tcase_set_timeout(tc_configuration, 60);
-   tcase_add_checked_fixture(tc_configuration, pgexporter_test_setup, pgexporter_test_teardown);
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "2m", 120) == 0,
+               cleanup, "conf set failed for metrics_cache_max_age=2m");
 
-   tcase_add_test(tc_configuration, test_configuration_accept_time);
-   tcase_add_test(tc_configuration, test_configuration_reject_invalid_time);
-   tcase_add_test(tc_configuration, test_configuration_get_returns_set_values);
-   tcase_add_test(tc_configuration, test_configuration_time_format_output);
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "1h", 3600) == 0,
+               cleanup, "conf set failed for metrics_cache_max_age=1h");
 
-   suite_add_tcase(s, tc_configuration);
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "1d", 86400) == 0,
+               cleanup, "conf set failed for metrics_cache_max_age=1d");
 
-   return s;
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "1w", 7 * 24 * 3600) == 0,
+               cleanup, "conf set failed for metrics_cache_max_age=1w");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_QUERY_TIMEOUT, "5ms", 5) == 0,
+               cleanup, "conf set failed for metrics_query_timeout=5ms");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_QUERY_TIMEOUT, "50MS", 50) == 0,
+               cleanup, "conf set failed for metrics_query_timeout=50MS");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_QUERY_TIMEOUT, "1S", 1000) == 0,
+               cleanup, "conf set failed for metrics_query_timeout=1S");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_QUERY_TIMEOUT, "2M", 120000) == 0,
+               cleanup, "conf set failed for metrics_query_timeout=2M");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "1H", 3600) == 0,
+               cleanup, "conf set failed for metrics_cache_max_age=1H");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "1D", 86400) == 0,
+               cleanup, "conf set failed for metrics_cache_max_age=1D");
+
+cleanup:
+   pgexporter_test_teardown();
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_configuration_reject_invalid_time)
+{
+   pgexporter_test_setup();
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_fail(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "10x") == 0,
+               cleanup, "expected conf set to fail for invalid suffix 10x");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_fail(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "-1s") == 0,
+               cleanup, "expected conf set to fail for negative value -1s");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_fail(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "1h5ms") == 0,
+               cleanup, "expected conf set to fail for mixed units 1h5ms");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_fail(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "1h 5ms") == 0,
+               cleanup, "expected conf set to fail for mixed units 1h 5ms");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_fail(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "10 s") == 0,
+               cleanup, "expected conf set to fail for space between number and unit");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_fail(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "abc") == 0,
+               cleanup, "expected conf set to fail for non-numeric value abc");
+
+cleanup:
+   pgexporter_test_teardown();
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_configuration_get_returns_set_values)
+{
+   pgexporter_test_setup();
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_BLOCKING_TIMEOUT, "45s", 45) == 0,
+               cleanup, "conf set failed for blocking_timeout=45s");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, "2m", 120) == 0,
+               cleanup, "conf set failed for metrics_cache_max_age=2m");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_ok(CONFIGURATION_ARGUMENT_METRICS_QUERY_TIMEOUT, "500ms", 500) == 0,
+               cleanup, "conf set failed for metrics_query_timeout=500ms");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_get_ok(CONFIGURATION_ARGUMENT_BLOCKING_TIMEOUT, 45) == 0,
+               cleanup, "conf get failed for blocking_timeout");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_get_ok(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, 120) == 0,
+               cleanup, "conf get failed for metrics_cache_max_age");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_get_ok(CONFIGURATION_ARGUMENT_METRICS_QUERY_TIMEOUT, 500) == 0,
+               cleanup, "conf get failed for metrics_query_timeout");
+
+cleanup:
+   pgexporter_test_teardown();
+   MCTF_FINISH();
 }

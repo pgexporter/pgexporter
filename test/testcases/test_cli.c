@@ -34,62 +34,55 @@
 #include <network.h>
 #include <shmem.h>
 #include <tsclient.h>
-#include <tssuite.h>
 
-// Test CLI ping command
-START_TEST(test_cli_ping)
+#include <mctf.h>
+
+MCTF_TEST(test_cli_ping)
 {
    int socket = -1;
    int ret;
 
    socket = pgexporter_tsclient_get_connection();
-   ck_assert_msg(pgexporter_socket_isvalid(socket), "Failed to get connection to pgexporter");
+   MCTF_ASSERT(pgexporter_socket_isvalid(socket), cleanup, "Failed to get connection to pgexporter");
 
    ret = pgexporter_management_request_ping(NULL, socket, MANAGEMENT_COMPRESSION_NONE,
                                             MANAGEMENT_ENCRYPTION_NONE, MANAGEMENT_OUTPUT_FORMAT_JSON);
-   ck_assert_msg(ret == 0, "Failed to send ping request");
+   MCTF_ASSERT(ret == 0, cleanup, "Failed to send ping request");
 
    ret = pgexporter_tsclient_check_outcome(socket);
-   ck_assert_msg(ret == 0, "Ping command returned unsuccessful outcome");
+   MCTF_ASSERT(ret == 0, cleanup, "Ping command returned unsuccessful outcome");
 
    pgexporter_disconnect(socket);
+   socket = -1;
+cleanup:
+   if (socket >= 0)
+   {
+      pgexporter_disconnect(socket);
+   }
+   MCTF_FINISH();
 }
-END_TEST
 
-// Test CLI status command
-START_TEST(test_cli_status)
+MCTF_TEST(test_cli_status)
 {
    int socket = -1;
    int ret;
 
    socket = pgexporter_tsclient_get_connection();
-   ck_assert_msg(pgexporter_socket_isvalid(socket), "Failed to get connection to pgexporter");
+   MCTF_ASSERT(pgexporter_socket_isvalid(socket), cleanup, "Failed to get connection to pgexporter");
 
    ret = pgexporter_management_request_status(NULL, socket, MANAGEMENT_COMPRESSION_NONE,
                                               MANAGEMENT_ENCRYPTION_NONE, MANAGEMENT_OUTPUT_FORMAT_JSON);
-   ck_assert_msg(ret == 0, "Failed to send status request");
+   MCTF_ASSERT(ret == 0, cleanup, "Failed to send status request");
 
    ret = pgexporter_tsclient_check_outcome(socket);
-   ck_assert_msg(ret == 0, "Status command returned unsuccessful outcome");
+   MCTF_ASSERT(ret == 0, cleanup, "Status command returned unsuccessful outcome");
 
    pgexporter_disconnect(socket);
-}
-END_TEST
-
-Suite*
-pgexporter_test_cli_suite()
-{
-   Suite* s;
-   TCase* tc_cli;
-
-   s = suite_create("pgexporter_test_cli");
-
-   tc_cli = tcase_create("CLI");
-
-   tcase_set_timeout(tc_cli, 60);
-   tcase_add_test(tc_cli, test_cli_ping);
-   tcase_add_test(tc_cli, test_cli_status);
-   suite_add_tcase(s, tc_cli);
-
-   return s;
+   socket = -1;
+cleanup:
+   if (socket >= 0)
+   {
+      pgexporter_disconnect(socket);
+   }
+   MCTF_FINISH();
 }

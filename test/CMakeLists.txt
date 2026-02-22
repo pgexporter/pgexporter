@@ -26,16 +26,20 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-if (check)
+FILE(GLOB_RECURSE LIB_SOURCE_FILES "libpgexportertest/*.c")
+FILE(GLOB_RECURSE HEADER_FILES "include/*.h")
+# Order matches main runner: cli, database, configuration, http (http last so shutdown runs last)
+set(TESTCASE_FILES
+  testcases/test_http.c
+  testcases/test_configuration.c
+  testcases/test_database.c
+  testcases/test_cli.c
+)
+set(SOURCE_FILES ${LIB_SOURCE_FILES} ${TESTCASE_FILES} ${HEADER_FILES})
 
-  FILE(GLOB_RECURSE SOURCE_FILES "libpgexportertest/*.c" "testcases/*.c")
-  FILE(GLOB_RECURSE HEADER_FILES "include/*.h")
-
-  set(SOURCES ${SOURCE_FILES} ${HEADER_FILES})
-  set(ENABLE_COVERAGE OFF)
-
-  add_compile_options(-O0)
-  add_compile_options(-DDEBUG)
+  if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_compile_options(-O0)
+    add_compile_options(-DDEBUG)
 
   if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
     if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "OpenBSD")
@@ -112,7 +116,8 @@ if (check)
       endif()
     endif()
   endif()
-  add_executable(pgexporter-test runner.c ${SOURCES})
+  endif() # CMAKE_BUILD_TYPE STREQUAL "Debug"
+  add_executable(pgexporter-test runner.c ${SOURCE_FILES})
   if (CMAKE_C_COMPILER_ID STREQUAL "Clang")
   target_compile_options(pgexporter-test PRIVATE
     -fprofile-instr-generate
@@ -128,18 +133,17 @@ endif()
   target_include_directories(pgexporter-test PRIVATE ${CMAKE_SOURCE_DIR}/src/include ${CMAKE_SOURCE_DIR}/test/include)
 
   if(EXISTS "/etc/debian_version")
-    target_link_libraries(pgexporter-test Check::check subunit pthread rt m pgexporter)
+    target_link_libraries(pgexporter-test pthread rt m pgexporter)
   elseif(APPLE)
-    target_link_libraries(pgexporter-test Check::check m pgexporter)
+    target_link_libraries(pgexporter-test m pgexporter)
   else()
-    target_link_libraries(pgexporter-test Check::check pthread rt m pgexporter)
+    target_link_libraries(pgexporter-test pthread rt m pgexporter)
   endif()
 
   add_custom_target(custom_clean
     COMMAND ${CMAKE_COMMAND} -E remove -f *.o pgexporter-test
     COMMENT "Cleaning up..."
   )
-endif()
 
 configure_file(
   "${CMAKE_SOURCE_DIR}/test/check.sh"

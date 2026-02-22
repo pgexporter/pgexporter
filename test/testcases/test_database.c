@@ -33,17 +33,18 @@
 #include <queries.h>
 #include <shmem.h>
 #include <tscommon.h>
-#include <tssuite.h>
 #include <utils.h>
 
+#include <mctf.h>
 #include <stdio.h>
 #include <unistd.h>
 
-// Test database connection establishment
-START_TEST(test_database_connection)
+MCTF_TEST(test_database_connection)
 {
    struct configuration* config;
    int connected_servers = 0;
+
+   pgexporter_test_setup();
 
    config = (struct configuration*)shmem;
 
@@ -57,21 +58,24 @@ START_TEST(test_database_connection)
       }
    }
 
-   ck_assert_msg(connected_servers > 0, "No servers connected. Expected at least 1 connected server, got %d/%d",
-                 connected_servers, config->number_of_servers);
+   MCTF_ASSERT(connected_servers > 0, cleanup, "No servers connected. Expected at least 1 connected server, got %d/%d",
+               connected_servers, config->number_of_servers);
 
+cleanup:
    pgexporter_close_connections();
+   pgexporter_test_teardown();
+   MCTF_FINISH();
 }
-END_TEST
 
-// Test PostgreSQL version query
-START_TEST(test_database_version_query)
+MCTF_TEST(test_database_version_query)
 {
    struct configuration* config;
    struct query* query = NULL;
    struct tuple* current = NULL;
    int ret;
    bool server_tested = false;
+
+   pgexporter_test_setup();
 
    config = (struct configuration*)shmem;
 
@@ -82,25 +86,31 @@ START_TEST(test_database_version_query)
       if (config->servers[i].fd != -1)
       {
          ret = pgexporter_query_version(i, &query);
-         ck_assert_msg(ret == 0, "Failed to execute version query on server %s", config->servers[i].name);
-         ck_assert_msg(query != NULL, "Version query returned NULL");
+         MCTF_ASSERT(ret == 0, cleanup, "Failed to execute version query on server %s", config->servers[i].name);
+         MCTF_ASSERT_PTR_NONNULL(query, cleanup, "Version query returned NULL");
 
          current = query->tuples;
-         ck_assert_msg(current != NULL, "No version data returned from query");
+         MCTF_ASSERT_PTR_NONNULL(current, cleanup, "No version data returned from query");
 
          pgexporter_free_query(query);
+         query = NULL;
          server_tested = true;
       }
    }
 
-   ck_assert_msg(server_tested, "No servers available for version query test");
+   MCTF_ASSERT(server_tested, cleanup, "No servers available for version query test");
 
+cleanup:
+   if (query != NULL)
+   {
+      pgexporter_free_query(query);
+   }
    pgexporter_close_connections();
+   pgexporter_test_teardown();
+   MCTF_FINISH();
 }
-END_TEST
 
-// Test extension path setup
-START_TEST(test_database_extension_path)
+MCTF_TEST(test_database_extension_path)
 {
    struct configuration* config;
    char* bin_path = NULL;
@@ -109,48 +119,32 @@ START_TEST(test_database_extension_path)
    int ret;
    char* cwd_result;
 
+   pgexporter_test_setup();
+
    config = (struct configuration*)shmem;
 
    cwd_result = getcwd(cwd, sizeof(cwd));
-   ck_assert_msg(cwd_result != NULL, "Failed to get current directory");
+   MCTF_ASSERT(cwd_result != NULL, cleanup, "Failed to get current directory");
 
    program_path = pgexporter_append(program_path, cwd);
    program_path = pgexporter_append(program_path, "/build/src/pgexporter");
 
    ret = pgexporter_setup_extensions_path(config, program_path, &bin_path);
 
+   MCTF_ASSERT(ret == 0, cleanup, "Extension path setup failed");
+   MCTF_ASSERT(bin_path != NULL && strlen(bin_path) > 0, cleanup, "Extension path is empty");
+
+cleanup:
    if (program_path != NULL)
    {
       free(program_path);
       program_path = NULL;
    }
-
-   ck_assert_msg(ret == 0, "Extension path setup failed");
-   ck_assert_msg(bin_path != NULL && strlen(bin_path) > 0, "Extension path is empty");
-
    if (bin_path != NULL)
    {
       free(bin_path);
+      bin_path = NULL;
    }
-}
-END_TEST
-
-Suite*
-pgexporter_test_database_suite()
-{
-   Suite* s;
-   TCase* tc_database;
-
-   s = suite_create("pgexporter_test_database");
-
-   tc_database = tcase_create("Database");
-
-   tcase_set_timeout(tc_database, 60);
-   tcase_add_checked_fixture(tc_database, pgexporter_test_setup, pgexporter_test_teardown);
-   tcase_add_test(tc_database, test_database_connection);
-   tcase_add_test(tc_database, test_database_version_query);
-   tcase_add_test(tc_database, test_database_extension_path);
-   suite_add_tcase(s, tc_database);
-
-   return s;
+   pgexporter_test_teardown();
+   MCTF_FINISH();
 }

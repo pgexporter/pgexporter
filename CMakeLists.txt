@@ -106,17 +106,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_DARWIN_C_SOURCE -I${HOMEBREW_PREFIX}/include")
 endif()
 
-find_package(Check)
-if (CHECK_FOUND)
-  message(STATUS "check found")
-  add_library(Check::check SHARED IMPORTED)
-  set_target_properties(Check::check PROPERTIES
-    IMPORTED_LOCATION ${CHECK_LIBRARY}
-    INTERFACE_INCLUDE_DIRECTORIES ${CHECK_INCLUDE_DIR})
-else ()
-  set(check FALSE)
-  message(STATUS "check needed. The test suite process will be skipped.")
-endif()
 
 find_package(ZLIB)
 if (ZLIB_FOUND)

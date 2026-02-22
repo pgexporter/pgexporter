@@ -36,17 +36,42 @@
 #include <shmem.h>
 #include <tsclient.h>
 #include <tscommon.h>
-#include <tssuite.h>
 #include <utils.h>
 
+#include <mctf.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-static void validate_metrics_response(char* response_body, const char* metric_pattern);
+static int validate_metrics_response(char* response_body, const char* metric_pattern);
 
-// Test HTTP metrics endpoint
-START_TEST(test_http_metrics)
+/* Must run last: shuts down the daemon. Defined first so it registers first and runs last. */
+MCTF_TEST(test_http_shutdown)
+{
+   int socket = -1;
+   int ret;
+
+   socket = pgexporter_tsclient_get_connection();
+   MCTF_ASSERT(pgexporter_socket_isvalid(socket), cleanup, "Failed to get connection to pgexporter");
+
+   ret = pgexporter_management_request_shutdown(NULL, socket, MANAGEMENT_COMPRESSION_NONE,
+                                                MANAGEMENT_ENCRYPTION_NONE, MANAGEMENT_OUTPUT_FORMAT_JSON);
+   MCTF_ASSERT(ret == 0, cleanup, "Failed to send shutdown request");
+
+   ret = pgexporter_tsclient_check_outcome(socket);
+   MCTF_ASSERT(ret == 0, cleanup, "Shutdown command returned unsuccessful outcome");
+
+   pgexporter_disconnect(socket);
+   socket = -1;
+cleanup:
+   if (socket >= 0)
+   {
+      pgexporter_disconnect(socket);
+   }
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_http_metrics)
 {
    struct http* connection = NULL;
    struct http_request* request = NULL;
@@ -54,35 +79,51 @@ START_TEST(test_http_metrics)
    struct configuration* config;
    char* response_body = NULL;
    int ret;
+
+   pgexporter_test_setup();
 
    config = (struct configuration*)shmem;
 
    ret = pgexporter_http_create("localhost", config->metrics, false, &connection);
-   ck_assert_msg(ret == 0, "Failed to connect to HTTP endpoint localhost:%d", config->metrics);
+   MCTF_ASSERT(ret == 0, cleanup, "Failed to connect to HTTP endpoint localhost:%d", config->metrics);
 
    ret = pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/metrics", &request);
-   ck_assert_msg(ret == 0, "Failed to create HTTP request");
+   MCTF_ASSERT(ret == 0, cleanup, "Failed to create HTTP request");
 
    ret = pgexporter_http_invoke(connection, request, &response);
-   ck_assert_msg(ret == 0, "Failed to execute HTTP GET /metrics");
+   MCTF_ASSERT(ret == 0, cleanup, "Failed to execute HTTP GET /metrics");
 
-   ck_assert_msg(response->payload.data != NULL, "HTTP response body is NULL");
+   MCTF_ASSERT_PTR_NONNULL(response->payload.data, cleanup, "HTTP response body is NULL");
 
    response_body = strdup((char*)response->payload.data);
-   ck_assert_msg(response_body != NULL, "Failed to duplicate response body");
-   ck_assert_msg(strlen(response_body) > 0, "Response body is empty");
+   MCTF_ASSERT_PTR_NONNULL(response_body, cleanup, "Failed to duplicate response body");
+   MCTF_ASSERT(strlen(response_body) > 0, cleanup, "Response body is empty");
 
-   validate_metrics_response(response_body, "pgexporter_state 1");
+   ret = validate_metrics_response(response_body, "pgexporter_state 1");
+   MCTF_ASSERT(ret == 0, cleanup, "HTTP metrics response validation failed");
 
    free(response_body);
+   response_body = NULL;
    pgexporter_http_response_destroy(response);
+   response = NULL;
    pgexporter_http_request_destroy(request);
+   request = NULL;
    pgexporter_http_destroy(connection);
+   connection = NULL;
+cleanup:
+   if (response_body)
+      free(response_body);
+   if (response)
+      pgexporter_http_response_destroy(response);
+   if (request)
+      pgexporter_http_request_destroy(request);
+   if (connection)
+      pgexporter_http_destroy(connection);
+   pgexporter_test_teardown();
+   MCTF_FINISH();
 }
-END_TEST
 
-// Test HTTP bridge endpoint
-START_TEST(test_http_bridge_endpoint)
+MCTF_TEST(test_http_bridge_endpoint)
 {
    struct http* connection = NULL;
    struct http_request* request = NULL;
@@ -91,43 +132,61 @@ START_TEST(test_http_bridge_endpoint)
    char* response_body = NULL;
    int ret;
 
+   pgexporter_test_setup();
+
    config = (struct configuration*)shmem;
 
-   ck_assert_msg(config->bridge > 0, "Bridge port not configured");
+   MCTF_ASSERT(config->bridge > 0, cleanup, "Bridge port not configured");
 
    ret = pgexporter_http_create("localhost", config->bridge, false, &connection);
-   ck_assert_msg(ret == 0, "Failed to connect to bridge endpoint localhost:%d", config->bridge);
+   MCTF_ASSERT(ret == 0, cleanup, "Failed to connect to bridge endpoint localhost:%d", config->bridge);
 
    ret = pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/metrics", &request);
-   ck_assert_msg(ret == 0, "Failed to create HTTP request");
+   MCTF_ASSERT(ret == 0, cleanup, "Failed to create HTTP request");
 
    ret = pgexporter_http_invoke(connection, request, &response);
-   ck_assert_msg(ret == 0, "Failed to execute HTTP GET /metrics");
+   MCTF_ASSERT(ret == 0, cleanup, "Failed to execute HTTP GET /metrics");
 
-   ck_assert_msg(response->payload.data != NULL, "HTTP response body is NULL");
+   MCTF_ASSERT_PTR_NONNULL(response->payload.data, cleanup, "HTTP response body is NULL");
 
    response_body = strdup((char*)response->payload.data);
-   ck_assert_msg(response_body != NULL, "Failed to duplicate response body");
-   ck_assert_msg(strlen(response_body) > 0, "Response body is empty");
+   MCTF_ASSERT_PTR_NONNULL(response_body, cleanup, "Failed to duplicate response body");
+   MCTF_ASSERT(strlen(response_body) > 0, cleanup, "Response body is empty");
 
-   validate_metrics_response(response_body, "pgexporter_state{endpoint=");
+   ret = validate_metrics_response(response_body, "pgexporter_state{endpoint=");
+   MCTF_ASSERT(ret == 0, cleanup, "HTTP bridge metrics response validation failed");
 
    free(response_body);
+   response_body = NULL;
    pgexporter_http_response_destroy(response);
+   response = NULL;
    pgexporter_http_request_destroy(request);
+   request = NULL;
    pgexporter_http_destroy(connection);
+   connection = NULL;
+cleanup:
+   if (response_body)
+      free(response_body);
+   if (response)
+      pgexporter_http_response_destroy(response);
+   if (request)
+      pgexporter_http_request_destroy(request);
+   if (connection)
+      pgexporter_http_destroy(connection);
+   pgexporter_test_teardown();
+   MCTF_FINISH();
 }
-END_TEST
 
-// Test extension detection
-START_TEST(test_http_extension_detection)
+MCTF_TEST(test_http_extension_detection)
 {
    struct configuration* config;
    bool found_pg_stat_statements = false;
 
+   pgexporter_test_setup();
+
    config = (struct configuration*)shmem;
 
-   ck_assert_msg(config->number_of_servers > 0, "No servers configured");
+   MCTF_ASSERT(config->number_of_servers > 0, cleanup, "No servers configured");
 
    for (int i = 0; i < config->servers[0].number_of_extensions; i++)
    {
@@ -138,52 +197,16 @@ START_TEST(test_http_extension_detection)
       }
    }
 
-   ck_assert_msg(found_pg_stat_statements, "pg_stat_statements extension not found");
-}
-END_TEST
-
-// Test CLI shutdown command (must be last test)
-START_TEST(test_http_shutdown)
-{
-   int socket = -1;
-   int ret;
-
-   socket = pgexporter_tsclient_get_connection();
-   ck_assert_msg(pgexporter_socket_isvalid(socket), "Failed to get connection to pgexporter");
-
-   ret = pgexporter_management_request_shutdown(NULL, socket, MANAGEMENT_COMPRESSION_NONE,
-                                                MANAGEMENT_ENCRYPTION_NONE, MANAGEMENT_OUTPUT_FORMAT_JSON);
-   ck_assert_msg(ret == 0, "Failed to send shutdown request");
-
-   ret = pgexporter_tsclient_check_outcome(socket);
-   ck_assert_msg(ret == 0, "Shutdown command returned unsuccessful outcome");
-
-   pgexporter_disconnect(socket);
-}
-END_TEST
-
-Suite*
-pgexporter_test_http_suite()
-{
-   Suite* s;
-   TCase* tc_http;
-
-   s = suite_create("pgexporter_test_http");
-
-   tc_http = tcase_create("HTTP");
-
-   tcase_set_timeout(tc_http, 60);
-   tcase_add_checked_fixture(tc_http, pgexporter_test_setup, pgexporter_test_teardown);
-   tcase_add_test(tc_http, test_http_metrics);
-   tcase_add_test(tc_http, test_http_bridge_endpoint);
-   tcase_add_test(tc_http, test_http_extension_detection);
-   tcase_add_test(tc_http, test_http_shutdown);
-   suite_add_tcase(s, tc_http);
-
-   return s;
+   if (!found_pg_stat_statements)
+   {
+      MCTF_SKIP("pg_stat_statements extension not found (not installed or not yet discovered)");
+   }
+cleanup:
+   pgexporter_test_teardown();
+   MCTF_FINISH();
 }
 
-static void
+static int
 validate_metrics_response(char* response_body, const char* metric_pattern)
 {
    char* line = NULL;
@@ -193,7 +216,13 @@ validate_metrics_response(char* response_body, const char* metric_pattern)
    int postgresql_version = 0;
    char* body_copy = strdup(response_body);
 
-   ck_assert_msg(body_copy != NULL, "Failed to copy response body for parsing");
+   if (body_copy == NULL)
+   {
+      if (mctf_errmsg)
+         free(mctf_errmsg);
+      mctf_errmsg = strdup("Failed to copy response body for parsing");
+      return -1;
+   }
 
    line = strtok_r(body_copy, "\n", &saveptr);
    while (line != NULL)
@@ -224,7 +253,30 @@ validate_metrics_response(char* response_body, const char* metric_pattern)
 
    free(body_copy);
 
-   ck_assert_msg(found_core_metric, "Failed to find core metric matching pattern: %s", metric_pattern);
-   ck_assert_msg(found_version_metric, "Failed to find PostgreSQL version metric");
-   ck_assert_msg(postgresql_version == 17, "Expected PostgreSQL version 17, got %d", postgresql_version);
+   if (!found_core_metric)
+   {
+      if (mctf_errmsg)
+         free(mctf_errmsg);
+      mctf_errmsg = malloc(128);
+      if (mctf_errmsg)
+         snprintf(mctf_errmsg, 128, "Failed to find core metric matching pattern: %s", metric_pattern);
+      return -1;
+   }
+   if (!found_version_metric)
+   {
+      if (mctf_errmsg)
+         free(mctf_errmsg);
+      mctf_errmsg = strdup("Failed to find PostgreSQL version metric");
+      return -1;
+   }
+   if (postgresql_version != 17)
+   {
+      if (mctf_errmsg)
+         free(mctf_errmsg);
+      mctf_errmsg = malloc(64);
+      if (mctf_errmsg)
+         snprintf(mctf_errmsg, 64, "Expected PostgreSQL version 17, got %d", postgresql_version);
+      return -1;
+   }
+   return 0;
 }

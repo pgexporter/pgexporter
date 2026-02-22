@@ -21,30 +21,69 @@ All the configuration, logs, coverage reports and data will be in `/tmp/pgexport
 the script exits normally or not. pgexporter will be force shutdown if it doesn't terminate normally.
 So don't worry about your local setup being tampered. The container will be stopped and removed when the script exits or is terminated.
 
-To run one particular test case or suite (unfortunately check doesn't support running one single test at the moment),
-run `CK_RUN_CASE=<test_case_name> <PATH_TO_PGEXPORTER>/pgexporter/test/check.sh` or
-`CK_RUN_SUITE=<test_suite_name> <PATH_TO_PGEXPORTER>/pgexporter/test/check.sh`. Alternatively, you can first export the environment variables
-and then run the script:
-```
-export CK_RUN_CASE=<test_case_name>
-<PATH_TO_PGEXPORTER>/pgexporter/test/check.sh
-```
+**Running Specific Test Cases or Modules**
 
-The environment variables will be automatically unset when the test is finished or aborted.
+To run one particular test case or module, use `<PATH_TO_PGEXPORTER>/test/check.sh -t <test_case_name>` or `<PATH_TO_PGEXPORTER>/test/check.sh -m <module_name>`. Alternatively, if the test environment is already set up by a previous run of `check.sh`, you can run the test binary directly: `<PATH_TO_PGEXPORTER>/build/test/pgexporter-test -t <test_case_name>` or `<PATH_TO_PGEXPORTER>/build/test/pgexporter-test -m <module_name>` (with the same environment variables set).
 
 It is recommended that you **ALWAYS** run tests before raising PR.
 
+**MCTF Framework Overview**
+
+MCTF (Minimal C Test Framework) is pgexporter's custom test framework designed for simplicity and ease of use.
+
+**What MCTF Can Do:**
+
+- **Automatic test registration** – Tests are automatically registered via the `MCTF_TEST` macro
+- **Module organization** – Module names are automatically extracted from file names (e.g. `test_cli.c` → module `cli`)
+- **Flexible assertions** – Assert macros with optional printf-style error messages
+- **Test filtering** – Run tests by name pattern (`-t`) or by module (`-m`)
+- **Test skipping** – Skip tests conditionally using `MCTF_SKIP()` when prerequisites aren't met
+- **Cleanup pattern** – Structured cleanup using goto labels for resource management
+- **Error tracking** – Automatic error tracking with line numbers and custom error messages
+- **Multiple assertion types** – Various assertion macros (`MCTF_ASSERT`, `MCTF_ASSERT_PTR_NONNULL`, `MCTF_ASSERT_INT_EQ`, `MCTF_ASSERT_STR_EQ`, etc.)
+
+**What MCTF Cannot Do (Limitations):**
+
+- **No test fixtures** – No automatic setup/teardown per test suite (you must handle setup and cleanup manually in each test)
+- **No parameterized tests** – Tests cannot be parameterized (each variation needs a separate test function)
+- **No parallel or async execution** – Tests run sequentially and synchronously
+- **No built-in timeouts** – No framework-level test timeouts (rely on OS-level signals or manual timeouts)
+- **No test organization beyond modules** – No test suites, groups, tags, or metadata beyond module names extracted from filenames
+
 **Add Testcases**
 
-To add an additional testcase, go to [testcases](https://github.com/pgexporter/pgexporter/tree/main/test/testcases) directory inside the `pgexporter` project.
+To add an additional testcase, go to the [testcases](https://github.com/pgexporter/pgexporter/tree/main/test/testcases) directory inside the `pgexporter` project. Create a `.c` file that contains the test and use the `MCTF_TEST()` macro to define your test. Tests are automatically registered and module names are extracted from file names.
 
-Create a `.c` file that contains the test suite and define the suite inside `/test/include/tssuite.h`. Add the above created suite to the test runner in [runner.c](https://github.com/pgexporter/pgexporter/tree/main/test/runner.c)
+**Example test structure:**
+
+```c
+#include <mctf.h>
+#include <tsclient.h>
+
+MCTF_TEST(test_my_feature)
+{
+   int result = some_function();
+   MCTF_ASSERT(result == 0, cleanup, "function should return 0");
+
+cleanup:
+   MCTF_FINISH();
+}
+```
+
+**MCTF_ASSERT usage:** The `MCTF_ASSERT` macro supports optional error messages with printf-style formatting.
+
+- **Without message:** `MCTF_ASSERT(condition, cleanup);` – No error message displayed
+- **With simple message:** `MCTF_ASSERT(condition, cleanup, "error message");`
+- **With formatted message:** `MCTF_ASSERT(condition, cleanup, "got %d, expected 0", value);`
+
+Format arguments (e.g. `value`) are optional and only needed when the message contains format specifiers (`%d`, `%s`, etc.). Multiple format arguments: `MCTF_ASSERT(a == b, cleanup, "expected %d but got %d", expected, actual);`
 
 **Test Directory**
 
 After running the tests, you will find:
 
 * **pgexporter log:** `/tmp/pgexporter-test/log/`
+* **HTML test report:** `/tmp/pgexporter-test/log/pgexporter-test-report.html` (generated after each run)
 * **postgres log:** `/tmp/pgexporter-test/pg_log/`, the log level is set to debug5.
 * **code coverage reports:** `/tmp/pgexporter-test/coverage/`
 
@@ -65,8 +104,6 @@ may also run `PGEXPORTER_TEST_PORT=<your-port> ./check.sh`.
 
 **Configuration**
 
-| Name                | Default | Value           | Description                                          |
-|---------------------|---------|-----------------|------------------------------------------------------|
-| CK_RUN_CASE         |         | test case name  | Run one single test case                             |
-| CK_RUN_SUITE        |         | test suite name | Run one single test suite                            |
-| PGEXPORTER_TEST_PORT| 6432    | port number     | The port name pgexporter use to connect to the db    |
+| Name                 | Default | Value           | Description                                          |
+|----------------------|---------|-----------------|------------------------------------------------------|
+| PGEXPORTER_TEST_PORT | 6432    | port number     | The port pgexporter uses to connect to the database |

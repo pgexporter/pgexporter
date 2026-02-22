@@ -40,7 +40,7 @@
 #include <utils.h>
 
 #include <assert.h>
-#include <check.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -55,9 +55,7 @@ pgexporter_test_environment_create(void)
 {
    struct configuration* config;
    char* conf_path = NULL;
-   char* user_conf_path = NULL;
    char* base_dir = NULL;
-   size_t size = 0;
 
    memset(TEST_BASE_DIR, 0, sizeof(TEST_BASE_DIR));
 
@@ -65,8 +63,7 @@ pgexporter_test_environment_create(void)
    assert(conf_path != NULL);
 
    // Create the shared memory for the configuration
-   size = sizeof(struct configuration);
-   assert(!pgexporter_create_shared_memory(size, HUGEPAGE_OFF, &shmem));
+   assert(!pgexporter_create_shared_memory(sizeof(struct configuration), HUGEPAGE_OFF, &shmem));
 
    pgexporter_init_configuration(shmem);
 
@@ -82,13 +79,12 @@ pgexporter_test_environment_create(void)
    assert(base_dir != NULL);
    memcpy(TEST_BASE_DIR, base_dir, strlen(base_dir));
 
-   user_conf_path = getenv(ENV_VAR_USER_CONF);
-   assert(user_conf_path != NULL);
+   assert(getenv(ENV_VAR_USER_CONF) != NULL);
 
    pgexporter_start_logging();
 
    // Try reading the users configuration path
-   assert(!pgexporter_read_users_configuration(shmem, user_conf_path));
+   assert(!pgexporter_read_users_configuration(shmem, getenv(ENV_VAR_USER_CONF)));
 }
 
 void
@@ -117,61 +113,77 @@ pgexporter_test_teardown(void)
    pgexporter_memory_destroy();
 }
 
-static int64_t
-json_get_int64(struct json* j, char* key)
+static int
+json_get_int64_safe(struct json* j, char* key, int64_t* out)
 {
    enum value_type type = ValueNone;
    uintptr_t data = 0;
 
-   ck_assert_msg(pgexporter_json_contains_key(j, key), "Response is missing key: %s", key);
+   if (!pgexporter_json_contains_key(j, key))
+      return -1;
 
    data = pgexporter_json_get_typed(j, key, &type);
 
    switch (type)
    {
       case ValueInt32:
-         return (int64_t)(int32_t)data;
-      case ValueInt64:
-         return (int64_t)data;
-      case ValueUInt32:
-         return (int64_t)(uint32_t)data;
-      case ValueUInt64:
-         return (int64_t)data;
-      default:
-         ck_abort_msg("Key %s is not numeric (type=%d)", key, type);
+         *out = (int64_t)(int32_t)data;
          return 0;
+      case ValueInt64:
+         *out = (int64_t)data;
+         return 0;
+      case ValueUInt32:
+         *out = (int64_t)(uint32_t)data;
+         return 0;
+      case ValueUInt64:
+         *out = (int64_t)data;
+         return 0;
+      default:
+         return -1;
    }
 }
 
-void
+int
 pgexporter_test_assert_conf_set_ok(char* key, char* value, int64_t expected)
 {
    int socket = -1;
    struct json* read = NULL;
    struct json* outcome = NULL;
    struct json* response = NULL;
+   int64_t got = 0;
 
    socket = pgexporter_tsclient_get_connection();
-   ck_assert(pgexporter_socket_isvalid(socket));
+   if (!pgexporter_socket_isvalid(socket))
+      goto fail;
 
-   ck_assert_int_eq(pgexporter_management_request_conf_set(NULL, socket, key, value,
-                                                           MANAGEMENT_COMPRESSION_NONE, MANAGEMENT_ENCRYPTION_NONE,
-                                                           MANAGEMENT_OUTPUT_FORMAT_JSON),
-                    0);
+   if (pgexporter_management_request_conf_set(NULL, socket, key, value,
+                                              MANAGEMENT_COMPRESSION_NONE, MANAGEMENT_ENCRYPTION_NONE,
+                                              MANAGEMENT_OUTPUT_FORMAT_JSON) != 0)
+      goto fail;
 
-   ck_assert_int_eq(pgexporter_management_read_json(NULL, socket, NULL, NULL, &read), 0);
+   if (pgexporter_management_read_json(NULL, socket, NULL, NULL, &read) != 0)
+      goto fail;
 
    outcome = (struct json*)pgexporter_json_get(read, MANAGEMENT_CATEGORY_OUTCOME);
-   ck_assert((bool)pgexporter_json_get(outcome, MANAGEMENT_ARGUMENT_STATUS));
+   if (!(bool)pgexporter_json_get(outcome, MANAGEMENT_ARGUMENT_STATUS))
+      goto fail;
 
    response = (struct json*)pgexporter_json_get(read, MANAGEMENT_CATEGORY_RESPONSE);
-   ck_assert_int_eq(json_get_int64(response, key), expected);
+   if (json_get_int64_safe(response, key, &got) != 0 || got != expected)
+      goto fail;
 
    pgexporter_json_destroy(read);
    pgexporter_disconnect(socket);
+   return 0;
+fail:
+   if (read)
+      pgexporter_json_destroy(read);
+   if (socket >= 0)
+      pgexporter_disconnect(socket);
+   return -1;
 }
 
-void
+int
 pgexporter_test_assert_conf_set_fail(char* key, char* value)
 {
    int socket = -1;
@@ -179,46 +191,68 @@ pgexporter_test_assert_conf_set_fail(char* key, char* value)
    struct json* outcome = NULL;
 
    socket = pgexporter_tsclient_get_connection();
-   ck_assert(pgexporter_socket_isvalid(socket));
+   if (!pgexporter_socket_isvalid(socket))
+      goto fail;
 
-   ck_assert_int_eq(pgexporter_management_request_conf_set(NULL, socket, key, value,
-                                                           MANAGEMENT_COMPRESSION_NONE, MANAGEMENT_ENCRYPTION_NONE,
-                                                           MANAGEMENT_OUTPUT_FORMAT_JSON),
-                    0);
+   if (pgexporter_management_request_conf_set(NULL, socket, key, value,
+                                              MANAGEMENT_COMPRESSION_NONE, MANAGEMENT_ENCRYPTION_NONE,
+                                              MANAGEMENT_OUTPUT_FORMAT_JSON) != 0)
+      goto fail;
 
-   ck_assert_int_eq(pgexporter_management_read_json(NULL, socket, NULL, NULL, &read), 0);
+   if (pgexporter_management_read_json(NULL, socket, NULL, NULL, &read) != 0)
+      goto fail;
 
    outcome = (struct json*)pgexporter_json_get(read, MANAGEMENT_CATEGORY_OUTCOME);
-   ck_assert(!(bool)pgexporter_json_get(outcome, MANAGEMENT_ARGUMENT_STATUS));
+   if ((bool)pgexporter_json_get(outcome, MANAGEMENT_ARGUMENT_STATUS))
+      goto fail;
 
    pgexporter_json_destroy(read);
    pgexporter_disconnect(socket);
+   return 0;
+fail:
+   if (read)
+      pgexporter_json_destroy(read);
+   if (socket >= 0)
+      pgexporter_disconnect(socket);
+   return -1;
 }
 
-void
+int
 pgexporter_test_assert_conf_get_ok(char* key, int64_t expected)
 {
    int socket = -1;
    struct json* read = NULL;
    struct json* outcome = NULL;
    struct json* response = NULL;
+   int64_t got = 0;
 
    socket = pgexporter_tsclient_get_connection();
-   ck_assert(pgexporter_socket_isvalid(socket));
+   if (!pgexporter_socket_isvalid(socket))
+      goto fail;
 
-   ck_assert_int_eq(pgexporter_management_request_conf_get(NULL, socket,
-                                                           MANAGEMENT_COMPRESSION_NONE, MANAGEMENT_ENCRYPTION_NONE,
-                                                           MANAGEMENT_OUTPUT_FORMAT_JSON),
-                    0);
+   if (pgexporter_management_request_conf_get(NULL, socket,
+                                               MANAGEMENT_COMPRESSION_NONE, MANAGEMENT_ENCRYPTION_NONE,
+                                               MANAGEMENT_OUTPUT_FORMAT_JSON) != 0)
+      goto fail;
 
-   ck_assert_int_eq(pgexporter_management_read_json(NULL, socket, NULL, NULL, &read), 0);
+   if (pgexporter_management_read_json(NULL, socket, NULL, NULL, &read) != 0)
+      goto fail;
 
    outcome = (struct json*)pgexporter_json_get(read, MANAGEMENT_CATEGORY_OUTCOME);
-   ck_assert((bool)pgexporter_json_get(outcome, MANAGEMENT_ARGUMENT_STATUS));
+   if (!(bool)pgexporter_json_get(outcome, MANAGEMENT_ARGUMENT_STATUS))
+      goto fail;
 
    response = (struct json*)pgexporter_json_get(read, MANAGEMENT_CATEGORY_RESPONSE);
-   ck_assert_int_eq(json_get_int64(response, key), expected);
+   if (json_get_int64_safe(response, key, &got) != 0 || got != expected)
+      goto fail;
 
    pgexporter_json_destroy(read);
    pgexporter_disconnect(socket);
+   return 0;
+fail:
+   if (read)
+      pgexporter_json_destroy(read);
+   if (socket >= 0)
+      pgexporter_disconnect(socket);
+   return -1;
 }

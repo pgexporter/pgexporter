@@ -84,6 +84,9 @@ cleanup() {
      fi
    fi
 
+   echo "Cleaning up shared memory segments"
+   ipcs -m 2>/dev/null | awk '/^0x0/ {print $2}' | xargs -r -I {} ipcrm -m {} 2>/dev/null || true
+
    echo "Clean Test Resources"
    if [[ -d $PGEXPORTER_ROOT_DIR ]]; then
       if [[ -d $BASE_DIR ]]; then
@@ -122,24 +125,24 @@ cleanup() {
          --format=text > $COVERAGE_DIR/coverage-report-pgexporter-admin.txt 2>&1
 
       echo "Generating $COVERAGE_DIR/coverage-libpgexporter.txt"
-      llvm-cov show $BIN_PATH/libpgexporter.so \
+      llvm-cov show "$BIN_PATH/libpgexporter.so" \
         --instr-profile=$COVERAGE_DIR/coverage.profdata \
-        --format=text > $COVERAGE_DIR/coverage-libpgexporter.txt
+        --format=text > $COVERAGE_DIR/coverage-libpgexporter.txt 2>/dev/null || true
       
       echo "Generating $COVERAGE_DIR/coverage-pgexporter.txt"
-      llvm-cov show $BIN_PATH/pgexporter \
+      llvm-cov show "$BIN_PATH/pgexporter" \
         --instr-profile=$COVERAGE_DIR/coverage.profdata \
-        --format=text > $COVERAGE_DIR/coverage-pgexporter.txt
+        --format=text > $COVERAGE_DIR/coverage-pgexporter.txt 2>/dev/null || true
       
       echo "Generating $COVERAGE_DIR/coverage-pgexporter-cli.txt"
-      llvm-cov show $BIN_PATH/pgexporter-cli \
+      llvm-cov show "$BIN_PATH/pgexporter-cli" \
         --instr-profile=$COVERAGE_DIR/coverage.profdata \
-        --format=text > $COVERAGE_DIR/coverage-pgexporter-cli.txt
+        --format=text > $COVERAGE_DIR/coverage-pgexporter-cli.txt 2>/dev/null || true
       
       echo "Generating $COVERAGE_DIR/coverage-pgexporter-admin.txt"
-      llvm-cov show $BIN_PATH/pgexporter-admin \
+      llvm-cov show "$BIN_PATH/pgexporter-admin" \
         --instr-profile=$COVERAGE_DIR/coverage.profdata \
-        --format=text > $COVERAGE_DIR/coverage-pgexporter-admin.txt
+        --format=text > $COVERAGE_DIR/coverage-pgexporter-admin.txt 2>/dev/null || true
 
        echo "Coverage --> $COVERAGE_DIR"
      fi
@@ -237,6 +240,7 @@ log_level = debug5
 log_path = $LOG_DIR/pgexporter.log
 
 unix_socket_dir = /tmp/
+pidfile = /tmp/pgexporter.localhost.pid
 
 [primary]
 host = localhost
@@ -268,45 +272,125 @@ unset_pgexporter_test_variables() {
   unset PGEXPORTER_TEST_CONF
   unset PGEXPORTER_TEST_USER_CONF
   unset LLVM_PROFILE_FILE
-  unset CK_RUN_CASE
-  unset CK_RUN_SUITE
   unset CC
 }
 
 execute_testcases() {
-   echo "Execute Testcases"
+   echo "Execute MCTF Testcases"
    set +e
+
+   echo "Clean up any existing pgexporter processes"
+   if [[ -f "/tmp/pgexporter.localhost.pid" ]]; then
+      $EXECUTABLE_DIRECTORY/pgexporter-cli -c $CONFIGURATION_DIRECTORY/pgexporter.conf shutdown 2>/dev/null || true
+      sleep 3
+   fi
+   pkill -9 -f "${EXECUTABLE_DIRECTORY}/pgexporter" 2>/dev/null || true
+   pkill -9 -f "${EXECUTABLE_DIRECTORY}/pgexporter-cli" 2>/dev/null || true
+   sleep 2
+   rm -f "/tmp/pgexporter.localhost.pid"
+
+   echo "Cleaning up shared memory segments"
+   ipcs -m 2>/dev/null | awk '/^0x0/ {print $2}' | xargs -r -I {} ipcrm -m {} 2>/dev/null || true
+   sleep 1
+
+   echo "Removing stale pgexporter lock files"
+   rm -f /tmp/pgexporter.*.lock
+
+   if command -v fuser >/dev/null 2>&1; then
+      echo "Freeing test ports 5002 and 5003"
+      fuser -k 5002/tcp 5003/tcp >/dev/null 2>&1 || true
+      sleep 2
+   fi
+   for i in {1..10}; do
+      if ! ss -tlnp 2>/dev/null | grep -q ':5002 '; then
+         break
+      fi
+      if [[ $i -eq 10 ]]; then
+         echo "Port 5002 still in use after cleanup"
+         exit 1
+      fi
+      sleep 1
+   done
+
    echo "Starting pgexporter server in daemon mode"
    $EXECUTABLE_DIRECTORY/pgexporter -c $CONFIGURATION_DIRECTORY/pgexporter.conf -u $CONFIGURATION_DIRECTORY/pgexporter_users.conf -d
    echo "Wait for pgexporter to be ready"
    sleep 10
-   $EXECUTABLE_DIRECTORY/pgexporter-cli -c $CONFIGURATION_DIRECTORY/pgexporter.conf status
-   if [[ $? -eq 0 ]]; then
-      echo "pgexporter server started ... ok"
-   else
-      echo "pgexporter server not started ... not ok"
-      exit 1
-   fi
 
-   echo "Start running tests"
+   for i in {1..5}; do
+      if [[ -f "/tmp/pgexporter.localhost.pid" ]]; then
+         if $EXECUTABLE_DIRECTORY/pgexporter-cli -c $CONFIGURATION_DIRECTORY/pgexporter.conf status >/dev/null 2>&1; then
+            echo "pgexporter server started ... ok"
+            break
+         fi
+      fi
+      if [[ $i -eq 5 ]]; then
+         echo "pgexporter server not started ... not ok"
+         echo "Checking logs:"
+         tail -20 $LOG_DIR/pgexporter.log 2>/dev/null || echo "Log file not found"
+         exit 1
+      fi
+      sleep 2
+   done
+
+   echo "Start running MCTF tests"
    # Run tests from the project root
    cd "$PROJECT_DIRECTORY"
-   $TEST_DIRECTORY/pgexporter-test
-   if [[ $? -ne 0 ]]; then
+   if [[ -f "$TEST_DIRECTORY/pgexporter-test" ]]; then
+      TEST_FILTER_ARGS=()
+      if [[ -n "${TEST_FILTER:-}" ]]; then
+         TEST_FILTER_ARGS=(-t "$TEST_FILTER")
+      elif [[ -n "${MODULE_FILTER:-}" ]]; then
+         TEST_FILTER_ARGS=(-m "$MODULE_FILTER")
+      fi
+      $TEST_DIRECTORY/pgexporter-test "${TEST_FILTER_ARGS[@]}"
+      if [[ $? -ne 0 ]]; then
+         exit 1
+      fi
+   else
+      echo "Test binary not found: $TEST_DIRECTORY/pgexporter-test"
+      echo "Please build the project first"
       exit 1
    fi
    set -e
 }
 
 usage() {
-   echo "Usage: $0 [sub-command]"
-   echo "Subcommand:"
+   echo "Usage: $0 [options] [sub-command]"
+   echo "Subcommands:"
+   echo " build       Set up environment (image, build, PostgreSQL, pgexporter) without running tests"
    echo " clean       Clean up test suite environment and remove PostgreSQL image"
    echo " setup       Install dependencies and build PostgreSQL image"
+   echo " ci          Run full test suite in CI mode (local PostgreSQL)"
+   echo "Options (run tests with optional filter; default is full suite):"
+   echo " -t, --test NAME     Run only tests matching NAME"
+   echo " -m, --module NAME   Run all tests in module NAME"
+   echo "Examples:"
+   echo "  $0                  Run full test suite"
+   echo "  $0 build            Set up environment only; then run e.g. $0 -t test_cli_ping"
+   echo "  $0 -t test_cli_ping Run test matching 'test_cli_ping'"
+   echo "  $0 -m cli           Run all tests in module 'cli'"
    exit 1
 }
 
-run_tests() {
+need_build() {
+  if [[ ! -f "$TEST_DIRECTORY/pgexporter-test" ]] || [[ ! -f "$EXECUTABLE_DIRECTORY/pgexporter" ]]; then
+    return 1
+  fi
+  if [[ $MODE != "ci" ]]; then
+    if ! $CONTAINER_ENGINE image inspect "$IMAGE_NAME" >/dev/null 2>&1 && \
+       ! $CONTAINER_ENGINE image inspect "localhost/$IMAGE_NAME" >/dev/null 2>&1; then
+      return 1
+    fi
+  fi
+  if [[ ! -d "$PGEXPORTER_ROOT_DIR" ]] || [[ ! -f "$CONFIGURATION_DIRECTORY/pgexporter.conf" ]]; then
+    return 1
+  fi
+  return 0
+}
+
+do_setup() {
+  local always_build="${1:-}"
   echo "Preparing the pgexporter directory"
   export LLVM_PROFILE_FILE="$COVERAGE_DIR/coverage-%p-%m.profraw"
   rm -Rf "$PGEXPORTER_ROOT_DIR"
@@ -318,7 +402,6 @@ run_tests() {
   chmod -R 777 $PGCONF_DIRECTORY
 
   echo "Building PostgreSQL 17 image if necessary"
-  # Check with and without localhost/ prefix for Podman compatibility
   if $CONTAINER_ENGINE image inspect "$IMAGE_NAME" >/dev/null 2>&1 || \
      $CONTAINER_ENGINE image inspect "localhost/$IMAGE_NAME" >/dev/null 2>&1; then
     echo "Image $IMAGE_NAME exists, skip building"
@@ -334,16 +417,16 @@ run_tests() {
     fi
   fi
 
-  if [[ ! -f "$EXECUTABLE_DIRECTORY/pgexporter" ]] || [[ ! -f "$TEST_DIRECTORY/pgexporter-test" ]]; then
+  if [[ "$always_build" == "force" ]] || [[ ! -f "$EXECUTABLE_DIRECTORY/pgexporter" ]] || [[ ! -f "$TEST_DIRECTORY/pgexporter-test" ]]; then
     echo "Building pgexporter"
     mkdir -p "$PROJECT_DIRECTORY/build"
     cd "$PROJECT_DIRECTORY/build"
     export CC=$(which clang)
-    cmake -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Debug -Dcheck=ON ..
+    cmake -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Debug ..
     make -j$(nproc)
     cd ..
   else
-    echo "pgexporter already built, skipping build step"
+    echo "pgexporter binaries already present, skipping build"
   fi
 
   echo "Start PostgreSQL 17 container"
@@ -353,41 +436,100 @@ run_tests() {
   pgexporter_initialize_configuration
 
   export_pgexporter_test_variables
+}
 
+run_tests() {
+  if ! need_build; then
+    do_setup
+  else
+    echo "Environment already ready, skipping build"
+  fi
   execute_testcases
 }
 
-if [[ $# -gt 1 ]]; then
-   usage # More than one argument, show usage and exit
-elif [[ $# -eq 1 ]]; then
-   if [[ "$1" == "setup" ]]; then
-      build_postgresql_image
-      sudo dnf install -y \
-        clang \
-        clang-analyzer \
-        cmake \
-        make \
-        libev libev-devel \
-        openssl openssl-devel \
-        systemd systemd-devel \
-        check check-devel check-static \
-        llvm
-   elif [[ "$1" == "clean" ]]; then
-      rm -Rf $COVERAGE_DIR
-      cleanup
-      cleanup_postgresql_image
-      rm -Rf $PGEXPORTER_ROOT_DIR
-   elif [[ "$1" == "ci" ]]; then
-      MODE="ci"
-      PORT=5432
-      trap cleanup EXIT
-      run_tests
-   else
-      echo "Invalid parameter: $1"
-      usage # If an invalid parameter is provided, show usage and exit
-   fi
-else
-   # If no arguments are provided, run function_without_param
+TEST_FILTER=""
+MODULE_FILTER=""
+SUBCOMMAND=""
+while [[ $# -gt 0 ]]; do
+   case "$1" in
+      -t|--test)
+         [[ -n "$MODULE_FILTER" ]] && { echo "Error: Cannot specify both -t and -m options"; usage; }
+         shift
+         [[ $# -eq 0 ]] && { echo "Error: -t/--test requires NAME"; usage; }
+         TEST_FILTER="$1"
+         shift
+         ;;
+      -m|--module)
+         [[ -n "$TEST_FILTER" ]] && { echo "Error: Cannot specify both -t and -m options"; usage; }
+         shift
+         [[ $# -eq 0 ]] && { echo "Error: -m/--module requires NAME"; usage; }
+         MODULE_FILTER="$1"
+         shift
+         ;;
+      build)
+         [[ -n "$SUBCOMMAND" ]] && usage
+         SUBCOMMAND="build"
+         shift
+         ;;
+      setup)
+         [[ -n "$SUBCOMMAND" ]] && usage
+         SUBCOMMAND="setup"
+         shift
+         ;;
+      clean)
+         [[ -n "$SUBCOMMAND" ]] && usage
+         SUBCOMMAND="clean"
+         shift
+         ;;
+      ci)
+         [[ -n "$SUBCOMMAND" ]] && usage
+         SUBCOMMAND="ci"
+         shift
+         ;;
+      -h|--help)
+         usage
+         ;;
+      -*)
+         echo "Invalid option: $1"
+         usage
+         ;;
+      *)
+         echo "Invalid parameter: $1"
+         usage
+         ;;
+   esac
+done
+
+if [[ "$SUBCOMMAND" == "build" ]]; then
+   do_setup force
+   exit 0
+fi
+if [[ "$SUBCOMMAND" == "setup" ]]; then
+   build_postgresql_image
+   sudo dnf install -y \
+      clang \
+      clang-analyzer \
+      cmake \
+      make \
+      libev libev-devel \
+      openssl openssl-devel \
+      systemd systemd-devel \
+      llvm
+   exit 0
+fi
+if [[ "$SUBCOMMAND" == "clean" ]]; then
+   rm -Rf $COVERAGE_DIR
+   cleanup
+   cleanup_postgresql_image
+   rm -Rf $PGEXPORTER_ROOT_DIR
+   exit 0
+fi
+if [[ "$SUBCOMMAND" == "ci" ]]; then
+   MODE="ci"
+   PORT=5432
    trap cleanup EXIT SIGINT
    run_tests
+   exit 0
 fi
+trap cleanup EXIT SIGINT
+run_tests

@@ -66,21 +66,24 @@ void
 pgexporter_test_teardown(void);
 
 /**
- * Assert that conf set succeeds and the response matches the expected value
+ * Conf set succeeds and the response matches the expected value.
+ * @return 0 on success, -1 on failure
  */
-void
+int
 pgexporter_test_assert_conf_set_ok(char* key, char* value, int64_t expected);
 
 /**
- * Assert that conf set fails for the given key/value
+ * Conf set fails for the given key/value.
+ * @return 0 on success, -1 on failure
  */
-void
+int
 pgexporter_test_assert_conf_set_fail(char* key, char* value);
 
 /**
- * Assert that conf get returns the expected value for the given key
+ * Conf get returns the expected value for the given key.
+ * @return 0 on success, -1 on failure
  */
-void
+int
 pgexporter_test_assert_conf_get_ok(char* key, int64_t expected);
 
 #ifdef __cplusplus
