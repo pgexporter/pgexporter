@@ -122,22 +122,22 @@ cleanup() {
          --format=text > $COVERAGE_DIR/coverage-report-pgexporter-admin.txt 2>&1
 
       echo "Generating $COVERAGE_DIR/coverage-libpgexporter.txt"
-      llvm-cov show $BIN_PATH/pgexporter/libpgexporter.so \
+      llvm-cov show $BIN_PATH/libpgexporter.so \
         --instr-profile=$COVERAGE_DIR/coverage.profdata \
         --format=text > $COVERAGE_DIR/coverage-libpgexporter.txt
       
       echo "Generating $COVERAGE_DIR/coverage-pgexporter.txt"
-      llvm-cov show $BIN_PATH/pgexporter/pgexporter \
+      llvm-cov show $BIN_PATH/pgexporter \
         --instr-profile=$COVERAGE_DIR/coverage.profdata \
         --format=text > $COVERAGE_DIR/coverage-pgexporter.txt
       
       echo "Generating $COVERAGE_DIR/coverage-pgexporter-cli.txt"
-      llvm-cov show $BIN_PATH/pgexporter/pgexporter-cli \
+      llvm-cov show $BIN_PATH/pgexporter-cli \
         --instr-profile=$COVERAGE_DIR/coverage.profdata \
         --format=text > $COVERAGE_DIR/coverage-pgexporter-cli.txt
       
       echo "Generating $COVERAGE_DIR/coverage-pgexporter-admin.txt"
-      llvm-cov show $BIN_PATH/pgexporter/pgexporter-admin \
+      llvm-cov show $BIN_PATH/pgexporter-admin \
         --instr-profile=$COVERAGE_DIR/coverage.profdata \
         --format=text > $COVERAGE_DIR/coverage-pgexporter-admin.txt
 
@@ -308,7 +308,7 @@ usage() {
 
 run_tests() {
   echo "Preparing the pgexporter directory"
-  export LLVM_PROFILE_FILE="$COVERAGE_DIR/coverage-%p.profraw"
+  export LLVM_PROFILE_FILE="$COVERAGE_DIR/coverage-%p-%m.profraw"
   rm -Rf "$PGEXPORTER_ROOT_DIR"
   mkdir -p "$PGEXPORTER_ROOT_DIR"
   mkdir -p "$LOG_DIR" "$PG_LOG_DIR" "$COVERAGE_DIR" "$BASE_DIR"
