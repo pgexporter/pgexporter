@@ -900,7 +900,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
       sd_notify(0, "STATUS=Both YAML and JSON paths cannot be specified at the same time");
 #endif
-      exit(1);
+      goto error;
    }
 
    if (yaml_path != NULL)
@@ -912,7 +912,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
          sd_notify(0, "STATUS=Invalid metrics YAML");
 #endif
-         exit(1);
+         goto error;
       }
    }
    else if (json_path != NULL)
@@ -924,7 +924,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
          sd_notify(0, "STATUS=Invalid metrics JSON");
 #endif
-         exit(1);
+         goto error;
       }
    }
    if (yaml_path != NULL || json_path != NULL)
@@ -939,7 +939,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
       sd_notify(0, "STATUS=Failed to setup extensions path");
 #endif
-      exit(1);
+      goto error;
    }
 
    if (daemon)
@@ -950,7 +950,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
          sd_notify(0, "STATUS=Daemon mode can't be used with console logging");
 #endif
-         exit(1);
+         goto error;
       }
 
       pid = fork();
@@ -961,7 +961,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
          sd_notify(0, "STATUS=Daemon mode failed");
 #endif
-         exit(1);
+         goto error;
       }
 
       if (pid > 0)
@@ -975,7 +975,7 @@ main(int argc, char** argv)
 
       if (sid < 0)
       {
-         exit(1);
+         goto error;
       }
    }
 
@@ -1018,7 +1018,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
       sd_notifyf(0, "STATUS=Could not bind to %s/%s", config->unix_socket_dir, MAIN_UDS);
 #endif
-      exit(1);
+      goto error;
    }
 
    /* Bind Unix Domain Socket: Transfer */
@@ -1028,7 +1028,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
       sd_notifyf(0, "STATUS=Could not bind to %s/%s", config->unix_socket_dir, TRANSFER_UDS);
 #endif
-      exit(1);
+      goto error;
    }
 
    /* libev */
@@ -1040,7 +1040,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
       sd_notifyf(0, "STATUS=No loop implementation (%x) (%x)", pgexporter_libev(config->libev), ev_supported_backends());
 #endif
-      exit(1);
+      goto error;
    }
 
    ev_signal_init((struct ev_signal*)&signal_watcher[0], shutdown_cb, SIGTERM);
@@ -1062,7 +1062,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
       sd_notify(0, "STATUS=Invalid TLS configuration");
 #endif
-      exit(1);
+      goto error;
    }
 
    if (config->metrics > 0)
@@ -1077,7 +1077,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
          sd_notifyf(0, "STATUS=Could not bind to %s:%d", config->host, config->metrics);
 #endif
-         exit(1);
+         goto error;
       }
 
       if (metrics_fds_length > MAX_FDS)
@@ -1086,7 +1086,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
          sd_notifyf(0, "STATUS=Too many descriptors %d", metrics_fds_length);
 #endif
-         exit(1);
+         goto error;
       }
 
       start_metrics();
@@ -1125,7 +1125,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
          sd_notifyf(0, "STATUS=Could not bind to %s:%d", config->host, config->bridge);
 #endif
-         exit(1);
+         goto error;
       }
 
       if (bridge_fds_length > MAX_FDS)
@@ -1134,7 +1134,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
          sd_notifyf(0, "STATUS=Too many descriptors %d", bridge_fds_length);
 #endif
-         exit(1);
+         goto error;
       }
 
       start_bridge();
@@ -1148,7 +1148,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
             sd_notifyf(0, "STATUS=Could not bind to %s:%d", config->host, config->bridge_json);
 #endif
-            exit(1);
+            goto error;
          }
 
          if (bridge_json_fds_length > MAX_FDS)
@@ -1157,7 +1157,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
             sd_notifyf(0, "STATUS=Too many descriptors %d", bridge_json_fds_length);
 #endif
-            exit(1);
+            goto error;
          }
 
          start_bridge_json();
@@ -1173,7 +1173,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
          sd_notifyf(0, "STATUS=Could not bind to %s:%d", config->host, config->management);
 #endif
-         exit(1);
+         goto error;
       }
 
       if (management_fds_length > MAX_FDS)
@@ -1182,7 +1182,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
          sd_notifyf(0, "STATUS=Too many descriptors %d", management_fds_length);
 #endif
-         exit(1);
+         goto error;
       }
 
       start_management();
@@ -1248,7 +1248,7 @@ main(int argc, char** argv)
 #ifdef HAVE_SYSTEMD
       sd_notify(0, "STATUS=Failed to load extension YAMLs");
 #endif
-      exit(1);
+      goto error;
    }
 
    /* Close connections after validation  and loading extensions - child processes will create their own.
@@ -1316,7 +1316,10 @@ main(int argc, char** argv)
    pgexporter_destroy_shared_memory(shmem, shmem_size);
    pgexporter_destroy_shared_memory(prometheus_cache_shmem,
                                     prometheus_cache_shmem_size);
-
+   pgexporter_destroy_shared_memory(bridge_cache_shmem,
+                                    bridge_cache_shmem_size);
+   pgexporter_destroy_shared_memory(bridge_json_cache_shmem,
+                                    bridge_json_cache_shmem_size);
    pgexporter_memory_destroy();
 
    OPENSSL_cleanup();
@@ -1325,8 +1328,73 @@ main(int argc, char** argv)
    {
       kill(0, SIGTERM);
    }
-
    return 0;
+
+error:
+#ifdef HAVE_SYSTEMD
+   sd_notify(0, "STATUS=Error");
+#endif
+
+   pgexporter_close_connections();
+
+   shutdown_management();
+
+   if (config->metrics != -1)
+   {
+      shutdown_metrics();
+      shutdown_mgt();
+      shutdown_transfer();
+   }
+
+   if (config->bridge != -1)
+   {
+      shutdown_bridge();
+
+      if (config->bridge_json != -1)
+      {
+         shutdown_bridge_json();
+      }
+   }
+
+   if (main_loop)
+   {
+      for (int i = 0; i < 6; i++)
+      {
+         ev_signal_stop(main_loop, (struct ev_signal*)&signal_watcher[i]);
+      }
+
+      ev_loop_destroy(main_loop);
+   }
+
+   free(metrics_fds);
+   free(bridge_fds);
+   free(bridge_json_fds);
+   free(management_fds);
+
+   free(bin_path);
+
+   remove_pidfile();
+   remove_lockfile(config->metrics);
+   remove_lockfile(config->bridge);
+   remove_lockfile(config->bridge_json);
+
+   pgexporter_stop_logging();
+
+   pgexporter_free_pg_query_alts(config);
+   pgexporter_free_extension_query_alts(config);
+
+   pgexporter_destroy_shared_memory(shmem, shmem_size);
+   pgexporter_destroy_shared_memory(prometheus_cache_shmem,
+                                    prometheus_cache_shmem_size);
+   pgexporter_destroy_shared_memory(bridge_cache_shmem,
+                                    bridge_cache_shmem_size);
+   pgexporter_destroy_shared_memory(bridge_json_cache_shmem,
+                                    bridge_json_cache_shmem_size);
+   pgexporter_memory_destroy();
+
+   OPENSSL_cleanup();
+
+   return 1;
 }
 
 static void
