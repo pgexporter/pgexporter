@@ -34,6 +34,7 @@ Amr Shams (NightBird) <amr.shams2015.a@gmail.com>
 Mazen Kamal <mazenkamal212@gmail.com>
 Trevor Jacob Mathews <trevorjacobmathews@gmail.com>
 Shashidhar B M <shashidhar.i.0119@gmail.com>
+Zeyad Daowd <zeyaddaowd@yahoo.com>
 ```
 
 ## Committers
