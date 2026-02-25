@@ -49,8 +49,15 @@ jobs:
 
       - name: Check contrib file drift
         run: |
-          python3 scripts/generate_contrib.py \
+          python3 scripts/generate_yaml_json.py \
             --internal-h src/include/internal.h \
+            --check
+        working-directory: /home/runner/work/pgexporter/pgexporter/
+
+      - name: Check Grafana dashboard drift
+        run: |
+          python3 scripts/generate_dashboards.py \
+            --template contrib/grafana/postgresql_dashboard.json \
             --check
         working-directory: /home/runner/work/pgexporter/pgexporter/
 

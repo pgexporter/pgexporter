@@ -1114,7 +1114,7 @@
         "h": 8,
         "y": 75
       },
-      "id": 15,
+      "id": 14,
       "options": {
         "legend": {
           "calcs": [
@@ -1226,7 +1226,7 @@
         "h": 8,
         "y": 75
       },
-      "id": 14,
+      "id": 15,
       "options": {
         "legend": {
           "calcs": [],
@@ -1301,7 +1301,7 @@
         "h": 8,
         "y": 83
       },
-      "id": 35,
+      "id": 16,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -1369,7 +1369,7 @@
         "h": 8,
         "y": 83
       },
-      "id": 16,
+      "id": 17,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -1458,7 +1458,7 @@
         "h": 8,
         "y": 91
       },
-      "id": 36,
+      "id": 18,
       "options": {
         "legend": {
           "calcs": [
@@ -1553,7 +1553,7 @@
         "h": 8,
         "y": 91
       },
-      "id": 37,
+      "id": 19,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -1651,7 +1651,7 @@
         "h": 5,
         "y": 99
       },
-      "id": 38,
+      "id": 20,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -1710,7 +1710,7 @@
         "x": 0,
         "y": 104
       },
-      "id": 17,
+      "id": 21,
       "panels": [],
       "title": "Query Analysis",
       "type": "row"
@@ -1753,7 +1753,7 @@
         "x": 0,
         "y": 105
       },
-      "id": 27,
+      "id": 22,
       "options": {
         "legend": {
           "calcs": [
@@ -1821,7 +1821,7 @@
         "x": 8,
         "y": 105
       },
-      "id": 28,
+      "id": 23,
       "options": {
         "legend": {
           "calcs": [
@@ -1889,7 +1889,7 @@
         "x": 16,
         "y": 105
       },
-      "id": 29,
+      "id": 24,
       "options": {
         "legend": {
           "calcs": [
@@ -1957,7 +1957,7 @@
         "x": 0,
         "y": 112
       },
-      "id": 18,
+      "id": 25,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -2027,7 +2027,7 @@
         "x": 12,
         "y": 122
       },
-      "id": 19,
+      "id": 26,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -2097,7 +2097,7 @@
         "x": 0,
         "y": 132
       },
-      "id": 20,
+      "id": 27,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -2188,7 +2188,7 @@
         "x": 12,
         "y": 142
       },
-      "id": 21,
+      "id": 28,
       "options": {
         "legend": {
           "calcs": [
@@ -2245,7 +2245,7 @@
         "x": 0,
         "y": 152
       },
-      "id": 30,
+      "id": 29,
       "panels": [],
       "title": "Long Running Transactions",
       "type": "row"
@@ -2289,7 +2289,7 @@
         "x": 0,
         "y": 153
       },
-      "id": 34,
+      "id": 30,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -2384,7 +2384,7 @@
         "x": 12,
         "y": 153
       },
-      "id": 32,
+      "id": 31,
       "options": {
         "legend": {
           "calcs": [
@@ -2459,7 +2459,7 @@
         "x": 0,
         "y": 160
       },
-      "id": 33,
+      "id": 32,
       "options": {
         "filterable": true,
         "cellHeight": "sm",
