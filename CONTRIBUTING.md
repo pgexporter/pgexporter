@@ -103,17 +103,41 @@ Once there is an agreement on the development plan you can open an issue that wi
 When modifying queries or metrics in `src/include/internal.h`:
 
 1. Make your changes to `src/include/internal.h`
-2. Regenerate the contrib files:
+2. Regenerate the metric files:
    ```bash
-   make generate-contrib
+   make generate-yaml-json
    ```
    Or directly:
    ```bash
-   python3 scripts/generate_contrib.py --internal-h src/include/internal.h
+   python3 scripts/generate_yaml_json.py --internal-h src/include/internal.h
    ```
 3. Commit both `src/include/internal.h` and the regenerated `contrib/yaml/*.yaml` and `contrib/json/*.json` files together
 
 The generator uses `internal.h` as the single source of truth, automatically creating YAML and JSON outputs for PostgreSQL 13–18. Do not manually edit the generated contrib files.
+
+## Editing Grafana Dashboards
+
+The Grafana dashboards are generated from a single annotated template. Each version-specific panel in the template has a `"version"` field indicating the minimum PostgreSQL version required.
+
+When modifying Grafana dashboards:
+
+1. Edit only `contrib/grafana/postgresql_dashboard.json` (the template)
+2. Regenerate the versioned dashboards:
+   ```bash
+   make generate-dashboards
+   ```
+   Or directly:
+   ```bash
+   python3 scripts/generate_dashboards.py --template contrib/grafana/postgresql_dashboard.json
+   ```
+3. Commit both the template and the regenerated `contrib/grafana/postgresql_dashboard_pg*.json` files together
+
+To regenerate **all** contrib files (metrics + dashboards) at once:
+```bash
+make generate-contrib
+```
+
+Do not manually edit the generated versioned dashboard files.
 
 ## Development
 

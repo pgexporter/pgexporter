@@ -1240,7 +1240,7 @@
         "h": 8,
         "y": 83
       },
-      "id": 16,
+      "id": 15,
       "options": {
         "legend": {
           "calcs": [
@@ -1352,7 +1352,7 @@
         "h": 8,
         "y": 83
       },
-      "id": 15,
+      "id": 16,
       "options": {
         "legend": {
           "calcs": [],
@@ -1427,7 +1427,7 @@
         "h": 8,
         "y": 91
       },
-      "id": 50,
+      "id": 17,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -1495,7 +1495,7 @@
         "h": 8,
         "y": 91
       },
-      "id": 17,
+      "id": 18,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -1584,7 +1584,7 @@
         "h": 8,
         "y": 99
       },
-      "id": 51,
+      "id": 19,
       "options": {
         "legend": {
           "calcs": [
@@ -1679,7 +1679,7 @@
         "h": 8,
         "y": 99
       },
-      "id": 52,
+      "id": 20,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -1777,7 +1777,7 @@
         "h": 5,
         "y": 107
       },
-      "id": 53,
+      "id": 21,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -1836,7 +1836,7 @@
         "x": 0,
         "y": 112
       },
-      "id": 18,
+      "id": 22,
       "panels": [],
       "title": "Query Analysis",
       "type": "row"
@@ -1879,7 +1879,7 @@
         "x": 0,
         "y": 113
       },
-      "id": 27,
+      "id": 23,
       "options": {
         "legend": {
           "calcs": [
@@ -1947,7 +1947,7 @@
         "x": 8,
         "y": 113
       },
-      "id": 28,
+      "id": 24,
       "options": {
         "legend": {
           "calcs": [
@@ -2015,7 +2015,7 @@
         "x": 16,
         "y": 113
       },
-      "id": 29,
+      "id": 25,
       "options": {
         "legend": {
           "calcs": [
@@ -2083,7 +2083,7 @@
         "x": 0,
         "y": 120
       },
-      "id": 19,
+      "id": 26,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -2153,7 +2153,7 @@
         "x": 12,
         "y": 130
       },
-      "id": 20,
+      "id": 27,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -2223,7 +2223,7 @@
         "x": 0,
         "y": 140
       },
-      "id": 21,
+      "id": 28,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -2314,7 +2314,7 @@
         "x": 12,
         "y": 150
       },
-      "id": 22,
+      "id": 29,
       "options": {
         "legend": {
           "calcs": [
@@ -2371,7 +2371,7 @@
         "x": 0,
         "y": 160
       },
-      "id": 23,
+      "id": 30,
       "panels": [],
       "title": "Advanced Metrics",
       "type": "row"
@@ -2436,7 +2436,7 @@
         "x": 0,
         "y": 161
       },
-      "id": 24,
+      "id": 31,
       "options": {
         "legend": {
           "calcs": [
@@ -2484,7 +2484,7 @@
         "x": 0,
         "y": 169
       },
-      "id": 30,
+      "id": 32,
       "panels": [],
       "title": "Long Running Transactions",
       "type": "row"
@@ -2528,7 +2528,7 @@
         "x": 0,
         "y": 170
       },
-      "id": 31,
+      "id": 33,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -2623,7 +2623,7 @@
         "x": 12,
         "y": 170
       },
-      "id": 32,
+      "id": 34,
       "options": {
         "legend": {
           "calcs": [
@@ -2698,7 +2698,7 @@
         "x": 0,
         "y": 177
       },
-      "id": 33,
+      "id": 35,
       "options": {
         "filterable": true,
         "cellHeight": "sm",
