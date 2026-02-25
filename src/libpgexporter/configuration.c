@@ -111,6 +111,7 @@ pgexporter_init_configuration(void* shm)
    config->number_of_metric_names = 0;
    memset(config->metric_names, 0, sizeof(config->metric_names));
 
+   config->console = -1;
    config->bridge = -1;
    config->bridge_cache_max_age = PGEXPORTER_TIME_SEC(300);
    config->bridge_cache_max_size = PROMETHEUS_DEFAULT_BRIDGE_CACHE_SIZE;
@@ -535,6 +536,20 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (!strcmp(section, "pgexporter"))
                   {
                      if (as_int(value, &config->management))
+                     {
+                        unknown = true;
+                     }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "console"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     if (as_int(value, &config->console))
                      {
                         unknown = true;
                      }
@@ -2101,6 +2116,14 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
             unknown = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)config->management, ValueInt64);
+      }
+      else if (!strcmp(key, "console"))
+      {
+         if (as_int(config_value, &config->console))
+         {
+            unknown = true;
+         }
+         pgexporter_json_put(response, key, (uintptr_t)config->console, ValueInt64);
       }
       else if (!strcmp(key, "cache"))
       {

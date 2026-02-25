@@ -117,6 +117,8 @@ extern "C" {
 #define MANAGEMENT_ERROR_METRICS_NOFORK                     100
 #define MANAGEMENT_ERROR_METRICS_NETWORK                    101
 
+#define MANAGEMENT_ERROR_CONSOLE_NOFORK                     200
+
 #define MANAGEMENT_ERROR_STATUS_NOFORK                      700
 #define MANAGEMENT_ERROR_STATUS_NETWORK                     701
 

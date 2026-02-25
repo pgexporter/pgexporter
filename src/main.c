@@ -31,6 +31,7 @@
 #include <art.h>
 #include <bridge.h>
 #include <cmd.h>
+#include <console.h>
 #include <configuration.h>
 #include <connection.h>
 #include <extension.h>
@@ -84,6 +85,7 @@
 static void accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
 static void accept_transfer_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
 static void accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
+static void accept_console_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
 static void accept_bridge_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
 static void accept_bridge_json_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
 static void accept_management_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
@@ -116,6 +118,9 @@ static int unix_transfer_socket = -1;
 static struct accept_io io_metrics[MAX_FDS];
 static int* metrics_fds = NULL;
 static int metrics_fds_length = -1;
+static struct accept_io io_console[MAX_FDS];
+static int* console_fds = NULL;
+static int console_fds_length = -1;
 static struct accept_io io_bridge[MAX_FDS];
 static int* bridge_fds = NULL;
 static int bridge_fds_length = -1;
@@ -230,6 +235,46 @@ shutdown_metrics(void)
       {
          ev_io_stop(main_loop, (struct ev_io*)&io_metrics[i]);
          pgexporter_disconnect(io_metrics[i].socket);
+         errno = 0;
+      }
+   }
+}
+
+static void
+start_console(void)
+{
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (config->console != -1)
+   {
+      for (int i = 0; i < console_fds_length; i++)
+      {
+         int sockfd = *(console_fds + i);
+
+         memset(&io_console[i], 0, sizeof(struct accept_io));
+         ev_io_init((struct ev_io*)&io_console[i], accept_console_cb, sockfd, EV_READ);
+         io_console[i].socket = sockfd;
+         io_console[i].argv = argv_ptr;
+         ev_io_start(main_loop, (struct ev_io*)&io_console[i]);
+      }
+   }
+}
+
+static void
+shutdown_console(void)
+{
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (config->console != -1)
+   {
+      for (int i = 0; i < console_fds_length; i++)
+      {
+         ev_io_stop(main_loop, (struct ev_io*)&io_console[i]);
+         pgexporter_disconnect(io_console[i].socket);
          errno = 0;
       }
    }
@@ -1047,6 +1092,30 @@ main(int argc, char** argv)
       start_metrics();
    }
 
+   if (config->console > 0)
+   {
+      /* Bind console socket */
+      if (pgexporter_bind(config->host, config->console, &console_fds, &console_fds_length))
+      {
+         pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->console);
+#ifdef HAVE_SYSTEMD
+         sd_notifyf(0, "STATUS=Could not bind to %s:%d", config->host, config->console);
+#endif
+         exit(1);
+      }
+
+      if (console_fds_length > MAX_FDS)
+      {
+         pgexporter_log_fatal("pgexporter: Too many descriptors %d", console_fds_length);
+#ifdef HAVE_SYSTEMD
+         sd_notifyf(0, "STATUS=Too many descriptors %d", console_fds_length);
+#endif
+         exit(1);
+      }
+
+      start_console();
+   }
+
    if (config->bridge > 0)
    {
       /* Bind bridge socket */
@@ -1129,6 +1198,10 @@ main(int argc, char** argv)
    for (int i = 0; i < metrics_fds_length; i++)
    {
       pgexporter_log_debug("Metrics: %d", *(metrics_fds + i));
+   }
+   for (int i = 0; i < console_fds_length; i++)
+   {
+      pgexporter_log_debug("Console: %d", *(console_fds + i));
    }
    for (int i = 0; i < bridge_fds_length; i++)
    {
@@ -1222,6 +1295,7 @@ main(int argc, char** argv)
    ev_loop_destroy(main_loop);
 
    free(metrics_fds);
+   free(console_fds);
    free(bridge_fds);
    free(bridge_json_fds);
    free(management_fds);
@@ -1230,6 +1304,7 @@ main(int argc, char** argv)
 
    remove_pidfile();
    remove_lockfile(config->metrics);
+   remove_lockfile(config->console);
    remove_lockfile(config->bridge);
    remove_lockfile(config->bridge_json);
 
@@ -1673,6 +1748,93 @@ error:
 }
 
 static void
+accept_console_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
+{
+   struct sockaddr_in6 client_addr;
+   socklen_t client_addr_length;
+   int client_fd;
+   pid_t pid;
+   struct accept_io* ai;
+   struct configuration* config;
+
+   if (EV_ERROR & revents)
+   {
+      pgexporter_log_debug("accept_console_cb: invalid event: %s", strerror(errno));
+      errno = 0;
+      return;
+   }
+
+   config = (struct configuration*)shmem;
+   ai = (struct accept_io*)watcher;
+
+   errno = 0;
+
+   client_addr_length = sizeof(client_addr);
+   client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
+   if (client_fd == -1)
+   {
+      if (accept_fatal(errno) && keep_running)
+      {
+         pgexporter_log_warn("Restarting listening port due to: %s (%d)", strerror(errno), watcher->fd);
+
+         shutdown_console();
+
+         free(console_fds);
+         console_fds = NULL;
+         console_fds_length = 0;
+
+         if (pgexporter_bind(config->host, config->console, &console_fds, &console_fds_length))
+         {
+            pgexporter_log_fatal("Could not bind to %s:%d", config->host, config->console);
+            exit(1);
+         }
+
+         if (console_fds_length > MAX_FDS)
+         {
+            pgexporter_log_fatal("Too many descriptors %d", console_fds_length);
+            exit(1);
+         }
+
+         start_console();
+
+         for (int i = 0; i < console_fds_length; i++)
+         {
+            pgexporter_log_debug("Console: %d", *(console_fds + i));
+         }
+      }
+      else
+      {
+         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fd);
+      }
+      errno = 0;
+      return;
+   }
+
+   pid = fork();
+   if (pid == -1)
+   {
+      pgexporter_log_error("Console: No fork (%d)", MANAGEMENT_ERROR_CONSOLE_NOFORK);
+      goto error;
+   }
+   else if (pid == 0)
+   {
+      ev_loop_fork(loop);
+
+      shutdown_ports();
+      pgexporter_set_proc_title(1, ai->argv, "console", NULL);
+      pgexporter_console(0, client_fd);
+   }
+
+   pgexporter_disconnect(client_fd);
+
+   return;
+
+error:
+
+   pgexporter_disconnect(client_fd);
+}
+
+static void
 accept_bridge_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 {
    struct sockaddr_in6 client_addr;
@@ -1987,6 +2149,7 @@ reload_configuration(void)
 {
    bool restart = false;
    int old_metrics;
+   int old_console;
    int old_management;
    struct configuration* config;
 
@@ -1995,6 +2158,7 @@ reload_configuration(void)
    errno = 0;
 
    old_metrics = config->metrics;
+   old_console = config->console;
    old_management = config->management;
 
    pgexporter_reload_configuration(&restart);
@@ -2027,6 +2191,38 @@ reload_configuration(void)
          for (int i = 0; i < metrics_fds_length; i++)
          {
             pgexporter_log_debug("Metrics: %d", *(metrics_fds + i));
+         }
+      }
+   }
+
+   if (old_console != config->console)
+   {
+      shutdown_console();
+
+      free(console_fds);
+      console_fds = NULL;
+      console_fds_length = 0;
+
+      if (config->console > 0)
+      {
+         /* Bind console socket */
+         if (pgexporter_bind(config->host, config->console, &console_fds, &console_fds_length))
+         {
+            pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->console);
+            exit(1);
+         }
+
+         if (console_fds_length > MAX_FDS)
+         {
+            pgexporter_log_fatal("pgexporter: Too many descriptors %d", console_fds_length);
+            exit(1);
+         }
+
+         start_console();
+
+         for (int i = 0; i < console_fds_length; i++)
+         {
+            pgexporter_log_debug("Console: %d", *(console_fds + i));
          }
       }
    }

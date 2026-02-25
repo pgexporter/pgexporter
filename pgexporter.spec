@@ -58,6 +58,7 @@ cmake -DCMAKE_BUILD_TYPE=Release -DDOCS=OFF ..
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/TEST.md %{buildroot}%{_docdir}/%{name}/TEST.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/JSON.md %{buildroot}%{_docdir}/%{name}/JSON.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/BRIDGE.md %{buildroot}%{_docdir}/%{name}/BRIDGE.md
+%{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/CONSOLE.md %{buildroot}%{_docdir}/%{name}/CONSOLE.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/VIEWS.md %{buildroot}%{_docdir}/%{name}/VIEWS.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/SPONSORS.md %{buildroot}%{_docdir}/%{name}/SPONSORS.md
 %{__install} -m 644 %{_builddir}/%{name}-%{version}/doc/etc/pgexporter.service %{buildroot}%{_docdir}/%{name}/etc/pgexporter.service
@@ -113,6 +114,7 @@ cd %{buildroot}%{_libdir}/
 %license %{_docdir}/%{name}/LICENSE
 %{_docdir}/%{name}/ARCHITECTURE.md
 %{_docdir}/%{name}/BRIDGE.md
+%{_docdir}/%{name}/CONSOLE.md
 %{_docdir}/%{name}/CODE_OF_CONDUCT.md
 %{_docdir}/%{name}/CLI.md
 %{_docdir}/%{name}/CONFIGURATION.md
