@@ -50,6 +50,9 @@
 
 char TEST_BASE_DIR[MAX_PATH];
 
+/* In-process snapshot of the configuration used for save/restore */
+static struct configuration config_snapshot;
+
 void
 pgexporter_test_environment_create(void)
 {
@@ -111,6 +114,28 @@ void
 pgexporter_test_teardown(void)
 {
    pgexporter_memory_destroy();
+}
+
+void
+pgexporter_test_config_save(void)
+{
+   struct configuration* config = (struct configuration*)shmem;
+
+   if (config != NULL)
+   {
+      memcpy(&config_snapshot, config, sizeof(struct configuration));
+   }
+}
+
+void
+pgexporter_test_config_restore(void)
+{
+   struct configuration* config = (struct configuration*)shmem;
+
+   if (config != NULL)
+   {
+      memcpy(config, &config_snapshot, sizeof(struct configuration));
+   }
 }
 
 static int

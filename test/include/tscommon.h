@@ -66,6 +66,23 @@ void
 pgexporter_test_teardown(void);
 
 /**
+ * Snapshot the current shared-memory configuration.
+ * Call this at the start of a test (or in MCTF_TEST_SETUP) to preserve
+ * the original config before a test modifies it.
+ */
+void
+pgexporter_test_config_save(void);
+
+/**
+ * Restore the shared-memory configuration from the last snapshot taken
+ * by pgexporter_test_config_save().
+ * Call this at the end of a test (or in MCTF_TEST_TEARDOWN) to roll back
+ * any changes made during the test.
+ */
+void
+pgexporter_test_config_restore(void);
+
+/**
  * Conf set succeeds and the response matches the expected value.
  * @return 0 on success, -1 on failure
  */

@@ -33,32 +33,22 @@
 #include <shmem.h>
 
 #include <mctf.h>
+#include <tscommon.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-static void* cache_test_shmem = NULL;
-
-static void
-test_cache_setup(void)
+MCTF_TEST_SETUP(cache)
 {
-   size_t size = sizeof(struct configuration);
-
-   pgexporter_create_shared_memory(size, HUGEPAGE_OFF, &cache_test_shmem);
-   pgexporter_init_configuration(cache_test_shmem);
-
+   pgexporter_test_config_save();
    pgexporter_memory_init();
 }
 
-static void
-test_cache_teardown(void)
+MCTF_TEST_TEARDOWN(cache)
 {
-   size_t size = sizeof(struct configuration);
-
    pgexporter_memory_destroy();
-   pgexporter_destroy_shared_memory(cache_test_shmem, size);
-   cache_test_shmem = NULL;
+   pgexporter_test_config_restore();
 }
 
 // Test cache initialization
@@ -68,8 +58,6 @@ MCTF_TEST(test_cache_init)
    size_t total_size = 0;
    void* cache_shmem = NULL;
    struct prometheus_cache* cache = NULL;
-
-   test_cache_setup();
 
    MCTF_ASSERT_INT_EQ(pgexporter_cache_init(cache_size, &total_size, &cache_shmem), 0, cleanup, "cache_init failed");
    MCTF_ASSERT(cache_shmem != NULL, cleanup, "cache_shmem is NULL");
@@ -85,7 +73,6 @@ cleanup:
    {
       pgexporter_destroy_shared_memory(cache_shmem, total_size);
    }
-   test_cache_teardown();
    MCTF_FINISH();
 }
 
@@ -95,8 +82,6 @@ MCTF_TEST(test_cache_is_valid)
    size_t total_size = 0;
    void* cache_shmem = NULL;
    struct prometheus_cache* cache = NULL;
-
-   test_cache_setup();
 
    pgexporter_cache_init(64, &total_size, &cache_shmem);
    cache = (struct prometheus_cache*)cache_shmem;
@@ -124,7 +109,6 @@ cleanup:
    {
       pgexporter_destroy_shared_memory(cache_shmem, total_size);
    }
-   test_cache_teardown();
    MCTF_FINISH();
 }
 
@@ -134,8 +118,6 @@ MCTF_TEST(test_cache_invalidate)
    size_t total_size = 0;
    void* cache_shmem = NULL;
    struct prometheus_cache* cache = NULL;
-
-   test_cache_setup();
 
    pgexporter_cache_init(64, &total_size, &cache_shmem);
    cache = (struct prometheus_cache*)cache_shmem;
@@ -157,7 +139,6 @@ cleanup:
    {
       pgexporter_destroy_shared_memory(cache_shmem, total_size);
    }
-   test_cache_teardown();
    MCTF_FINISH();
 }
 
@@ -167,8 +148,6 @@ MCTF_TEST(test_cache_append)
    size_t total_size = 0;
    void* cache_shmem = NULL;
    struct prometheus_cache* cache = NULL;
-
-   test_cache_setup();
 
    pgexporter_cache_init(32, &total_size, &cache_shmem);
    cache = (struct prometheus_cache*)cache_shmem;
@@ -191,7 +170,6 @@ cleanup:
    {
       pgexporter_destroy_shared_memory(cache_shmem, total_size);
    }
-   test_cache_teardown();
    MCTF_FINISH();
 }
 
@@ -202,8 +180,6 @@ MCTF_TEST(test_cache_append_overflow)
    size_t total_size = 0;
    void* cache_shmem = NULL;
    struct prometheus_cache* cache = NULL;
-
-   test_cache_setup();
 
    pgexporter_cache_init(cache_size, &total_size, &cache_shmem);
    cache = (struct prometheus_cache*)cache_shmem;
@@ -223,7 +199,6 @@ cleanup:
    {
       pgexporter_destroy_shared_memory(cache_shmem, total_size);
    }
-   test_cache_teardown();
    MCTF_FINISH();
 }
 
@@ -234,8 +209,6 @@ MCTF_TEST(test_cache_finalize)
    void* cache_shmem = NULL;
    struct prometheus_cache* cache = NULL;
    time_t before;
-
-   test_cache_setup();
 
    pgexporter_cache_init(64, &total_size, &cache_shmem);
    cache = (struct prometheus_cache*)cache_shmem;
@@ -252,7 +225,6 @@ cleanup:
    {
       pgexporter_destroy_shared_memory(cache_shmem, total_size);
    }
-   test_cache_teardown();
    MCTF_FINISH();
 }
 
@@ -262,8 +234,6 @@ MCTF_TEST(test_cache_lifecycle)
    size_t total_size = 0;
    void* cache_shmem = NULL;
    struct prometheus_cache* cache = NULL;
-
-   test_cache_setup();
 
    MCTF_ASSERT_INT_EQ(pgexporter_cache_init(256, &total_size, &cache_shmem), 0, cleanup, "cache_init failed");
    cache = (struct prometheus_cache*)cache_shmem;
@@ -292,6 +262,5 @@ cleanup:
    {
       pgexporter_destroy_shared_memory(cache_shmem, total_size);
    }
-   test_cache_teardown();
    MCTF_FINISH();
 }
