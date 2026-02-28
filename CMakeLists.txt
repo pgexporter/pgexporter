@@ -233,15 +233,30 @@ endif()
 # Custom target to regenerate contrib files
 #
 if(Python3_FOUND)
-  set(GENERATOR_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/generate_contrib.py")
+  set(YAML_JSON_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/generate_yaml_json.py")
+  set(DASHBOARD_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/generate_dashboards.py")
   set(INTERNAL_H "${CMAKE_CURRENT_SOURCE_DIR}/src/include/internal.h")
-  
+  set(DASHBOARD_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/contrib/grafana/postgresql_dashboard.json")
+
   add_custom_target(
-    generate-contrib
-    COMMAND ${Python3_EXECUTABLE} ${GENERATOR_SCRIPT}
+    generate-yaml-json
+    COMMAND ${Python3_EXECUTABLE} ${YAML_JSON_SCRIPT}
             --internal-h ${INTERNAL_H}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMENT "Regenerating contrib YAML/JSON files from internal.h"
+  )
+
+  add_custom_target(
+    generate-dashboards
+    COMMAND ${Python3_EXECUTABLE} ${DASHBOARD_SCRIPT}
+            --template ${DASHBOARD_TEMPLATE}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Regenerating Grafana dashboard files from template"
+  )
+
+  add_custom_target(
+    generate-contrib
+    DEPENDS generate-yaml-json generate-dashboards
   )
 endif()
 

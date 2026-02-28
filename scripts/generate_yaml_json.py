@@ -7,7 +7,7 @@ selection algorithm to pick the correct query variant per PostgreSQL version,
 and outputs versioned files to contrib/yaml and contrib/json directories.
 
 Usage:
-    generate_contrib.py --internal-h <path> [--yaml-only | --json-only] [--check] [--verbose]
+    generate_yaml_json.py --internal-h <path> [--yaml-only | --json-only] [--check] [--verbose]
 """
 
 import argparse
