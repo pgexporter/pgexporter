@@ -50,7 +50,7 @@ The default simple view shows:
 - **Value** (column 2)
 - Labels are hidden for a clean, summary view
 
-![Web console home page in simple view](./images/console_home_simple.png)
+![Web console home page in simple view](./manual/images/console_home_simple.png)
 
 ### 3. Home page—detailed view
 
@@ -60,7 +60,7 @@ Toggle to detailed view to see:
 - **Value** (column 3)
 - **Labels** (column 4) — e.g., `database=mydb, server=primary`
 
-![Web console home page in detail view](./images/console_home_detail.png)
+![Web console home page in detail view](./manual/images/console_home_detail.png)
 
 ### 4. Category organization
 
@@ -79,7 +79,7 @@ The **Server filter** dropdown:
 - Allows multi-select (check/uncheck each server)
 - The metrics table updates to show rows only from selected servers
 
-![Web console home page server filter](./images/console_home_server_filter.png)
+![Web console home page server filter](./manual/images/console_home_server_filter.png)
 
 ### 6. Detailed category page
 
@@ -92,7 +92,7 @@ On the detail page you see:
 - For example: if metrics have labels `(database=mydb, user=alice)` and `(database=testdb, user=bob)`,
   you see separate columns for each
 
-![Web console category detail page](./images/console_category_detail.png)
+![Web console category detail page](./manual/images/console_category_detail.png)
 
 ## API endpoints
 
