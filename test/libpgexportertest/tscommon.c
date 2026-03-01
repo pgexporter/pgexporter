@@ -43,6 +43,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define ENV_VAR_CONF_PATH "PGEXPORTER_TEST_CONF"
 #define ENV_VAR_USER_CONF "PGEXPORTER_TEST_USER_CONF"
@@ -280,4 +281,36 @@ fail:
    if (socket >= 0)
       pgexporter_disconnect(socket);
    return -1;
+}
+
+char*
+pgexporter_test_write_temp_yaml(const char* content)
+{
+   char* path = strdup("/tmp/pgexporter_test_XXXXXX");
+   int fd = mkstemp(path);
+
+   if (fd == -1)
+   {
+      free(path);
+      return NULL;
+   }
+   write(fd, content, strlen(content));
+   close(fd);
+   return path;
+}
+
+char*
+pgexporter_test_write_temp_conf(const char* content)
+{
+   char* path = strdup("/tmp/pgexporter_conf_XXXXXX");
+   int fd = mkstemp(path);
+
+   if (fd == -1)
+   {
+      free(path);
+      return NULL;
+   }
+   write(fd, content, strlen(content));
+   close(fd);
+   return path;
 }

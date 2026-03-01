@@ -2750,6 +2750,64 @@ extern "C" {
                       "    sort: data\n"                                                                                                                                                \
                       "    collector: long_running_txns\n"                                                                                                                              \
                       "\n"
+
+#define INTERNAL_ALERTS_YAML ""                                                                                                                                                 \
+                             "alerts:\n"                                                                                                                                        \
+                             "- name: postgresql_down\n"                                                                                                                        \
+                             "  description: PostgreSQL server is unreachable\n"                                                                                                \
+                             "  type: connection\n"                                                                                                                             \
+                             "  operator: \"==\"\n"                                                                                                                             \
+                             "  threshold: -1\n"                                                                                                                                \
+                             "  servers: all\n"                                                                                                                                 \
+                             "\n"                                                                                                                                               \
+                             "- name: connections_high\n"                                                                                                                       \
+                             "  description: Active connections exceed threshold of max_connections\n"                                                                          \
+                             "  type: query\n"                                                                                                                                  \
+                             "  query: \"SELECT SUM(numbackends) / (SELECT setting::float FROM pg_settings WHERE name = 'max_connections') FROM pg_stat_database\"\n"           \
+                             "  operator: \">\"\n"                                                                                                                              \
+                             "  threshold: 0.8\n"                                                                                                                               \
+                             "  servers: all\n"                                                                                                                                 \
+                             "\n"                                                                                                                                               \
+                             "- name: replication_lag\n"                                                                                                                        \
+                             "  description: Replication lag exceeds threshold seconds\n"                                                                                       \
+                             "  type: query\n"                                                                                                                                  \
+                             "  query: \"SELECT CASE WHEN pg_is_in_recovery() THEN COALESCE(EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp())), 0) ELSE -1 END\"\n"  \
+                             "  operator: \">\"\n"                                                                                                                              \
+                             "  threshold: 300\n"                                                                                                                               \
+                             "  servers: all\n"                                                                                                                                 \
+                             "\n"                                                                                                                                               \
+                             "- name: wal_receiver_down\n"                                                                                                                      \
+                             "  description: WAL receiver is down on replica\n"                                                                                                 \
+                             "  type: query\n"                                                                                                                                  \
+                             "  query: \"SELECT CASE WHEN pg_is_in_recovery() THEN (SELECT CASE WHEN COUNT(*) = 0 THEN 1 ELSE 0 END FROM pg_stat_wal_receiver) ELSE -1 END\"\n" \
+                             "  operator: \"==\"\n"                                                                                                                             \
+                             "  threshold: 1\n"                                                                                                                                 \
+                             "  servers: all\n"                                                                                                                                 \
+                             "\n"                                                                                                                                               \
+                             "- name: replication_slot_inactive\n"                                                                                                              \
+                             "  description: Replication slots exist but none are active\n"                                                                                     \
+                             "  type: query\n"                                                                                                                                  \
+                             "  query: \"SELECT CASE WHEN COUNT(*) > 0 AND COUNT(*) FILTER (WHERE active) = 0 THEN 1 ELSE 0 END FROM pg_replication_slots\"\n"                  \
+                             "  operator: \"==\"\n"                                                                                                                             \
+                             "  threshold: 1\n"                                                                                                                                 \
+                             "  servers: all\n"                                                                                                                                 \
+                             "\n"                                                                                                                                               \
+                             "- name: xid_wraparound\n"                                                                                                                         \
+                             "  description: Transaction ID age exceeds safe threshold\n"                                                                                       \
+                             "  type: query\n"                                                                                                                                  \
+                             "  query: \"SELECT MAX(age(datfrozenxid)) FROM pg_database\"\n"                                                                                    \
+                             "  operator: \">\"\n"                                                                                                                              \
+                             "  threshold: 1500000000\n"                                                                                                                        \
+                             "  servers: all\n"                                                                                                                                 \
+                             "\n"                                                                                                                                               \
+                             "- name: multixact_wraparound\n"                                                                                                                   \
+                             "  description: MultiXact age exceeds safe threshold\n"                                                                                            \
+                             "  type: query\n"                                                                                                                                  \
+                             "  query: \"SELECT MAX(mxid_age(datminmxid)) FROM pg_database\"\n"                                                                                 \
+                             "  operator: \">\"\n"                                                                                                                              \
+                             "  threshold: 1500000000\n"                                                                                                                        \
+                             "  servers: all\n"                                                                                                                                 \
+                             "\n"
 #ifdef __cplusplus
 }
 #endif

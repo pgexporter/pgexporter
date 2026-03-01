@@ -37,19 +37,19 @@ def setup_logging(verbose: bool = False) -> logging.Logger:
 SUPPORTED_VERSIONS: List[int] = [13, 14, 15, 16, 17, 18]
 
 
-def extract_internal_yaml(internal_h_path: Path) -> str:
+def extract_internal_yaml(internal_h_path: Path, macro_name: str = 'INTERNAL_YAML') -> str:
     with open(internal_h_path, 'r') as f:
         lines = f.readlines()
     
-    # Find the start of #define INTERNAL_YAML
+    # Find the start of #define <macro_name>
     macro_start = None
     for i, line in enumerate(lines):
-        if '#define INTERNAL_YAML' in line:
+        if f'#define {macro_name}' in line:
             macro_start = i
             break
     
     if macro_start is None:
-        raise ValueError("Could not find INTERNAL_YAML macro in internal.h")
+        raise ValueError(f"Could not find {macro_name} macro in {internal_h_path}")
     
     # Collect all lines of the macro (including line continuations)
     macro_lines = []
@@ -66,11 +66,11 @@ def extract_internal_yaml(internal_h_path: Path) -> str:
     # Join all lines
     full_macro = ''.join(macro_lines)
     
-    # Remove the #define INTERNAL_YAML "" prefix
+    # Remove the #define <macro_name> "" prefix
     import re
-    define_match = re.match(r'#define\s+INTERNAL_YAML\s+""', full_macro)
+    define_match = re.match(rf'#define\s+{macro_name}\s+""', full_macro)
     if not define_match:
-        raise ValueError("Unexpected INTERNAL_YAML macro format")
+        raise ValueError(f"Unexpected {macro_name} macro format")
     
     content = full_macro[define_match.end():]
     
@@ -437,6 +437,24 @@ def main():
             for p in diff_paths:
                 logger.error(f"Diff file: {p}")
             sys.exit(1)
+        
+        # Extract and write INTERNAL_ALERTS_YAML (no versioning)
+        try:
+            alerts_yaml_str = extract_internal_yaml(args.internal_h, 'INTERNAL_ALERTS_YAML')
+            alerts_path = output_yaml_dir / 'pgexporter_alerts.yaml'
+            alerts_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(alerts_path, 'w') as f:
+                f.write(alerts_yaml_str)
+            logger.info(f"Wrote {alerts_path}")
+            
+            if args.check:
+                existing_alerts = contrib_yaml_dir / 'pgexporter_alerts.yaml'
+                if check_file_diff(alerts_path, existing_alerts, logger):
+                    has_diffs = True
+                    logger.error(f"Diff file: {existing_alerts}")
+                    sys.exit(1)
+        except ValueError as e:
+            logger.warning(f"Skipping alerts: {e}")
         
         logger.info("Done")
         sys.exit(0)
