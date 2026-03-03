@@ -1800,6 +1800,9 @@ pgexporter_conf_get(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
 
    pgexporter_log_info("Conf Get (Elapsed: %s)", elapsed);
 
+   free(elapsed);
+   elapsed = NULL;
+
    pgexporter_json_destroy(payload);
 
    pgexporter_disconnect(client_fd);
@@ -2435,6 +2438,9 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
    elapsed = pgexporter_get_timestamp_string(start_time, end_time, &total_seconds);
 
    pgexporter_log_info("Conf Set (Elapsed: %s)", elapsed);
+
+   free(elapsed);
+   elapsed = NULL;
 
    pgexporter_json_destroy(payload);
 

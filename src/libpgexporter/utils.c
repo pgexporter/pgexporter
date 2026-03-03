@@ -71,6 +71,8 @@ extern char** environ;
 #ifdef HAVE_LINUX
 static bool env_changed = false;
 static int max_process_title_size = 0;
+static char** proc_title_environ = NULL;
+static int proc_title_environ_size = 0;
 #endif
 
 static int string_compare(const void* a, const void* b);
@@ -853,11 +855,14 @@ pgexporter_set_proc_title(int argc, char** argv, char* s1, char* s2)
          es++;
       }
 
-      environ = (char**)malloc(sizeof(char*) * (es + 1));
-      if (environ == NULL)
+      proc_title_environ = (char**)malloc(sizeof(char*) * (es + 1));
+      if (proc_title_environ == NULL)
       {
+         proc_title_environ_size = 0;
          return;
       }
+      proc_title_environ_size = es;
+      environ = proc_title_environ;
 
       for (int i = 0; env[i] != NULL; i++)
       {
@@ -3505,3 +3510,21 @@ pgexporter_time_format(pgexporter_time_t t, enum pgexporter_time_format_t fmt, c
    *output = str;
    return 0;
 }
+
+#ifdef HAVE_LINUX
+void
+pgexporter_free_proc_title(void)
+{
+   if (proc_title_environ == NULL)
+   {
+      return;
+   }
+   for (int i = 0; i < proc_title_environ_size; i++)
+   {
+      free(proc_title_environ[i]);
+   }
+   free(proc_title_environ);
+   proc_title_environ = NULL;
+   proc_title_environ_size = 0;
+}
+#endif

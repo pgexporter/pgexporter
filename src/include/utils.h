@@ -414,6 +414,15 @@ pgexporter_base64_decode(char* encoded, size_t encoded_length, void** raw, size_
 void
 pgexporter_set_proc_title(int argc, char** argv, char* s1, char* s2);
 
+#ifdef HAVE_LINUX
+/**
+ * Free the process title environment copy.
+ * Should be called during shutdown on Linux.
+ */
+void
+pgexporter_free_proc_title(void);
+#endif
+
 /**
  * Create directories
  * @param dir The directory

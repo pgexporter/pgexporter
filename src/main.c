@@ -1317,6 +1317,9 @@ main(int argc, char** argv)
    pgexporter_destroy_shared_memory(prometheus_cache_shmem,
                                     prometheus_cache_shmem_size);
 
+#ifdef HAVE_LINUX
+   pgexporter_free_proc_title();
+#endif
    pgexporter_memory_destroy();
 
    OPENSSL_cleanup();
@@ -1469,6 +1472,11 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
          pgexporter_json_clone(payload, &pyl);
 
+         free(str);
+         str = NULL;
+         pgexporter_json_destroy(payload);
+         payload = NULL;
+
          pgexporter_set_proc_title(1, ai->argv, "status", NULL);
          pgexporter_status(NULL, client_fd, compression, encryption, pyl);
       }
@@ -1489,6 +1497,11 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
          shutdown_ports();
 
          pgexporter_json_clone(payload, &pyl);
+
+         free(str);
+         str = NULL;
+         pgexporter_json_destroy(payload);
+         payload = NULL;
 
          pgexporter_set_proc_title(1, ai->argv, "details", NULL);
          pgexporter_status_details(NULL, client_fd, compression, encryption, pyl);
@@ -1527,6 +1540,11 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
          pgexporter_json_clone(payload, &pyl);
 
+         free(str);
+         str = NULL;
+         pgexporter_json_destroy(payload);
+         payload = NULL;
+
          pgexporter_set_proc_title(1, ai->argv, "conf get", NULL);
          pgexporter_conf_get(NULL, client_fd, compression, encryption, pyl);
       }
@@ -1547,6 +1565,11 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
          shutdown_ports();
 
          pgexporter_json_clone(payload, &pyl);
+
+         free(str);
+         str = NULL;
+         pgexporter_json_destroy(payload);
+         payload = NULL;
 
          pgexporter_set_proc_title(1, ai->argv, "conf set", NULL);
          pgexporter_conf_set(NULL, client_fd, compression, encryption, pyl);

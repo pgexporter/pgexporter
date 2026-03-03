@@ -91,6 +91,9 @@ pgexporter_status(SSL* ssl __attribute__((unused)), int client_fd, uint8_t compr
 
    pgexporter_log_info("Status (Elapsed: %s)", elapsed);
 
+   free(elapsed);
+   elapsed = NULL;
+
    pgexporter_json_destroy(payload);
 
    pgexporter_disconnect(client_fd);
@@ -166,6 +169,9 @@ pgexporter_status_details(SSL* ssl __attribute__((unused)), int client_fd, uint8
    elapsed = pgexporter_get_timestamp_string(start_time, end_time, &total_seconds);
 
    pgexporter_log_info("Status details (Elapsed: %s)", elapsed);
+
+   free(elapsed);
+   elapsed = NULL;
 
    pgexporter_json_destroy(payload);
 
