@@ -173,6 +173,12 @@ update_process_title
   process title is always trimmed to 255 characters, while on system that provide a natve way to set the
   process title it can be longer. Default is verbose
 
+collectors
+  Comma-separated list of collectors to enable. If specified, only listed collectors will produce metrics
+
+exclude_collectors
+  Comma-separated list of collectors to exclude. Listed collectors will be skipped during metrics collection
+
 The options for the PostgreSQL section are
 
 host

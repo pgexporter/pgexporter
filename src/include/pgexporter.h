@@ -434,14 +434,15 @@ struct configuration
 
    char unix_socket_dir[MISC_LENGTH]; /**< The directory for the Unix Domain Socket */
 
-   int number_of_servers;      /**< The number of servers */
-   int number_of_users;        /**< The number of users */
-   int number_of_admins;       /**< The number of admins */
-   int number_of_metrics;      /**< The number of metrics*/
-   int number_of_collectors;   /**< Number of total collectors */
-   int number_of_endpoints;    /**< The number of endpoints */
-   int number_of_extensions;   /**< Number of loaded extensions */
-   int number_of_metric_names; /**< Number of unique metric names */
+   int number_of_servers;             /**< The number of servers */
+   int number_of_users;               /**< The number of users */
+   int number_of_admins;              /**< The number of admins */
+   int number_of_metrics;             /**< The number of metrics*/
+   int number_of_allowed_collectors;  /**< Number of total allow collectors */
+   int number_of_excluded_collectors; /**< Number of total exclude collectors */
+   int number_of_endpoints;           /**< The number of endpoints */
+   int number_of_extensions;          /**< Number of loaded extensions */
+   int number_of_metric_names;        /**< Number of unique metric names */
 
    char metrics_path[MAX_PATH]; /**< The metrics path */
 
@@ -453,7 +454,9 @@ struct configuration
    atomic_ulong query_errors_total;     /**< Query errors */
    atomic_ulong query_timeouts_total;   /**< Query timeouts */
 
-   char collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];       /**< List of collectors in total */
+   char allowed_collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];  /**< List of allowed collectors */
+   char excluded_collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH]; /**< List of excluded collectors */
+
    char global_extensions[MAX_EXTENSIONS_CONFIG_LENGTH];              /**< Global extensions configuration */
    char metric_names[NUMBER_OF_METRIC_NAMES][PROMETHEUS_LENGTH];      /**< List of all the metric names */
    struct server servers[NUMBER_OF_SERVERS];                          /**< The servers */

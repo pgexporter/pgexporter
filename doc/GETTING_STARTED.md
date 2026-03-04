@@ -11,15 +11,16 @@ Usage:
   pgexporter [ -c CONFIG_FILE ] [ -u USERS_FILE ] [ -d ]
 
 Options:
-  -c, --config CONFIG_FILE                      Set the path to the pgexporter.conf file
-  -u, --users USERS_FILE                        Set the path to the pgexporter_users.conf file
-  -A, --admins ADMINS_FILE                      Set the path to the pgexporter_admins.conf file
-  -D, --directory DIRECTORY                     Set the configuration directory
-  -Y, --yaml METRICS_FILE_DIR                   Set the path to YAML file/directory
-  -d, --daemon                                  Run as a daemon
-  -C, --collectors NAME_1,NAME_2,...,NAME_N     Enable only specific collectors
-  -V, --version                                 Display version information
-  -?, --help                                    Display help
+  -c, --config CONFIG_FILE                            Set the path to the pgexporter.conf file
+  -u, --users USERS_FILE                              Set the path to the pgexporter_users.conf file
+  -A, --admins ADMINS_FILE                            Set the path to the pgexporter_admins.conf file
+  -D, --directory DIRECTORY                           Set the configuration directory
+  -Y, --yaml METRICS_FILE_DIR                         Set the path to YAML file/directory
+  -d, --daemon                                        Run as a daemon
+  -C, --collectors NAME_1,NAME_2,...,NAME_N           Enable only specific collectors
+  -X, --exclude-collectors NAME_1,NAME_2,...,NAME_N   Exclude only specific collectors
+  -V, --version                                       Display version information
+  -?, --help                                          Display help
 
 pgexporter: https://pgexporter.github.io/
 Report bugs: https://github.com/pgexporter/pgexporter/issues

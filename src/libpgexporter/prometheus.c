@@ -161,6 +161,8 @@ static int metrics_page(SSL* client_ssl, int client_fd);
 static int bad_request(SSL* client_ssl, int client_fd);
 static int redirect_page(SSL* client_ssl, int client_fd, char* path);
 
+static bool allowed_collector(const char* collector);
+static bool excluded_collector(const char* collector);
 static bool collector_pass(const char* collector);
 
 static void add_column_to_store(column_store_t* store, int n_store, char* data, int sort_type, struct tuple* current);
@@ -839,26 +841,73 @@ bad_request(SSL* client_ssl, int client_fd)
 }
 
 static bool
-collector_pass(const char* collector)
+allowed_collector(const char* collector)
 {
    struct configuration* config = NULL;
 
    config = (struct configuration*)shmem;
 
-   if (config->number_of_collectors == 0)
+   if (config->number_of_allowed_collectors == 0)
    {
       return true;
    }
 
-   for (int i = 0; i < config->number_of_collectors; i++)
+   for (int i = 0; i < config->number_of_allowed_collectors; i++)
    {
-      if (!strcmp(config->collectors[i], collector))
+      if (!strcmp(config->allowed_collectors[i], collector))
       {
          return true;
       }
    }
 
    return false;
+}
+
+static bool
+excluded_collector(const char* collector)
+{
+   struct configuration* config = NULL;
+
+   config = (struct configuration*)shmem;
+
+   if (config->number_of_excluded_collectors == 0)
+   {
+      return false;
+   }
+
+   for (int i = 0; i < config->number_of_excluded_collectors; i++)
+   {
+      if (!strcmp(config->excluded_collectors[i], collector))
+      {
+         return true;
+      }
+   }
+
+   return false;
+}
+
+static bool
+collector_pass(const char* name)
+{
+   struct configuration* config = (struct configuration*)shmem;
+
+   if (config->number_of_allowed_collectors == 0)
+   {
+      return !excluded_collector(name);
+   }
+
+   bool is_allowed = allowed_collector(name);
+   bool is_excluded = excluded_collector(name);
+
+   if (is_allowed && is_excluded)
+   {
+      goto error;
+   }
+
+   return is_allowed;
+
+error:
+   exit(1);
 }
 
 static void
