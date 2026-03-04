@@ -1054,6 +1054,66 @@ pgexporter_read_configuration(void* shm, char* filename)
                      unknown = true;
                   }
                }
+               else if (!strcmp(key, "collectors"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     char* val_copy = strdup(value);
+                     char* saveptr = NULL;
+                     char* token = NULL;
+                     int idx = 0;
+
+                     memset(config->allowed_collectors, 0, sizeof(config->allowed_collectors));
+
+                     token = strtok_r(val_copy, ",", &saveptr);
+                     while (token != NULL && idx < NUMBER_OF_COLLECTORS)
+                     {
+                        while (*token == ' ')
+                        {
+                           token++;
+                        }
+
+                        pgexporter_snprintf(config->allowed_collectors[idx++], MAX_COLLECTOR_LENGTH, "%s", token);
+                        token = strtok_r(NULL, ",", &saveptr);
+                     }
+                     config->number_of_allowed_collectors = idx;
+                     free(val_copy);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "exclude_collectors"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     char* val_copy = strdup(value);
+                     char* saveptr = NULL;
+                     char* token = NULL;
+                     int idx = 0;
+
+                     memset(config->excluded_collectors, 0, sizeof(config->excluded_collectors));
+
+                     token = strtok_r(val_copy, ",", &saveptr);
+                     while (token != NULL && idx < NUMBER_OF_COLLECTORS)
+                     {
+                        while (*token == ' ')
+                        {
+                           token++;
+                        }
+
+                        pgexporter_snprintf(config->excluded_collectors[idx++], MAX_COLLECTOR_LENGTH, "%s", token);
+                        token = strtok_r(NULL, ",", &saveptr);
+                     }
+                     config->number_of_excluded_collectors = idx;
+                     free(val_copy);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
                else
                {
                   unknown = true;
@@ -3587,6 +3647,12 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    {
       changed = true;
    }
+
+   /* collectors */
+   memcpy(config->allowed_collectors, reload->allowed_collectors, sizeof(config->allowed_collectors));
+   config->number_of_allowed_collectors = reload->number_of_allowed_collectors;
+   memcpy(config->excluded_collectors, reload->excluded_collectors, sizeof(config->excluded_collectors));
+   config->number_of_excluded_collectors = reload->number_of_excluded_collectors;
 
    memset(&config->servers[0], 0, sizeof(struct server) * NUMBER_OF_SERVERS);
    for (int i = 0; i < reload->number_of_servers; i++)

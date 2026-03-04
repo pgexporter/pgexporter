@@ -404,17 +404,18 @@ usage(void)
    printf("  pgexporter [ -c CONFIG_FILE ] [ -u USERS_FILE ] [ -d ]\n");
    printf("\n");
    printf("Options:\n");
-   printf("  -c, --config CONFIG_FILE                    Set the path to the pgexporter.conf file\n");
-   printf("  -u, --users USERS_FILE                      Set the path to the pgexporter_users.conf file\n");
-   printf("  -A, --admins ADMINS_FILE                    Set the path to the pgexporter_admins.conf file\n");
-   printf("  -Y, --yaml METRICS_FILE_DIR                 Set the path to YAML file/directory\n");
-   printf("  -J, --json METRICS_FILE_DIR                 Set the path to JSON file/directory\n");
-   printf("  -D, --directory DIRECTORY                   Set the configuration directory path\n");
-   printf("                                              Can also be set via PGEXPORTER_CONFIG_DIR environment variable\n");
-   printf("  -d, --daemon                                Run as a daemon\n");
-   printf("  -C, --collectors NAME_1,NAME_2,...,NAME_N   Enable only specific collectors\n");
-   printf("  -V, --version                               Display version information\n");
-   printf("  -?, --help                                  Display help\n");
+   printf("  -c, --config CONFIG_FILE                            Set the path to the pgexporter.conf file\n");
+   printf("  -u, --users USERS_FILE                              Set the path to the pgexporter_users.conf file\n");
+   printf("  -A, --admins ADMINS_FILE                            Set the path to the pgexporter_admins.conf file\n");
+   printf("  -Y, --yaml METRICS_FILE_DIR                         Set the path to YAML file/directory\n");
+   printf("  -J, --json METRICS_FILE_DIR                         Set the path to JSON file/directory\n");
+   printf("  -D, --directory DIRECTORY                           Set the configuration directory path\n");
+   printf("                                                      Can also be set via PGEXPORTER_CONFIG_DIR environment variable\n");
+   printf("  -d, --daemon                                        Run as a daemon\n");
+   printf("  -C, --collectors NAME_1,NAME_2,...,NAME_N           Enable only specific collectors\n");
+   printf("  -X, --exclude-collectors NAME_1,NAME_2,...,NAME_N   Exclude only specific collectors\n");
+   printf("  -V, --version                                       Display version information\n");
+   printf("  -?, --help                                          Display help\n");
    printf("\n");
    printf("pgexporter: %s\n", PGEXPORTER_HOMEPAGE);
    printf("Report bugs: %s\n", PGEXPORTER_ISSUES);
@@ -431,7 +432,8 @@ main(int argc, char** argv)
    char* bin_path = NULL;
    char* collector = NULL;
    char* directory_path = NULL;
-   char collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];
+   char allowed_collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];
+   char excluded_collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];
    bool daemon = false;
    pid_t pid, sid;
    struct signal_info signal_watcher[6];
@@ -441,7 +443,8 @@ main(int argc, char** argv)
    size_t bridge_json_cache_shmem_size = 0;
    struct configuration* config = NULL;
    int ret;
-   int collector_idx = 0;
+   int allowed_collectors_idx = 0;
+   int excluded_collectors_idx = 0;
    char* os = NULL;
 
    int kernel_major, kernel_minor, kernel_patch;
@@ -466,6 +469,7 @@ main(int argc, char** argv)
       {"V", "version", false},
       {"?", "help", false},
       {"C", "collectors", true},
+      {"X", "exclude-collectors", true},
       {"D", "directory", true},
    };
 
@@ -519,21 +523,21 @@ main(int argc, char** argv)
       }
       else if (!strcmp(optname, "collectors") || !strcmp(optname, "C"))
       {
-         memset(collectors, 0, (NUMBER_OF_COLLECTORS * MAX_COLLECTOR_LENGTH) * sizeof(char));
+         memset(allowed_collectors, 0, (NUMBER_OF_COLLECTORS * MAX_COLLECTOR_LENGTH) * sizeof(char));
 
-         collector_idx = 0;
+         allowed_collectors_idx = 0;
          collector = optarg;
          while (*collector)
          {
             if (*collector == ',')
             {
-               collector_idx++;
+               allowed_collectors_idx++;
             }
             collector++;
          }
-         collector_idx++;
+         allowed_collectors_idx++;
 
-         if (collector_idx > NUMBER_OF_COLLECTORS)
+         if (allowed_collectors_idx > NUMBER_OF_COLLECTORS)
          {
             warnx("pgexporter: Too many collectors specified.");
 #ifdef HAVE_SYSTEMD
@@ -542,14 +546,14 @@ main(int argc, char** argv)
             exit(1);
          }
 
-         collector_idx = 0;
+         allowed_collectors_idx = 0;
          while ((collector = strtok_r(optarg, ",", &optarg)))
          {
             bool found = false;
 
-            for (int i = 0; i < collector_idx; i++)
+            for (int i = 0; i < allowed_collectors_idx; i++)
             {
-               if (!strncmp(collector, collectors[i], MAX_COLLECTOR_LENGTH - 1))
+               if (!strncmp(collector, allowed_collectors[i], MAX_COLLECTOR_LENGTH - 1))
                {
                   found = true;
                   break;
@@ -558,7 +562,52 @@ main(int argc, char** argv)
 
             if (!found)
             {
-               pgexporter_snprintf(collectors[collector_idx++], MAX_COLLECTOR_LENGTH, "%s", collector);
+               pgexporter_snprintf(allowed_collectors[allowed_collectors_idx++], MAX_COLLECTOR_LENGTH, "%s", collector);
+            }
+         }
+      }
+      else if (!strcmp(optname, "exclude-collectors") || !strcmp(optname, "X"))
+      {
+         memset(excluded_collectors, 0, (NUMBER_OF_COLLECTORS * MAX_COLLECTOR_LENGTH) * sizeof(char));
+
+         excluded_collectors_idx = 0;
+         collector = optarg;
+         while (*collector)
+         {
+            if (*collector == ',')
+            {
+               excluded_collectors_idx++;
+            }
+            collector++;
+         }
+         excluded_collectors_idx++;
+
+         if (excluded_collectors_idx > NUMBER_OF_COLLECTORS)
+         {
+            warnx("pgexporter: Too many collectors excluded.");
+#ifdef HAVE_SYSTEMD
+            sd_notify(0, "STATUS=pgexporter: Too many collectors excluded.");
+#endif
+            exit(1);
+         }
+
+         excluded_collectors_idx = 0;
+         while ((collector = strtok_r(optarg, ",", &optarg)))
+         {
+            bool found = false;
+
+            for (int i = 0; i < excluded_collectors_idx; i++)
+            {
+               if (!strncmp(collector, excluded_collectors[i], MAX_COLLECTOR_LENGTH - 1))
+               {
+                  found = true;
+                  break;
+               }
+            }
+
+            if (!found)
+            {
+               pgexporter_snprintf(excluded_collectors[excluded_collectors_idx++], MAX_COLLECTOR_LENGTH, "%s", collector);
             }
          }
       }
@@ -596,8 +645,6 @@ main(int argc, char** argv)
 
    pgexporter_init_configuration(shmem);
    config = (struct configuration*)shmem;
-   memcpy(config->collectors, collectors, (NUMBER_OF_COLLECTORS * MAX_COLLECTOR_LENGTH) * sizeof(char));
-   config->number_of_collectors = collector_idx;
 
    /* Directory processing */
    if (directory_path == NULL)
@@ -740,6 +787,17 @@ main(int argc, char** argv)
       configuration_path = "/etc/pgexporter/pgexporter.conf";
    }
    pgexporter_snprintf(&config->configuration_path[0], MAX_PATH, "%s", configuration_path);
+
+   if (allowed_collectors_idx > 0)
+   {
+      memcpy(config->allowed_collectors, allowed_collectors, (NUMBER_OF_COLLECTORS * MAX_COLLECTOR_LENGTH) * sizeof(char));
+      config->number_of_allowed_collectors = allowed_collectors_idx;
+   }
+   if (excluded_collectors_idx > 0)
+   {
+      memcpy(config->excluded_collectors, excluded_collectors, (NUMBER_OF_COLLECTORS * MAX_COLLECTOR_LENGTH) * sizeof(char));
+      config->number_of_excluded_collectors = excluded_collectors_idx;
+   }
 
    /* Users Configuration File */
    if (users_path != NULL)
