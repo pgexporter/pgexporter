@@ -40,29 +40,30 @@ When you first load the console, you see the **home page** with:
 - **Service header** showing pgexporter service status (Running or Unavailable)
 - **Version** of pgexporter
 - **Category selector** dropdown to choose which metric group to view
-- **View selector** (Simple or Detailed mode)
+- **View selector** (Simple or Advanced mode)
 - **Server filter** dropdown to choose which PostgreSQL servers to display
 - **Metrics table** showing the selected category
-- **Category heading** link (clickable) that leads to the detailed category page
+- **Refresh** button to reload metrics and status
+- **Theme toggle** button (Dark/Light)
 
 ### 2. Home page—simple view
 
 The default simple view shows:
 - **Metric name** (column 1)
 - **Value** (column 2)
-- Labels are hidden for a clean, summary view
+- **Label columns** (additional columns) — each label key appears as its own column
 
 ![Web console home page in simple view](../images/console_home_simple.png)
 
-### 3. Home page—detailed view
+### 3. Home page—advanced view
 
-Toggle to detailed view to see:
+Toggle to advanced view to see:
 - **Metric name** (column 1)
 - **Type** (gauge, counter, histogram, etc.) — (column 2)
 - **Value** (column 3)
-- **Labels** (column 4) — e.g., `database=mydb, server=primary`
+- **Labels** (column 4) — one comma-separated column, e.g., `database=mydb, server=primary`
 
-![Web console home page in detailed view](../images/console_home_detail.png)
+![Web console home page in advanced view](../images/console_home_advanced.png)
 
 ### 4. Category organization
 
@@ -83,24 +84,15 @@ The **Server filter** dropdown:
 
 ![Web console home page server filter](../images/console_home_server_filter.png)
 
-### 6. Detailed category page
+### 6. Refresh button
 
-Click on the **category heading** (e.g., "pg_stat_statements") on the home page
-to open the **detail page** for that category.
-
-On the detail page you see:
-- All metrics in that category organized by their **labels**
-- Each unique label combination gets its own **column**
-- For example: if metrics have labels `(database=mydb, user=alice)` and `(database=testdb, user=bob)`,
-  you see separate columns for each
-
-![Web console category detail page](../images/console_category_detail.png)
+Click **Refresh** in the header (next to the **Updated** timestamp) to reload
+all metrics and service status.
 
 ## API endpoints
 
 - `/` — Main console (home page)
 - `/api` — JSON endpoint with all metrics (useful for scripting)
-- `/detail?cat=N` — Detailed view for category N
 
 ## Theme toggle
 
