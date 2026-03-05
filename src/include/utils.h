@@ -932,6 +932,14 @@ pgexporter_time_is_valid(pgexporter_time_t t);
 int
 pgexporter_time_format(pgexporter_time_t t, enum pgexporter_time_format_t fmt, char** output);
 
+/**
+ * Cleanse memory
+ * @param data The data
+ * @param size The size
+ */
+void
+pgexporter_cleanse(void* data, size_t size);
+
 #ifdef __cplusplus
 }
 #endif

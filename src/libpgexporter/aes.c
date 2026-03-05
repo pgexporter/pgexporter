@@ -34,6 +34,7 @@
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <string.h>
+#include <utils.h>
 
 #define PBKDF2_ITERATIONS  600000
 #define PBKDF2_SALT_LENGTH 16
@@ -55,7 +56,7 @@ pgexporter_encrypt(char* plaintext, char* password, char** ciphertext, int* ciph
    char* encrypted = NULL;
    int encrypted_length = 0;
    char* output = NULL;
-   int ret = 0;
+   int res = 1;
 
    memset(&key, 0, sizeof(key));
    memset(&iv, 0, sizeof(iv));
@@ -63,19 +64,16 @@ pgexporter_encrypt(char* plaintext, char* password, char** ciphertext, int* ciph
    /* Generate a cryptographically random salt */
    if (RAND_bytes(salt, PBKDF2_SALT_LENGTH) != 1)
    {
-      ret = 1;
       goto cleanup;
    }
 
    if (derive_key_iv(password, salt, key, iv, mode) != 0)
    {
-      ret = 1;
       goto cleanup;
    }
 
    if (aes_encrypt(plaintext, key, iv, &encrypted, &encrypted_length, mode) != 0)
    {
-      ret = 1;
       goto cleanup;
    }
 
@@ -83,7 +81,6 @@ pgexporter_encrypt(char* plaintext, char* password, char** ciphertext, int* ciph
    output = malloc(PBKDF2_SALT_LENGTH + encrypted_length);
    if (output == NULL)
    {
-      ret = 1;
       goto cleanup;
    }
 
@@ -92,6 +89,7 @@ pgexporter_encrypt(char* plaintext, char* password, char** ciphertext, int* ciph
 
    *ciphertext = output;
    *ciphertext_length = PBKDF2_SALT_LENGTH + encrypted_length;
+   res = 0;
 
 cleanup:
    if (encrypted != NULL)
@@ -100,10 +98,10 @@ cleanup:
    }
 
    /* Wipe key material from stack */
-   OPENSSL_cleanse(key, sizeof(key));
-   OPENSSL_cleanse(iv, sizeof(iv));
+   pgexporter_cleanse(key, sizeof(key));
+   pgexporter_cleanse(iv, sizeof(iv));
 
-   return ret;
+   return res;
 }
 
 int
@@ -112,7 +110,7 @@ pgexporter_decrypt(char* ciphertext, int ciphertext_length, char* password, char
    unsigned char key[EVP_MAX_KEY_LENGTH];
    unsigned char iv[EVP_MAX_IV_LENGTH];
    unsigned char salt[PBKDF2_SALT_LENGTH];
-   int ret = 0;
+   int res = 1;
 
    /* The ciphertext must be at least salt_length + 1 byte */
    if (ciphertext_length <= PBKDF2_SALT_LENGTH)
@@ -128,7 +126,6 @@ pgexporter_decrypt(char* ciphertext, int ciphertext_length, char* password, char
 
    if (derive_key_iv(password, salt, key, iv, mode) != 0)
    {
-      ret = 1;
       goto cleanup;
    }
 
@@ -136,16 +133,16 @@ pgexporter_decrypt(char* ciphertext, int ciphertext_length, char* password, char
                    ciphertext_length - PBKDF2_SALT_LENGTH,
                    key, iv, plaintext, mode) != 0)
    {
-      ret = 1;
       goto cleanup;
    }
+   res = 0;
 
 cleanup:
    /* Wipe key material from stack */
-   OPENSSL_cleanse(key, sizeof(key));
-   OPENSSL_cleanse(iv, sizeof(iv));
+   pgexporter_cleanse(key, sizeof(key));
+   pgexporter_cleanse(iv, sizeof(iv));
 
-   return ret;
+   return res;
 }
 
 // [private]
@@ -177,7 +174,7 @@ derive_key_iv(char* password, unsigned char* salt, unsigned char* key, unsigned 
 
 cleanup:
    /* Wipe sensitive derived material */
-   OPENSSL_cleanse(derived, sizeof(derived));
+   pgexporter_cleanse(derived, sizeof(derived));
 
    return ret;
 }
@@ -188,7 +185,7 @@ aes_encrypt(char* plaintext, unsigned char* key, unsigned char* iv, char** ciphe
 {
    EVP_CIPHER_CTX* ctx = NULL;
    int length;
-   size_t size;
+   size_t size = 0;
    unsigned char* ct = NULL;
    int ct_length;
    int ret = 0;
@@ -245,12 +242,13 @@ cleanup:
 
    if (ret != 0 && ct != NULL)
    {
+      pgexporter_cleanse(ct, size);
       free(ct);
    }
 
    /* Wipe key material from stack */
-   OPENSSL_cleanse(key, EVP_MAX_KEY_LENGTH);
-   OPENSSL_cleanse(iv, EVP_MAX_IV_LENGTH);
+   pgexporter_cleanse(key, EVP_MAX_KEY_LENGTH);
+   pgexporter_cleanse(iv, EVP_MAX_IV_LENGTH);
 
    return ret;
 }
@@ -262,7 +260,7 @@ aes_decrypt(char* ciphertext, int ciphertext_length, unsigned char* key, unsigne
    EVP_CIPHER_CTX* ctx = NULL;
    int plaintext_length;
    int length;
-   size_t size;
+   size_t size = 0;
    char* pt = NULL;
    int ret = 0;
    const EVP_CIPHER* (*cipher_fp)(void) = get_cipher(mode);
@@ -319,12 +317,13 @@ cleanup:
 
    if (ret != 0 && pt != NULL)
    {
+      pgexporter_cleanse(pt, size);
       free(pt);
    }
 
    /* Wipe key material from stack */
-   OPENSSL_cleanse(key, EVP_MAX_KEY_LENGTH);
-   OPENSSL_cleanse(iv, EVP_MAX_IV_LENGTH);
+   pgexporter_cleanse(key, EVP_MAX_KEY_LENGTH);
+   pgexporter_cleanse(iv, EVP_MAX_IV_LENGTH);
 
    return ret;
 }
@@ -407,6 +406,8 @@ encrypt_decrypt_buffer(unsigned char* origin_buffer, size_t origin_size, unsigne
    size_t actual_input_size = 0;
    unsigned char* out_buf = NULL;
    int ret = 0;
+
+   *res_buffer = NULL;
 
    cipher_fp = get_cipher(mode);
    if (cipher_fp == NULL)
@@ -564,17 +565,18 @@ cleanup:
    }
 
    /* Wipe key material from stack */
-   OPENSSL_cleanse(key, sizeof(key));
-   OPENSSL_cleanse(iv, sizeof(iv));
+   pgexporter_cleanse(key, sizeof(key));
+   pgexporter_cleanse(iv, sizeof(iv));
 
    if (master_key)
    {
-      OPENSSL_cleanse(master_key, strlen(master_key));
+      pgexporter_cleanse(master_key, strlen(master_key));
       free(master_key);
    }
 
    if (ret != 0 && out_buf != NULL)
    {
+      pgexporter_cleanse(out_buf, outbuf_size);
       free(out_buf);
    }
 
