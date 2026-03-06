@@ -2087,8 +2087,6 @@ pgexporter_console(SSL* client_ssl, int client_fd)
       }
    }
 
-   pgexporter_log_info("pgexporter_console: start");
-
    status = pgexporter_read_timeout_message(client_ssl, client_fd,
                                             (int)pgexporter_time_convert(config->authentication_timeout, FORMAT_TIME_S),
                                             &msg);
