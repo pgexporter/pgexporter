@@ -37,6 +37,8 @@ See a [sample][sample] configuration for running [**pgexporter**][pgexporter] on
 | bridge_json_cache_max_size | `10M` | String | No | The maximum amount of data to keep in cache when serving bridge JSON responses. Changes require restart. Supports suffixes: 'B' (bytes), the default if omitted, 'K' or 'KB' (kilobytes), 'M' or 'MB' (megabytes), 'G' or 'GB' (gigabytes).|
 | management | 0 | Int | No | The remote management port (disable = 0) |
 | cache | `on` | Bool | No | Cache connection |
+| alerts | `on` | Bool | No | Enable or disable alerting. If enabled, built-in alerts are parsed and evaluated. See `ALERT.md` for a list of built-in alerts. |
+| alerts_path | | String | No | Path to custom alert definitions a YAML file. Allows adding new alerts or overriding built-in defaults. Can interpolate environment variables (e.g., `$HOME`). |
 | log_type | console | String | No | The logging type (console, file, syslog) |
 | log_level | info | String | No | The logging level, any of the (case insensitive) strings `FATAL`, `ERROR`, `WARN`, `INFO` and `DEBUG` (that can be more specific as `DEBUG1` thru `DEBUG5`). Debug level greater than 5 will be set to `DEBUG5`. Not recognized values will make the log_level be `INFO` |
 | log_path | pgexporter.log | String | No | The log file location. Can be a strftime(3) compatible string. |

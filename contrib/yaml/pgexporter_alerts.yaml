@@ -1,0 +1,56 @@
+alerts:
+- name: postgresql_down
+  description: PostgreSQL server is unreachable
+  type: connection
+  operator: "=="
+  threshold: -1
+  servers: all
+
+- name: connections_high
+  description: Active connections exceed threshold of max_connections
+  type: query
+  query: "SELECT SUM(numbackends) / (SELECT setting::float FROM pg_settings WHERE name = 'max_connections') FROM pg_stat_database"
+  operator: ">"
+  threshold: 0.8
+  servers: all
+
+- name: replication_lag
+  description: Replication lag exceeds threshold seconds
+  type: query
+  query: "SELECT CASE WHEN pg_is_in_recovery() THEN COALESCE(EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp())), 0) ELSE -1 END"
+  operator: ">"
+  threshold: 300
+  servers: all
+
+- name: wal_receiver_down
+  description: WAL receiver is down on replica
+  type: query
+  query: "SELECT CASE WHEN pg_is_in_recovery() THEN (SELECT CASE WHEN COUNT(*) = 0 THEN 1 ELSE 0 END FROM pg_stat_wal_receiver) ELSE -1 END"
+  operator: "=="
+  threshold: 1
+  servers: all
+
+- name: replication_slot_inactive
+  description: Replication slots exist but none are active
+  type: query
+  query: "SELECT CASE WHEN COUNT(*) > 0 AND COUNT(*) FILTER (WHERE active) = 0 THEN 1 ELSE 0 END FROM pg_replication_slots"
+  operator: "=="
+  threshold: 1
+  servers: all
+
+- name: xid_wraparound
+  description: Transaction ID age exceeds safe threshold
+  type: query
+  query: "SELECT MAX(age(datfrozenxid)) FROM pg_database"
+  operator: ">"
+  threshold: 1500000000
+  servers: all
+
+- name: multixact_wraparound
+  description: MultiXact age exceeds safe threshold
+  type: query
+  query: "SELECT MAX(mxid_age(datminmxid)) FROM pg_database"
+  operator: ">"
+  threshold: 1500000000
+  servers: all
+

@@ -20,6 +20,7 @@ Options:
   -d, --daemon                                        Run as a daemon
   -C, --collectors NAME_1,NAME_2,...,NAME_N           Enable only specific collectors
   -X, --exclude-collectors NAME_1,NAME_2,...,NAME_N   Exclude only specific collectors
+  -a, --alerts ALERTS_FILE                            Set the path to the alert file
   -V, --version                                       Display version information
   -?, --help                                          Display help
 
