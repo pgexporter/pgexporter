@@ -228,6 +228,7 @@ add_compile_options(-D__USE_ISOC11)
 add_compile_options(-D_GNU_SOURCE)
 add_compile_options(-Wno-deprecated)
 add_compile_options(-Wno-deprecated-declarations)
+add_compile_options(-Wextra-semi)
 
 
 find_program(GCOV_PATH gcov)
