@@ -1731,6 +1731,111 @@
       ]
     },
     {
+      "tag": "pg_stat_backend_io",
+      "collector": "stat_backend_io",
+      "sort": "data",
+      "queries": [
+        {
+          "query": "SELECT a.usename, a.application_name, a.datname, SUM(COALESCE(i.reads, 0)) AS reads, SUM(COALESCE(i.read_bytes, 0)) AS read_bytes, SUM(COALESCE(i.read_time, 0)) AS read_time, SUM(COALESCE(i.writes, 0)) AS writes, SUM(COALESCE(i.write_bytes, 0)) AS write_bytes, SUM(COALESCE(i.write_time, 0)) AS write_time, SUM(COALESCE(i.writebacks, 0)) AS writebacks, SUM(COALESCE(i.writeback_time, 0)) AS writeback_time, SUM(COALESCE(i.extends, 0)) AS extends, SUM(COALESCE(i.extend_bytes, 0)) AS extend_bytes, SUM(COALESCE(i.extend_time, 0)) AS extend_time, SUM(COALESCE(i.hits, 0)) AS hits, SUM(COALESCE(i.evictions, 0)) AS evictions, SUM(COALESCE(i.reuses, 0)) AS reuses, SUM(COALESCE(i.fsyncs, 0)) AS fsyncs, SUM(COALESCE(i.fsync_time, 0)) AS fsync_time FROM pg_stat_activity a, pg_stat_get_backend_io(a.pid) i WHERE a.datname IS NOT NULL GROUP BY a.usename, a.application_name, a.datname;",
+          "version": 18,
+          "columns": [
+            {
+              "name": "usename",
+              "type": "label"
+            },
+            {
+              "name": "application_name",
+              "type": "label"
+            },
+            {
+              "name": "datname",
+              "type": "label"
+            },
+            {
+              "name": "reads",
+              "type": "counter",
+              "description": "Number of read operations."
+            },
+            {
+              "name": "read_bytes",
+              "type": "counter",
+              "description": "Total bytes read."
+            },
+            {
+              "name": "read_time",
+              "type": "counter",
+              "description": "Total time spent on read operations in milliseconds."
+            },
+            {
+              "name": "writes",
+              "type": "counter",
+              "description": "Number of write operations."
+            },
+            {
+              "name": "write_bytes",
+              "type": "counter",
+              "description": "Total bytes written."
+            },
+            {
+              "name": "write_time",
+              "type": "counter",
+              "description": "Total time spent on write operations in milliseconds."
+            },
+            {
+              "name": "writebacks",
+              "type": "counter",
+              "description": "Number of writeback to permanent storage requests sent to kernel."
+            },
+            {
+              "name": "writeback_time",
+              "type": "counter",
+              "description": "Total time spent on writeback operations in milliseconds."
+            },
+            {
+              "name": "extends",
+              "type": "counter",
+              "description": "Number of relation extend operations."
+            },
+            {
+              "name": "extend_bytes",
+              "type": "counter",
+              "description": "Total bytes extended."
+            },
+            {
+              "name": "extend_time",
+              "type": "counter",
+              "description": "Total time spent on relation extend operations in milliseconds."
+            },
+            {
+              "name": "hits",
+              "type": "counter",
+              "description": "The number of times a desired block was found in shared buffer."
+            },
+            {
+              "name": "evictions",
+              "type": "counter",
+              "description": "The number of times a block has been written out from shared or local buffer in order to make it available for another use."
+            },
+            {
+              "name": "reuses",
+              "type": "counter",
+              "description": "The number of times an existing buffer in a size-limited ring buffer outside of shared buffers was reused as part of an I/O operation."
+            },
+            {
+              "name": "fsyncs",
+              "type": "counter",
+              "description": "Number of fsync calls."
+            },
+            {
+              "name": "fsync_time",
+              "type": "counter",
+              "description": "Total time spent on fsync operations in milliseconds."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "tag": "pg_stat_database_conflicts",
       "collector": "stat_conflicts",
       "sort": "data",

@@ -143,7 +143,7 @@ We provide 6 version-specific dashboards to support the unique features of each 
 *   `postgresql_dashboard_pg15.json` (+ Memory Contexts)
 *   `postgresql_dashboard_pg16.json` (+ pg_stat_io)
 *   `postgresql_dashboard_pg17.json` (+ Wait Events)
-*   `postgresql_dashboard_pg18.json` (+ Wait Events)
+*   `postgresql_dashboard_pg18.json` (+ Wait Events, pg_stat_backend_io)
 
 Select **"Upload dashboard as JSON file"**, choose the file matching your PostgreSQL version from the [contrib/grafana](../../../contrib/grafana/) directory, select your Prometheus datasource, and click **"Import"**.
 

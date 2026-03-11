@@ -6422,3 +6422,131 @@ pgexporter_pg_long_running_transactions_age_seconds
 * usename: User name.
 * query: The SQL query text being executed.
 Version: 10+
+
+pgexporter_pg_stat_backend_io_reads
++ Total read operations performed by each backend, from pg_stat_get_backend_io(pid) joined with pg_stat_activity. Grouped by user, application, and database.
+* server: The configured name/identifier for the PostgreSQL server.
+* usename: The username of the backend.
+* application_name: The application name reported by the backend.
+* datname: The database the backend is connected to.
+Version: 18+
+
+pgexporter_pg_stat_backend_io_read_bytes
++ Total bytes read by each backend, from pg_stat_get_backend_io(pid) joined with pg_stat_activity.
+* server: The configured name/identifier for the PostgreSQL server.
+* usename: The username of the backend.
+* application_name: The application name reported by the backend.
+* datname: The database the backend is connected to.
+Version: 18+
+
+pgexporter_pg_stat_backend_io_read_time
++ Total time (milliseconds) spent on read operations by each backend (requires track_io_timing), from pg_stat_get_backend_io(pid).
+* server: The configured name/identifier for the PostgreSQL server.
+* usename: The username of the backend.
+* application_name: The application name reported by the backend.
+* datname: The database the backend is connected to.
+Version: 18+
+
+pgexporter_pg_stat_backend_io_writes
++ Total write operations performed by each backend, from pg_stat_get_backend_io(pid) joined with pg_stat_activity.
+* server: The configured name/identifier for the PostgreSQL server.
+* usename: The username of the backend.
+* application_name: The application name reported by the backend.
+* datname: The database the backend is connected to.
+Version: 18+
+
+pgexporter_pg_stat_backend_io_write_bytes
++ Total bytes written by each backend, from pg_stat_get_backend_io(pid) joined with pg_stat_activity.
+* server: The configured name/identifier for the PostgreSQL server.
+* usename: The username of the backend.
+* application_name: The application name reported by the backend.
+* datname: The database the backend is connected to.
+Version: 18+
+
+pgexporter_pg_stat_backend_io_write_time
++ Total time (milliseconds) spent on write operations by each backend (requires track_io_timing), from pg_stat_get_backend_io(pid).
+* server: The configured name/identifier for the PostgreSQL server.
+* usename: The username of the backend.
+* application_name: The application name reported by the backend.
+* datname: The database the backend is connected to.
+Version: 18+
+
+pgexporter_pg_stat_backend_io_writebacks
++ Total OS-level writeback requests initiated by each backend, from pg_stat_get_backend_io(pid) joined with pg_stat_activity.
+* server: The configured name/identifier for the PostgreSQL server.
+* usename: The username of the backend.
+* application_name: The application name reported by the backend.
+* datname: The database the backend is connected to.
+Version: 18+
+
+pgexporter_pg_stat_backend_io_writeback_time
++ Total time (milliseconds) spent on writeback operations by each backend (requires track_io_timing), from pg_stat_get_backend_io(pid).
+* server: The configured name/identifier for the PostgreSQL server.
+* usename: The username of the backend.
+* application_name: The application name reported by the backend.
+* datname: The database the backend is connected to.
+Version: 18+
+
+pgexporter_pg_stat_backend_io_extends
++ Total relation file extension operations performed by each backend, from pg_stat_get_backend_io(pid) joined with pg_stat_activity.
+* server: The configured name/identifier for the PostgreSQL server.
+* usename: The username of the backend.
+* application_name: The application name reported by the backend.
+* datname: The database the backend is connected to.
+Version: 18+
+
+pgexporter_pg_stat_backend_io_extend_bytes
++ Total bytes extended (relation file growth) by each backend, from pg_stat_get_backend_io(pid) joined with pg_stat_activity.
+* server: The configured name/identifier for the PostgreSQL server.
+* usename: The username of the backend.
+* application_name: The application name reported by the backend.
+* datname: The database the backend is connected to.
+Version: 18+
+
+pgexporter_pg_stat_backend_io_extend_time
++ Total time (milliseconds) spent on relation extension operations by each backend (requires track_io_timing), from pg_stat_get_backend_io(pid).
+* server: The configured name/identifier for the PostgreSQL server.
+* usename: The username of the backend.
+* application_name: The application name reported by the backend.
+* datname: The database the backend is connected to.
+Version: 18+
+
+pgexporter_pg_stat_backend_io_hits
++ Total shared buffer cache hits by each backend, from pg_stat_get_backend_io(pid) joined with pg_stat_activity.
+* server: The configured name/identifier for the PostgreSQL server.
+* usename: The username of the backend.
+* application_name: The application name reported by the backend.
+* datname: The database the backend is connected to.
+Version: 18+
+
+pgexporter_pg_stat_backend_io_evictions
++ Total buffer blocks evicted from cache by each backend, from pg_stat_get_backend_io(pid) joined with pg_stat_activity.
+* server: The configured name/identifier for the PostgreSQL server.
+* usename: The username of the backend.
+* application_name: The application name reported by the backend.
+* datname: The database the backend is connected to.
+Version: 18+
+
+pgexporter_pg_stat_backend_io_reuses
++ Total times I/O ring buffers were reused by each backend, from pg_stat_get_backend_io(pid) joined with pg_stat_activity.
+* server: The configured name/identifier for the PostgreSQL server.
+* usename: The username of the backend.
+* application_name: The application name reported by the backend.
+* datname: The database the backend is connected to.
+Version: 18+
+
+pgexporter_pg_stat_backend_io_fsyncs
++ Total fsync calls made by each backend, from pg_stat_get_backend_io(pid) joined with pg_stat_activity.
+* server: The configured name/identifier for the PostgreSQL server.
+* usename: The username of the backend.
+* application_name: The application name reported by the backend.
+* datname: The database the backend is connected to.
+Version: 18+
+
+pgexporter_pg_stat_backend_io_fsync_time
++ Total time (milliseconds) spent on fsync operations by each backend (requires track_io_timing), from pg_stat_get_backend_io(pid).
+* server: The configured name/identifier for the PostgreSQL server.
+* usename: The username of the backend.
+* application_name: The application name reported by the backend.
+* datname: The database the backend is connected to.
+Version: 18+

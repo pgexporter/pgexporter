@@ -45,7 +45,7 @@ Dashboards are automatically provisioned - no manual import needed.
 | `postgresql_dashboard_pg15.json` | 15.x | + Memory contexts |
 | `postgresql_dashboard_pg16.json` | 16.x | + pg_stat_io metrics |
 | `postgresql_dashboard_pg17.json` | 17.x | + Wait events |
-| `postgresql_dashboard_pg18.json` | 18.x | + Wait events |
+| `postgresql_dashboard_pg18.json` | 18.x | + Wait events, pg_stat_backend_io metrics |
 
 ### Panels Included in All Dashboards
 

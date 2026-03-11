@@ -2445,6 +2445,92 @@ extern "C" {
                       "    tag: pg_stat_io\n"                                                                                                                                           \
                       "    collector: stat_io\n"                                                                                                                                        \
                       "\n"                                                                                                                                                              \
+                      "# pg_stat_get_backend_io\n"                                                                                                                                      \
+                      "  - queries:\n"                                                                                                                                                  \
+                      "    - query: SELECT\n"                                                                                                                                           \
+                      "                a.usename,\n"                                                                                                                                    \
+                      "                a.application_name,\n"                                                                                                                           \
+                      "                a.datname,\n"                                                                                                                                    \
+                      "                SUM(COALESCE(i.reads, 0)) AS reads,\n"                                                                                                           \
+                      "                SUM(COALESCE(i.read_bytes, 0)) AS read_bytes,\n"                                                                                                 \
+                      "                SUM(COALESCE(i.read_time, 0)) AS read_time,\n"                                                                                                   \
+                      "                SUM(COALESCE(i.writes, 0)) AS writes,\n"                                                                                                         \
+                      "                SUM(COALESCE(i.write_bytes, 0)) AS write_bytes,\n"                                                                                               \
+                      "                SUM(COALESCE(i.write_time, 0)) AS write_time,\n"                                                                                                 \
+                      "                SUM(COALESCE(i.writebacks, 0)) AS writebacks,\n"                                                                                                 \
+                      "                SUM(COALESCE(i.writeback_time, 0)) AS writeback_time,\n"                                                                                         \
+                      "                SUM(COALESCE(i.extends, 0)) AS extends,\n"                                                                                                       \
+                      "                SUM(COALESCE(i.extend_bytes, 0)) AS extend_bytes,\n"                                                                                             \
+                      "                SUM(COALESCE(i.extend_time, 0)) AS extend_time,\n"                                                                                               \
+                      "                SUM(COALESCE(i.hits, 0)) AS hits,\n"                                                                                                             \
+                      "                SUM(COALESCE(i.evictions, 0)) AS evictions,\n"                                                                                                   \
+                      "                SUM(COALESCE(i.reuses, 0)) AS reuses,\n"                                                                                                         \
+                      "                SUM(COALESCE(i.fsyncs, 0)) AS fsyncs,\n"                                                                                                         \
+                      "                SUM(COALESCE(i.fsync_time, 0)) AS fsync_time\n"                                                                                                  \
+                      "              FROM pg_stat_activity a,\n"                                                                                                                        \
+                      "                   pg_stat_get_backend_io(a.pid) i\n"                                                                                                            \
+                      "              WHERE a.datname IS NOT NULL\n"                                                                                                                     \
+                      "              GROUP BY a.usename, a.application_name, a.datname;\n"                                                                                              \
+                      "      version: 18\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: usename\n"                                                                                                                                       \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: application_name\n"                                                                                                                              \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: datname\n"                                                                                                                                       \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: reads\n"                                                                                                                                         \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of read operations.\n"                                                                                                             \
+                      "        - name: read_bytes\n"                                                                                                                                    \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Total bytes read.\n"                                                                                                                      \
+                      "        - name: read_time\n"                                                                                                                                     \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Total time spent on read operations in milliseconds.\n"                                                                                   \
+                      "        - name: writes\n"                                                                                                                                        \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of write operations.\n"                                                                                                            \
+                      "        - name: write_bytes\n"                                                                                                                                   \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Total bytes written.\n"                                                                                                                   \
+                      "        - name: write_time\n"                                                                                                                                    \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Total time spent on write operations in milliseconds.\n"                                                                                  \
+                      "        - name: writebacks\n"                                                                                                                                    \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of writeback to permanent storage requests sent to kernel.\n"                                                                      \
+                      "        - name: writeback_time\n"                                                                                                                                \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Total time spent on writeback operations in milliseconds.\n"                                                                              \
+                      "        - name: extends\n"                                                                                                                                       \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of relation extend operations.\n"                                                                                                  \
+                      "        - name: extend_bytes\n"                                                                                                                                  \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Total bytes extended.\n"                                                                                                                  \
+                      "        - name: extend_time\n"                                                                                                                                   \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Total time spent on relation extend operations in milliseconds.\n"                                                                        \
+                      "        - name: hits\n"                                                                                                                                          \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: The number of times a desired block was found in shared buffer.\n"                                                                        \
+                      "        - name: evictions\n"                                                                                                                                     \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: The number of times a block has been written out from shared or local buffer in order to make it available for another use.\n"            \
+                      "        - name: reuses\n"                                                                                                                                        \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: The number of times an existing buffer in a size-limited ring buffer outside of shared buffers was reused as part of an I/O operation.\n" \
+                      "        - name: fsyncs\n"                                                                                                                                        \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of fsync calls.\n"                                                                                                                 \
+                      "        - name: fsync_time\n"                                                                                                                                    \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Total time spent on fsync operations in milliseconds.\n"                                                                                  \
+                      "    tag: pg_stat_backend_io\n"                                                                                                                                   \
+                      "    sort: data\n"                                                                                                                                                \
+                      "    collector: stat_backend_io\n"                                                                                                                                \
+                      "\n"                                                                                                                                                              \
                       "# stat_database_conflicts_information()\n"                                                                                                                       \
                       "  - queries:\n"                                                                                                                                                  \
                       "    - query: SELECT datname,\n"                                                                                                                                  \

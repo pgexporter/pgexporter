@@ -5244,6 +5244,182 @@ Total bytes extended (relation file growth) across all I/O operations, sourced f
 | server | The configured name/identifier for the PostgreSQL server. |
 | backend_type | Type of backend process. |
 
+## pgexporter_pg_stat_backend_io_reads
+
+Counts the total read operations performed by each backend, sourced from `pg_stat_get_backend_io` joined with `pg_stat_activity` (PostgreSQL 18+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| usename | The name of the user running the backend. |
+| application_name | The name of the application connected to this backend. |
+| datname | The name of the database this backend is connected to. |
+
+## pgexporter_pg_stat_backend_io_read_bytes
+
+Total bytes read by each backend, sourced from `pg_stat_get_backend_io` joined with `pg_stat_activity` (PostgreSQL 18+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| usename | The name of the user running the backend. |
+| application_name | The name of the application connected to this backend. |
+| datname | The name of the database this backend is connected to. |
+
+## pgexporter_pg_stat_backend_io_read_time
+
+Aggregates total time (ms) spent by each backend performing read I/O operations, sourced from `pg_stat_get_backend_io` joined with `pg_stat_activity` (PostgreSQL 18+, requires `track_io_timing`).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| usename | The name of the user running the backend. |
+| application_name | The name of the application connected to this backend. |
+| datname | The name of the database this backend is connected to. |
+
+## pgexporter_pg_stat_backend_io_writes
+
+Counts the total write operations performed by each backend, sourced from `pg_stat_get_backend_io` joined with `pg_stat_activity` (PostgreSQL 18+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| usename | The name of the user running the backend. |
+| application_name | The name of the application connected to this backend. |
+| datname | The name of the database this backend is connected to. |
+
+## pgexporter_pg_stat_backend_io_write_bytes
+
+Total bytes written by each backend, sourced from `pg_stat_get_backend_io` joined with `pg_stat_activity` (PostgreSQL 18+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| usename | The name of the user running the backend. |
+| application_name | The name of the application connected to this backend. |
+| datname | The name of the database this backend is connected to. |
+
+## pgexporter_pg_stat_backend_io_write_time
+
+Aggregates total time (ms) spent by each backend performing write I/O operations, sourced from `pg_stat_get_backend_io` joined with `pg_stat_activity` (PostgreSQL 18+, requires `track_io_timing`).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| usename | The name of the user running the backend. |
+| application_name | The name of the application connected to this backend. |
+| datname | The name of the database this backend is connected to. |
+
+## pgexporter_pg_stat_backend_io_writebacks
+
+Counts the total number of writeback to permanent storage requests sent to the kernel by each backend, sourced from `pg_stat_get_backend_io` joined with `pg_stat_activity` (PostgreSQL 18+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| usename | The name of the user running the backend. |
+| application_name | The name of the application connected to this backend. |
+| datname | The name of the database this backend is connected to. |
+
+## pgexporter_pg_stat_backend_io_writeback_time
+
+Aggregates total time (ms) spent by each backend performing writeback operations, sourced from `pg_stat_get_backend_io` joined with `pg_stat_activity` (PostgreSQL 18+, requires `track_io_timing`).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| usename | The name of the user running the backend. |
+| application_name | The name of the application connected to this backend. |
+| datname | The name of the database this backend is connected to. |
+
+## pgexporter_pg_stat_backend_io_extends
+
+Counts the total relation extend operations performed by each backend, sourced from `pg_stat_get_backend_io` joined with `pg_stat_activity` (PostgreSQL 18+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| usename | The name of the user running the backend. |
+| application_name | The name of the application connected to this backend. |
+| datname | The name of the database this backend is connected to. |
+
+## pgexporter_pg_stat_backend_io_extend_bytes
+
+Total bytes extended by each backend, sourced from `pg_stat_get_backend_io` joined with `pg_stat_activity` (PostgreSQL 18+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| usename | The name of the user running the backend. |
+| application_name | The name of the application connected to this backend. |
+| datname | The name of the database this backend is connected to. |
+
+## pgexporter_pg_stat_backend_io_extend_time
+
+Aggregates total time (ms) spent by each backend performing relation extend operations, sourced from `pg_stat_get_backend_io` joined with `pg_stat_activity` (PostgreSQL 18+, requires `track_io_timing`).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| usename | The name of the user running the backend. |
+| application_name | The name of the application connected to this backend. |
+| datname | The name of the database this backend is connected to. |
+
+## pgexporter_pg_stat_backend_io_hits
+
+Counts the total number of times a desired block was found in shared buffer by each backend, sourced from `pg_stat_get_backend_io` joined with `pg_stat_activity` (PostgreSQL 18+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| usename | The name of the user running the backend. |
+| application_name | The name of the application connected to this backend. |
+| datname | The name of the database this backend is connected to. |
+
+## pgexporter_pg_stat_backend_io_evictions
+
+Counts the total number of times a block was written out from shared or local buffer to make it available for another use, sourced from `pg_stat_get_backend_io` joined with `pg_stat_activity` (PostgreSQL 18+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| usename | The name of the user running the backend. |
+| application_name | The name of the application connected to this backend. |
+| datname | The name of the database this backend is connected to. |
+
+## pgexporter_pg_stat_backend_io_reuses
+
+Counts the total number of times an existing buffer in a size-limited ring buffer outside of shared buffers was reused as part of an I/O operation, sourced from `pg_stat_get_backend_io` joined with `pg_stat_activity` (PostgreSQL 18+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| usename | The name of the user running the backend. |
+| application_name | The name of the application connected to this backend. |
+| datname | The name of the database this backend is connected to. |
+
+## pgexporter_pg_stat_backend_io_fsyncs
+
+Counts the total number of fsync calls made by each backend, sourced from `pg_stat_get_backend_io` joined with `pg_stat_activity` (PostgreSQL 18+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| usename | The name of the user running the backend. |
+| application_name | The name of the application connected to this backend. |
+| datname | The name of the database this backend is connected to. |
+
+## pgexporter_pg_stat_backend_io_fsync_time
+
+Aggregates total time (ms) spent by each backend performing fsync operations, sourced from `pg_stat_get_backend_io` joined with `pg_stat_activity` (PostgreSQL 18+, requires `track_io_timing`).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| usename | The name of the user running the backend. |
+| application_name | The name of the application connected to this backend. |
+| datname | The name of the database this backend is connected to. |
+
 ## pgexporter_pg_stat_user_tables_total_vacuum_time
 
 Total time (milliseconds) spent vacuuming this table since statistics reset, from `pg_stat_user_tables`.
