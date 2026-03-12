@@ -1420,6 +1420,7 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
    errno = 0;
 
+   memset(&client_addr, 0, sizeof(client_addr));
    client_addr_length = sizeof(client_addr);
    client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
    if (client_fd == -1)
@@ -1675,6 +1676,7 @@ accept_transfer_cb(struct ev_loop* loop __attribute__((unused)), struct ev_io* w
 
    errno = 0;
 
+   memset(&client_addr, 0, sizeof(client_addr));
    client_addr_length = sizeof(client_addr);
    client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
    if (client_fd == -1)
@@ -1746,6 +1748,7 @@ accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
    errno = 0;
 
+   memset(&client_addr, 0, sizeof(client_addr));
    client_addr_length = sizeof(client_addr);
    client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
    if (client_fd == -1)
@@ -1850,6 +1853,7 @@ accept_console_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
    errno = 0;
 
+   memset(&client_addr, 0, sizeof(client_addr));
    client_addr_length = sizeof(client_addr);
    client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
    if (client_fd == -1)
@@ -1937,6 +1941,7 @@ accept_bridge_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
    errno = 0;
 
+   memset(&client_addr, 0, sizeof(client_addr));
    client_addr_length = sizeof(client_addr);
    client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
    if (client_fd == -1)
@@ -2026,6 +2031,7 @@ accept_bridge_json_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
    errno = 0;
 
+   memset(&client_addr, 0, sizeof(client_addr));
    client_addr_length = sizeof(client_addr);
    client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
    if (client_fd == -1)
@@ -2115,6 +2121,7 @@ accept_management_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
    errno = 0;
 
+   memset(&client_addr, 0, sizeof(client_addr));
    client_addr_length = sizeof(client_addr);
    client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
    if (client_fd == -1)
