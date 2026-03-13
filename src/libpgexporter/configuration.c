@@ -34,6 +34,7 @@
 #include <ext_query_alts.h>
 #include <logging.h>
 #include <management.h>
+#include <memory.h>
 #include <network.h>
 #include <pg_query_alts.h>
 #include <prometheus.h>
@@ -1833,6 +1834,7 @@ pgexporter_conf_get(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
    int total_seconds;
 
    pgexporter_start_logging();
+   pgexporter_memory_init();
 
    start_time = time(NULL);
 
@@ -1867,6 +1869,7 @@ pgexporter_conf_get(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
 
    pgexporter_disconnect(client_fd);
 
+   pgexporter_memory_destroy();
    pgexporter_stop_logging();
 
    exit(0);
@@ -1876,6 +1879,7 @@ error:
 
    pgexporter_disconnect(client_fd);
 
+   pgexporter_memory_destroy();
    pgexporter_stop_logging();
 
    exit(1);
@@ -1901,6 +1905,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
    int begin = -1, end = -1;
 
    pgexporter_start_logging();
+   pgexporter_memory_init();
 
    start_time = time(NULL);
 
@@ -2506,6 +2511,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
 
    pgexporter_disconnect(client_fd);
 
+   pgexporter_memory_destroy();
    pgexporter_stop_logging();
 
    exit(0);
@@ -2515,6 +2521,7 @@ error:
 
    pgexporter_disconnect(client_fd);
 
+   pgexporter_memory_destroy();
    pgexporter_stop_logging();
 
    exit(1);
