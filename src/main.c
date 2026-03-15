@@ -446,6 +446,10 @@ main(int argc, char** argv)
    int allowed_collectors_idx = 0;
    int excluded_collectors_idx = 0;
    char* os = NULL;
+#ifdef HAVE_SYSTEMD
+   int sds;
+#endif
+   bool has_metrics_sockets = false;
 
    int kernel_major, kernel_minor, kernel_patch;
 
@@ -879,6 +883,44 @@ main(int argc, char** argv)
       }
    }
 
+   /* systemd sockets */
+#ifdef HAVE_SYSTEMD
+   sds = sd_listen_fds(0);
+   if (sds > 0)
+   {
+      int m = 0;
+      metrics_fds_length = 0;
+      for (int i = 0; i < sds; i++)
+      {
+         int fd = SD_LISTEN_FDS_START + i;
+         if (sd_is_socket(fd, AF_INET, 0, -1) || sd_is_socket(fd, AF_INET6, 0, -1))
+         {
+            metrics_fds_length++;
+         }
+      }
+      if (metrics_fds_length > 0)
+      {
+         metrics_fds = malloc(metrics_fds_length * sizeof(int));
+      }
+      for (int i = 0; i < sds; i++)
+      {
+         int fd = SD_LISTEN_FDS_START + i;
+         if (sd_is_socket(fd, AF_UNIX, 0, -1))
+         {
+            unix_management_socket = fd;
+            pgexporter_socket_nonblocking(fd, true);
+         }
+         else if (sd_is_socket(fd, AF_INET, 0, -1) || sd_is_socket(fd, AF_INET6, 0, -1))
+         {
+            metrics_fds[m] = fd;
+            has_metrics_sockets = true;
+            pgexporter_socket_nonblocking(fd, true);
+            m++;
+         }
+      }
+   }
+#endif
+
    if (pgexporter_start_logging())
    {
 #ifdef HAVE_SYSTEMD
@@ -1128,14 +1170,17 @@ main(int argc, char** argv)
       start_transfer();
       start_mgt();
 
-      /* Bind metrics socket */
-      if (pgexporter_bind(config->host, config->metrics, &metrics_fds, &metrics_fds_length))
+      if (!has_metrics_sockets)
       {
-         pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->metrics);
+         /* Bind metrics socket */
+         if (pgexporter_bind(config->host, config->metrics, &metrics_fds, &metrics_fds_length))
+         {
+            pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->metrics);
 #ifdef HAVE_SYSTEMD
-         sd_notifyf(0, "STATUS=Could not bind to %s:%d", config->host, config->metrics);
+            sd_notifyf(0, "STATUS=Could not bind to %s:%d", config->host, config->metrics);
 #endif
-         exit(1);
+            exit(1);
+         }
       }
 
       if (metrics_fds_length > MAX_FDS)
