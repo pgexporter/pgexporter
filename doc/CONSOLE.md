@@ -37,6 +37,7 @@ When you first load the console, you see the **home page** with:
 
 - **Service header** showing pgexporter service status (Running or Unavailable)
 - **Version** of pgexporter
+- **Search bar** to find metrics across categories
 - **Category selector** dropdown to choose which metric group to view
 - **View selector** (Simple or Advanced mode)
 - **Server filter** dropdown to choose which PostgreSQL servers to display
@@ -82,7 +83,19 @@ The **Server filter** dropdown:
 
 ![Web console home page server filter](./manual/images/console_home_server_filter.png)
 
-### 6. Refresh control
+### 6. Search across categories
+
+The **Search** bar appears above all other filters.
+
+- Enter at least **3 characters** to activate search filtering.
+- Search matches text in metric rows (name, type, value, and labels) and categories.
+- Matches are shown across **all categories**, not only the currently selected one.
+- Server filtering is still applied while search is active.
+- If fewer than 3 characters are entered, the page returns to normal selected-category view.
+
+![Web console home page search bar](./manual/images/console_home_search_bar.png)
+
+### 7. Refresh control
 
 The header includes a split **Refresh** control (next to the **Updated** timestamp):
 
