@@ -31,6 +31,7 @@
 #include <pgexporter.h>
 #include <art.h>
 #include <extension.h>
+#include <fips.h>
 #include <http.h>
 #include <logging.h>
 #include <memory.h>
@@ -137,6 +138,7 @@ typedef struct prometheus_metrics_container
    struct art* version_metrics;
    struct art* uptime_metrics;
    struct art* primary_metrics;
+   struct art* fips_metrics;
    struct art* core_metrics;
    struct art* extension_metrics;
    struct art* extension_list_metrics;
@@ -176,6 +178,7 @@ static void version_information(prometheus_metrics_container_t* container);
 static void uptime_information(prometheus_metrics_container_t* container);
 static void primary_information(prometheus_metrics_container_t* container);
 static void settings_information(prometheus_metrics_container_t* container);
+static void fips_information(prometheus_metrics_container_t* container);
 static void custom_metrics(prometheus_metrics_container_t* container); // Handles custom metrics provided in YAML format, both internal and external
 static void extension_metrics(prometheus_metrics_container_t* container);
 static void prometheus_endpoints_information(SSL* client_ssl, int client_fd);
@@ -745,6 +748,7 @@ retry_cache_locking:
          version_information(container);
          uptime_information(container);
          primary_information(container);
+         fips_information(container);
          server_information(container);
          core_information(container);
          extension_list_information(container);
@@ -1268,6 +1272,69 @@ primary_information(prometheus_metrics_container_t* container)
    }
 
    pgexporter_free_query(all);
+}
+
+static void
+fips_information(prometheus_metrics_container_t* container)
+{
+   int ret;
+   int server;
+   char* data = NULL;
+   bool openssl_fips = false;
+   bool pg_fips = false;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   openssl_fips = pgexporter_fips_pgexporter();
+
+   data = pgexporter_vappend(data, 2,
+                             "#HELP pgexporter_fips Is pgexporter running with FIPS-compliant OpenSSL\n",
+                             "#TYPE pgexporter_fips gauge\n");
+
+   data = pgexporter_vappend(data, 2,
+                             "pgexporter_fips ",
+                             openssl_fips ? "1" : "0");
+   data = pgexporter_append(data, "\n");
+
+   if (data != NULL)
+   {
+      add_metric_to_art(container->fips_metrics, "pgexporter_fips", data, NULL, NULL, 0);
+      free(data);
+      data = NULL;
+   }
+
+   data = pgexporter_vappend(data, 2,
+                             "#HELP pgexporter_postgresql_fips Is PostgreSQL running in FIPS mode\n",
+                             "#TYPE pgexporter_postgresql_fips gauge\n");
+
+   for (server = 0; server < config->number_of_servers; server++)
+   {
+      if (config->servers[server].fd != -1)
+      {
+         ret = pgexporter_fips_server(server, &pg_fips);
+         if (ret != 0)
+         {
+            pgexporter_log_debug("FIPS status unavailable for server %s",
+                                 config->servers[server].name);
+            pg_fips = false;
+         }
+
+         data = pgexporter_vappend(data, 3,
+                                   "pgexporter_postgresql_fips{server=\"",
+                                   &config->servers[server].name[0],
+                                   "\"} ");
+         data = pgexporter_append(data, pg_fips ? "1" : "0");
+         data = pgexporter_append(data, "\n");
+      }
+   }
+
+   if (data != NULL)
+   {
+      add_metric_to_art(container->fips_metrics, "pgexporter_postgresql_fips", data, NULL, NULL, 0);
+      free(data);
+      data = NULL;
+   }
 }
 
 static void
@@ -3338,6 +3405,7 @@ create_metrics_container(prometheus_metrics_container_t** container)
        pgexporter_art_create(&c->version_metrics) ||
        pgexporter_art_create(&c->uptime_metrics) ||
        pgexporter_art_create(&c->primary_metrics) ||
+       pgexporter_art_create(&c->fips_metrics) ||
        pgexporter_art_create(&c->core_metrics) ||
        pgexporter_art_create(&c->extension_metrics) ||
        pgexporter_art_create(&c->extension_list_metrics) ||
@@ -3374,6 +3442,7 @@ destroy_metrics_container(prometheus_metrics_container_t* container)
    pgexporter_art_destroy(container->version_metrics);
    pgexporter_art_destroy(container->uptime_metrics);
    pgexporter_art_destroy(container->primary_metrics);
+   pgexporter_art_destroy(container->fips_metrics);
    pgexporter_art_destroy(container->core_metrics);
    pgexporter_art_destroy(container->extension_metrics);
    pgexporter_art_destroy(container->extension_list_metrics);
@@ -3484,6 +3553,7 @@ output_all_metrics(SSL* client_ssl, int client_fd, prometheus_metrics_container_
    output_art_metrics(client_ssl, client_fd, container->version_metrics);
    output_art_metrics(client_ssl, client_fd, container->uptime_metrics);
    output_art_metrics(client_ssl, client_fd, container->primary_metrics);
+   output_art_metrics(client_ssl, client_fd, container->fips_metrics);
    output_art_metrics(client_ssl, client_fd, container->core_metrics);
    output_art_metrics(client_ssl, client_fd, container->extension_metrics);
    output_art_metrics(client_ssl, client_fd, container->extension_list_metrics);
