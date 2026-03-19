@@ -263,6 +263,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                   srv.state = SERVER_UNKNOWN;
                   srv.type = SERVER_TYPE_POSTGRESQL;
                   srv.version = SERVER_UNDERTERMINED_VERSION;
+                  srv.fips_enabled = SERVER_FIPS_UNKNOWN;
 
                   idx_server++;
                }

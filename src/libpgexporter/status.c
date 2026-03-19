@@ -28,6 +28,7 @@
 
 /* pgexporter */
 #include <pgexporter.h>
+#include <fips.h>
 #include <json.h>
 #include <logging.h>
 #include <management.h>
@@ -125,6 +126,7 @@ pgexporter_status_details(SSL* ssl __attribute__((unused)), int client_fd, uint8
    struct json* response = NULL;
    struct json* servers = NULL;
    struct configuration* config;
+   bool openssl_fips = false;
 
    pgexporter_memory_init();
    pgexporter_start_logging();
@@ -140,16 +142,23 @@ pgexporter_status_details(SSL* ssl __attribute__((unused)), int client_fd, uint8
 
    pgexporter_json_put(response, MANAGEMENT_ARGUMENT_NUMBER_OF_SERVERS, (uintptr_t)config->number_of_servers, ValueInt32);
 
+   openssl_fips = pgexporter_fips_pgexporter();
+   pgexporter_json_put(response, MANAGEMENT_ARGUMENT_PGEXPORTER_FIPS, (uintptr_t)openssl_fips, ValueBool);
+
    pgexporter_json_create(&servers);
 
    for (int i = 0; i < config->number_of_servers; i++)
    {
       struct json* js = NULL;
+      bool pg_fips = false;
 
       pgexporter_json_create(&js);
 
       pgexporter_json_put(js, MANAGEMENT_ARGUMENT_ACTIVE, (uintptr_t)config->servers[i].fd != -1 ? true : false, ValueBool);
       pgexporter_json_put(js, MANAGEMENT_ARGUMENT_SERVER, (uintptr_t)config->servers[i].name, ValueString);
+
+      pgexporter_fips_server(i, &pg_fips);
+      pgexporter_json_put(js, MANAGEMENT_ARGUMENT_FIPS, (uintptr_t)pg_fips, ValueBool);
 
       pgexporter_json_append(servers, (uintptr_t)js, ValueJSON);
    }

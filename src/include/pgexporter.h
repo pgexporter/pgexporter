@@ -88,6 +88,10 @@ extern "C" {
 #define SERVER_TYPE_POSTGRESQL       0
 #define SERVER_TYPE_PROMETHEUS       1
 
+#define SERVER_FIPS_UNKNOWN          -1
+#define SERVER_FIPS_DISABLED         0
+#define SERVER_FIPS_ENABLED          1
+
 #define AUTH_SUCCESS                 0
 #define AUTH_BAD_PASSWORD            1
 #define AUTH_ERROR                   2
@@ -294,6 +298,7 @@ struct server
    char databases[NUMBER_OF_EXTENSIONS][DB_NAME_LENGTH];   /**< Databases in the server */
    struct extension_info extensions[NUMBER_OF_EXTENSIONS]; /**< The extensions */
    char extensions_config[MAX_EXTENSIONS_CONFIG_LENGTH];   /**< Server-specific extensions configuration */
+   int fips_enabled;                                       /**< FIPS mode status */
 
 } __attribute__((aligned(64)));
 

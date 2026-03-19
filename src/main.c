@@ -36,6 +36,7 @@
 #include <connection.h>
 #include <extension.h>
 #include <ext_query_alts.h>
+#include <fips.h>
 #include <internal.h>
 #include <json.h>
 #include <logging.h>
@@ -1307,6 +1308,15 @@ main(int argc, char** argv)
       sd_notify(0, "STATUS=Failed to load extension YAMLs");
 #endif
       exit(1);
+   }
+
+   for (int i = 0; i < config->number_of_servers; i++)
+   {
+      if (config->servers[i].fd != -1)
+      {
+         bool fips = false;
+         pgexporter_fips_server(i, &fips);
+      }
    }
 
    /* Close connections after validation  and loading extensions - child processes will create their own.
