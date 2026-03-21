@@ -457,14 +457,14 @@ struct configuration
    char allowed_collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];  /**< List of allowed collectors */
    char excluded_collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH]; /**< List of excluded collectors */
 
-   char global_extensions[MAX_EXTENSIONS_CONFIG_LENGTH];              /**< Global extensions configuration */
-   char metric_names[NUMBER_OF_METRIC_NAMES][PROMETHEUS_LENGTH];      /**< List of all the metric names */
-   struct server servers[NUMBER_OF_SERVERS];                          /**< The servers */
-   struct user users[NUMBER_OF_USERS];                                /**< The users */
-   struct user admins[NUMBER_OF_ADMINS];                              /**< The admins */
-   struct prometheus prometheus[NUMBER_OF_METRICS];                   /**< The Prometheus metrics */
-   struct endpoint endpoints[NUMBER_OF_ENDPOINTS];                    /**< The Prometheus metrics */
-   struct extension_metrics extensions[MAX_EXTENSIONS_CONFIG_LENGTH]; /**< Extension metrics by extension */
+   char global_extensions[MAX_EXTENSIONS_CONFIG_LENGTH];         /**< Global extensions configuration */
+   char metric_names[NUMBER_OF_METRIC_NAMES][PROMETHEUS_LENGTH]; /**< List of all the metric names */
+   struct server servers[NUMBER_OF_SERVERS];                     /**< The servers */
+   struct user users[NUMBER_OF_USERS];                           /**< The users */
+   struct user admins[NUMBER_OF_ADMINS];                         /**< The admins */
+   struct prometheus prometheus[NUMBER_OF_METRICS];              /**< The Prometheus metrics */
+   struct endpoint endpoints[NUMBER_OF_ENDPOINTS];               /**< The Prometheus metrics */
+   struct extension_metrics extensions[NUMBER_OF_EXTENSIONS];    /**< Extension metrics by extension */
 } __attribute__((aligned(64)));
 
 #ifdef __cplusplus

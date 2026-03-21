@@ -66,12 +66,20 @@ pgexporter_test_environment_create(void)
    assert(conf_path != NULL);
 
    // Create the shared memory for the configuration
-   assert(!pgexporter_create_shared_memory(sizeof(struct configuration), HUGEPAGE_OFF, &shmem));
+   if (pgexporter_create_shared_memory(sizeof(struct configuration), HUGEPAGE_OFF, &shmem))
+   {
+      fprintf(stderr, "Failed to create shared memory\n");
+      exit(1);
+   }
 
    pgexporter_init_configuration(shmem);
 
    // Try reading configuration from the configuration path
-   assert(!pgexporter_read_configuration(shmem, conf_path));
+   if (pgexporter_read_configuration(shmem, conf_path))
+   {
+      fprintf(stderr, "Failed to read configuration: %s\n", conf_path);
+      exit(1);
+   }
    config = (struct configuration*)shmem;
 
    // Some validations just to be safe
@@ -87,7 +95,11 @@ pgexporter_test_environment_create(void)
    pgexporter_start_logging();
 
    // Try reading the users configuration path
-   assert(!pgexporter_read_users_configuration(shmem, getenv(ENV_VAR_USER_CONF)));
+   if (pgexporter_read_users_configuration(shmem, getenv(ENV_VAR_USER_CONF)))
+   {
+      fprintf(stderr, "Failed to read users configuration\n");
+      exit(1);
+   }
 }
 
 void
