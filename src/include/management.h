@@ -75,6 +75,8 @@ extern "C" {
 #define MANAGEMENT_UPDATE_USER         13
 #define MANAGEMENT_REMOVE_USER         14
 #define MANAGEMENT_LIST_USERS          15
+#define MANAGEMENT_ENCRYPT             16
+#define MANAGEMENT_DECRYPT             17
 
 /**
  * Management categories

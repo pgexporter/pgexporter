@@ -643,7 +643,21 @@ pgexporter_libev_engine(unsigned int val)
 char*
 pgexporter_get_home_directory(void)
 {
-   struct passwd* pw = getpwuid(getuid());
+#if defined(HAVE_DARWIN) || defined(HAVE_OSX)
+#define GET_ENV(name) getenv(name)
+#else
+#define GET_ENV(name) secure_getenv(name)
+#endif
+   char* env = GET_ENV("PGEXPORTER_HOME");
+   struct passwd* pw = NULL;
+
+   if (env != NULL)
+   {
+      return env;
+   }
+#undef GET_ENV
+
+   pw = getpwuid(getuid());
 
    if (pw == NULL)
    {

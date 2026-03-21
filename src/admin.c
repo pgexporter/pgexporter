@@ -51,6 +51,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <fcntl.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -319,6 +320,7 @@ main(int argc, char** argv)
       }
    }
 
+   pgexporter_clear_aes_cache();
    exit(0);
 
 error:
@@ -331,8 +333,13 @@ master_key(char* password, bool generate_pwd, int pwd_length, int32_t output_for
 {
    FILE* file = NULL;
    char buf[MAX_PATH];
+   char buf_tmp[MAX_PATH];
+   int fd = -1;
    char* encoded = NULL;
    size_t encoded_length;
+   char* salt_encoded = NULL;
+   size_t salt_encoded_length;
+   unsigned char salt[PBKDF2_SALT_LENGTH];
    struct stat st = {0};
    bool do_free = true;
    struct json* j = NULL;
@@ -341,6 +348,8 @@ master_key(char* password, bool generate_pwd, int pwd_length, int32_t output_for
    time_t end_t;
 
    start_t = time(NULL);
+
+   memset(&buf_tmp, 0, sizeof(buf_tmp));
 
    if (pgexporter_management_create_header(MANAGEMENT_MASTER_KEY, 0, 0, output_format, &j))
    {
@@ -390,6 +399,7 @@ master_key(char* password, bool generate_pwd, int pwd_length, int32_t output_for
 
    memset(&buf, 0, sizeof(buf));
    pgexporter_snprintf(&buf[0], sizeof(buf), "%s/.pgexporter/master.key", pgexporter_get_home_directory());
+   pgexporter_snprintf(&buf_tmp[0], sizeof(buf_tmp), "%s.tmp", &buf[0]);
 
    if (pgexporter_exists(&buf[0]))
    {
@@ -414,10 +424,18 @@ master_key(char* password, bool generate_pwd, int pwd_length, int32_t output_for
       }
    }
 
-   file = fopen(&buf[0], "w+");
+   fd = open(&buf_tmp[0], O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+   if (fd == -1)
+   {
+      warn("Could not create master key file '%s'", &buf_tmp[0]);
+      goto error;
+   }
+
+   file = fdopen(fd, "w+");
    if (file == NULL)
    {
-      warn("Could not write to master key file '%s'", &buf[0]);
+      warn("Could not write to master key file '%s'", &buf_tmp[0]);
+      close(fd);
       goto error;
    }
 
@@ -463,25 +481,70 @@ master_key(char* password, bool generate_pwd, int pwd_length, int32_t output_for
       }
    }
 
-   end_t = time(NULL);
+   if (pgexporter_base64_encode(password, strlen(password), &encoded, &encoded_length) != 0)
+   {
+      goto error;
+   }
+   if (fputs(encoded, file) == EOF || fputs("\n", file) == EOF)
+   {
+      goto error;
+   }
+   free(encoded);
+   encoded = NULL;
 
-   if (pgexporter_management_create_outcome_success(j, start_t, end_t, &outcome))
+   /* Generate and write random salt for master key derivation */
+   if (RAND_bytes(salt, PBKDF2_SALT_LENGTH) != 1)
+   {
+      warnx("Failed to generate random salt");
+      goto error;
+   }
+   if (pgexporter_base64_encode((char*)salt, PBKDF2_SALT_LENGTH, &salt_encoded, &salt_encoded_length) != 0)
+   {
+      goto error;
+   }
+   if (fputs(salt_encoded, file) == EOF || fputs("\n", file) == EOF)
+   {
+      goto error;
+   }
+   free(salt_encoded);
+   salt_encoded = NULL;
+
+   if (fflush(file) != 0 || fsync(fileno(file)) != 0)
    {
       goto error;
    }
 
-   if (output_format == MANAGEMENT_OUTPUT_FORMAT_JSON)
-   {
-      pgexporter_json_print(j, FORMAT_JSON);
-   }
-   else
-   {
-      pgexporter_json_print(j, FORMAT_TEXT);
-   }
+   fclose(file);
+   file = NULL;
 
-   pgexporter_base64_encode(password, strlen(password), &encoded, &encoded_length);
-   fputs(encoded, file);
-   free(encoded);
+   if (chmod(&buf_tmp[0], S_IRUSR | S_IWUSR) != 0)
+   {
+      goto error;
+   }
+   if (link(&buf_tmp[0], &buf[0]) != 0)
+   {
+      if (errno == EEXIST)
+      {
+         warnx("The file ~/.pgexporter/master.key was created by another process");
+      }
+      goto error;
+   }
+   unlink(&buf_tmp[0]);
+   buf_tmp[0] = '\0';
+
+   end_t = time(NULL);
+
+   if (pgexporter_management_create_outcome_success(j, start_t, end_t, &outcome) == 0)
+   {
+      if (output_format == MANAGEMENT_OUTPUT_FORMAT_JSON)
+      {
+         pgexporter_json_print(j, FORMAT_JSON);
+      }
+      else
+      {
+         pgexporter_json_print(j, FORMAT_TEXT);
+      }
+   }
 
    pgexporter_json_destroy(j);
 
@@ -490,16 +553,12 @@ master_key(char* password, bool generate_pwd, int pwd_length, int32_t output_for
       free(password);
    }
 
-   fclose(file);
-   file = NULL;
-
-   chmod(&buf[0], S_IRUSR | S_IWUSR);
-
    return 0;
 
 error:
 
    free(encoded);
+   free(salt_encoded);
 
    if (do_free)
    {
@@ -510,6 +569,11 @@ error:
    {
       fclose(file);
       file = NULL;
+   }
+
+   if (buf_tmp[0] != '\0')
+   {
+      unlink(&buf_tmp[0]);
    }
 
    pgexporter_management_create_outcome_failure(j, 1, &outcome);
@@ -595,11 +659,15 @@ add_user(char* users_path, char* username, char* password, bool generate_pwd, in
       goto error;
    }
 
-   if (pgexporter_get_master_key(&master_key))
+   unsigned char* master_salt = NULL;
+
+   if (pgexporter_get_master_key_and_salt(&master_key, &master_salt, NULL))
    {
       warnx("Invalid master key");
       goto error;
    }
+   pgexporter_set_master_salt(master_salt);
+   free(master_salt);
 
    if (password != NULL)
    {
@@ -785,7 +853,11 @@ password:
       }
    }
 
-   pgexporter_encrypt(password, master_key, &encrypted, &encrypted_length, ENCRYPTION_AES_256_CBC);
+   if (pgexporter_encrypt(password, master_key, &encrypted, &encrypted_length, ENCRYPTION_AES_256_GCM))
+   {
+      warnx("Failed to encrypt password");
+      goto error;
+   }
    pgexporter_base64_encode(encrypted, encrypted_length, &encoded, &encoded_length);
 
    entry = pgexporter_append(entry, username);
@@ -796,6 +868,10 @@ password:
    fputs(entry, users_file);
 
    free(entry);
+   if (master_key != NULL)
+   {
+      pgexporter_cleanse(master_key, strlen(master_key));
+   }
    free(master_key);
    free(encrypted);
    free(encoded);
@@ -836,6 +912,10 @@ password:
 error:
 
    free(entry);
+   if (master_key != NULL)
+   {
+      pgexporter_cleanse(master_key, strlen(master_key));
+   }
    free(master_key);
    free(encrypted);
    free(encoded);
@@ -902,11 +982,15 @@ update_user(char* users_path, char* username, char* password, bool generate_pwd,
 
    memset(&tmpfilename, 0, sizeof(tmpfilename));
 
-   if (pgexporter_get_master_key(&master_key))
+   unsigned char* master_salt = NULL;
+
+   if (pgexporter_get_master_key_and_salt(&master_key, &master_salt, NULL))
    {
       warnx("Invalid master key");
       goto error;
    }
+   pgexporter_set_master_salt(master_salt);
+   free(master_salt);
 
    if (password != NULL)
    {
@@ -1090,7 +1174,13 @@ password:
             }
          }
 
-         pgexporter_encrypt(password, master_key, &encrypted, &encrypted_length, ENCRYPTION_AES_256_CBC);
+         if (pgexporter_encrypt(password, master_key, &encrypted, &encrypted_length, ENCRYPTION_AES_256_GCM))
+         {
+            warnx("Failed to encrypt password. Keeping existing user entry unchanged.");
+            fputs(line_copy, users_file_tmp);
+            found = true;
+            continue;
+         }
          pgexporter_base64_encode(encrypted, encrypted_length, &encoded, &encoded_length);
 
          memset(&line, 0, sizeof(line));
@@ -1117,6 +1207,10 @@ password:
       goto error;
    }
 
+   if (master_key != NULL)
+   {
+      pgexporter_cleanse(master_key, strlen(master_key));
+   }
    free(master_key);
    free(encrypted);
    free(encoded);
@@ -1160,6 +1254,10 @@ password:
 
 error:
 
+   if (master_key != NULL)
+   {
+      pgexporter_cleanse(master_key, strlen(master_key));
+   }
    free(master_key);
    free(encrypted);
    free(encoded);

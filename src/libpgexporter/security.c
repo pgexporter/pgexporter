@@ -1715,12 +1715,50 @@ get_admin_password(char* username)
 int
 pgexporter_get_master_key(char** masterkey)
 {
+   unsigned char* salt = NULL;
+   size_t salt_len = 0;
+   int res;
+
+   if (masterkey == NULL)
+   {
+      return 1;
+   }
+
+   res = pgexporter_get_master_key_and_salt(masterkey, &salt, &salt_len);
+
+   if (res == 0)
+   {
+      pgexporter_set_master_salt(salt);
+      free(salt);
+   }
+
+   return res;
+}
+
+int
+pgexporter_get_master_key_and_salt(char** masterkey, unsigned char** master_salt, size_t* master_salt_length)
+{
    FILE* master_key_file = NULL;
    char buf[MISC_LENGTH];
    char line[MISC_LENGTH];
    char* mk = NULL;
    size_t mk_length = 0;
+   unsigned char* salt = NULL;
+   size_t salt_len = 0;
    struct stat st = {0};
+
+   if (masterkey == NULL || master_salt == NULL)
+   {
+      return 1;
+   }
+
+   /* Initialize output parameters to prevent stale values on error */
+   *masterkey = NULL;
+   *master_salt = NULL;
+   if (master_salt_length != NULL)
+   {
+      *master_salt_length = 0;
+   }
 
    if (pgexporter_get_home_directory() == NULL)
    {
@@ -1771,15 +1809,44 @@ pgexporter_get_master_key(char** masterkey)
       goto error;
    }
 
+   /* Read password */
    memset(&line, 0, sizeof(line));
    if (fgets(line, sizeof(line), master_key_file) == NULL)
    {
       goto error;
    }
+   line[strcspn(line, "\n")] = '\0';
+   if (pgexporter_base64_decode(&line[0], strlen(&line[0]), (void**)&mk, &mk_length) != 0)
+   {
+      goto error;
+   }
 
-   pgexporter_base64_decode(&line[0], strlen(&line[0]), (void**)&mk, &mk_length);
+   /* Read salt */
+   memset(&line, 0, sizeof(line));
+   if (fgets(line, sizeof(line), master_key_file) == NULL)
+   {
+      goto error;
+   }
+   line[strcspn(line, "\n")] = '\0';
+   if (pgexporter_base64_decode(&line[0], strlen(&line[0]), (void**)&salt, &salt_len) != 0)
+   {
+      goto error;
+   }
+
+   /* Validate salt length */
+   if (salt_len != PBKDF2_SALT_LENGTH)
+   {
+      pgexporter_log_error("pgexporter_get_master_key_and_salt: Invalid salt length (%zu), expected %d bytes",
+                           salt_len, PBKDF2_SALT_LENGTH);
+      goto error;
+   }
 
    *masterkey = mk;
+   *master_salt = salt;
+   if (master_salt_length != NULL)
+   {
+      *master_salt_length = salt_len;
+   }
 
    fclose(master_key_file);
 
@@ -1787,7 +1854,12 @@ pgexporter_get_master_key(char** masterkey)
 
 error:
 
+   if (mk != NULL)
+   {
+      pgexporter_cleanse(mk, mk_length);
+   }
    free(mk);
+   free(salt);
 
    if (master_key_file)
    {

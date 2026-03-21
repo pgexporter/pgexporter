@@ -28,6 +28,7 @@
 
 /* pgexporter */
 #include <pgexporter.h>
+#include <aes.h>
 #include <cmd.h>
 #include <configuration.h>
 #include <json.h>
@@ -127,7 +128,7 @@ usage(void)
    printf("  -V, --version                                  Display version information\n");
    printf("  -F, --format text|json|raw                     Set the output format\n");
    printf("  -C, --compress none|gz|zstd|lz4|bz2            Compress the wire protocol\n");
-   printf("  -E, --encrypt none|aes|aes256|aes192|aes128    Encrypt the wire protocol\n");
+   printf("  -E, --encrypt none|aes|aes256|aes192|aes128    Encrypt the wire protocol (GCM)\n");
    printf("  -?, --help                                     Display help\n");
    printf("\n");
    printf("Commands:\n");
@@ -141,6 +142,8 @@ usage(void)
    printf("                           - 'set' to modify a configuration value;\n");
    printf("  clear <what>             Clear data, with:\n");
    printf("                           - 'prometheus' to reset the Prometheus statistics\n");
+   printf("  encrypt <input> [output] Encrypt a file\n");
+   printf("  decrypt <input> [output] Decrypt a file\n");
    printf("\n");
    printf("pgexporter: %s\n", PGEXPORTER_HOMEPAGE);
    printf("Report bugs: %s\n", PGEXPORTER_ISSUES);
@@ -219,6 +222,22 @@ const struct pgexporter_command command_table[] = {
       .action = MANAGEMENT_RESET,
       .deprecated = false,
       .log_message = "<clear prometheus>"
+   },
+   {
+      .command = "encrypt",
+      .subcommand = "",
+      .accepted_argument_count = {1, 2},
+      .action = MANAGEMENT_ENCRYPT,
+      .deprecated = false,
+      .log_message = "<encrypt> [%s]"
+   },
+   {
+      .command = "decrypt",
+      .subcommand = "",
+      .accepted_argument_count = {1, 2},
+      .action = MANAGEMENT_DECRYPT,
+      .deprecated = false,
+      .log_message = "<decrypt> [%s]"
    }
 };
 // clang-format on
@@ -310,6 +329,7 @@ main(int argc, char** argv)
       else if (!strcmp(optname, "password") || !strcmp(optname, "P"))
       {
          password = optarg;
+         do_free = false;
       }
       else if (!strcmp(optname, "logfile") || !strcmp(optname, "L"))
       {
@@ -426,6 +446,122 @@ main(int argc, char** argv)
 
    pgexporter_memory_init();
 
+   if (!parse_command(argc, argv, optind, &parsed, command_table, command_count))
+   {
+      if (argc > optind)
+      {
+         char* command = argv[optind];
+         display_helper(command);
+      }
+      else
+      {
+         usage();
+      }
+      exit_code = 1;
+      goto done;
+   }
+
+   if (parsed.cmd->action == MANAGEMENT_ENCRYPT || parsed.cmd->action == MANAGEMENT_DECRYPT)
+   {
+      char* input = parsed.args[0];
+      char* output = parsed.args[1];
+      char buf[MAX_PATH];
+      char* pwd = password;
+      int mode;
+
+      int r;
+      char* mk = NULL;
+      unsigned char* salt = NULL;
+      size_t salt_len = 0;
+
+      switch (encryption)
+      {
+         case MANAGEMENT_ENCRYPTION_NONE:
+            fprintf(stderr, "Error: Encryption mode 'none' is not supported for encrypt/decrypt commands.\n");
+            exit_code = 1;
+            goto done;
+         case MANAGEMENT_ENCRYPTION_AES256:
+            mode = ENCRYPTION_AES_256_GCM;
+            break;
+         case MANAGEMENT_ENCRYPTION_AES192:
+            mode = ENCRYPTION_AES_192_GCM;
+            break;
+         case MANAGEMENT_ENCRYPTION_AES128:
+            mode = ENCRYPTION_AES_128_GCM;
+            break;
+         default:
+            mode = ENCRYPTION_AES_256_GCM;
+            break;
+      }
+
+      if (pwd == NULL)
+      {
+         printf("Password: ");
+         pwd = pgexporter_get_password();
+         printf("\n");
+      }
+
+      /* Initialize master salt */
+      r = pgexporter_get_master_key_and_salt(&mk, &salt, &salt_len);
+      if (r == 0)
+      {
+         pgexporter_set_master_salt(salt);
+         if (mk != NULL)
+         {
+            pgexporter_cleanse(mk, strlen(mk));
+         }
+         free(mk);
+         free(salt);
+      }
+      else
+      {
+         fprintf(stderr, "Error: Could not load master key and salt (code %d)\n", r);
+         fprintf(stderr, "Please ensure that ~/.pgexporter/master.key exists and is readable.\n");
+         exit_code = 1;
+         goto done;
+      }
+
+      if (output == NULL)
+      {
+         memset(&buf[0], 0, sizeof(buf));
+         if (parsed.cmd->action == MANAGEMENT_ENCRYPT)
+         {
+            snprintf(&buf[0], sizeof(buf), "%s.enc", input);
+         }
+         else
+         {
+            snprintf(&buf[0], sizeof(buf), "%s.dec", input);
+         }
+         output = &buf[0];
+      }
+
+      if (parsed.cmd->action == MANAGEMENT_ENCRYPT)
+      {
+         ret = pgexporter_encrypt_file(input, output, pwd, mode);
+      }
+      else
+      {
+         ret = pgexporter_decrypt_file(input, output, pwd, mode);
+      }
+
+      if (ret)
+      {
+         fprintf(stderr, "Encryption/Decryption failed\n");
+      }
+      else
+      {
+         printf("Success: %s\n", output);
+      }
+
+      if (password == NULL)
+      {
+         pgexporter_cleanse(pwd, strlen(pwd));
+         free(pwd);
+      }
+      exit_code = ret;
+      goto done;
+   }
+
    size = sizeof(struct configuration);
    if (pgexporter_create_shared_memory(size, HUGEPAGE_OFF, &shmem))
    {
@@ -490,20 +626,6 @@ main(int argc, char** argv)
 
          config = (struct configuration*)shmem;
       }
-   }
-   if (!parse_command(argc, argv, optind, &parsed, command_table, command_count))
-   {
-      if (argc > optind)
-      {
-         char* command = argv[optind];
-         display_helper(command);
-      }
-      else
-      {
-         usage();
-      }
-      exit_code = 1;
-      goto done;
    }
 
    if (configuration_path != NULL)
@@ -652,8 +774,11 @@ done:
 
    pgexporter_disconnect(socket);
 
-   pgexporter_stop_logging();
-   pgexporter_destroy_shared_memory(shmem, size);
+   if (shmem != NULL)
+   {
+      pgexporter_stop_logging();
+      pgexporter_destroy_shared_memory(shmem, size);
+   }
 
    pgexporter_memory_destroy();
 
@@ -661,6 +786,8 @@ done:
    {
       free(password);
    }
+
+   pgexporter_clear_aes_cache();
 
    if (verbose)
    {
@@ -1493,23 +1620,14 @@ translate_encryption(int32_t encryption_code)
    char* encryption_output = NULL;
    switch (encryption_code)
    {
-      case ENCRYPTION_AES_256_CBC:
-         encryption_output = pgexporter_append(encryption_output, "aes-256-cbc");
+      case ENCRYPTION_AES_256_GCM:
+         encryption_output = pgexporter_append(encryption_output, "aes-256-gcm");
          break;
-      case ENCRYPTION_AES_192_CBC:
-         encryption_output = pgexporter_append(encryption_output, "aes-192-cbc");
+      case ENCRYPTION_AES_192_GCM:
+         encryption_output = pgexporter_append(encryption_output, "aes-192-gcm");
          break;
-      case ENCRYPTION_AES_128_CBC:
-         encryption_output = pgexporter_append(encryption_output, "aes-128-cbc");
-         break;
-      case ENCRYPTION_AES_256_CTR:
-         encryption_output = pgexporter_append(encryption_output, "aes-256-ctr");
-         break;
-      case ENCRYPTION_AES_192_CTR:
-         encryption_output = pgexporter_append(encryption_output, "aes-192-ctr");
-         break;
-      case ENCRYPTION_AES_128_CTR:
-         encryption_output = pgexporter_append(encryption_output, "aes-128-ctr");
+      case ENCRYPTION_AES_128_GCM:
+         encryption_output = pgexporter_append(encryption_output, "aes-128-gcm");
          break;
       default:
          encryption_output = pgexporter_append(encryption_output, "none");

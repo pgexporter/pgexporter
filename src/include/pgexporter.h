@@ -121,12 +121,9 @@ extern "C" {
 #define SERVER_UNDERTERMINED_VERSION 0
 
 #define ENCRYPTION_NONE              0
-#define ENCRYPTION_AES_256_CBC       1
-#define ENCRYPTION_AES_192_CBC       2
-#define ENCRYPTION_AES_128_CBC       3
-#define ENCRYPTION_AES_256_CTR       4
-#define ENCRYPTION_AES_192_CTR       5
-#define ENCRYPTION_AES_128_CTR       6
+#define ENCRYPTION_AES_256_GCM       1
+#define ENCRYPTION_AES_192_GCM       2
+#define ENCRYPTION_AES_128_GCM       3
 
 #define COMPRESSION_NONE             0
 #define COMPRESSION_CLIENT_GZIP      1

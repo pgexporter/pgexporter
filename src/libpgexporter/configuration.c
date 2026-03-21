@@ -1324,10 +1324,15 @@ pgexporter_read_users_configuration(void* shm, char* filename)
       goto error;
    }
 
-   if (pgexporter_get_master_key(&master_key))
+   unsigned char* master_salt = NULL;
+
+   if (pgexporter_get_master_key_and_salt(&master_key, &master_salt, NULL))
    {
       goto masterkey;
    }
+
+   pgexporter_set_master_salt(master_salt);
+   free(master_salt);
 
    index = 0;
    config = (struct configuration*)shm;
@@ -1358,7 +1363,7 @@ pgexporter_read_users_configuration(void* shm, char* filename)
                goto error;
             }
 
-            if (pgexporter_decrypt(decoded, decoded_length, master_key, &password, ENCRYPTION_AES_256_CBC))
+            if (pgexporter_decrypt(decoded, decoded_length, master_key, &password, ENCRYPTION_AES_256_GCM))
             {
                goto error;
             }
@@ -1429,6 +1434,10 @@ pgexporter_read_users_configuration(void* shm, char* filename)
       goto above;
    }
 
+   if (master_key != NULL)
+   {
+      pgexporter_cleanse(master_key, strlen(master_key));
+   }
    free(master_key);
 
    fclose(file);
@@ -1437,6 +1446,10 @@ pgexporter_read_users_configuration(void* shm, char* filename)
 
 error:
 
+   if (master_key != NULL)
+   {
+      pgexporter_cleanse(master_key, strlen(master_key));
+   }
    free(master_key);
    free(password);
    free(decoded);
@@ -1450,6 +1463,10 @@ error:
 
 masterkey:
 
+   if (master_key != NULL)
+   {
+      pgexporter_cleanse(master_key, strlen(master_key));
+   }
    free(master_key);
    free(password);
    free(decoded);
@@ -1463,6 +1480,10 @@ masterkey:
 
 above:
 
+   if (master_key != NULL)
+   {
+      pgexporter_cleanse(master_key, strlen(master_key));
+   }
    free(master_key);
    free(password);
    free(decoded);
@@ -1542,10 +1563,15 @@ pgexporter_read_admins_configuration(void* shm, char* filename)
       goto error;
    }
 
-   if (pgexporter_get_master_key(&master_key))
+   unsigned char* master_salt = NULL;
+
+   if (pgexporter_get_master_key_and_salt(&master_key, &master_salt, NULL))
    {
       goto masterkey;
    }
+
+   pgexporter_set_master_salt(master_salt);
+   free(master_salt);
 
    index = 0;
    config = (struct configuration*)shm;
@@ -1576,7 +1602,7 @@ pgexporter_read_admins_configuration(void* shm, char* filename)
                goto error;
             }
 
-            if (pgexporter_decrypt(decoded, decoded_length, master_key, &password, ENCRYPTION_AES_256_CBC))
+            if (pgexporter_decrypt(decoded, decoded_length, master_key, &password, ENCRYPTION_AES_256_GCM))
             {
                goto error;
             }
@@ -1655,6 +1681,10 @@ pgexporter_read_admins_configuration(void* shm, char* filename)
       goto above;
    }
 
+   if (master_key != NULL)
+   {
+      pgexporter_cleanse(master_key, strlen(master_key));
+   }
    free(master_key);
 
    fclose(file);
@@ -1663,6 +1693,10 @@ pgexporter_read_admins_configuration(void* shm, char* filename)
 
 error:
 
+   if (master_key != NULL)
+   {
+      pgexporter_cleanse(master_key, strlen(master_key));
+   }
    free(master_key);
    free(password);
    free(decoded);
@@ -1676,6 +1710,10 @@ error:
 
 masterkey:
 
+   if (master_key != NULL)
+   {
+      pgexporter_cleanse(master_key, strlen(master_key));
+   }
    free(master_key);
    free(password);
    free(decoded);
@@ -1689,6 +1727,10 @@ masterkey:
 
 above:
 
+   if (master_key != NULL)
+   {
+      pgexporter_cleanse(master_key, strlen(master_key));
+   }
    free(master_key);
    free(password);
    free(decoded);

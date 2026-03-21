@@ -73,7 +73,7 @@ Example
 pgexporter-cli conf reload
 pgexporter-cli conf ls
 pgexporter-cli conf get primary.host
-pgexporter-cli conf set encryption aes-256-cbc
+pgexporter-cli conf set encryption aes256
 ```
 
 ### conf get

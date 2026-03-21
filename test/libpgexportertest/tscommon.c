@@ -28,6 +28,7 @@
  */
 
 #include <pgexporter.h>
+#include <aes.h>
 #include <configuration.h>
 #include <json.h>
 #include <logging.h>
@@ -100,6 +101,11 @@ pgexporter_test_environment_create(void)
       fprintf(stderr, "Failed to read users configuration\n");
       exit(1);
    }
+
+   // Set a master salt for testing purposes
+   unsigned char salt[PBKDF2_SALT_LENGTH];
+   memset(salt, 0x42, PBKDF2_SALT_LENGTH);
+   pgexporter_set_master_salt(salt);
 }
 
 void

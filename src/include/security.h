@@ -83,6 +83,16 @@ int
 pgexporter_get_master_key(char** masterkey);
 
 /**
+ * Get the master key and its associated salt
+ * @param masterkey The master key
+ * @param master_salt The master key salt (caller must free)
+ * @param master_salt_length The length of the salt
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_get_master_key_and_salt(char** masterkey, unsigned char** master_salt, size_t* master_salt_length);
+
+/**
  * Is the TLS configuration valid
  * @return 0 upon success, otherwise 1
  */
