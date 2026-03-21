@@ -28,14 +28,14 @@
 
 FILE(GLOB_RECURSE LIB_SOURCE_FILES "libpgexportertest/*.c")
 FILE(GLOB_RECURSE HEADER_FILES "include/*.h")
-# Order matches main runner: cli, database, configuration, http, cache (http last so shutdown runs last)
+# With tail-append registration, tests run in link order. HTTP must be last so shutdown runs last.
 set(TESTCASE_FILES
-  testcases/test_http.c
   testcases/test_configuration.c
   testcases/test_database.c
   testcases/test_cli.c
   testcases/test_cache.c
   testcases/test_aes.c
+  testcases/test_http.c
 )
 set(SOURCE_FILES ${LIB_SOURCE_FILES} ${TESTCASE_FILES} ${HEADER_FILES})
 
@@ -132,7 +132,10 @@ set(SOURCE_FILES ${LIB_SOURCE_FILES} ${TESTCASE_FILES} ${HEADER_FILES})
   )
 endif()
 
-  target_include_directories(pgexporter-test PRIVATE ${CMAKE_SOURCE_DIR}/src/include ${CMAKE_SOURCE_DIR}/test/include)
+  target_include_directories(pgexporter-test PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/include
+    ${CMAKE_SOURCE_DIR}/test/include
+    ${CMAKE_SOURCE_DIR}/test/libpgexportertest)
 
   if(EXISTS "/etc/debian_version")
     target_link_libraries(pgexporter-test pthread rt m pgexporter)

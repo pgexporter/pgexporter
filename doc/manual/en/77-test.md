@@ -38,6 +38,7 @@ MCTF (Minimal C Test Framework) is pgexporter's custom test framework designed f
 - **Flexible assertions** – Assert macros with optional printf-style error messages
 - **Test filtering** – Run tests by name pattern (`-t`) or by module (`-m`)
 - **Test skipping** – Skip tests conditionally using `MCTF_SKIP()` when prerequisites aren't met
+- **Per-test pgexporter log slicing and validation** - Captures each test's log window to `/tmp/pgexporter-test/log/<module>__<test_name>.pgexporter.log`; positive tests fail on unexpected `ERROR` lines, while `MCTF_TEST_NEGATIVE` is used for expected-error scenarios
 - **Lifecycle hooks** – Automatic per-test and per-module setup/teardown via `MCTF_TEST_SETUP`, `MCTF_TEST_TEARDOWN`, `MCTF_MODULE_SETUP`, `MCTF_MODULE_TEARDOWN`
 - **Config snapshot/restore** – `pgexporter_test_config_save()` / `pgexporter_test_config_restore()` to isolate shared-memory config changes between tests
 - **Cleanup pattern** – Structured cleanup using goto labels for resource management
@@ -54,6 +55,20 @@ MCTF (Minimal C Test Framework) is pgexporter's custom test framework designed f
 **Add Testcases**
 
 To add an additional testcase, go to the [testcases](https://github.com/pgexporter/pgexporter/tree/main/test/testcases) directory inside the `pgexporter` project. Create a `.c` file that contains the test and use the `MCTF_TEST()` macro to define your test. Tests are automatically registered and module names are extracted from file names.
+
+Use `MCTF_TEST_NEGATIVE()` for tests that intentionally exercise error paths and are expected to emit `ERROR` log lines in `pgexporter.log`.
+
+**Per-test pgexporter log validation**
+
+MCTF captures a per-test slice of `pgexporter.log` and writes it to:
+
+`/tmp/pgexporter-test/log/<module>__<test_name>.pgexporter.log`
+
+Behavior:
+
+- `MCTF_TEST`: fails if the test itself passes but the log slice contains unexpected `ERROR` lines
+- `MCTF_TEST_NEGATIVE`: skips the log-error failure gate for that test (still must satisfy test assertions)
+- `WARN` lines are included in summaries but do not fail a passing test
 
 **Lifecycle Hooks**
 
@@ -117,6 +132,7 @@ Format arguments (e.g. `value`) are optional and only needed when the message co
 After running the tests, you will find:
 
 * **pgexporter log:** `/tmp/pgexporter-test/log/`
+  * **per-test pgexporter log slices:** `/tmp/pgexporter-test/log/<module>__<test_name>.pgexporter.log`
 * **HTML test report:** `/tmp/pgexporter-test/log/pgexporter-test-report.html` (generated after each run)
 * **postgres log:** `/tmp/pgexporter-test/pg_log/`, the log level is set to debug5.
 * **code coverage reports:** `/tmp/pgexporter-test/coverage/`

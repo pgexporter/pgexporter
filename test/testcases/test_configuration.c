@@ -161,7 +161,7 @@ cleanup:
    MCTF_FINISH();
 }
 
-MCTF_TEST(test_configuration_reject_invalid_time)
+MCTF_TEST_NEGATIVE(test_configuration_reject_invalid_time)
 {
    pgexporter_test_setup();
 

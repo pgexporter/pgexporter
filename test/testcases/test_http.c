@@ -45,32 +45,6 @@
 
 static int validate_metrics_response(char* response_body, const char* metric_pattern);
 
-/* Must run last: shuts down the daemon. Defined first so it registers first and runs last. */
-MCTF_TEST(test_http_shutdown)
-{
-   int socket = -1;
-   int ret;
-
-   socket = pgexporter_tsclient_get_connection();
-   MCTF_ASSERT(pgexporter_socket_isvalid(socket), cleanup, "Failed to get connection to pgexporter");
-
-   ret = pgexporter_management_request_shutdown(NULL, socket, MANAGEMENT_COMPRESSION_NONE,
-                                                MANAGEMENT_ENCRYPTION_NONE, MANAGEMENT_OUTPUT_FORMAT_JSON);
-   MCTF_ASSERT(ret == 0, cleanup, "Failed to send shutdown request");
-
-   ret = pgexporter_tsclient_check_outcome(socket);
-   MCTF_ASSERT(ret == 0, cleanup, "Shutdown command returned unsuccessful outcome");
-
-   pgexporter_disconnect(socket);
-   socket = -1;
-cleanup:
-   if (socket >= 0)
-   {
-      pgexporter_disconnect(socket);
-   }
-   MCTF_FINISH();
-}
-
 MCTF_TEST(test_http_metrics)
 {
    struct http* connection = NULL;
@@ -203,6 +177,32 @@ MCTF_TEST(test_http_extension_detection)
    }
 cleanup:
    pgexporter_test_teardown();
+   MCTF_FINISH();
+}
+
+/* Must run last: shuts down the daemon. Defined last so it registers last and runs last. */
+MCTF_TEST(test_http_shutdown)
+{
+   int socket = -1;
+   int ret;
+
+   socket = pgexporter_tsclient_get_connection();
+   MCTF_ASSERT(pgexporter_socket_isvalid(socket), cleanup, "Failed to get connection to pgexporter");
+
+   ret = pgexporter_management_request_shutdown(NULL, socket, MANAGEMENT_COMPRESSION_NONE,
+                                                MANAGEMENT_ENCRYPTION_NONE, MANAGEMENT_OUTPUT_FORMAT_JSON);
+   MCTF_ASSERT(ret == 0, cleanup, "Failed to send shutdown request");
+
+   ret = pgexporter_tsclient_check_outcome(socket);
+   MCTF_ASSERT(ret == 0, cleanup, "Shutdown command returned unsuccessful outcome");
+
+   pgexporter_disconnect(socket);
+   socket = -1;
+cleanup:
+   if (socket >= 0)
+   {
+      pgexporter_disconnect(socket);
+   }
    MCTF_FINISH();
 }
 

@@ -316,7 +316,7 @@ cleanup:
 /**
  * Test: AES Buffer tamper fails.
  */
-MCTF_TEST(test_aes_buffer_tamper_fails)
+MCTF_TEST_NEGATIVE(test_aes_buffer_tamper_fails)
 {
    setup_mock_master_key();
    unsigned char origin[32];
@@ -370,7 +370,7 @@ cleanup:
 /**
  * Test: Decryption with wrong password fails (no leak verification).
  */
-MCTF_TEST(test_aes_decrypt_wrong_password_no_leak)
+MCTF_TEST_NEGATIVE(test_aes_decrypt_wrong_password_no_leak)
 {
    char* plaintext = "secret-data-wrong-password-test";
    char* correct_password = "correct-master-key";
@@ -400,7 +400,7 @@ cleanup:
 /**
  * Test: Truncated ciphertext is rejected gracefully.
  */
-MCTF_TEST(test_aes_decrypt_truncated_ciphertext_fails)
+MCTF_TEST_NEGATIVE(test_aes_decrypt_truncated_ciphertext_fails)
 {
    char truncated_buf[10];
    char* password = "master-key-for-testing";
@@ -423,7 +423,7 @@ cleanup:
 /**
  * Test: GCM tag tampering fails.
  */
-MCTF_TEST(test_aes_gcm_tag_tampering_fails)
+MCTF_TEST_NEGATIVE(test_aes_gcm_tag_tampering_fails)
 {
    char* plaintext = "sensitive-tag-test-data";
    char* password = "master-key-for-testing";
@@ -450,7 +450,7 @@ cleanup:
 /**
  * Test: GCM authentication failure (tampered ciphertext).
  */
-MCTF_TEST(test_aes_gcm_authentication_failure)
+MCTF_TEST_NEGATIVE(test_aes_gcm_authentication_failure)
 {
    char* plaintext = "authentic-data-to-be-tampered";
    char* password = "master-key-for-testing";
@@ -486,7 +486,7 @@ cleanup:
 /**
  * Test: Salt mutation fails decryption.
  */
-MCTF_TEST(test_aes_salt_mutation_fails)
+MCTF_TEST_NEGATIVE(test_aes_salt_mutation_fails)
 {
    char* plaintext = "mutation-test-payload";
    char* password = "master-key-for-testing";
@@ -601,7 +601,7 @@ cleanup:
 /**
  * Test: File tampering fails (GCM).
  */
-MCTF_TEST(test_aes_file_tamper_fails)
+MCTF_TEST_NEGATIVE(test_aes_file_tamper_fails)
 {
    char path_in[1024];
    char path_enc[1024];
