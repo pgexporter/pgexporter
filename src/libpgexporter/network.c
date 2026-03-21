@@ -372,6 +372,12 @@ pgexporter_connect_unix_socket(const char* directory, const char* file, int* fd)
       return 1;
    }
 
+   if (directory == NULL || file == NULL)
+   {
+      pgexporter_log_warn("pgexporter_connect_unix_socket: directory or file is NULL: %s/%s", directory, file);
+      return 1;
+   }
+
    memset(&addr, 0, sizeof(addr));
    addr.sun_family = AF_UNIX;
 
