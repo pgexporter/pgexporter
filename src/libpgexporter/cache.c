@@ -50,7 +50,7 @@ pgexporter_cache_init(size_t cache_size, size_t* p_size, void** p_shmem)
    config = (struct configuration*)shmem;
    struct_size = sizeof(struct prometheus_cache);
 
-   if (pgexporter_create_shared_memory(struct_size + cache_size, config->hugepage, (void*)&cache))
+   if (pgexporter_create_shared_memory(struct_size + cache_size, config != NULL ? config->hugepage : false, (void*)&cache))
    {
       goto error;
    }
