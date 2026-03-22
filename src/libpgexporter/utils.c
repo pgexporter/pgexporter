@@ -3533,11 +3533,6 @@ pgexporter_free_proc_title(void)
    {
       return;
    }
-   for (int i = 0; i < proc_title_environ_size; i++)
-   {
-      free(proc_title_environ[i]);
-   }
-   free(proc_title_environ);
    proc_title_environ = NULL;
    proc_title_environ_size = 0;
 }
