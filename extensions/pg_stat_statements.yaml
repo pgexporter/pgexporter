@@ -184,6 +184,8 @@ metrics:
     queries:
       - query: SELECT current_database() as database, queryid, blk_read_time, blk_write_time, query FROM pg_stat_statements WHERE blk_read_time + blk_write_time > 0 ORDER BY (blk_read_time + blk_write_time) DESC LIMIT 10;
         version: "1.8"
+      - query: SELECT current_database() as database, queryid, shared_blk_read_time AS blk_read_time, shared_blk_write_time AS blk_write_time, query FROM pg_stat_statements WHERE shared_blk_read_time + shared_blk_write_time > 0 ORDER BY (shared_blk_read_time + shared_blk_write_time) DESC LIMIT 10;
+        version: "1.11"
         columns:
           - name: database
             type: label
@@ -302,6 +304,8 @@ metrics:
     queries:
       - query: SELECT current_database() as database, queryid, blk_read_time, blk_write_time, temp_blk_read_time, temp_blk_write_time, query FROM pg_stat_statements WHERE blk_read_time + blk_write_time + temp_blk_read_time + temp_blk_write_time > 0 ORDER BY (blk_read_time + blk_write_time + temp_blk_read_time + temp_blk_write_time) DESC LIMIT 10;
         version: "1.10"
+      - query: SELECT current_database() as database, queryid, shared_blk_read_time AS blk_read_time, shared_blk_write_time AS blk_write_time, temp_blk_read_time, temp_blk_write_time, query FROM pg_stat_statements WHERE shared_blk_read_time + shared_blk_write_time + temp_blk_read_time + temp_blk_write_time > 0 ORDER BY (shared_blk_read_time + shared_blk_write_time + temp_blk_read_time + temp_blk_write_time) DESC LIMIT 10;
+        version: "1.11"
         columns:
           - name: database
             type: label
