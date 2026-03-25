@@ -180,6 +180,157 @@ cleanup:
    MCTF_FINISH();
 }
 
+MCTF_TEST(test_http_metrics_no_empty_labels)
+{
+   struct http* connection = NULL;
+   struct http_request* request = NULL;
+   struct http_response* response = NULL;
+   struct configuration* config;
+   char* response_body = NULL;
+   char* body_copy = NULL;
+   char* line = NULL;
+   char* saveptr = NULL;
+   int ret;
+
+   pgexporter_test_setup();
+
+   config = (struct configuration*)shmem;
+
+   ret = pgexporter_http_create("localhost", config->metrics, false, &connection);
+   MCTF_ASSERT(ret == 0, cleanup, "Failed to connect to HTTP endpoint localhost:%d", config->metrics);
+
+   ret = pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/metrics", &request);
+   MCTF_ASSERT(ret == 0, cleanup, "Failed to create HTTP request");
+
+   ret = pgexporter_http_invoke(connection, request, &response);
+   MCTF_ASSERT(ret == 0, cleanup, "Failed to execute HTTP GET /metrics");
+
+   MCTF_ASSERT_PTR_NONNULL(response->payload.data, cleanup, "HTTP response body is NULL");
+
+   response_body = strdup((char*)response->payload.data);
+   MCTF_ASSERT_PTR_NONNULL(response_body, cleanup, "Failed to duplicate response body");
+
+   body_copy = strdup(response_body);
+   line = strtok_r(body_copy, "\n", &saveptr);
+   while (line != NULL)
+   {
+      if (line[0] != '#' && strstr(line, "pgexporter_") != NULL)
+      {
+         MCTF_ASSERT(strstr(line, "=\"\"") == NULL, cleanup,
+                     "Empty label value found: %s", line);
+      }
+      line = strtok_r(NULL, "\n", &saveptr);
+   }
+
+   free(body_copy);
+   body_copy = NULL;
+   free(response_body);
+   response_body = NULL;
+   pgexporter_http_response_destroy(response);
+   response = NULL;
+   pgexporter_http_request_destroy(request);
+   request = NULL;
+   pgexporter_http_destroy(connection);
+   connection = NULL;
+cleanup:
+   if (body_copy)
+      free(body_copy);
+   if (response_body)
+      free(response_body);
+   if (response)
+      pgexporter_http_response_destroy(response);
+   if (request)
+      pgexporter_http_request_destroy(request);
+   if (connection)
+      pgexporter_http_destroy(connection);
+   pgexporter_test_teardown();
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_http_metrics_valid_values)
+{
+   struct http* connection = NULL;
+   struct http_request* request = NULL;
+   struct http_response* response = NULL;
+   struct configuration* config;
+   char* response_body = NULL;
+   char* body_copy = NULL;
+   char* line = NULL;
+   char* saveptr = NULL;
+   char* brace_close = NULL;
+   char* value_str = NULL;
+   char* endptr = NULL;
+   int ret;
+
+   pgexporter_test_setup();
+
+   config = (struct configuration*)shmem;
+
+   ret = pgexporter_http_create("localhost", config->metrics, false, &connection);
+   MCTF_ASSERT(ret == 0, cleanup, "Failed to connect to HTTP endpoint localhost:%d", config->metrics);
+
+   ret = pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/metrics", &request);
+   MCTF_ASSERT(ret == 0, cleanup, "Failed to create HTTP request");
+
+   ret = pgexporter_http_invoke(connection, request, &response);
+   MCTF_ASSERT(ret == 0, cleanup, "Failed to execute HTTP GET /metrics");
+
+   MCTF_ASSERT_PTR_NONNULL(response->payload.data, cleanup, "HTTP response body is NULL");
+
+   response_body = strdup((char*)response->payload.data);
+   MCTF_ASSERT_PTR_NONNULL(response_body, cleanup, "Failed to duplicate response body");
+
+   body_copy = strdup(response_body);
+   line = strtok_r(body_copy, "\n", &saveptr);
+   while (line != NULL)
+   {
+      if (line[0] != '#' && strstr(line, "pgexporter_") != NULL)
+      {
+         brace_close = strrchr(line, '}');
+         if (brace_close != NULL)
+         {
+            value_str = brace_close + 1;
+            while (*value_str == ' ')
+            {
+               value_str++;
+            }
+            if (*value_str != '\0')
+            {
+               endptr = NULL;
+               strtod(value_str, &endptr);
+               MCTF_ASSERT(endptr != value_str && (*endptr == '\0' || *endptr == ' ' || *endptr == '\n'), cleanup,
+                           "Non-numeric metric value: '%s'", value_str);
+            }
+         }
+      }
+      line = strtok_r(NULL, "\n", &saveptr);
+   }
+
+   free(body_copy);
+   body_copy = NULL;
+   free(response_body);
+   response_body = NULL;
+   pgexporter_http_response_destroy(response);
+   response = NULL;
+   pgexporter_http_request_destroy(request);
+   request = NULL;
+   pgexporter_http_destroy(connection);
+   connection = NULL;
+cleanup:
+   if (body_copy)
+      free(body_copy);
+   if (response_body)
+      free(response_body);
+   if (response)
+      pgexporter_http_response_destroy(response);
+   if (request)
+      pgexporter_http_request_destroy(request);
+   if (connection)
+      pgexporter_http_destroy(connection);
+   pgexporter_test_teardown();
+   MCTF_FINISH();
+}
+
 /* Must run last: shuts down the daemon. Defined last so it registers last and runs last. */
 MCTF_TEST(test_http_shutdown)
 {

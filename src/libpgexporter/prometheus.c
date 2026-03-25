@@ -193,6 +193,7 @@ static int parse_list(char* list_str, char** strs, int* n_strs);
 static char* get_value(char* tag, char* name, char* val);
 static int safe_prometheus_key_additional_length(char* key);
 static char* safe_prometheus_key(char* key);
+static char* safe_prometheus_attribute(char* attr, int type_oid);
 static void safe_prometheus_key_free(char* key);
 
 static bool is_metrics_cache_configured(void);
@@ -1942,9 +1943,27 @@ add_column_to_store(column_store_t* store, int store_idx, char* data, int sort_t
       {
          while (temp->next)
          {
-            if (temp->next->tuple != NULL && current != NULL && !strcmp(temp->next->tuple->data[0], current->data[0]))
+            if (temp->next->tuple != NULL && current != NULL)
             {
-               break;
+               char* next_d0 = temp->next->tuple->data[0];
+               char* cur_d0 = current->data[0];
+
+               if (next_d0 == NULL && cur_d0 == NULL)
+               {
+                  // both are NULL, group them together
+                  break;
+               }
+               else if (next_d0 == NULL && cur_d0 != NULL)
+               {
+                  // insert non-NULL before NULL, NULLs go last
+                  break;
+               }
+               else if (next_d0 != NULL && cur_d0 != NULL && !strcmp(next_d0, cur_d0))
+               {
+                  // both are non-NULL and equal, group them together
+                  break;
+               }
+               // cur is NULL but next is not, keep searching to put NULL last
             }
             temp = temp->next;
          }
@@ -2080,7 +2099,8 @@ append:
                   db_key_present = true;
                }
 
-               safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
+               safe_key = safe_prometheus_attribute(pgexporter_get_column(j, current),
+                                                    temp->query->type_oids[j]);
                data = pgexporter_vappend(data, 5,
                                          ", ",
                                          temp->query_alt->node.columns[j].name,
@@ -2121,7 +2141,8 @@ append:
                db_key_present = true;
             }
 
-            safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
+            safe_key = safe_prometheus_attribute(pgexporter_get_column(j, current),
+                                                 temp->query->type_oids[j]);
             data = pgexporter_vappend(data, 5,
                                       ", ",
                                       temp->query_alt->node.columns[j].name,
@@ -2162,7 +2183,8 @@ append:
                db_key_present = true;
             }
 
-            safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
+            safe_key = safe_prometheus_attribute(pgexporter_get_column(j, current),
+                                                 temp->query->type_oids[j]);
             data = pgexporter_vappend(data, 5,
                                       ", ",
                                       temp->query_alt->node.columns[j].name,
@@ -2203,7 +2225,8 @@ append:
                db_key_present = true;
             }
 
-            safe_key = safe_prometheus_key(pgexporter_get_column(j, current));
+            safe_key = safe_prometheus_attribute(pgexporter_get_column(j, current),
+                                                 temp->query->type_oids[j]);
             data = pgexporter_vappend(data, 5,
                                       ", ",
                                       temp->query_alt->node.columns[j].name,
@@ -2620,6 +2643,16 @@ append:
 
          while (tuple)
          {
+            /* Skip tuples with NULL metric values */
+            char* metric_val = pgexporter_get_column(i, tuple);
+            if (metric_val == NULL)
+            {
+               pgexporter_log_debug("NULL metric value for %s_%s, skipping tuple",
+                                    store[idx].tag, store[idx].name);
+               tuple = tuple->next;
+               continue;
+            }
+
             data = NULL;
 
             data = pgexporter_vappend(data, 2,
@@ -2651,7 +2684,8 @@ append:
                   db_key_present = true;
                }
 
-               safe_key = safe_prometheus_key(pgexporter_get_column(j, tuple));
+               safe_key = safe_prometheus_attribute(pgexporter_get_column(j, tuple),
+                                                    temp->query->type_oids[j]);
                data = pgexporter_vappend(data, 5,
                                          ", ",
                                          temp->query_alt->node.columns[j].name,
@@ -2670,7 +2704,7 @@ append:
                                          "\"");
             }
 
-            safe_key = safe_prometheus_key(pgexporter_get_column(i, tuple));
+            safe_key = safe_prometheus_key(metric_val);
             data = pgexporter_vappend(data, 3,
                                       "} ",
                                       get_value(store[idx].tag, store[idx].name, safe_key),
@@ -2937,6 +2971,23 @@ safe_prometheus_key(char* key)
    }
    escaped[j] = '\0';
    return escaped;
+}
+
+static char*
+safe_prometheus_attribute(char* attr, int type_oid)
+{
+   if (attr != NULL && strlen(attr) > 0)
+   {
+      return safe_prometheus_key(attr);
+   }
+
+   switch (type_oid)
+   {
+      case 3220: /* pg_lsn */
+         return strdup("0/0");
+      default: /* text, name, varchar, etc. */
+         return strdup("n/a");
+   }
 }
 
 static void

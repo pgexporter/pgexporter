@@ -51,6 +51,7 @@ static void* data_append(void* orig, size_t orig_size, void* n, size_t n_size);
 static int create_D_tuple(int server, int number_of_columns, struct message* msg, struct tuple** tuple);
 static int get_number_of_columns(struct message* msg);
 static int get_column_name(struct message* msg, int index, char** name);
+static int get_column_type_oid(struct message* msg, int index);
 static int process_server_parameters(int server, struct deque* server_parameters);
 static int pgexporter_detect_databases(int server);
 static int pgexporter_detect_extensions(int server);
@@ -809,6 +810,8 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
 
    for (int i = 0; i < cols; i++)
    {
+      q->type_oids[i] = get_column_type_oid(tmsg, i);
+
       if (names != NULL)
       {
          pgexporter_snprintf(&q->names[i][0], PROMETHEUS_LENGTH, "%s", names[i]);
@@ -986,6 +989,50 @@ get_column_name(struct message* msg, int index, char** name)
    }
 
    return 1;
+}
+
+static int
+get_column_type_oid(struct message* msg, int index)
+{
+   int current = 0;
+   int offset;
+   int16_t cols;
+   char* tmp = NULL;
+
+   if (msg->kind == 'T')
+   {
+      cols = pgexporter_read_int16(msg->data + 5);
+
+      if (index < cols)
+      {
+         offset = 7;
+
+         while (current < index)
+         {
+            tmp = pgexporter_read_string(msg->data + offset);
+
+            offset += strlen(tmp) + 1;
+            offset += 4;
+            offset += 2;
+            offset += 4;
+            offset += 2;
+            offset += 4;
+            offset += 2;
+
+            current++;
+         }
+
+         tmp = pgexporter_read_string(msg->data + offset);
+
+         offset += strlen(tmp) + 1;
+         offset += 4;
+         offset += 2;
+
+         return pgexporter_read_int32(msg->data + offset);
+      }
+   }
+
+   return 0;
 }
 
 static int

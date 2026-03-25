@@ -55,6 +55,7 @@ struct query
    char tag[PROMETHEUS_LENGTH];                          /**< The tag */
    char names[MAX_NUMBER_OF_COLUMNS][PROMETHEUS_LENGTH]; /**< The column names */
    int number_of_columns;                                /**< The number of columns */
+   int type_oids[MAX_NUMBER_OF_COLUMNS];                 /**< The PostgreSQL type OIDs */
 
    struct tuple* tuples; /**< The tuples */
 } __attribute__((aligned(64)));
