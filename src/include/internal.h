@@ -2799,11 +2799,25 @@ extern "C" {
                       "          type: label\n"                                                                                                                                         \
                       "        - name: count\n"                                                                                                                                         \
                       "          type: gauge\n"                                                                                                                                         \
-                      "          description: pg_wait_events_count\n"                                                                                                                   \
+                      "          description: Total number of wait events\n"                                                                                                            \
                       "      version: 17\n"                                                                                                                                             \
                       "    tag: pg_wait_events\n"                                                                                                                                       \
                       "    sort: data\n"                                                                                                                                                \
-                      "    collector: wait_events \n"                                                                                                                                   \
+                      "    collector: wait_events\n"                                                                                                                                    \
+                      "\n"                                                                                                                                                              \
+                      "  - queries:\n"                                                                                                                                                  \
+                      "    - query: SELECT wait_event_type, wait_event, count(*) FROM pg_stat_activity WHERE wait_event IS NOT NULL GROUP BY 1, 2;\n"                                   \
+                      "      version: 10\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: wait_event_type\n"                                                                                                                               \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: wait_event\n"                                                                                                                                    \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: count\n"                                                                                                                                         \
+                      "          description: Number of processes currently waiting\n"                                                                                                  \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "    tag: pg_wait_event\n"                                                                                                                                        \
+                      "    collector: activity\n"                                                                                                                                       \
                       "\n"                                                                                                                                                              \
                       "# long_running_transactions()\n"                                                                                                                                 \
                       "  - queries:\n"                                                                                                                                                  \
