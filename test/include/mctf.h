@@ -76,10 +76,10 @@ typedef struct mctf_test
  */
 typedef struct mctf_test_hooks
 {
-   const char* module;        /**< Module these hooks apply to */
-   mctf_hook_func_t setup;    /**< Called before each test in module */
-   mctf_hook_func_t teardown; /**< Called after  each test in module */
-   struct mctf_test_hooks* next;
+   const char* module;           /**< Module these hooks apply to */
+   mctf_hook_func_t setup;       /**< Called before each test in module */
+   mctf_hook_func_t teardown;    /**< Called after  each test in module */
+   struct mctf_test_hooks* next; /**< Next hook registration in linked list */
 } mctf_test_hooks_t;
 
 /**
@@ -89,10 +89,10 @@ typedef struct mctf_test_hooks
  */
 typedef struct mctf_module_hooks
 {
-   const char* module;        /**< Module these hooks apply to */
-   mctf_hook_func_t setup;    /**< Called once before module's first test */
-   mctf_hook_func_t teardown; /**< Called once after  module's last  test */
-   struct mctf_module_hooks* next;
+   const char* module;             /**< Module these hooks apply to */
+   mctf_hook_func_t setup;         /**< Called once before module's first test */
+   mctf_hook_func_t teardown;      /**< Called once after  module's last  test */
+   struct mctf_module_hooks* next; /**< Next hook registration in linked list */
 } mctf_module_hooks_t;
 
 /**
