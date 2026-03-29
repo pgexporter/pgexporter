@@ -216,8 +216,9 @@ mctf_cleanup(void)
    memset(&g_runner, 0, sizeof(g_runner));
 }
 
-void
-mctf_register_test_with_flags(const char* name, const char* module, const char* file, mctf_test_func_t func, bool is_negative)
+static void
+mctf_register_test_with_options(const char* name, const char* module, const char* file,
+                                mctf_test_func_t func, bool is_negative, unsigned int max_elapsed_sec)
 {
    if (!g_initialized)
    {
@@ -260,6 +261,7 @@ mctf_register_test_with_flags(const char* name, const char* module, const char* 
 
    test->func = func;
    test->is_negative = is_negative;
+   test->max_elapsed_sec = max_elapsed_sec;
    test->next = NULL;
 
    /* Preserve declaration/registration order to keep test sequencing deterministic.
@@ -279,9 +281,29 @@ mctf_register_test_with_flags(const char* name, const char* module, const char* 
 }
 
 void
+mctf_register_test_with_flags(const char* name, const char* module, const char* file, mctf_test_func_t func, bool is_negative)
+{
+   mctf_register_test_with_options(name, module, file, func, is_negative, 0);
+}
+
+void
 mctf_register_test(const char* name, const char* module, const char* file, mctf_test_func_t func)
 {
    mctf_register_test_with_flags(name, module, file, func, false);
+}
+
+void
+mctf_register_test_with_max_time(const char* name, const char* module, const char* file,
+                                 mctf_test_func_t func, unsigned int max_seconds)
+{
+   mctf_register_test_with_options(name, module, file, func, false, max_seconds);
+}
+
+void
+mctf_register_test_with_max_time_negative(const char* name, const char* module, const char* file,
+                                          mctf_test_func_t func, unsigned int max_seconds)
+{
+   mctf_register_test_with_options(name, module, file, func, true, max_seconds);
 }
 
 
@@ -639,7 +661,38 @@ mctf_run_tests(mctf_filter_type_t filter_type, const char* filter)
 
          bool base_pass = (ret == 0 && mctf_errno == 0);
 
-         if (base_pass)
+         bool timeout = (test->max_elapsed_sec > 0 &&
+                         (unsigned long)elapsed_ms > (unsigned long)test->max_elapsed_sec * 1000UL);
+
+         if (timeout)
+         {
+            char tmsg[160];
+
+            result->passed = false;
+            result->error_code = 0;
+            if (result->error_message)
+            {
+               free((void*)result->error_message);
+               result->error_message = NULL;
+            }
+            if (mctf_errmsg)
+            {
+               free(mctf_errmsg);
+               mctf_errmsg = NULL;
+            }
+            snprintf(tmsg, sizeof(tmsg),
+                     "Test exceeded maximum time: %ld.%03lds (limit %us)",
+                     elapsed_ms / 1000, elapsed_ms % 1000, test->max_elapsed_sec);
+            result->error_message = strdup(tmsg);
+            g_runner.failed_count++;
+            mctf_logf("  %s (%02ld:%02ld:%02ld,%03ld) [FAIL]\n",
+                      test->name, hours, minutes, seconds, milliseconds);
+            if (result->error_message)
+            {
+               mctf_logf("  %s\n", result->error_message);
+            }
+         }
+         else if (base_pass)
          {
             /* Passed by assertions; now enforce log cleanliness for positive tests */
             if (!test->is_negative && has_log_errors)
@@ -773,11 +826,21 @@ mctf_print_summary(void)
             }
             else if (r->error_message)
             {
-               mctf_logf("  - %s (%s:%d) - %s\n",
-                         r->test_name,
-                         r->file,
-                         r->error_code,
-                         r->error_message);
+               if (r->error_code != 0)
+               {
+                  mctf_logf("  - %s (%s:%d) - %s\n",
+                            r->test_name,
+                            r->file,
+                            r->error_code,
+                            r->error_message);
+               }
+               else
+               {
+                  mctf_logf("  - %s (%s) - %s\n",
+                            r->test_name,
+                            r->file,
+                            r->error_message);
+               }
             }
             else
             {

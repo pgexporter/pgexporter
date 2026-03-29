@@ -32,6 +32,7 @@ It is recommended that you **ALWAYS** run tests before raising PR.
 
 - **Automatic test registration** - Tests register automatically via constructor attributes
 - **Per-test pgexporter log slicing and validation** - Captures each test's log window to `/tmp/pgexporter-test/log/<module>__<test_name>.pgexporter.log`; positive tests fail on unexpected `ERROR` lines, while `MCTF_TEST_NEGATIVE` is used for expected-error scenarios
+- **Maximum runtime (performance gate)** - `MCTF_TEST_MAX(name, seconds)` fails the test if it runs longer than the limit; `MCTF_TEST_MAX_NEGATIVE(name, seconds)` adds a time limit to a negative test. Use to catch performance regressions (e.g. after OpenSSL changes).
 
 **MCTF Framework Overview**
 
@@ -49,12 +50,13 @@ MCTF (Minimal C Test Framework) is pgexporter's custom test framework designed f
 - **Cleanup pattern** – Structured cleanup using goto labels for resource management
 - **Error tracking** – Automatic error tracking with line numbers and custom error messages
 - **Multiple assertion types** – Various assertion macros (`MCTF_ASSERT`, `MCTF_ASSERT_PTR_NONNULL`, `MCTF_ASSERT_INT_EQ`, `MCTF_ASSERT_STR_EQ`, etc.)
+- **Maximum runtime (performance gate)** – `MCTF_TEST_MAX(name, seconds)` fails the test if it runs longer than the limit; `MCTF_TEST_MAX_NEGATIVE(name, seconds)` adds a time limit to a negative test. Use to catch performance regressions (e.g. after OpenSSL changes).
 
 **What MCTF Cannot Do (Limitations):**
 
 - **No parameterized tests** – Tests cannot be parameterized (each variation needs a separate test function)
 - **No parallel or async execution** – Tests run sequentially and synchronously
-- **No built-in timeouts** – No framework-level test timeouts (rely on OS-level signals or manual timeouts)
+- **No hard kill on timeout** – Max-time only fails after the test returns; it does not interrupt a stuck test (rely on OS signals or external timeouts for that)
 - **No test organization beyond modules** – No test suites, groups, tags, or metadata beyond module names extracted from filenames
 
 **Add Testcases**
@@ -74,6 +76,30 @@ Behavior:
 - `MCTF_TEST`: fails if the test itself passes but the log slice contains unexpected `ERROR` lines
 - `MCTF_TEST_NEGATIVE`: skips the log-error failure gate for that test (still must satisfy test assertions)
 - `WARN` lines are included in summaries but do not fail a passing test
+
+**Maximum test runtime (performance gate)**
+
+Use `MCTF_TEST_MAX(test_name, max_seconds)` to enforce a maximum allowed runtime.
+If the test completes successfully but takes longer than `max_seconds`, it is
+reported as **FAILED** with a message that the maximum time was exceeded.
+
+- **MCTF_TEST_MAX(name, seconds)** – Positive test with a time limit.
+- **MCTF_TEST_MAX_NEGATIVE(name, seconds)** – Negative test (log errors allowed)
+  with a time limit.
+
+```c
+MCTF_TEST_MAX(test_backup_full, 60)
+{
+  // Test must pass and finish within 60 seconds
+  ...
+}
+```
+
+- Limit is in **seconds**; elapsed time includes per-test setup, the test function,
+  and per-test teardown.
+- Skipped tests do not run the max-time failure path. If a test exceeds the max
+  time, it is reported as a time failure (before the assertion / log-success path).
+- On timeout, the failure message looks like: `Test exceeded maximum time: 65.234s (limit 60s)`.
 
 **Lifecycle Hooks**
 
