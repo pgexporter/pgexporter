@@ -73,13 +73,15 @@ RUN cd build && \
 
 FROM rockylinux:9
 
-RUN dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm && \
-    dnf -y update && \
-    dnf install -y postgresql17-server \
-        postgresql17-contrib \
-        libpq5 \
+RUN dnf -y update && \
+    dnf install -y \
         libev \
-        libatomic && \
+        libatomic \
+        libyaml \
+        zlib \
+        zstd \
+        lz4 \
+        bzip2 && \
     dnf clean all
 
 RUN useradd --create-home --shell /bin/bash pgexporter
