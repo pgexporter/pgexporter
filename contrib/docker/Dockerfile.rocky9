@@ -101,4 +101,7 @@ USER pgexporter
 RUN echo "pgexporter" | /usr/local/bin/pgexporter-admin master-key && \
     printf "pgexporter\npgexporter\npgexporter\n" | /usr/local/bin/pgexporter-admin -f /etc/pgexporter/pgexporter_users.conf user add
 
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
+    CMD pgexporter-cli -c /etc/pgexporter/pgexporter.conf ping || exit 1
+
 CMD ["/usr/local/bin/pgexporter", "-c", "/etc/pgexporter/pgexporter.conf", "-u", "/etc/pgexporter/pgexporter_users.conf"]
