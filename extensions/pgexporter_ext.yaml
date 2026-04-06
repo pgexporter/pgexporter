@@ -32,8 +32,8 @@ metrics:
   # Operating system information
   - metric: os_info
     queries:
-      - query: SELECT current_database() as database, * FROM pgexporter_os_info();
-        version: "0.3.0"
+      - query: SELECT current_database() as database, * FROM pgexporter_ext_os_info();
+        version: "0.3.1"
         columns:
           - name: database
             type: label
@@ -62,8 +62,8 @@ metrics:
   # CPU information
   - metric: cpu_info
     queries:
-      - query: SELECT current_database() as database, * FROM pgexporter_cpu_info();
-        version: "0.3.0"
+      - query: SELECT current_database() as database, * FROM pgexporter_ext_cpu_info();
+        version: "0.3.1"
         columns:
           - name: database
             type: label
@@ -95,8 +95,8 @@ metrics:
   # Memory information
   - metric: memory_info
     queries:
-      - query: SELECT current_database() as database, * FROM pgexporter_memory_info();
-        version: "0.3.0"
+      - query: SELECT current_database() as database, * FROM pgexporter_ext_memory_info();
+        version: "0.3.1"
         columns:
           - name: database
             type: label
@@ -125,8 +125,8 @@ metrics:
   # Network interface information
   - metric: network_info
     queries:
-      - query: SELECT current_database() as database, * FROM pgexporter_network_info();
-        version: "0.3.0"
+      - query: SELECT current_database() as database, * FROM pgexporter_ext_network_info();
+        version: "0.3.1"
         columns:
           - name: database
             type: label
@@ -167,8 +167,8 @@ metrics:
   # System load averages
   - metric: load_avg
     queries:
-      - query: SELECT current_database() as database, * FROM pgexporter_load_avg();
-        version: "0.3.0"
+      - query: SELECT current_database() as database, * FROM pgexporter_ext_load_avg();
+        version: "0.3.1"
         columns:
           - name: database
             type: label
@@ -181,3 +181,15 @@ metrics:
           - name: load_avg_ten_minutes
             type: gauge
             description: 15-minute load average
+
+  # FIPS mode status
+  - metric: fips
+    queries:
+      - query: SELECT current_database() as database, pgexporter_ext_fips() as enabled;
+        version: "0.3.1"
+        columns:
+          - name: database
+            type: label
+          - name: enabled
+            type: gauge
+            description: PostgreSQL OpenSSL FIPS mode status

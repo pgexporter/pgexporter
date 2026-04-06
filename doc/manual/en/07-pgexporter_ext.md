@@ -15,11 +15,12 @@ information about the environment.
 * Network information
 * Load average metrics
 * Disk space metrics
+* FIPS mode detection
 
 and is supported on
 
-* Fedora
-* RHEL 9 / RockyLinux 9
+* Fedora 42+
+* Rocky Linux 10
 
 based systems.
 
@@ -39,13 +40,14 @@ for example if your [PostgreSQL][postgresql] version is 17.
 You can also compile the source code of [**pgexporter_ext**][pgexporter_ext] by
 
 ```
-dnf install git gcc cmake make postgresql-devel
+dnf install gcc cmake make zlib-devel bzip2-devel lz4-devel libzstd-devel openssl-devel postgresql-devel
 ```
 
-or
+**NOTE**: It may happen that build fails due to `"postgres.h"` not being found. In that case, uninstall the package `postgresql-devel` and instead install `postgresql-server-devel`:
 
-```
-dnf install git gcc cmake make postgresql-server-devel
+```sh
+dnf remove postgresql-devel
+dnf install postgresql-server-devel
 ```
 
 and then do
@@ -55,7 +57,7 @@ git clone https://github.com/pgexporter/pgexporter_ext.git
 cd pgexporter_ext
 mkdir build
 cd build
-cmake ..
+cmake -DCMAKE_C_COMPILER=gcc ..
 make
 sudo make install
 ```
@@ -71,7 +73,7 @@ ls `pg_config --libdir`/pgexporter_ext*
 You should see
 
 ```
-/path/to/postgresql/lib/pgexporter_ext.so  /path/to/postgresql/lib/pgexporter_ext.so.0.2.4
+/path/to/postgresql/lib/pgexporter_ext.so  /path/to/postgresql/lib/pgexporter_ext.so.0.3.1
 ```
 
 Then, you have to change the `postgresql.conf` file to enable the extension with
@@ -385,3 +387,11 @@ Link speed in Mbps for network interface.
 | server | The configured name/identifier for the PostgreSQL server. |
 | database | The database being monitored. |
 
+**pgexporter_pgexporter_ext_fips_enabled**
+
+PostgreSQL OpenSSL FIPS mode status.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The database being monitored. |
