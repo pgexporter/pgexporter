@@ -1,4 +1,8 @@
-# pgexporter-cli user guide
+# pgexporter-cli User Guide
+
+pgexporter-cli is a command-line tool used to interact with the pgexporter service.
+It allows users to monitor, configure, and control pgexporter instances.
+
 
 ```
 pgexporter-cli [ -c CONFIG_FILE ] [ COMMAND ]
