@@ -25,7 +25,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 IMAGE_SHORT_NAME = pgexporter-test-postgresql17
-IMAGE_NAME = pgexporter-test-postgresql17-rocky9
+IMAGE_NAME = pgexporter-test-postgresql17-rocky10
 CONTAINER_ENGINE := $(shell \
 	if command -v podman >/dev/null 2>&1; then echo podman; \
 	elif command -v docker >/dev/null 2>&1; then echo "sudo docker"; \

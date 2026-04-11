@@ -29,7 +29,7 @@
 set -eo pipefail
 
 # Variables
-IMAGE_NAME="pgexporter-test-postgresql17-rocky9"
+IMAGE_NAME="pgexporter-test-postgresql17-rocky10"
 CONTAINER_NAME="pgexporter-test-postgresql17"
 
 SCRIPT_DIR="$(realpath "$(dirname "${BASH_SOURCE[0]}")")"
@@ -47,6 +47,7 @@ PG_LOG_DIR="$PGEXPORTER_ROOT_DIR/pg_log"
 # BASE DIR holds all the run time data
 CONFIGURATION_DIRECTORY=$BASE_DIR/conf
 PGCONF_DIRECTORY=$BASE_DIR/pg_conf
+PGDATA_DIR="$PGEXPORTER_ROOT_DIR/postgresql"
 
 PG_DATABASE=postgres
 PG_USER_NAME=pgexporter
@@ -55,15 +56,28 @@ USER=$(whoami)
 MODE="dev"
 PORT=6432
 
-# Detect container engine: Docker or Podman (prefer Podman to match Makefile)
-if command -v podman &> /dev/null; then
-  CONTAINER_ENGINE="podman"
-elif command -v docker &> /dev/null; then
-  CONTAINER_ENGINE="sudo docker"
+# Root-aware sudo: empty when root (CI), 'sudo' when non-root (local dev)
+if [ "$(id -u)" -eq 0 ]; then
+  SUDO=""
 else
-  echo "Neither Docker nor Podman is installed. Please install one to proceed."
-  exit 1
+  SUDO="sudo"
 fi
+
+# Lazy container engine detection (not needed in CI mode)
+CONTAINER_ENGINE=""
+detect_container_engine() {
+  if [ -n "$CONTAINER_ENGINE" ]; then
+    return
+  fi
+  if command -v podman &> /dev/null; then
+    CONTAINER_ENGINE="podman"
+  elif command -v docker &> /dev/null; then
+    CONTAINER_ENGINE="$SUDO docker"
+  else
+    echo "Neither Docker nor Podman is installed. Please install one to proceed."
+    exit 1
+  fi
+}
 
 if [ -n "$PGEXPORTER_TEST_PORT" ]; then
     PORT=$PGEXPORTER_TEST_PORT
@@ -224,6 +238,55 @@ remove_postgresql_container() {
   $CONTAINER_ENGINE stop $CONTAINER_NAME 2>/dev/null || true
   $CONTAINER_ENGINE rm -f $CONTAINER_NAME 2>/dev/null || true
 }
+
+start_local_postgresql() {
+  local pg_log_file="$PG_LOG_DIR/logfile"
+
+  echo "Initializing local PostgreSQL 17 cluster"
+  rm -Rf "$PGDATA_DIR"
+  mkdir -p "$PGDATA_DIR"
+
+  initdb -D "$PGDATA_DIR" -k >/dev/null
+
+  cp "$PGCONF_DIRECTORY/postgresql.conf" "$PGDATA_DIR/postgresql.conf"
+  cp "$PGCONF_DIRECTORY/pg_hba.conf" "$PGDATA_DIR/pg_hba.conf"
+
+  sed -i "s/PG_MAX_CONNECTIONS/${PG_MAX_CONNECTIONS:-100}/g" "$PGDATA_DIR/postgresql.conf"
+  sed -i "s/PG_SHARED_BUFFERS/${PG_SHARED_BUFFERS:-256MB}/g" "$PGDATA_DIR/postgresql.conf"
+  sed -i "s/PG_WORK_MEM/${PG_WORK_MEM:-4MB}/g" "$PGDATA_DIR/postgresql.conf"
+  sed -i "s/PG_MAX_PARALLEL_WORKERS/${PG_MAX_PARALLEL_WORKERS:-8}/g" "$PGDATA_DIR/postgresql.conf"
+  sed -i "s/PG_EFFECTIVE_CACHE_SIZE/${PG_EFFECTIVE_CACHE_SIZE:-4GB}/g" "$PGDATA_DIR/postgresql.conf"
+  sed -i "s/PG_MAX_WAL_SIZE/${PG_MAX_WAL_SIZE:-1GB}/g" "$PGDATA_DIR/postgresql.conf"
+  sed -i "s/PG_LOG_LEVEL/${PG_LOG_LEVEL:-debug5}/g" "$PGDATA_DIR/postgresql.conf"
+  sed -i "s/^port = .*/port = $PORT/" "$PGDATA_DIR/postgresql.conf"
+  sed -i "s|log_directory = '/pglog'|log_directory = '$PG_LOG_DIR'|" "$PGDATA_DIR/postgresql.conf"
+
+  sed -i "s/PG_DATABASE/$PG_DATABASE/g" "$PGDATA_DIR/pg_hba.conf"
+  sed -i "s/PG_USER_NAME/$PG_USER_NAME/g" "$PGDATA_DIR/pg_hba.conf"
+
+  touch "$pg_log_file"
+
+  echo "Starting local PostgreSQL 17"
+  pg_ctl -D "$PGDATA_DIR" -l "$pg_log_file" start >/dev/null
+
+  for i in {1..10}; do
+    if pg_isready -h localhost -p "$PORT" >/dev/null 2>&1; then
+      echo "Local PostgreSQL 17 is ready!"
+      break
+    fi
+    if [[ $i -eq 10 ]]; then
+      echo "PostgreSQL 17 is not ready, printing logs"
+      cat "$pg_log_file"
+      exit 1
+    fi
+    sleep 1
+  done
+
+  psql -q -h /tmp -p "$PORT" -U "$USER" -d postgres -c "CREATE ROLE $PG_USER_NAME WITH LOGIN PASSWORD '$PG_USER_PASSWORD'" >/dev/null
+  psql -q -h /tmp -p "$PORT" -U "$USER" -d postgres -c "GRANT pg_monitor TO $PG_USER_NAME" >/dev/null
+  psql -q -h /tmp -p "$PORT" -U "$USER" -d postgres -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements" >/dev/null
+}
+
 
 pgexporter_initialize_configuration() {
    touch $CONFIGURATION_DIRECTORY/pgexporter.conf $CONFIGURATION_DIRECTORY/pgexporter_users.conf
@@ -392,7 +455,7 @@ need_build() {
 do_setup() {
   local always_build="${1:-}"
   echo "Preparing the pgexporter directory"
-  export LLVM_PROFILE_FILE="$COVERAGE_DIR/coverage-%p-%m.profraw"
+  export LLVM_PROFILE_FILE="${LLVM_PROFILE_FILE:-$COVERAGE_DIR/coverage-%p-%m.profraw}"
   rm -Rf "$PGEXPORTER_ROOT_DIR"
   mkdir -p "$PGEXPORTER_ROOT_DIR"
   mkdir -p "$LOG_DIR" "$PG_LOG_DIR" "$COVERAGE_DIR" "$BASE_DIR"
@@ -403,19 +466,21 @@ do_setup() {
   chmod -R 777 $PG_LOG_DIR
   chmod -R 777 $PGCONF_DIRECTORY
 
-  echo "Building PostgreSQL 17 image if necessary"
-  if $CONTAINER_ENGINE image inspect "$IMAGE_NAME" >/dev/null 2>&1 || \
-     $CONTAINER_ENGINE image inspect "localhost/$IMAGE_NAME" >/dev/null 2>&1; then
-    echo "Image $IMAGE_NAME exists, skip building"
-  else
-    echo "Image $IMAGE_NAME does not exist, building now..."
-    build_postgresql_image
+  if [[ $MODE != "ci" ]]; then
+    echo "Building PostgreSQL 17 image if necessary"
     if $CONTAINER_ENGINE image inspect "$IMAGE_NAME" >/dev/null 2>&1 || \
        $CONTAINER_ENGINE image inspect "localhost/$IMAGE_NAME" >/dev/null 2>&1; then
-      echo "Image built successfully"
+      echo "Image $IMAGE_NAME exists, skip building"
     else
-      echo "ERROR: Failed to build PostgreSQL image"
-      exit 1
+      echo "Image $IMAGE_NAME does not exist, building now..."
+      build_postgresql_image
+      if $CONTAINER_ENGINE image inspect "$IMAGE_NAME" >/dev/null 2>&1 || \
+         $CONTAINER_ENGINE image inspect "localhost/$IMAGE_NAME" >/dev/null 2>&1; then
+        echo "Image built successfully"
+      else
+        echo "ERROR: Failed to build PostgreSQL image"
+        exit 1
+      fi
     fi
   fi
 
@@ -431,8 +496,13 @@ do_setup() {
     echo "pgexporter binaries already present, skipping build"
   fi
 
-  echo "Start PostgreSQL 17 container"
-  start_postgresql_container
+  if [[ $MODE == "ci" ]]; then
+    echo "Start local PostgreSQL 17"
+    start_local_postgresql
+  else
+    echo "Start PostgreSQL 17 container"
+    start_postgresql_container
+  fi
 
   echo "Initialize pgexporter"
   pgexporter_initialize_configuration
@@ -503,12 +573,14 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ "$SUBCOMMAND" == "build" ]]; then
+   detect_container_engine
    do_setup force
    exit 0
 fi
 if [[ "$SUBCOMMAND" == "setup" ]]; then
+   detect_container_engine
    build_postgresql_image
-   sudo dnf install -y \
+   $SUDO dnf install -y \
       clang \
       clang-analyzer \
       cmake \
@@ -520,6 +592,7 @@ if [[ "$SUBCOMMAND" == "setup" ]]; then
    exit 0
 fi
 if [[ "$SUBCOMMAND" == "clean" ]]; then
+   detect_container_engine
    rm -Rf $COVERAGE_DIR
    cleanup
    cleanup_postgresql_image
@@ -533,5 +606,6 @@ if [[ "$SUBCOMMAND" == "ci" ]]; then
    run_tests
    exit 0
 fi
+detect_container_engine
 trap cleanup EXIT SIGINT
 run_tests

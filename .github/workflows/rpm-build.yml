@@ -14,11 +14,12 @@ jobs:
       - name: Install build dependencies
         run: |
           dnf update -y && \
-          dnf install -y rpm-build gcc cmake make python3-docutils \
-          liburing-devel openssl-devel systemd-devel libatomic \
-          zlib-devel libzstd-devel lz4-devel bzip2-devel binutils chrpath \
-          lz4 openssl systemd zlib libzstd bzip2 git libev-devel libev \
-          libyaml-devel
+          dnf install -y \
+            rpm-build gcc cmake make python3-docutils \
+            liburing-devel openssl-devel systemd-devel libatomic \
+            zlib-devel libzstd-devel lz4-devel bzip2-devel binutils chrpath \
+            lz4 openssl systemd zlib libzstd bzip2 git libev-devel libev \
+            libyaml-devel
 
       - name: Checkout code
         uses: actions/checkout@v4

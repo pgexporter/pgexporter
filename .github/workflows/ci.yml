@@ -61,9 +61,11 @@ jobs:
             --check
         working-directory: /home/runner/work/pgexporter/pgexporter/
 
-  build-ubuntu:
+  build-linux:
     needs: [format-check, contrib-check]
     runs-on: ubuntu-latest
+    container:
+      image: rockylinux/rockylinux:10
 
     strategy:
       matrix:
@@ -74,77 +76,67 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
-          sudo apt update && sudo apt install -y \
-            git gcc cmake make libev-dev openssl libssl-dev systemd libsystemd-dev \
-            libyaml-dev python3-docutils libatomic1 zlib1g zlib1g-dev \
-            libzstd-dev liblz4-dev bzip2 libbz2-dev pandoc texlive-base \
-            texlive-latex-recommended texlive-fonts-recommended texlive-extra-utils \
-            texlive-xetex texlive-fonts-extra wget graphviz doxygen \
-            check curl \
-            gcovr
+          dnf -y install dnf-plugins-core
+          dnf config-manager --set-enabled crb
+          dnf -y install epel-release
+          dnf -y install \
+            git gcc clang cmake make \
+            libev libev-devel openssl openssl-devel \
+            systemd systemd-devel zlib zlib-devel \
+            libzstd libzstd-devel lz4 lz4-devel \
+            bzip2 bzip2-devel libatomic libyaml-devel \
+            python3-docutils \
+            check check-devel llvm \
+            libasan libubsan \
+            iproute net-tools procps-ng \
+            shadow-utils util-linux sudo which curl
 
-      - name: Install LLVM/Clang Toolchain
+      - name: Mark workspace as safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Install PostgreSQL 17
         run: |
-          sudo apt update -y
-          sudo apt install -y lsb-release wget software-properties-common gnupg
-          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-snapshot.gpg
-          echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg] http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-21 main" | sudo tee /etc/apt/sources.list.d/llvm.list
-          sudo apt update -y
-          sudo apt install -y clang-21 clang-tools-21 llvm-21
-          
-          # Create symlinks for the compiler
-          sudo ln -sf /usr/bin/clang-21 /usr/bin/clang
-          sudo ln -sf /usr/bin/clang++-21 /usr/bin/clang++
-          
-          # Create symlinks for coverage tools
-          sudo ln -sf /usr/bin/llvm-cov-21 /usr/bin/llvm-cov
-          sudo ln -sf /usr/bin/llvm-profdata-21 /usr/bin/llvm-profdata
-      - name: Install PostgreSQL
-        run: |
-          sudo apt install curl ca-certificates
-          sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          sudo sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-          sudo apt update
-          sudo apt install -y postgresql-17
+          dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-10-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+          dnf -qy module disable postgresql 2>/dev/null || true
+          dnf install -y postgresql17 postgresql17-server postgresql17-contrib postgresql17-libs
 
       - name: Set Env Path Variable
         run: |
-          echo "PATH=$PATH:/usr/lib/postgresql/17/bin" >> $GITHUB_ENV
+          echo "PATH=/usr/pgsql-17/bin:$PATH" >> $GITHUB_ENV
           echo $PATH
-
-      - name: Install Eisvogel template for Pandoc
-        run: |
-              wget https://github.com/Wandmalfarbe/pandoc-latex-template/releases/download/v3.4.0/Eisvogel-3.4.0.tar.gz
-              tar -xzf Eisvogel-3.4.0.tar.gz
-              mkdir -p ~/.local/share/pandoc/templates
-              mv Eisvogel-3.4.0/eisvogel.latex ~/.local/share/pandoc/templates/
 
       - name: Build Project
         run: |
-              mkdir build
-              cd build
-              if [ "${{ matrix.compiler }}" = "gcc" ]; then
-                export CC=/usr/bin/gcc
-              else
-                export CC=/usr/bin/clang
-              fi
+          mkdir build
+          cd build
+          if [ "${{ matrix.compiler }}" = "gcc" ]; then
+            export CC=/usr/bin/gcc
+          else
+            export CC=/usr/bin/clang
+          fi
+          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DDOCS=FALSE ..
+          make -j$(nproc)
 
-              cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -Dcheck=ON ..
-              make -j$(nproc)
-        working-directory: /home/runner/work/pgexporter/pgexporter/
+      - name: Create test user
+        run: |
+          useradd -m -s /bin/bash runner
+          echo "runner ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+          chown -R runner:runner $GITHUB_WORKSPACE
+
+      - name: Prepare test directories
+        run: |
+          mkdir -p /tmp/pgexporter-test/{base,log,pg_log,coverage}
+          chown -R runner:runner /tmp/pgexporter-test
 
       - name: Run Tests
         run: |
           if [ "${{ matrix.compiler }}" = "clang" ] && [ "${{ matrix.build_type }}" = "Debug" ]; then
-             export LLVM_PROFILE_FILE="/tmp/pgexporter-test/coverage/code-%p.profraw"
+            su - runner -c "cd $GITHUB_WORKSPACE && export PATH=/usr/pgsql-17/bin:\$PATH && export LLVM_PROFILE_FILE='/tmp/pgexporter-test/coverage/code-%p.profraw' && bash ./test/check.sh ci"
+          elif [ "${{ matrix.build_type }}" = "Debug" ]; then
+            su - runner -c "cd $GITHUB_WORKSPACE && export PATH=/usr/pgsql-17/bin:\$PATH && bash ./test/check.sh ci"
           fi
-          if [ "${{ matrix.build_type }}" = "Debug" ]; then
-            $(which bash) ./test/check.sh ci
-          fi
-        working-directory: /home/runner/work/pgexporter/pgexporter/
 
       - name: Report coverage summary
         if: matrix.compiler == 'clang' && matrix.build_type == 'Debug'
@@ -162,21 +154,13 @@ jobs:
           name: coverage-reports-${{ matrix.compiler }}-${{ matrix.build_type }}
           path: /tmp/pgexporter-test/coverage
           retention-days: 90
-          
+
       - name: Upload Build and Run Logs as Artifacts
         if: always()
         uses: actions/upload-artifact@v5
         with:
           name: logs-${{ matrix.compiler }}-${{ matrix.build_type }}
           path: /tmp/pgexporter-test/log
-          retention-days: 90
-
-      - name: Upload Generated Documentation Artifact
-        if: matrix.compiler == 'gcc' && matrix.build_type == 'Release'
-        uses: actions/upload-artifact@v5
-        with:
-          name: generated-docs
-          path: /home/runner/work/pgexporter/pgexporter/build/doc
           retention-days: 90
 
   build-macos:
