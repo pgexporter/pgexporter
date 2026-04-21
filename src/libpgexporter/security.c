@@ -1053,81 +1053,97 @@ pgexporter_server_authenticate(int server, char* database, char* username, char*
       goto error;
    }
 
-   ret = pgexporter_create_ssl_message(&ssl_msg);
-   if (ret != MESSAGE_STATUS_OK)
+   if (config->servers[server].tls_mode == SERVER_TLS_ON &&
+       strlen(config->servers[server].tls_ca_file) == 0)
    {
+      pgexporter_log_error("%s: tls=on requires tls_ca_file to be set", config->servers[server].name);
       goto error;
    }
 
-   ret = pgexporter_write_message(NULL, server_fd, ssl_msg);
-   if (ret != MESSAGE_STATUS_OK)
+   if (config->servers[server].tls_mode != SERVER_TLS_OFF)
    {
-      goto error;
-   }
-
-   ret = pgexporter_read_block_message(NULL, server_fd, &msg);
-   if (ret != MESSAGE_STATUS_OK)
-   {
-      goto error;
-   }
-
-   if (msg->kind == 'S')
-   {
-      SSL_CTX* ctx = NULL;
-
-      if (pgexporter_create_ssl_ctx(true, &ctx))
+      ret = pgexporter_create_ssl_message(&ssl_msg);
+      if (ret != MESSAGE_STATUS_OK)
       {
          goto error;
       }
 
-      pgexporter_log_trace("%s: Key file @ %s", config->servers[server].name, config->servers[server].tls_key_file);
-      pgexporter_log_trace("%s: Certificate file @ %s", config->servers[server].name, config->servers[server].tls_cert_file);
-      pgexporter_log_trace("%s: CA file @ %s", config->servers[server].name, config->servers[server].tls_ca_file);
-
-      if (create_ssl_client(ctx, config->servers[server].tls_key_file, config->servers[server].tls_cert_file, config->servers[server].tls_ca_file, server_fd, &c_ssl))
+      ret = pgexporter_write_message(NULL, server_fd, ssl_msg);
+      if (ret != MESSAGE_STATUS_OK)
       {
          goto error;
       }
 
-      do
+      ret = pgexporter_read_block_message(NULL, server_fd, &msg);
+      if (ret != MESSAGE_STATUS_OK)
       {
-         connect = SSL_connect(c_ssl);
+         goto error;
+      }
 
-         if (connect != 1)
+      if (msg->kind != 'S' && config->servers[server].tls_mode == SERVER_TLS_ON)
+      {
+         pgexporter_log_error("%s: tls=on requested but server declined TLS", config->servers[server].name);
+         goto error;
+      }
+
+      if (msg->kind == 'S')
+      {
+         SSL_CTX* ctx = NULL;
+
+         if (pgexporter_create_ssl_ctx(true, &ctx))
          {
-            int err = SSL_get_error(c_ssl, connect);
-            switch (err)
-            {
-               case SSL_ERROR_ZERO_RETURN:
-               case SSL_ERROR_WANT_READ:
-               case SSL_ERROR_WANT_WRITE:
-               case SSL_ERROR_WANT_CONNECT:
-               case SSL_ERROR_WANT_ACCEPT:
-               case SSL_ERROR_WANT_X509_LOOKUP:
-#ifndef HAVE_OPENBSD
-               case SSL_ERROR_WANT_ASYNC:
-               case SSL_ERROR_WANT_ASYNC_JOB:
-               case SSL_ERROR_WANT_CLIENT_HELLO_CB:
-#endif
-                  break;
-               case SSL_ERROR_SYSCALL:
-                  pgexporter_log_error("SSL_ERROR_SYSCALL: %s (%d)", strerror(errno), server_fd);
-                  errno = 0;
-                  goto error;
-                  break;
-               case SSL_ERROR_SSL:
-                  pgexporter_log_error("SSL_ERROR_SSL: %s (%d)", strerror(errno), server_fd);
-                  pgexporter_log_error("%s", ERR_error_string(err, NULL));
-                  pgexporter_log_error("%s", ERR_lib_error_string(err));
-                  pgexporter_log_error("%s", ERR_reason_error_string(err));
-                  errno = 0;
-                  goto error;
-                  break;
-            }
-            ERR_clear_error();
+            goto error;
          }
+
+         pgexporter_log_trace("%s: Key file @ %s", config->servers[server].name, config->servers[server].tls_key_file);
+         pgexporter_log_trace("%s: Certificate file @ %s", config->servers[server].name, config->servers[server].tls_cert_file);
+         pgexporter_log_trace("%s: CA file @ %s", config->servers[server].name, config->servers[server].tls_ca_file);
+
+         if (create_ssl_client(ctx, config->servers[server].tls_key_file, config->servers[server].tls_cert_file, config->servers[server].tls_ca_file, server_fd, &c_ssl))
+         {
+            goto error;
+         }
+
+         do
+         {
+            connect = SSL_connect(c_ssl);
+
+            if (connect != 1)
+            {
+               int err = SSL_get_error(c_ssl, connect);
+               switch (err)
+               {
+                  case SSL_ERROR_ZERO_RETURN:
+                  case SSL_ERROR_WANT_READ:
+                  case SSL_ERROR_WANT_WRITE:
+                  case SSL_ERROR_WANT_CONNECT:
+                  case SSL_ERROR_WANT_ACCEPT:
+                  case SSL_ERROR_WANT_X509_LOOKUP:
+#ifndef HAVE_OPENBSD
+                  case SSL_ERROR_WANT_ASYNC:
+                  case SSL_ERROR_WANT_ASYNC_JOB:
+                  case SSL_ERROR_WANT_CLIENT_HELLO_CB:
+#endif
+                     break;
+                  case SSL_ERROR_SYSCALL:
+                     pgexporter_log_error("SSL_ERROR_SYSCALL: %s (%d)", strerror(errno), server_fd);
+                     errno = 0;
+                     goto error;
+                     break;
+                  case SSL_ERROR_SSL:
+                     pgexporter_log_error("SSL_ERROR_SSL: %s (%d)", strerror(errno), server_fd);
+                     pgexporter_log_error("%s", ERR_error_string(err, NULL));
+                     pgexporter_log_error("%s", ERR_lib_error_string(err));
+                     pgexporter_log_error("%s", ERR_reason_error_string(err));
+                     errno = 0;
+                     goto error;
+                     break;
+               }
+               ERR_clear_error();
+            }
+         }
+         while (connect != 1);
       }
-      while (connect != 1);
    }
 
    ret = pgexporter_create_startup_message(username, database, &startup_msg);

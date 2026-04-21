@@ -93,6 +93,10 @@ extern "C" {
 #define SERVER_FIPS_DISABLED         0
 #define SERVER_FIPS_ENABLED          1
 
+#define SERVER_TLS_OFF               0
+#define SERVER_TLS_TRY               1
+#define SERVER_TLS_ON                2
+
 #define AUTH_SUCCESS                 0
 #define AUTH_BAD_PASSWORD            1
 #define AUTH_ERROR                   2
@@ -307,6 +311,7 @@ struct server
    int minor_version;                                      /**< The minor version of the server*/
    int number_of_databases;                                /**< The number of databases */
    int number_of_extensions;                               /**< The number of extensions */
+   int tls_mode;                                           /**< TLS negotiation mode */
    char tls_cert_file[MAX_PATH];                           /**< TLS certificate path */
    char tls_key_file[MAX_PATH];                            /**< TLS key path */
    char tls_ca_file[MAX_PATH];                             /**< TLS CA certificate path */

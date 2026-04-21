@@ -112,10 +112,16 @@ In `pgexporter.conf` add the paths to the server in question, like
 host=...
 port=...
 user=pgexporter
+tls=on
 tls_cert_file=/path/to/home/.postgresql/postgresql.crt
 tls_key_file=/path/to/home/.postgresql/postgresql.key
 tls_ca_file=/path/to/home/.postgresql/ca.crt
 ```
+
+Setting `tls=on` makes [**pgexporter**][pgexporter] require TLS for this server and fail the
+connection if the PostgreSQL server declines the `SSLRequest`. Use `tls=try` if you want the
+previous behavior of attempting TLS first and then proceeding without TLS when the server does
+not offer it.
 
 ## Server certificate
 

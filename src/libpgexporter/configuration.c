@@ -102,6 +102,7 @@ static void add_servers_configuration_response(struct json* res);
 static int to_log_type(char* where, int value);
 static int to_log_level(char* where, int value);
 static int to_log_mode(char* where, int value);
+static int to_server_tls_mode(char* where, int value);
 static int to_hugepage(char* where, int value);
 static int to_update_process_title(char* where, int value);
 static bool pgexporter_is_binary_file(const char* path);
@@ -275,6 +276,7 @@ pgexporter_read_configuration(void* shm, char* filename)
                   srv.type = SERVER_TYPE_POSTGRESQL;
                   srv.version = SERVER_UNDERTERMINED_VERSION;
                   srv.fips_enabled = SERVER_FIPS_UNKNOWN;
+                  srv.tls_mode = SERVER_TLS_TRY;
 
                   idx_server++;
                }
@@ -627,7 +629,22 @@ pgexporter_read_configuration(void* shm, char* filename)
                   }
                   else
                   {
-                     unknown = true;
+                     if (!strcmp(value, "off"))
+                     {
+                        srv.tls_mode = SERVER_TLS_OFF;
+                     }
+                     else if (!strcmp(value, "try"))
+                     {
+                        srv.tls_mode = SERVER_TLS_TRY;
+                     }
+                     else if (!strcmp(value, "on"))
+                     {
+                        srv.tls_mode = SERVER_TLS_ON;
+                     }
+                     else
+                     {
+                        unknown = true;
+                     }
                   }
                }
                else if (!strcmp(key, "tls_ca_file"))
@@ -2279,11 +2296,39 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       }
       else if (!strcmp(key, "tls"))
       {
-         if (as_bool(config_value, &config->tls))
+         if (strlen(section) > 0)
          {
-            unknown = true;
+            if (!strcmp(config_value, "off"))
+            {
+               config->servers[server_index].tls_mode = SERVER_TLS_OFF;
+            }
+            else if (!strcmp(config_value, "try"))
+            {
+               config->servers[server_index].tls_mode = SERVER_TLS_TRY;
+            }
+            else if (!strcmp(config_value, "on"))
+            {
+               config->servers[server_index].tls_mode = SERVER_TLS_ON;
+            }
+            else
+            {
+               unknown = true;
+            }
+
+            if (!unknown)
+            {
+               pgexporter_json_put_enum_value(server_j, key, config->servers[server_index].tls_mode, to_server_tls_mode);
+               pgexporter_json_put(response, config->servers[server_index].name, (uintptr_t)server_j, ValueJSON);
+            }
          }
-         pgexporter_json_put(response, key, (uintptr_t)config->tls, ValueBool);
+         else
+         {
+            if (as_bool(config_value, &config->tls))
+            {
+               unknown = true;
+            }
+            pgexporter_json_put(response, key, (uintptr_t)config->tls, ValueBool);
+         }
       }
       else if (!strcmp(key, "tls_ca_file"))
       {
@@ -2702,6 +2747,7 @@ add_servers_configuration_response(struct json* res)
 
       pgexporter_json_put(server_conf, CONFIGURATION_ARGUMENT_HOST, (uintptr_t)config->servers[i].host, ValueString);
       pgexporter_json_put(server_conf, CONFIGURATION_ARGUMENT_PORT, (uintptr_t)config->servers[i].port, ValueInt64);
+      pgexporter_json_put_enum_value(server_conf, CONFIGURATION_ARGUMENT_TLS, config->servers[i].tls_mode, to_server_tls_mode);
       pgexporter_json_put(server_conf, CONFIGURATION_ARGUMENT_TLS_CERT_FILE, (uintptr_t)config->servers[i].tls_cert_file, ValueString);
       pgexporter_json_put(server_conf, CONFIGURATION_ARGUMENT_TLS_KEY_FILE, (uintptr_t)config->servers[i].tls_key_file, ValueString);
       pgexporter_json_put(server_conf, CONFIGURATION_ARGUMENT_TLS_CA_FILE, (uintptr_t)config->servers[i].tls_ca_file, ValueString);
@@ -3832,6 +3878,7 @@ copy_server(struct server* dst, struct server* src)
    memcpy(&dst->name[0], &src->name[0], MISC_LENGTH);
    memcpy(&dst->host[0], &src->host[0], MISC_LENGTH);
    dst->port = src->port;
+   dst->tls_mode = src->tls_mode;
    memcpy(&dst->username[0], &src->username[0], MAX_USERNAME_LENGTH);
    memcpy(&dst->data[0], &src->data[0], MISC_LENGTH);
    memcpy(&dst->wal[0], &src->wal[0], MISC_LENGTH);
@@ -3897,6 +3944,8 @@ restart_string(char* name, char* e, char* n)
 static bool
 is_same_tls(struct server* src, struct server* dst)
 {
+   if (src->tls_mode != dst->tls_mode)
+      return false;
    if (strcmp(src->tls_cert_file, dst->tls_cert_file))
       return false;
    if (strcmp(src->tls_key_file, dst->tls_key_file))
@@ -4072,6 +4121,32 @@ to_log_mode(char* where, int value)
       default:
          return 1;
    }
+   return 0;
+}
+
+static int
+to_server_tls_mode(char* where, int value)
+{
+   if (!where)
+   {
+      return 1;
+   }
+
+   switch (value)
+   {
+      case SERVER_TLS_OFF:
+         snprintf(where, MISC_LENGTH, "%s", "off");
+         break;
+      case SERVER_TLS_TRY:
+         snprintf(where, MISC_LENGTH, "%s", "try");
+         break;
+      case SERVER_TLS_ON:
+         snprintf(where, MISC_LENGTH, "%s", "on");
+         break;
+      default:
+         return 1;
+   }
+
    return 0;
 }
 

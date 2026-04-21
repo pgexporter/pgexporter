@@ -30,7 +30,10 @@
 #include <pgexporter.h>
 #include <configuration.h>
 #include <json.h>
+#include <management.h>
+#include <network.h>
 #include <shmem.h>
+#include <tsclient.h>
 #include <tscommon.h>
 #include <utils.h>
 
@@ -242,6 +245,137 @@ test_enum_to_str(char* where, int value)
    return 0;
 }
 
+static int
+assert_server_tls_mode(char* key, char* value, int expected_mode, char* expected_string)
+{
+   int socket = -1;
+   struct json* read = NULL;
+   struct json* outcome = NULL;
+   struct json* response = NULL;
+   struct json* server = NULL;
+   struct json* tls = NULL;
+
+   socket = pgexporter_tsclient_get_connection();
+   if (!pgexporter_socket_isvalid(socket))
+   {
+      goto fail;
+   }
+
+   if (pgexporter_management_request_conf_set(NULL, socket, key, value,
+                                              MANAGEMENT_COMPRESSION_NONE, MANAGEMENT_ENCRYPTION_NONE,
+                                              MANAGEMENT_OUTPUT_FORMAT_JSON) != 0)
+   {
+      goto fail;
+   }
+
+   if (pgexporter_management_read_json(NULL, socket, NULL, NULL, &read) != 0)
+   {
+      goto fail;
+   }
+
+   outcome = (struct json*)pgexporter_json_get(read, MANAGEMENT_CATEGORY_OUTCOME);
+   if (!(bool)pgexporter_json_get(outcome, MANAGEMENT_ARGUMENT_STATUS))
+   {
+      goto fail;
+   }
+
+   response = (struct json*)pgexporter_json_get(read, MANAGEMENT_CATEGORY_RESPONSE);
+   server = (struct json*)pgexporter_json_get(response, "primary");
+   if (server == NULL)
+   {
+      goto fail;
+   }
+
+   tls = (struct json*)pgexporter_json_get(server, CONFIGURATION_ARGUMENT_TLS);
+   if (tls == NULL)
+   {
+      goto fail;
+   }
+
+   if ((int)pgexporter_json_get(tls, "value") != expected_mode)
+   {
+      goto fail;
+   }
+
+   if (strcmp((char*)pgexporter_json_get(tls, "string_value"), expected_string))
+   {
+      goto fail;
+   }
+
+   pgexporter_json_destroy(read);
+   pgexporter_disconnect(socket);
+   socket = -1;
+   read = NULL;
+
+   socket = pgexporter_tsclient_get_connection();
+   if (!pgexporter_socket_isvalid(socket))
+   {
+      goto fail;
+   }
+
+   if (pgexporter_management_request_conf_get(NULL, socket,
+                                              MANAGEMENT_COMPRESSION_NONE, MANAGEMENT_ENCRYPTION_NONE,
+                                              MANAGEMENT_OUTPUT_FORMAT_JSON) != 0)
+   {
+      goto fail;
+   }
+
+   if (pgexporter_management_read_json(NULL, socket, NULL, NULL, &read) != 0)
+   {
+      goto fail;
+   }
+
+   outcome = (struct json*)pgexporter_json_get(read, MANAGEMENT_CATEGORY_OUTCOME);
+   if (!(bool)pgexporter_json_get(outcome, MANAGEMENT_ARGUMENT_STATUS))
+   {
+      goto fail;
+   }
+
+   response = (struct json*)pgexporter_json_get(read, MANAGEMENT_CATEGORY_RESPONSE);
+   response = (struct json*)pgexporter_json_get(response, "server");
+   if (response == NULL)
+   {
+      goto fail;
+   }
+
+   server = (struct json*)pgexporter_json_get(response, "primary");
+   if (server == NULL)
+   {
+      goto fail;
+   }
+
+   tls = (struct json*)pgexporter_json_get(server, CONFIGURATION_ARGUMENT_TLS);
+   if (tls == NULL)
+   {
+      goto fail;
+   }
+
+   if ((int)pgexporter_json_get(tls, "value") != expected_mode)
+   {
+      goto fail;
+   }
+
+   if (strcmp((char*)pgexporter_json_get(tls, "string_value"), expected_string))
+   {
+      goto fail;
+   }
+
+   pgexporter_json_destroy(read);
+   pgexporter_disconnect(socket);
+   return 0;
+
+fail:
+   if (read)
+   {
+      pgexporter_json_destroy(read);
+   }
+   if (socket >= 0)
+   {
+      pgexporter_disconnect(socket);
+   }
+   return -1;
+}
+
 MCTF_TEST(test_configuration_json_put_enum_value)
 {
    struct json* res = NULL;
@@ -260,6 +394,40 @@ MCTF_TEST(test_configuration_json_put_enum_value)
 
 cleanup:
    pgexporter_json_destroy(res);
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_configuration_server_tls_mode_roundtrip)
+{
+   pgexporter_test_setup();
+   pgexporter_test_config_save();
+
+   MCTF_ASSERT(assert_server_tls_mode("primary.tls", "off", SERVER_TLS_OFF, "off") == 0,
+               cleanup, "server tls mode roundtrip failed for off");
+   MCTF_ASSERT(assert_server_tls_mode("primary.tls", "try", SERVER_TLS_TRY, "try") == 0,
+               cleanup, "server tls mode roundtrip failed for try");
+   MCTF_ASSERT(assert_server_tls_mode("primary.tls", "on", SERVER_TLS_ON, "on") == 0,
+               cleanup, "server tls mode roundtrip failed for on");
+
+cleanup:
+   /* pgexporter_test_config_restore only reverts the test's local shmem copy; the daemon's
+    * in-memory config is unaffected by that call. Push the default back over the management
+    * API so subsequent tests don't inherit tls_mode=on (which would fail auth without a CA). */
+   (void)assert_server_tls_mode("primary.tls", "try", SERVER_TLS_TRY, "try");
+   pgexporter_test_config_restore();
+   pgexporter_test_teardown();
+   MCTF_FINISH();
+}
+
+MCTF_TEST_NEGATIVE(test_configuration_server_tls_mode_reject_invalid)
+{
+   pgexporter_test_setup();
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_fail("primary.tls", "invalid") == 0,
+               cleanup, "expected server tls mode to reject invalid value");
+
+cleanup:
+   pgexporter_test_teardown();
    MCTF_FINISH();
 }
 

@@ -77,6 +77,7 @@ See a [sample](./etc/pgexporter.conf) configuration for running `pgexporter` on 
 | user | | String | Conditional | PostgreSQL | The user name. Required for `postgresql` type |
 | data_dir | | String | No | PostgreSQL | The location of the data directory |
 | wal_dir | | String | No | PostgreSQL | The location of the WAL directory |
+| tls | `try` | String | No | PostgreSQL | TLS negotiation policy for this server. `off` skips the PostgreSQL `SSLRequest` and connects without TLS. `try` sends the `SSLRequest` and upgrades if the server offers TLS, otherwise proceeds without TLS (preserves previous behavior). `on` sends the `SSLRequest` and fails the connection if the server declines; `on` also requires `tls_ca_file` to be set so the server certificate can be verified |
 | tls_cert_file | | String | No | All | Certificate file for TLS. This file must be owned by either the user running pgexporter or root. Can interpolate environment variables (e.g., `$HOME`) |
 | tls_key_file | | String | No | All | Private key file for TLS. This file must be owned by either the user running pgexporter or root. Additionally permissions must be at least `0640` when owned by root or `0600` otherwise. Can interpolate environment variables (e.g., `$HOME`) |
 | tls_ca_file | | String | No | All | Certificate Authority (CA) file for TLS. This file must be owned by either the user running pgexporter or root. Can interpolate environment variables (e.g., `$HOME`) |
