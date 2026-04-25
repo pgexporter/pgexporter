@@ -119,6 +119,15 @@ extern "C" {
 #define PGEXPORTER_DEFAULT_USERS_FILE         "/etc/pgexporter/pgexporter_users.conf"
 #define PGEXPORTER_DEFAULT_ADMINS_FILE        "/etc/pgexporter/pgexporter_admins.conf"
 
+/* Default configuration values */
+#define PGEXPORTER_DEFAULT_HOST            "localhost"
+#define PGEXPORTER_DEFAULT_METRICS         "5002"
+#define PGEXPORTER_DEFAULT_MANAGEMENT      "5003"
+#define PGEXPORTER_DEFAULT_LOG_TYPE        "console"
+#define PGEXPORTER_DEFAULT_LOG_LEVEL       "info"
+#define PGEXPORTER_DEFAULT_LOG_PATH        ""
+#define PGEXPORTER_DEFAULT_UNIX_SOCKET_DIR "/tmp/"
+
 /* Configuration filenames */
 #define PGEXPORTER_CONF_FILENAME   "pgexporter.conf"
 #define PGEXPORTER_USERS_FILENAME  "pgexporter_users.conf"

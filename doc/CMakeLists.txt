@@ -11,6 +11,8 @@ if (RST2MAN_FOUND)
   set(PGEXPORTER_ADMIN_DST_FILE "${CMAKE_CURRENT_BINARY_DIR}/pgexporter-admin.1")
   set(PGEXPORTER_CONF_SRC_FILE "${CMAKE_CURRENT_SOURCE_DIR}/man/pgexporter.conf.5.rst")
   set(PGEXPORTER_CONF_DST_FILE "${CMAKE_CURRENT_BINARY_DIR}/pgexporter.conf.5")
+  set(PGEXPORTER_CONFIG_SRC_FILE "${CMAKE_CURRENT_SOURCE_DIR}/man/pgexporter-config.1.rst")
+  set(PGEXPORTER_CONFIG_DST_FILE "${CMAKE_CURRENT_BINARY_DIR}/pgexporter-config.1")
 
   # Generate man pages for pgexporter.1
   add_custom_command(
@@ -44,9 +46,17 @@ if (RST2MAN_FOUND)
     COMMENT "Generating man page: pgexporter.conf.5"
   )
 
+  # Generate man pages for pgexporter-config.1
+  add_custom_command(
+    OUTPUT ${PGEXPORTER_CONFIG_DST_FILE}
+    COMMAND ${RST2MAN_EXECUTABLE} ${PGEXPORTER_CONFIG_SRC_FILE} ${PGEXPORTER_CONFIG_DST_FILE}
+    DEPENDS ${PGEXPORTER_CONFIG_SRC_FILE}
+    COMMENT "Generating man page: pgexporter-config.1"
+  )
+
   # Define the target to group all man pages
   add_custom_target(manpages ALL
-    DEPENDS ${PGEXPORTER_DST_FILE} ${PGEXPORTER_CLI_DST_FILE} ${PGEXPORTER_ADMIN_DST_FILE} ${PGEXPORTER_CONF_DST_FILE}
+    DEPENDS ${PGEXPORTER_DST_FILE} ${PGEXPORTER_CLI_DST_FILE} ${PGEXPORTER_ADMIN_DST_FILE} ${PGEXPORTER_CONF_DST_FILE} ${PGEXPORTER_CONFIG_DST_FILE}
   )
 
   # Add the 'man' target as a dependency to 'manpages'
@@ -62,6 +72,7 @@ if (RST2MAN_FOUND)
   install(FILES ${PGEXPORTER_DST_FILE} DESTINATION share/man/man1)
   install(FILES ${PGEXPORTER_CLI_DST_FILE} DESTINATION share/man/man1)
   install(FILES ${PGEXPORTER_ADMIN_DST_FILE} DESTINATION share/man/man1)
+  install(FILES ${PGEXPORTER_CONFIG_DST_FILE} DESTINATION share/man/man1)
   install(FILES ${PGEXPORTER_CONF_DST_FILE} DESTINATION share/man/man5)
 endif()
 

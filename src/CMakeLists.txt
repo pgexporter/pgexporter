@@ -493,3 +493,16 @@ endif()
 target_link_libraries(pgexporter-admin-bin pgexporter)
 
 install(TARGETS pgexporter-admin-bin DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+#
+# Build pgexporter-config
+#
+add_executable(pgexporter-config-bin config.c ${RESOURCE_OBJECT})
+if (CMAKE_C_LINK_PIE_SUPPORTED)
+  set_target_properties(pgexporter-config-bin PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME pgexporter-config POSITION_INDEPENDENT_CODE TRUE)
+else()
+  set_target_properties(pgexporter-config-bin PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME pgexporter-config POSITION_INDEPENDENT_CODE FALSE)
+endif()
+target_link_libraries(pgexporter-config-bin pgexporter)
+
+install(TARGETS pgexporter-config-bin DESTINATION ${CMAKE_INSTALL_BINDIR})
