@@ -4,7 +4,7 @@ First of all, make sure that `pgexporter` is installed and in your path by
 using `pgexporter -?`. You should see
 
 ```
-pgexporter 0.8.0
+pgexporter 0.8.1
   Prometheus exporter for PostgreSQL
 
 Usage:
@@ -115,7 +115,7 @@ the `SIGTERM` signal to the process using `kill <pid>`.
 You can see the commands it supports by using `pgexporter-cli -?` which will give
 
 ```
-pgexporter-cli 0.8.0
+pgexporter-cli 0.8.1
   Command line utility for pgexporter
 
 Usage:
@@ -167,7 +167,7 @@ registration with `pgexporter`.
 You can see the commands it supports by using `pgexporter-admin -?` which will give
 
 ```
-pgexporter-admin 0.8.0
+pgexporter-admin 0.8.1
   Administration utility for pgexporter
 
 Usage:

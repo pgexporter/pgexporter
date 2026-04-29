@@ -1,6 +1,6 @@
 # Migration
 
-## From 0.7.x to 0.8.0
+## From 0.7.x to 0.8.x
 
 ### Vault Encryption
 
@@ -9,7 +9,7 @@ The key derivation for vault file encryption has been upgraded to
 and the encryption mode has been upgraded to **AES-GCM** (authenticated encryption).
 
 This is a **breaking change**. Existing vault files encrypted with the
-old method (CBC/CTR) cannot be decrypted by version 0.8.0.
+old method (CBC/CTR) cannot be decrypted by version 0.8.x.
 
 The `master.key` file now stores both the password and a random salt
 used for key derivation. Existing `master.key` files must be regenerated.
