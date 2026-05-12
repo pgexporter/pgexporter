@@ -67,3 +67,5 @@ Please, consult our [Code of Conduct][conduct] policies for interacting in our
 community.
 
 Consider giving the project a [star][star] on [GitHub][pgexporter] if you find it useful.
+
+* Som Shegokar

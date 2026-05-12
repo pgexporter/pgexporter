@@ -39,9 +39,16 @@
 #include <utils.h>
 
 #include <mctf.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/select.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 static int validate_metrics_response(char* response_body, const char* metric_pattern);
 
@@ -328,6 +335,257 @@ cleanup:
    if (connection)
       pgexporter_http_destroy(connection);
    pgexporter_test_teardown();
+   MCTF_FINISH();
+}
+
+struct echo_server
+{
+   int socket_fd;
+   int port;
+   pthread_t thread;
+   bool running;
+   char* response;
+   size_t response_len;
+};
+
+struct write_cb_context
+{
+   char data[64];
+   size_t data_size;
+};
+
+static struct echo_server* test_server = NULL;
+
+static size_t
+collect_write_cb(void* buffer, size_t size, void* userdata)
+{
+   struct write_cb_context* context = (struct write_cb_context*)userdata;
+
+   if (context == NULL || context->data_size + size > sizeof(context->data))
+   {
+      return 0;
+   }
+
+   memcpy(context->data + context->data_size, buffer, size);
+   context->data_size += size;
+
+   return size;
+}
+
+static void*
+echo_server_thread(void* arg)
+{
+   struct echo_server* server = (struct echo_server*)arg;
+
+   while (server->running)
+   {
+      fd_set read_fds;
+      struct timeval timeout;
+
+      FD_ZERO(&read_fds);
+      FD_SET(server->socket_fd, &read_fds);
+
+      timeout.tv_sec = 1;
+      timeout.tv_usec = 0;
+
+      int result = select(server->socket_fd + 1, &read_fds, NULL, NULL, &timeout);
+
+      if (result <= 0)
+      {
+         continue;
+      }
+
+      if (FD_ISSET(server->socket_fd, &read_fds))
+      {
+         struct sockaddr_in client_addr;
+         socklen_t client_len = sizeof(client_addr);
+         int client_fd = accept(server->socket_fd, (struct sockaddr*)&client_addr, &client_len);
+
+         if (client_fd < 0)
+         {
+            continue;
+         }
+
+         char buffer[4096];
+         ssize_t bytes_read = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+
+         if (bytes_read > 0)
+         {
+            send(client_fd, server->response, server->response_len, 0);
+         }
+
+         close(client_fd);
+      }
+   }
+
+   return NULL;
+}
+
+static int
+start_echo_server(int port, char* response)
+{
+   struct sockaddr_in addr;
+
+   test_server = malloc(sizeof(struct echo_server));
+   if (test_server == NULL)
+   {
+      return 1;
+   }
+
+   test_server->port = port;
+   test_server->running = false;
+   test_server->response = response;
+   test_server->response_len = strlen(response);
+
+   test_server->socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+   if (test_server->socket_fd < 0)
+   {
+      free(test_server);
+      test_server = NULL;
+      return 1;
+   }
+
+   int opt = 1;
+   setsockopt(test_server->socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+   memset(&addr, 0, sizeof(addr));
+   addr.sin_family = AF_INET;
+   addr.sin_addr.s_addr = INADDR_ANY;
+   addr.sin_port = htons(port);
+
+   if (bind(test_server->socket_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0)
+   {
+      close(test_server->socket_fd);
+      free(test_server);
+      test_server = NULL;
+      return 1;
+   }
+
+   if (listen(test_server->socket_fd, 5) < 0)
+   {
+      close(test_server->socket_fd);
+      free(test_server);
+      test_server = NULL;
+      return 1;
+   }
+
+   test_server->running = true;
+
+   if (pthread_create(&test_server->thread, NULL, echo_server_thread, test_server) != 0)
+   {
+      test_server->running = false;
+      close(test_server->socket_fd);
+      free(test_server);
+      test_server = NULL;
+      return 1;
+   }
+
+   usleep(100000);
+
+   return 0;
+}
+
+static void
+stop_echo_server(void)
+{
+   if (test_server == NULL)
+   {
+      return;
+   }
+
+   test_server->running = false;
+   usleep(1100000);
+
+   if (test_server->socket_fd >= 0)
+   {
+      close(test_server->socket_fd);
+   }
+
+   pthread_detach(test_server->thread);
+   free(test_server);
+   test_server = NULL;
+}
+
+MCTF_TEST(test_http_write_cb_content_length)
+{
+   int status;
+   struct http* connection = NULL;
+   struct http_request* request = NULL;
+   struct http_response* response = NULL;
+   struct write_cb_context write_context = {0};
+
+   char* response_text =
+      "HTTP/1.1 200 OK\r\n"
+      "Content-Length: 13\r\n"
+      "\r\n"
+      "Hello, World!";
+
+   MCTF_ASSERT(start_echo_server(9999, response_text) == 0, cleanup, "failed to start echo server");
+
+   response = calloc(1, sizeof(struct http_response));
+   MCTF_ASSERT_PTR_NONNULL(response, cleanup, "failed to allocate response");
+
+   response->write_cb = collect_write_cb;
+   response->write_userdata = &write_context;
+
+   MCTF_ASSERT(pgexporter_http_create("localhost", 9999, false, &connection) == 0, cleanup, "failed to establish connection");
+   MCTF_ASSERT(pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/test", &request) == 0, cleanup, "failed to create request");
+
+   status = pgexporter_http_invoke(connection, request, &response);
+   MCTF_ASSERT(status == PGEXPORTER_HTTP_STATUS_OK, cleanup, "HTTP request failed");
+   MCTF_ASSERT(write_context.data_size == 13, cleanup, "write_cb should receive content-length body");
+   MCTF_ASSERT(strcmp(write_context.data, "Hello, World!") == 0, cleanup, "write_cb content-length body mismatch");
+   MCTF_ASSERT(response->payload.data_size == 0, cleanup, "write_cb should prevent buffering in payload");
+
+cleanup:
+   pgexporter_http_request_destroy(request);
+   pgexporter_http_response_destroy(response);
+   pgexporter_http_destroy(connection);
+   stop_echo_server();
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_http_write_cb_chunked)
+{
+   int status;
+   struct http* connection = NULL;
+   struct http_request* request = NULL;
+   struct http_response* response = NULL;
+   struct write_cb_context write_context = {0};
+
+   char* response_text =
+      "HTTP/1.1 200 OK\r\n"
+      "Transfer-Encoding: chunked\r\n"
+      "\r\n"
+      "5\r\n"
+      "Hello\r\n"
+      "8\r\n"
+      ", World!\r\n"
+      "0\r\n"
+      "\r\n";
+
+   MCTF_ASSERT(start_echo_server(9999, response_text) == 0, cleanup, "failed to start echo server");
+
+   response = calloc(1, sizeof(struct http_response));
+   MCTF_ASSERT_PTR_NONNULL(response, cleanup, "failed to allocate response");
+
+   response->write_cb = collect_write_cb;
+   response->write_userdata = &write_context;
+
+   MCTF_ASSERT(pgexporter_http_create("localhost", 9999, false, &connection) == 0, cleanup, "failed to establish connection");
+   MCTF_ASSERT(pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/test", &request) == 0, cleanup, "failed to create request");
+
+   status = pgexporter_http_invoke(connection, request, &response);
+   MCTF_ASSERT(status == PGEXPORTER_HTTP_STATUS_OK, cleanup, "HTTP chunked request failed");
+   MCTF_ASSERT(write_context.data_size == 13, cleanup, "write_cb should receive chunked body");
+   MCTF_ASSERT(strcmp(write_context.data, "Hello, World!") == 0, cleanup, "write_cb chunked body mismatch");
+   MCTF_ASSERT(response->payload.data_size == 0, cleanup, "write_cb should prevent buffering for chunked response");
+
+cleanup:
+   pgexporter_http_request_destroy(request);
+   pgexporter_http_response_destroy(response);
+   pgexporter_http_destroy(connection);
+   stop_echo_server();
    MCTF_FINISH();
 }
 
