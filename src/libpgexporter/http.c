@@ -377,15 +377,24 @@ pgexporter_http_invoke(struct http* connection, struct http_request* request, st
       goto error;
    }
 
+   bool response_owned = false;
    pgexporter_log_trace("Invoking HTTP request");
 
-   http_response = (struct http_response*)malloc(sizeof(struct http_response));
-   if (http_response == NULL)
+   if (*response != NULL)
    {
-      pgexporter_log_error("Failed to allocate HTTP response structure");
-      goto error;
+      http_response = *response;
    }
-   memset(http_response, 0, sizeof(struct http_response));
+   else
+   {
+      http_response = (struct http_response*)malloc(sizeof(struct http_response));
+      if (http_response == NULL)
+      {
+         pgexporter_log_error("Failed to allocate HTTP response structure");
+         goto error;
+      }
+      memset(http_response, 0, sizeof(struct http_response));
+      response_owned = true;
+   }
 
    if (http_build_request(connection, request, &full_request, &full_request_size))
    {
@@ -405,6 +414,30 @@ pgexporter_http_invoke(struct http* connection, struct http_request* request, st
    msg_request->length = full_request_size;
 
    error = 0;
+   if (request->read_cb != NULL)
+   {
+      char stream_buffer[8192];
+      struct message stream_msg;
+      ssize_t n;
+
+      memset(&stream_msg, 0, sizeof(struct message));
+      if (pgexporter_write_message(connection->ssl, connection->socket, msg_request) != MESSAGE_STATUS_OK)
+      {
+         pgexporter_log_error("Failed to send HTTP headers for streaming request");
+         goto error;
+      }
+      while ((n = (ssize_t)request->read_cb(stream_buffer, sizeof(stream_buffer), request->read_userdata)) > 0)
+      {
+         stream_msg.data = stream_buffer;
+         stream_msg.length = n;
+         if (pgexporter_write_message(connection->ssl, connection->socket, &stream_msg) != MESSAGE_STATUS_OK)
+         {
+            pgexporter_log_error("Failed to stream HTTP request body");
+            goto error;
+         }
+      }
+      goto response;
+   }
 req:
    if (error < 5)
    {
@@ -422,6 +455,7 @@ req:
       goto error;
    }
 
+response:
    status = http_read_response_header(connection->ssl, connection->socket, &header_text, http_response);
    if (status != MESSAGE_STATUS_OK)
    {
@@ -453,7 +487,7 @@ error:
    free(full_request);
    free(header_text);
    free(msg_request);
-   if (http_response != NULL)
+   if (http_response != NULL && response_owned)
    {
       pgexporter_http_response_destroy(http_response);
    }
@@ -705,9 +739,17 @@ http_read_chunked_body(SSL* ssl, int socket, struct http_response* http_response
          if (bytes_read <= 0)
             goto error;
 
-         buffer[bytes_read] = '\0';
-         http_response->payload.data = pgexporter_append(http_response->payload.data, buffer);
-         http_response->payload.data_size += bytes_read;
+         if (http_response->write_cb != NULL)
+         {
+            if (http_response->write_cb(buffer, bytes_read, http_response->write_userdata) != (size_t)bytes_read)
+               goto error;
+         }
+         else
+         {
+            buffer[bytes_read] = '\0';
+            http_response->payload.data = pgexporter_append(http_response->payload.data, buffer);
+            http_response->payload.data_size += bytes_read;
+         }
          chunk_read += bytes_read;
       }
       // the chunk size must match
@@ -754,7 +796,30 @@ http_read_content_length_body(SSL* ssl, int socket, struct http_response* http_r
 {
    char buffer[8192];
    ssize_t bytes_read;
-   size_t remaining = content_length - http_response->payload.data_size;
+   char* prefetched = (char*)http_response->payload.data;
+   size_t prefetched_size = http_response->payload.data_size;
+   size_t remaining;
+
+   if (prefetched_size > content_length)
+   {
+      goto error;
+   }
+
+   if (http_response->write_cb != NULL && prefetched_size > 0)
+   {
+      if (http_response->write_cb(prefetched, prefetched_size, http_response->write_userdata) != prefetched_size)
+      {
+         free(prefetched);
+         http_response->payload.data = NULL;
+         http_response->payload.data_size = 0;
+         goto error;
+      }
+      free(prefetched);
+      http_response->payload.data = NULL;
+      http_response->payload.data_size = 0;
+   }
+
+   remaining = content_length - prefetched_size;
 
    while (remaining > 0)
    {
@@ -764,9 +829,17 @@ http_read_content_length_body(SSL* ssl, int socket, struct http_response* http_r
       if (bytes_read <= 0)
          goto error;
 
-      buffer[bytes_read] = '\0';
-      http_response->payload.data = pgexporter_append(http_response->payload.data, buffer);
-      http_response->payload.data_size += bytes_read;
+      if (http_response->write_cb != NULL)
+      {
+         if (http_response->write_cb(buffer, bytes_read, http_response->write_userdata) != (size_t)bytes_read)
+            goto error;
+      }
+      else
+      {
+         buffer[bytes_read] = '\0';
+         http_response->payload.data = pgexporter_append(http_response->payload.data, buffer);
+         http_response->payload.data_size += bytes_read;
+      }
       remaining -= bytes_read;
    }
 
@@ -780,6 +853,20 @@ http_read_EOF_body(SSL* ssl, int socket, struct http_response* http_response)
    char buffer[8192];
    ssize_t bytes_read;
 
+   if (http_response->write_cb != NULL && http_response->payload.data_size > 0)
+   {
+      if (http_response->write_cb(http_response->payload.data, http_response->payload.data_size, http_response->write_userdata) != http_response->payload.data_size)
+      {
+         free(http_response->payload.data);
+         http_response->payload.data = NULL;
+         http_response->payload.data_size = 0;
+         goto error;
+      }
+      free(http_response->payload.data);
+      http_response->payload.data = NULL;
+      http_response->payload.data_size = 0;
+   }
+
    while (1)
    {
       size_t to_read = sizeof(buffer) - 1;
@@ -790,9 +877,17 @@ http_read_EOF_body(SSL* ssl, int socket, struct http_response* http_response)
       if (bytes_read == 0)
          break;
 
-      buffer[bytes_read] = '\0';
-      http_response->payload.data = pgexporter_append(http_response->payload.data, buffer);
-      http_response->payload.data_size += bytes_read;
+      if (http_response->write_cb != NULL)
+      {
+         if (http_response->write_cb(buffer, bytes_read, http_response->write_userdata) != (size_t)bytes_read)
+            goto error;
+      }
+      else
+      {
+         buffer[bytes_read] = '\0';
+         http_response->payload.data = pgexporter_append(http_response->payload.data, buffer);
+         http_response->payload.data_size += bytes_read;
+      }
    }
 
    return MESSAGE_STATUS_OK;
@@ -953,10 +1048,13 @@ http_build_request(struct http* connection, struct http_request* request, char**
 
    headers = pgexporter_append(headers, "Connection: close\r\n");
 
-   sprintf(content_length, "%zu", request->payload.data_size);
-   headers = pgexporter_append(headers, "Content-Length: ");
-   headers = pgexporter_append(headers, content_length);
-   headers = pgexporter_append(headers, "\r\n");
+   if (request->read_cb == NULL)
+   {
+      sprintf(content_length, "%zu", request->payload.data_size);
+      headers = pgexporter_append(headers, "Content-Length: ");
+      headers = pgexporter_append(headers, content_length);
+      headers = pgexporter_append(headers, "\r\n");
+   }
 
    if (request->payload.headers != NULL && !pgexporter_deque_empty(request->payload.headers))
    {
@@ -977,7 +1075,7 @@ http_build_request(struct http* connection, struct http_request* request, char**
    headers = pgexporter_append(headers, "\r\n");
 
    header_len = strlen(request_line) + strlen(headers);
-   total_len = header_len + request->payload.data_size;
+   total_len = header_len + (request->read_cb == NULL ? request->payload.data_size : 0);
 
    *full_request = malloc(total_len + 1);
    if (*full_request == NULL)
@@ -989,7 +1087,7 @@ http_build_request(struct http* connection, struct http_request* request, char**
    memcpy(*full_request, request_line, strlen(request_line));
    memcpy(*full_request + strlen(request_line), headers, strlen(headers));
 
-   if (request->payload.data_size > 0)
+   if (request->read_cb == NULL && request->payload.data_size > 0)
    {
       memcpy(*full_request + header_len, request->payload.data, request->payload.data_size);
    }
