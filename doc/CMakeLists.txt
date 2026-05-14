@@ -74,8 +74,7 @@ if(DOCS)
 
   # Manuals definitions
   set(MANUAL_OUTPUT_DIR "${CMAKE_BINARY_DIR}/doc")
-  get_filename_component(PARENT_DIR ${CMAKE_BINARY_DIR} DIRECTORY)
-  set(IMAGE_DIR "${PARENT_DIR}/doc/manual/images")
+  set(IMAGE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/manual/images")
 
   add_custom_target(
     copy_images
@@ -85,15 +84,15 @@ if(DOCS)
 
   add_custom_command(
     OUTPUT ${MANUAL_OUTPUT_DIR}/pgexporter-en.pdf
-    COMMAND ${PANDOC_EXECUTABLE} -o ${MANUAL_OUTPUT_DIR}/pgexporter-en.pdf --from markdown --template eisvogel --listings -N --toc ${EN}
-    DEPENDS ${UMDS}
+    COMMAND ${PANDOC_EXECUTABLE} -o ${MANUAL_OUTPUT_DIR}/pgexporter-en.pdf --resource-path=${CMAKE_BINARY_DIR} --from markdown --pdf-engine=xelatex --template eisvogel --listings -N --toc ${EN}
+    DEPENDS ${EN}
     COMMENT "Generating English PDF documentation"
   )
 
   add_custom_command(
     OUTPUT ${MANUAL_OUTPUT_DIR}/pgexporter-en.html
     COMMAND ${PANDOC_EXECUTABLE} -o ${MANUAL_OUTPUT_DIR}/pgexporter-en.html -s -f markdown-smart -N --toc -t html5 ${EN}
-    DEPENDS ${UMDS}
+    DEPENDS ${EN}
     COMMENT "Generating English Guide HTML documentation"
   )
 

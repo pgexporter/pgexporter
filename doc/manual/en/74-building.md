@@ -201,13 +201,15 @@ The build system will automatically detect the compiler version and enable the a
 * [texlive](https://www.tug.org/texlive/)
 
 ```sh
-dnf install pandoc texlive-scheme-basic \
-            'tex(footnote.sty)' 'tex(footnotebackref.sty)' \
+dnf install pandoc texlive-scheme-basic texlive-xetex \
+            'tex(fvextra.sty)' 'tex(footnote.sty)' \
+            'tex(footnotebackref.sty)' \
             'tex(pagecolor.sty)' 'tex(hardwrap.sty)' \
             'tex(mdframed.sty)' 'tex(sourcesanspro.sty)' \
             'tex(ly1enc.def)' 'tex(sourcecodepro.sty)' \
             'tex(titling.sty)' 'tex(csquotes.sty)' \
-            'tex(zref-abspage.sty)' 'tex(needspace.sty)'
+            'tex(zref-abspage.sty)' 'tex(needspace.sty)' \
+            'tex(selnolig.sty)'
 ```
 
 You will need the `Eisvogel` template as well which you can install through
@@ -317,4 +319,3 @@ Developers may want to experiment with additional sanitizer flags not enabled by
 * `-fno-common` - Prevents variables from being merged into common blocks, helping identify variable access issues
 
 Note that some sanitizers are incompatible with each other. For example, you cannot use ASan and MSan together.
-
