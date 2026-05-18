@@ -3149,9 +3149,9 @@ pgexporter_pg_matviews
 Version: 10+
 
 pgexporter_pg_shadow
-+ Counts user accounts (excluding 'postgres') based on their password encryption method (MD5, SCRAM, or none).
++ Counts user accounts (excluding 'postgres') based on their password encryption method (SCRAM, or none).
 * server: The configured name/identifier for the PostgreSQL server.
-* encryption_type: The type of password encryption (e.g., MD5, SCRAM-SHA-256, UNENCRYPTED).
+* encryption_type: The type of password encryption (e.g., SCRAM-SHA-256, UNENCRYPTED).
 Version: 10+
 
 pgexporter_pg_usr_evt_trigger
