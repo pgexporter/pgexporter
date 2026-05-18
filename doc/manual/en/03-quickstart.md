@@ -71,7 +71,7 @@ host   postgres  pgexporter  127.0.0.1/32  scram-sha-256
 host   postgres  pgexporter  ::1/128       scram-sha-256
 ```
 
-The authentication type should be based on `postgresql.conf`'s `password_encryption` value.
+The authentication type must be `scram-sha-256`. Note that `pgexporter` does not support MD5 authentication.
 
 We will need a user vault for the `pgexporter` account, so the following commands will add a master key, and the `pgexporter` password. The master key should be longer than 8 characters.
 

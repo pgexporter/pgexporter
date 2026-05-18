@@ -220,15 +220,6 @@ int
 pgexporter_create_auth_password_response(char* password, struct message** msg);
 
 /**
- * Create an auth MD5 response message
- * @param md5 The md5
- * @param msg The resulting message
- * @return 0 upon success, otherwise 1
- */
-int
-pgexporter_create_auth_md5_response(char* md5, struct message** msg);
-
-/**
  * Write an auth SCRAM-SHA-256 message
  * @param ssl The SSL struct
  * @param socket The socket descriptor

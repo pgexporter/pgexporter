@@ -381,31 +381,6 @@ pgexporter_create_auth_password_response(char* password, struct message** msg)
 }
 
 int
-pgexporter_create_auth_md5_response(char* md5, struct message** msg)
-{
-   struct message* m = NULL;
-   size_t size;
-
-   size = 1 + 4 + strlen(md5) + 1;
-
-   m = (struct message*)malloc(sizeof(struct message));
-   m->data = malloc(size);
-
-   memset(m->data, 0, size);
-
-   m->kind = 'p';
-   m->length = size;
-
-   pgexporter_write_byte(m->data, 'p');
-   pgexporter_write_int32(m->data + 1, size - 1);
-   pgexporter_write_string(m->data + 5, md5);
-
-   *msg = m;
-
-   return MESSAGE_STATUS_OK;
-}
-
-int
 pgexporter_write_auth_scram256(SSL* ssl, int socket)
 {
    char scram[24];

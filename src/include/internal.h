@@ -423,7 +423,6 @@ extern "C" {
                       "  - queries:\n"                                                                                                                                                  \
                       "    - query: SELECT (\n"                                                                                                                                         \
                       "                CASE\n"                                                                                                                                          \
-                      "                  WHEN rolpassword LIKE 'md5%' THEN 'MD5'\n"                                                                                                     \
                       "                  WHEN rolpassword LIKE 'SCRAM-SHA-256$%' THEN 'SCRAM-SHA-256'\n"                                                                                \
                       "                  ELSE 'UNENCRYPTED'\n"                                                                                                                          \
                       "                END\n"                                                                                                                                           \

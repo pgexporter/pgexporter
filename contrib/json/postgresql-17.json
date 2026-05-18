@@ -295,7 +295,7 @@
       "optional": true,
       "queries": [
         {
-          "query": "SELECT ( CASE WHEN rolpassword LIKE 'md5%' THEN 'MD5' WHEN rolpassword LIKE 'SCRAM-SHA-256$%' THEN 'SCRAM-SHA-256' ELSE 'UNENCRYPTED' END ) AS encryption_type, COUNT(*) FROM pg_authid WHERE rolname != 'postgres' GROUP BY encryption_type;",
+          "query": "SELECT ( CASE WHEN rolpassword LIKE 'SCRAM-SHA-256$%' THEN 'SCRAM-SHA-256' ELSE 'UNENCRYPTED' END ) AS encryption_type, COUNT(*) FROM pg_authid WHERE rolname != 'postgres' GROUP BY encryption_type;",
           "version": 10,
           "columns": [
             {
