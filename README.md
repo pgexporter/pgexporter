@@ -31,7 +31,7 @@ See [Web console](./doc/CONSOLE.md) for a brief guide and screenshots.
 
 * Process model
 * Shared memory model across processes
-* [libev](http://software.schmorp.de/pkg/libev.html) for fast network interactions
+* A built-in event layer (io_uring on Linux when liburing is available, otherwise epoll; kqueue on BSD/macOS) for the main process listen loop
 * [Atomic operations](https://en.cppreference.com/w/c/atomic) are used to keep track of state
 * The [PostgreSQL](https://www.postgresql.org) native protocol
   [v3](https://www.postgresql.org/docs/11/protocol-message-formats.html) for its communication
@@ -53,14 +53,14 @@ See [Architecture](./doc/ARCHITECTURE.md) for the architecture of `pgexporter`.
 * [gcc 8+](https://gcc.gnu.org) (C17)
 * [cmake](https://cmake.org)
 * [make](https://www.gnu.org/software/make/)
-* [libev](http://software.schmorp.de/pkg/libev.html)
+* [liburing](https://github.com/axboe/liburing) (Linux, optional; for io_uring backend when supported)
 * [OpenSSL](http://www.openssl.org/)
 * [systemd](https://www.freedesktop.org/wiki/Software/systemd/)
 * [rst2man](https://docutils.sourceforge.io/)
 * [libyaml](https://pyyaml.org/wiki/LibYAML)
 
 ```sh
-dnf install git gcc cmake make libev libev-devel openssl openssl-devel systemd systemd-devel python3-docutils libyaml libyaml-devel zlib zlib-devel libzstd libzstd-devel lz4 lz4-devel bzip2 bzip2-devel libasan libasan-static
+dnf install git gcc cmake make openssl openssl-devel systemd systemd-devel python3-docutils libyaml libyaml-devel zlib zlib-devel libzstd libzstd-devel lz4 lz4-devel bzip2 bzip2-devel libasan libasan-static liburing-devel pkgconf-pkg-config
 ```
 
 Alternative [clang 8+](https://clang.llvm.org/) can be used.

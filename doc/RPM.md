@@ -8,7 +8,7 @@
 # general RPM building dependencies
 dnf install rpm-build rpm-devel rpmlint coreutils diffutils patch rpmdevtools chrpath
 # CMAKE building dependencies
-dnf install --enablerepo=crb gcc cmake make check-devel zlib-devel bzip2-devel lz4-devel libev-devel openssl-devel python3-docutils doxygen libyaml-devel
+dnf install --enablerepo=crb gcc cmake make check-devel zlib-devel bzip2-devel lz4-devel liburing-devel pkgconf openssl-devel python3-docutils doxygen libyaml-devel
 # specific RPM building dependencies
 dnf install lz4 systemd-devel
 ```

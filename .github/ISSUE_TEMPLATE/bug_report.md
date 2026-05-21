@@ -23,9 +23,9 @@ What is the version of pgexporter ?
 
 What is the version of PostgreSQL ?
 
-**libev**
+**Event backend**
 
-What is the version of libev ?
+What is `ev_backend` in your configuration (if set), and on Linux was the binary built with liburing (io_uring) or epoll-only?
 
 **OpenSSL**
 

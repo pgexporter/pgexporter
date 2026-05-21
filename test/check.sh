@@ -142,17 +142,17 @@ cleanup() {
       llvm-cov show "$BIN_PATH/libpgexporter.so" \
         --instr-profile=$COVERAGE_DIR/coverage.profdata \
         --format=text > $COVERAGE_DIR/coverage-libpgexporter.txt 2>/dev/null || true
-      
+
       echo "Generating $COVERAGE_DIR/coverage-pgexporter.txt"
       llvm-cov show "$BIN_PATH/pgexporter" \
         --instr-profile=$COVERAGE_DIR/coverage.profdata \
         --format=text > $COVERAGE_DIR/coverage-pgexporter.txt 2>/dev/null || true
-      
+
       echo "Generating $COVERAGE_DIR/coverage-pgexporter-cli.txt"
       llvm-cov show "$BIN_PATH/pgexporter-cli" \
         --instr-profile=$COVERAGE_DIR/coverage.profdata \
         --format=text > $COVERAGE_DIR/coverage-pgexporter-cli.txt 2>/dev/null || true
-      
+
       echo "Generating $COVERAGE_DIR/coverage-pgexporter-admin.txt"
       llvm-cov show "$BIN_PATH/pgexporter-admin" \
         --instr-profile=$COVERAGE_DIR/coverage.profdata \
@@ -585,7 +585,8 @@ if [[ "$SUBCOMMAND" == "setup" ]]; then
       clang-analyzer \
       cmake \
       make \
-      libev libev-devel \
+      liburing-devel \
+      pkgconf-pkg-config \
       openssl openssl-devel \
       systemd systemd-devel \
       llvm

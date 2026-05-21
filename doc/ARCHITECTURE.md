@@ -92,13 +92,11 @@ AuthenticationSASLFinal and AuthenticationOk. The SSLRequest message is supporte
 
 The remote management interface is defined in [remote.h](../src/include/remote.h) ([remote.c](../src/libpgexporter/remote.c)).
 
-## libev usage
+## Event loop (listen ports)
 
-[libev](http://software.schmorp.de/pkg/libev.html) is used to handle network interactions, which is "activated"
-upon an `EV_READ` event.
+The daemon uses a built-in event layer: **io_uring** on Linux when liburing and kernel features are available at build time, otherwise **epoll**; **kqueue** on BSD and macOS. The main process waits for readability on listening sockets (accept), with signals integrated into the same loop.
 
-Each process has its own event loop, such that the process only gets notified when data related only to that process
-is ready. The main loop handles the system wide "services" such as idle timeout checks and so on.
+Forked workers that handle a single HTTP scrape perform most client and PostgreSQL I/O with conventional `read`/`write` or OpenSSL calls.
 
 ## Signals
 
@@ -116,7 +114,7 @@ The `SIGHUP` signal will trigger a reload of the configuration.
 However, some configuration settings requires a full restart of `pgexporter` in order to take effect. These are
 
 * `hugepage`
-* `libev`
+* `ev_backend`
 * `log_path`
 * `log_type`
 * `unix_socket_dir`

@@ -77,6 +77,7 @@ static int as_logging_level(char* str);
 static int as_logging_mode(char* str);
 static int as_hugepage(char* str);
 static int as_history_backend(char* str);
+static ev_backend_t as_ev_backend(char* str);
 static int as_server_type(char* str);
 static unsigned int as_update_process_title(char* str, unsigned int default_policy);
 static int as_logging_rotation_size(char* str, size_t* size);
@@ -94,6 +95,9 @@ static int restart_int(char* name, int e, int n);
 static int restart_string(char* name, char* e, char* n);
 static bool is_same_tls(struct server* src, struct server* dst);
 static bool is_same_global_tls(struct configuration* src, struct configuration* dst);
+static bool is_supported_backend(ev_backend_t backend);
+static void validate_event_backend(struct configuration* config);
+static const char* ev_backend_to_string(ev_backend_t backend);
 
 static bool is_empty_string(char* s);
 
@@ -104,6 +108,7 @@ static int to_log_type(char* where, int value);
 static int to_log_level(char* where, int value);
 static int to_log_mode(char* where, int value);
 static int to_server_tls_mode(char* where, int value);
+static int to_ev_backend(char* where, int value);
 static int to_hugepage(char* where, int value);
 static int to_history_backend(char* where, int value);
 static int to_update_process_title(char* where, int value);
@@ -160,6 +165,8 @@ pgexporter_init_configuration(void* shm)
    config->non_blocking = true;
    config->backlog = 16;
    config->hugepage = HUGEPAGE_TRY;
+   config->keep_running = true;
+   config->ev_backend = PGEXPORTER_EVENT_BACKEND_AUTO;
 
    config->update_process_title = UPDATE_PROCESS_TITLE_VERBOSE;
 
@@ -1090,16 +1097,11 @@ pgexporter_read_configuration(void* shm, char* filename)
                      unknown = true;
                   }
                }
-               else if (!strcmp(key, "libev"))
+               else if (!strcmp(key, "ev_backend"))
                {
                   if (!strcmp(section, "pgexporter"))
                   {
-                     max = strlen(value);
-                     if (max > MISC_LENGTH - 1)
-                     {
-                        max = MISC_LENGTH - 1;
-                     }
-                     memcpy(config->libev, value, max);
+                     config->ev_backend = as_ev_backend(value);
                   }
                   else
                   {
@@ -1508,6 +1510,9 @@ pgexporter_validate_configuration(void* shm)
       pgexporter_log_warn("metrics_query_timeout=%" PRId64 "ms is too low, using 50ms minimum", pgexporter_time_convert(config->metrics_query_timeout, FORMAT_TIME_MS));
       config->metrics_query_timeout = PGEXPORTER_TIME_MS(50);
    }
+
+   validate_event_backend(config);
+
    return 0;
 }
 
@@ -2746,15 +2751,11 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
          memcpy(config->unix_socket_dir, config_value, max);
          pgexporter_json_put(response, key, (uintptr_t)config->unix_socket_dir, ValueString);
       }
-      else if (!strcmp(key, "libev"))
+      else if (!strcmp(key, "ev_backend"))
       {
-         max = strlen(config_value);
-         if (max > MISC_LENGTH - 1)
-         {
-            max = MISC_LENGTH - 1;
-         }
-         memcpy(config->libev, config_value, max);
-         pgexporter_json_put(response, key, (uintptr_t)config->libev, ValueString);
+         config->ev_backend = as_ev_backend(config_value);
+         validate_event_backend(config);
+         pgexporter_json_put(response, key, (uintptr_t)ev_backend_to_string(config->ev_backend), ValueString);
       }
       else if (!strcmp(key, "keep_alive"))
       {
@@ -2947,7 +2948,7 @@ add_configuration_response(struct json* res)
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_CERT_FILE, (uintptr_t)config->metrics_cert_file, ValueString);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_CA_FILE, (uintptr_t)config->metrics_ca_file, ValueString);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_KEY_FILE, (uintptr_t)config->metrics_key_file, ValueString);
-   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_LIBEV, (uintptr_t)config->libev, ValueString);
+   pgexporter_json_put_enum_value(res, CONFIGURATION_ARGUMENT_EV_BACKEND, config->ev_backend, to_ev_backend);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_KEEP_ALIVE, (uintptr_t)config->keep_alive, ValueBool);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_NODELAY, (uintptr_t)config->nodelay, ValueBool);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_NON_BLOCKING, (uintptr_t)config->non_blocking, ValueBool);
@@ -3483,6 +3484,138 @@ as_history_backend(char* str)
    }
 
    return HISTORY_BACKEND_SQLITE;
+}
+
+static ev_backend_t
+as_ev_backend(char* str)
+{
+   if (is_empty_string(str))
+   {
+      return PGEXPORTER_EVENT_BACKEND_EMPTY;
+   }
+
+   if (!strncasecmp(str, "auto", MISC_LENGTH))
+   {
+      return PGEXPORTER_EVENT_BACKEND_AUTO;
+   }
+
+   if (!strncasecmp(str, "io_uring", MISC_LENGTH))
+   {
+      return PGEXPORTER_EVENT_BACKEND_IO_URING;
+   }
+
+   if (!strncasecmp(str, "epoll", MISC_LENGTH))
+   {
+      return PGEXPORTER_EVENT_BACKEND_EPOLL;
+   }
+
+   if (!strncasecmp(str, "kqueue", MISC_LENGTH))
+   {
+      return PGEXPORTER_EVENT_BACKEND_KQUEUE;
+   }
+
+   return PGEXPORTER_EVENT_BACKEND_INVALID;
+}
+
+static bool
+is_supported_backend(ev_backend_t backend)
+{
+   ev_backend_t supported_backends[] = {
+#if HAVE_LINUX
+#if HAVE_IO_URING
+      PGEXPORTER_EVENT_BACKEND_IO_URING,
+#endif
+      PGEXPORTER_EVENT_BACKEND_EPOLL,
+#else
+      PGEXPORTER_EVENT_BACKEND_KQUEUE,
+#endif
+   };
+
+   for (size_t i = 0; i < sizeof(supported_backends) / sizeof(supported_backends[0]); i++)
+   {
+      if (backend == supported_backends[i])
+      {
+         return true;
+      }
+   }
+
+   return false;
+}
+
+static void
+validate_event_backend(struct configuration* config)
+{
+   if (config->ev_backend == PGEXPORTER_EVENT_BACKEND_INVALID)
+   {
+      pgexporter_log_warn("Configured event backend is invalid. Default to 'auto'");
+      config->ev_backend = PGEXPORTER_EVENT_BACKEND_AUTO;
+   }
+
+   if (config->ev_backend == PGEXPORTER_EVENT_BACKEND_EMPTY)
+   {
+      pgexporter_log_warn("ev_backend configuration is empty. Default to 'auto'");
+      config->ev_backend = PGEXPORTER_EVENT_BACKEND_AUTO;
+   }
+
+   if (config->ev_backend == PGEXPORTER_EVENT_BACKEND_AUTO || !is_supported_backend(config->ev_backend))
+   {
+      if (config->ev_backend != PGEXPORTER_EVENT_BACKEND_AUTO)
+      {
+         pgexporter_log_warn("Configured backend '%s' is unsupported", ev_backend_to_string(config->ev_backend));
+      }
+      config->ev_backend = DEFAULT_EVENT_BACKEND;
+   }
+
+#if HAVE_LINUX && HAVE_IO_URING
+   if (config->ev_backend == PGEXPORTER_EVENT_BACKEND_IO_URING)
+   {
+      FILE* fp;
+      int rval;
+
+      fp = fopen("/proc/sys/kernel/io_uring_disabled", "r");
+      if (fp == NULL)
+      {
+         pgexporter_log_debug("Failed to open /proc/sys/kernel/io_uring_disabled: %s", strerror(errno));
+         config->ev_backend = PGEXPORTER_EVENT_BACKEND_EPOLL;
+         return;
+      }
+
+      rval = fgetc(fp);
+      if (fclose(fp) != 0)
+      {
+         pgexporter_log_warn("Failed to close /proc/sys/kernel/io_uring_disabled: %s", strerror(errno));
+      }
+
+      if (rval == '1' || rval == '2')
+      {
+         pgexporter_log_warn("io_uring supported but disabled by kernel; falling back to epoll");
+         config->ev_backend = PGEXPORTER_EVENT_BACKEND_EPOLL;
+      }
+   }
+#endif
+
+   pgexporter_log_debug("Selected backend '%s'", ev_backend_to_string(config->ev_backend));
+}
+
+static const char*
+ev_backend_to_string(ev_backend_t backend)
+{
+   switch (backend)
+   {
+      case PGEXPORTER_EVENT_BACKEND_AUTO:
+         return "auto";
+      case PGEXPORTER_EVENT_BACKEND_IO_URING:
+         return "io_uring";
+      case PGEXPORTER_EVENT_BACKEND_EPOLL:
+         return "epoll";
+      case PGEXPORTER_EVENT_BACKEND_KQUEUE:
+         return "kqueue";
+      case PGEXPORTER_EVENT_BACKEND_EMPTY:
+         return "";
+      case PGEXPORTER_EVENT_BACKEND_INVALID:
+      default:
+         return "unknown";
+   }
 }
 
 /**
@@ -4051,8 +4184,11 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
       changed = true;
    }
 
-   /* libev */
-   restart_string("libev", config->libev, reload->libev);
+   /* ev_backend */
+   if (restart_int("ev_backend", config->ev_backend, reload->ev_backend))
+   {
+      changed = true;
+   }
    config->keep_alive = reload->keep_alive;
    config->nodelay = reload->nodelay;
    config->non_blocking = reload->non_blocking;
@@ -4401,6 +4537,33 @@ to_log_mode(char* where, int value)
          break;
       case PGEXPORTER_LOGGING_MODE_APPEND:
          snprintf(where, MISC_LENGTH, "%s", "append");
+         break;
+      default:
+         return 1;
+   }
+   return 0;
+}
+
+static int
+to_ev_backend(char* where, int value)
+{
+   if (!where)
+   {
+      return 1;
+   }
+   switch (value)
+   {
+      case PGEXPORTER_EVENT_BACKEND_AUTO:
+         snprintf(where, MISC_LENGTH, "%s", "auto");
+         break;
+      case PGEXPORTER_EVENT_BACKEND_IO_URING:
+         snprintf(where, MISC_LENGTH, "%s", "io_uring");
+         break;
+      case PGEXPORTER_EVENT_BACKEND_EPOLL:
+         snprintf(where, MISC_LENGTH, "%s", "epoll");
+         break;
+      case PGEXPORTER_EVENT_BACKEND_KQUEUE:
+         snprintf(where, MISC_LENGTH, "%s", "kqueue");
          break;
       default:
          return 1;

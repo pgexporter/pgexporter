@@ -111,23 +111,15 @@ pgexporter_history_shutdown(void)
 }
 
 void
-pgexporter_history_tick_cb(struct ev_loop* loop, ev_timer* watcher, int revents)
+pgexporter_history_tick_cb(void)
 {
-   (void)loop;
-   (void)watcher;
-   (void)revents;
-
    /* TODO: fork history worker, skip if previous worker still running */
    pgexporter_log_debug("history: tick (not yet implemented)");
 }
 
 void
-pgexporter_history_retention_tick_cb(struct ev_loop* loop, ev_timer* watcher, int revents)
+pgexporter_history_retention_tick_cb(void)
 {
-   (void)loop;
-   (void)watcher;
-   (void)revents;
-
    /* TODO: fork retention worker */
    pgexporter_log_debug("history: retention tick (not yet implemented)");
 }

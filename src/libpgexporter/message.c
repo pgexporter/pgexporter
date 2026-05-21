@@ -40,10 +40,14 @@
 #include <unistd.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+#include <shmem.h>
 #include <sys/time.h>
 
 static int read_message(int socket, bool block, int timeout, struct message** msg);
 static int write_message(int socket, struct message* msg);
+
+static int read_message_from_buffer(struct io_watcher* watcher, struct message** msg);
+static int write_message_from_buffer(struct io_watcher* watcher, struct message* msg);
 
 static int ssl_read_message(SSL* ssl, int timeout, struct message** msg);
 static int ssl_write_message(SSL* ssl, struct message* msg);
@@ -950,4 +954,130 @@ ssl_write_message(SSL* ssl, struct message* msg)
    while (keep_write);
 
    return MESSAGE_STATUS_ERROR;
+}
+
+/**
+ * Get the message buffer from a watcher
+ * @param watcher The I/O watcher
+ * @return The message buffer
+ */
+struct message*
+pgexporter_get_watcher_message(struct io_watcher* watcher)
+{
+   if (watcher != NULL && watcher->msg != NULL)
+   {
+      return watcher->msg;
+   }
+
+   return pgexporter_memory_message();
+}
+
+/**
+ * Receive a message using a watcher (event loop path)
+ * 
+ * NOTE: This function is currently UNUSED in pgexporter.
+ * pgexporter uses the event loop only for accepting connections on listening sockets.
+ * All PostgreSQL I/O uses pgexporter_read_block_message() with traditional blocking I/O.
+ * 
+ * This function is kept for potential future use if pgexporter implements
+ * asynchronous PostgreSQL query execution through the event loop.
+ * 
+ * To use this with SSL, io_watcher would need to be extended to store SSL* pointers
+ * (similar to pgagroal's worker_io structure which has client_ssl and server_ssl).
+ * Currently, watcher->ssl is just a bool flag, not an SSL context pointer.
+ */
+int
+pgexporter_recv_message(struct io_watcher* watcher, struct message** msg)
+{
+   struct configuration* config = (struct configuration*)shmem;
+   int rfd = watcher->fds.worker.rcv_fd;
+
+   /* watcher->ssl is just a bool flag indicating SSL is used.
+    * To actually use SSL here, we'd need to store SSL* in the watcher
+    * (like pgagroal's worker_io which extends io_watcher with client_ssl/server_ssl).
+    * For now, fall back to traditional blocking read. */
+   if (watcher->ssl)
+   {
+      return read_message(rfd, false, 0, msg);
+   }
+
+   if (config->ev_backend != PGEXPORTER_EVENT_BACKEND_IO_URING)
+   {
+      return read_message(rfd, false, 0, msg);
+   }
+
+   return read_message_from_buffer(watcher, msg);
+}
+
+/**
+ * Send a message using a watcher (event loop path)
+ * 
+ * NOTE: This function is currently UNUSED in pgexporter.
+ * pgexporter uses the event loop only for accepting connections on listening sockets.
+ * All PostgreSQL I/O uses pgexporter_write_message() with traditional blocking I/O.
+ * 
+ * This function is kept for potential future use if pgexporter implements
+ * asynchronous PostgreSQL query execution through the event loop.
+ * 
+ * To use this with SSL, io_watcher would need to be extended to store SSL* pointers
+ * (similar to pgagroal's worker_io structure which has client_ssl and server_ssl).
+ * Currently, watcher->ssl is just a bool flag, not an SSL context pointer.
+ */
+int
+pgexporter_send_message(struct io_watcher* watcher, struct message* msg)
+{
+   struct configuration* config = (struct configuration*)shmem;
+   int sfd = watcher->fds.worker.snd_fd;
+
+   /* watcher->ssl is just a bool flag indicating SSL is used.
+    * To actually use SSL here, we'd need to store SSL* in the watcher
+    * (like pgagroal's worker_io which extends io_watcher with client_ssl/server_ssl).
+    * For now, fall back to traditional blocking write. */
+   if (watcher->ssl)
+   {
+      return write_message(sfd, msg);
+   }
+
+   if (config->ev_backend != PGEXPORTER_EVENT_BACKEND_IO_URING)
+   {
+      return write_message(sfd, msg);
+   }
+
+   return write_message_from_buffer(watcher, msg);
+}
+
+static int
+read_message_from_buffer(struct io_watcher* watcher, struct message** msg_p)
+{
+   struct message* msg = pgexporter_get_watcher_message(watcher);
+
+   if (msg->length == 0)
+   {
+      return MESSAGE_STATUS_ZERO;
+   }
+
+   if (msg->length < 0)
+   {
+      return MESSAGE_STATUS_ERROR;
+   }
+
+   msg->kind = (signed char)(*((char*)msg->data));
+   *msg_p = msg;
+   return MESSAGE_STATUS_OK;
+}
+
+static int
+write_message_from_buffer(struct io_watcher* watcher, struct message* msg)
+{
+   int sent_bytes = pgexporter_event_prep_submit_send(watcher, msg);
+
+   if (msg->length == 0)
+   {
+      return MESSAGE_STATUS_ZERO;
+   }
+   if (sent_bytes < msg->length)
+   {
+      return MESSAGE_STATUS_ERROR;
+   }
+   return MESSAGE_STATUS_OK;
 }

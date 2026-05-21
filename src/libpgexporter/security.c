@@ -58,6 +58,7 @@
 #include <openssl/core_names.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 
 #define SECURITY_INVALID            -2

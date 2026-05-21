@@ -66,6 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: rockylinux/rockylinux:10
+      options: --security-opt seccomp=unconfined
 
     strategy:
       matrix:
@@ -83,7 +84,7 @@ jobs:
           dnf -y install epel-release
           dnf -y install \
             git gcc clang cmake make \
-            libev libev-devel openssl openssl-devel \
+            liburing-devel pkgconf openssl openssl-devel \
             systemd systemd-devel zlib zlib-devel \
             libzstd libzstd-devel lz4 lz4-devel \
             bzip2 bzip2-devel libatomic libyaml-devel \
@@ -180,7 +181,6 @@ jobs:
         run: |
           brew update
           brew install \
-            libev \
             libyaml \
             docutils \
             check \
