@@ -147,8 +147,10 @@ metrics_key_file
 metrics_ca_file
   Certificate Authority (CA) file for TLS for Prometheus metrics
 
-libev
-  The libev backend to use. Valid options: auto, select, poll, epoll, iouring, devpoll and port. Default is auto
+ev_backend
+  Event loop backend: auto (default), io_uring, epoll (Linux), or kqueue (BSD/macOS).
+  On Linux, io_uring is used when liburing and kernel support are available at build time; otherwise epoll.
+  Non-Linux systems use kqueue.
 
 keep_alive
   Have SO_KEEPALIVE on sockets. Default is on

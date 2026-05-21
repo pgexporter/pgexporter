@@ -44,7 +44,8 @@ RUN apk add --no-cache \
     libpq \
     libpq-dev \
     musl-dev \
-    libev-dev \
+    liburing-dev \
+    pkgconf \
     py-docutils \
     pandoc \
     texlive texmf-dist \
@@ -67,7 +68,7 @@ FROM alpine:latest
 RUN apk add --no-cache \
     bash \
     ca-certificates \
-    libev \
+    liburing \
     yaml \
     bzip2 \
     libatomic \

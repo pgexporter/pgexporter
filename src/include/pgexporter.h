@@ -58,6 +58,8 @@ extern "C" {
 #define MAX_PROCESS_TITLE_LENGTH     256
 
 #define DEFAULT_BUFFER_SIZE          131072
+#define RECV_BUFFER_HEADROOM         8
+#define MESSAGE_PARSE_BUFFER_SIZE    (DEFAULT_BUFFER_SIZE - RECV_BUFFER_HEADROOM)
 
 #define MAX_USERNAME_LENGTH          128
 #define MAX_PASSWORD_LENGTH          1024
@@ -478,12 +480,13 @@ struct configuration
 
    unsigned int update_process_title; /**< Behaviour for updating the process title */
 
-   char libev[MISC_LENGTH]; /**< Name of libev mode */
-   bool keep_alive;         /**< Use keep alive */
-   bool nodelay;            /**< Use NODELAY */
-   bool non_blocking;       /**< Use non blocking */
-   int backlog;             /**< The backlog for listen */
-   unsigned char hugepage;  /**< Huge page support */
+   int ev_backend;         /**< Selected event backend (io_uring/epoll/kqueue) */
+   bool keep_running;      /**< Is pgexporter still running */
+   bool keep_alive;        /**< Use keep alive */
+   bool nodelay;           /**< Use NODELAY */
+   bool non_blocking;      /**< Use non blocking */
+   int backlog;            /**< The backlog for listen */
+   unsigned char hugepage; /**< Huge page support */
 
    char unix_socket_dir[MISC_LENGTH]; /**< The directory for the Unix Domain Socket */
 

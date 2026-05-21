@@ -59,7 +59,6 @@
 /* system */
 #include <err.h>
 #include <errno.h>
-#include <ev.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <signal.h>
@@ -84,17 +83,18 @@
 
 #define MAX_FDS 64
 
-static void accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
-static void accept_transfer_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
-static void accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
-static void accept_console_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
-static void accept_bridge_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
-static void accept_bridge_json_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
-static void accept_management_cb(struct ev_loop* loop, struct ev_io* watcher, int revents);
-static void shutdown_cb(struct ev_loop* loop, ev_signal* w, int revents);
-static void reload_cb(struct ev_loop* loop, ev_signal* w, int revents);
-static void coredump_cb(struct ev_loop* loop, ev_signal* w, int revents);
-static void sigchld_cb(struct ev_loop* loop, ev_signal* w, int revents);
+/* Forward declarations - updated signatures for new event layer */
+static void accept_mgt_cb(struct io_watcher* watcher);
+static void accept_transfer_cb(struct io_watcher* watcher);
+static void accept_metrics_cb(struct io_watcher* watcher);
+static void accept_bridge_cb(struct io_watcher* watcher);
+static void accept_bridge_json_cb(struct io_watcher* watcher);
+static void accept_management_cb(struct io_watcher* watcher);
+static void shutdown_cb(void);
+static void reload_cb(void);
+static void coredump_cb(void);
+static void sigchld_cb(void);
+static void accept_console_cb(struct io_watcher* watcher);
 static bool accept_fatal(int error);
 static bool reload_configuration(void);
 static int create_pidfile(void);
@@ -102,18 +102,18 @@ static void remove_pidfile(void);
 static int create_lockfile(int port);
 static void remove_lockfile(int port);
 static void shutdown_ports(bool remove);
+static void stop_io_watcher(struct io_watcher* watcher);
 
 struct accept_io
 {
-   struct ev_io io;
+   struct io_watcher watcher;
    int socket;
    char** argv;
 };
 
-static volatile int keep_running = 1;
 static volatile int stop = 0;
 static char** argv_ptr;
-static struct ev_loop* main_loop = NULL;
+static struct event_loop* main_loop = NULL;
 static struct accept_io io_mgt;
 static int unix_management_socket = -1;
 static int unix_transfer_socket = -1;
@@ -133,6 +133,16 @@ static struct accept_io io_management[MAX_FDS];
 static int* management_fds = NULL;
 static int management_fds_length = -1;
 static struct accept_io io_transfer;
+static struct signal_watcher signal_watchers[6];
+
+static void
+stop_io_watcher(struct io_watcher* watcher)
+{
+   if (!pgexporter_event_loop_is_forked())
+   {
+      pgexporter_io_stop(watcher);
+   }
+}
 
 static void
 start_mgt(void)
@@ -144,10 +154,10 @@ start_mgt(void)
    if (config->metrics != -1)
    {
       memset(&io_mgt, 0, sizeof(struct accept_io));
-      ev_io_init((struct ev_io*)&io_mgt, accept_mgt_cb, unix_management_socket, EV_READ);
+      pgexporter_event_accept_init(&io_mgt.watcher, unix_management_socket, accept_mgt_cb);
       io_mgt.socket = unix_management_socket;
       io_mgt.argv = argv_ptr;
-      ev_io_start(main_loop, (struct ev_io*)&io_mgt);
+      pgexporter_io_start(&io_mgt.watcher);
    }
 }
 
@@ -160,7 +170,7 @@ shutdown_mgt(bool remove)
 
    if (config->metrics != -1)
    {
-      ev_io_stop(main_loop, (struct ev_io*)&io_mgt);
+      stop_io_watcher(&io_mgt.watcher);
       pgexporter_disconnect(unix_management_socket);
       errno = 0;
       if (remove)
@@ -181,10 +191,10 @@ start_transfer(void)
    if (config->metrics != -1)
    {
       memset(&io_transfer, 0, sizeof(struct accept_io));
-      ev_io_init((struct ev_io*)&io_transfer, accept_transfer_cb, unix_transfer_socket, EV_READ);
+      pgexporter_event_accept_init(&io_transfer.watcher, unix_transfer_socket, accept_transfer_cb);
       io_transfer.socket = unix_transfer_socket;
       io_transfer.argv = argv_ptr;
-      ev_io_start(main_loop, (struct ev_io*)&io_transfer);
+      pgexporter_io_start(&io_transfer.watcher);
    }
 }
 
@@ -197,7 +207,7 @@ shutdown_transfer(bool remove)
 
    if (config->metrics != -1)
    {
-      ev_io_stop(main_loop, (struct ev_io*)&io_transfer);
+      stop_io_watcher(&io_transfer.watcher);
       pgexporter_disconnect(unix_transfer_socket);
       errno = 0;
       if (remove)
@@ -215,17 +225,21 @@ start_metrics(void)
 
    config = (struct configuration*)shmem;
 
+   pgexporter_log_info("start_metrics: config->metrics=%d, metrics_fds_length=%d", config->metrics, metrics_fds_length);
+
    if (config->metrics != -1)
    {
       for (int i = 0; i < metrics_fds_length; i++)
       {
          int sockfd = *(metrics_fds + i);
 
+         pgexporter_log_info("start_metrics: registering fd=%d with epoll", sockfd);
+
          memset(&io_metrics[i], 0, sizeof(struct accept_io));
-         ev_io_init((struct ev_io*)&io_metrics[i], accept_metrics_cb, sockfd, EV_READ);
+         pgexporter_event_accept_init(&io_metrics[i].watcher, sockfd, accept_metrics_cb);
          io_metrics[i].socket = sockfd;
          io_metrics[i].argv = argv_ptr;
-         ev_io_start(main_loop, (struct ev_io*)&io_metrics[i]);
+         pgexporter_io_start(&io_metrics[i].watcher);
       }
    }
 }
@@ -233,18 +247,11 @@ start_metrics(void)
 static void
 shutdown_metrics(bool remove __attribute__((unused)))
 {
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (config->metrics != -1)
+   for (int i = 0; i < metrics_fds_length; i++)
    {
-      for (int i = 0; i < metrics_fds_length; i++)
-      {
-         ev_io_stop(main_loop, (struct ev_io*)&io_metrics[i]);
-         pgexporter_disconnect(io_metrics[i].socket);
-         errno = 0;
-      }
+      stop_io_watcher(&io_metrics[i].watcher);
+      pgexporter_disconnect(io_metrics[i].socket);
+      errno = 0;
    }
 }
 
@@ -262,10 +269,10 @@ start_console(void)
          int sockfd = *(console_fds + i);
 
          memset(&io_console[i], 0, sizeof(struct accept_io));
-         ev_io_init((struct ev_io*)&io_console[i], accept_console_cb, sockfd, EV_READ);
+         pgexporter_event_accept_init(&io_console[i].watcher, sockfd, accept_console_cb);
          io_console[i].socket = sockfd;
          io_console[i].argv = argv_ptr;
-         ev_io_start(main_loop, (struct ev_io*)&io_console[i]);
+         pgexporter_io_start(&io_console[i].watcher);
       }
    }
 }
@@ -281,7 +288,7 @@ shutdown_console(bool remove __attribute__((unused)))
    {
       for (int i = 0; i < console_fds_length; i++)
       {
-         ev_io_stop(main_loop, (struct ev_io*)&io_console[i]);
+         stop_io_watcher(&io_console[i].watcher);
          pgexporter_disconnect(io_console[i].socket);
          errno = 0;
       }
@@ -302,10 +309,10 @@ start_bridge(void)
          int sockfd = *(bridge_fds + i);
 
          memset(&io_bridge[i], 0, sizeof(struct accept_io));
-         ev_io_init((struct ev_io*)&io_bridge[i], accept_bridge_cb, sockfd, EV_READ);
+         pgexporter_event_accept_init(&io_bridge[i].watcher, sockfd, accept_bridge_cb);
          io_bridge[i].socket = sockfd;
          io_bridge[i].argv = argv_ptr;
-         ev_io_start(main_loop, (struct ev_io*)&io_bridge[i]);
+         pgexporter_io_start(&io_bridge[i].watcher);
       }
    }
 }
@@ -313,18 +320,11 @@ start_bridge(void)
 static void
 shutdown_bridge(bool remove __attribute__((unused)))
 {
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (config->bridge != -1)
+   for (int i = 0; i < bridge_fds_length; i++)
    {
-      for (int i = 0; i < bridge_fds_length; i++)
-      {
-         ev_io_stop(main_loop, (struct ev_io*)&io_bridge[i]);
-         pgexporter_disconnect(io_bridge[i].socket);
-         errno = 0;
-      }
+      stop_io_watcher(&io_bridge[i].watcher);
+      pgexporter_disconnect(io_bridge[i].socket);
+      errno = 0;
    }
 }
 
@@ -342,10 +342,10 @@ start_bridge_json(void)
          int sockfd = *(bridge_json_fds + i);
 
          memset(&io_bridge_json[i], 0, sizeof(struct accept_io));
-         ev_io_init((struct ev_io*)&io_bridge_json[i], accept_bridge_json_cb, sockfd, EV_READ);
+         pgexporter_event_accept_init(&io_bridge_json[i].watcher, sockfd, accept_bridge_json_cb);
          io_bridge_json[i].socket = sockfd;
          io_bridge_json[i].argv = argv_ptr;
-         ev_io_start(main_loop, (struct ev_io*)&io_bridge_json[i]);
+         pgexporter_io_start(&io_bridge_json[i].watcher);
       }
    }
 }
@@ -353,18 +353,11 @@ start_bridge_json(void)
 static void
 shutdown_bridge_json(bool remove __attribute__((unused)))
 {
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (config->bridge != -1 && config->bridge_json != -1)
+   for (int i = 0; i < bridge_json_fds_length; i++)
    {
-      for (int i = 0; i < bridge_json_fds_length; i++)
-      {
-         ev_io_stop(main_loop, (struct ev_io*)&io_bridge_json[i]);
-         pgexporter_disconnect(io_bridge_json[i].socket);
-         errno = 0;
-      }
+      stop_io_watcher(&io_bridge_json[i].watcher);
+      pgexporter_disconnect(io_bridge_json[i].socket);
+      errno = 0;
    }
 }
 
@@ -376,10 +369,10 @@ start_management(void)
       int sockfd = *(management_fds + i);
 
       memset(&io_management[i], 0, sizeof(struct accept_io));
-      ev_io_init((struct ev_io*)&io_management[i], accept_management_cb, sockfd, EV_READ);
+      pgexporter_event_accept_init(&io_management[i].watcher, sockfd, accept_management_cb);
       io_management[i].socket = sockfd;
       io_management[i].argv = argv_ptr;
-      ev_io_start(main_loop, (struct ev_io*)&io_management[i]);
+      pgexporter_io_start(&io_management[i].watcher);
    }
 }
 
@@ -388,7 +381,7 @@ shutdown_management(bool remove __attribute__((unused)))
 {
    for (int i = 0; i < management_fds_length; i++)
    {
-      ev_io_stop(main_loop, (struct ev_io*)&io_management[i]);
+      stop_io_watcher(&io_management[i].watcher);
       pgexporter_disconnect(io_management[i].socket);
       errno = 0;
    }
@@ -446,7 +439,6 @@ main(int argc, char** argv)
    char excluded_collectors[NUMBER_OF_COLLECTORS][MAX_COLLECTOR_LENGTH];
    bool daemon = false;
    pid_t pid, sid;
-   struct signal_info signal_watcher[6];
    size_t shmem_size;
    size_t prometheus_cache_shmem_size = 0;
    size_t bridge_cache_shmem_size = 0;
@@ -1181,29 +1173,27 @@ main(int argc, char** argv)
       exit(1);
    }
 
-   /* libev */
-   main_loop = ev_default_loop(pgexporter_libev(config->libev));
+   /* Initialize event loop */
+   main_loop = pgexporter_event_loop_init();
    if (!main_loop)
    {
-      pgexporter_log_fatal("pgexporter: No loop implementation (%x) (%x)",
-                           pgexporter_libev(config->libev), ev_supported_backends());
+      pgexporter_log_fatal("pgexporter: Failed to initialize event loop");
 #ifdef HAVE_SYSTEMD
-      sd_notifyf(0, "STATUS=No loop implementation (%x) (%x)", pgexporter_libev(config->libev), ev_supported_backends());
+      sd_notifyf(0, "STATUS=Failed to initialize event loop");
 #endif
       exit(1);
    }
 
-   ev_signal_init((struct ev_signal*)&signal_watcher[0], shutdown_cb, SIGTERM);
-   ev_signal_init((struct ev_signal*)&signal_watcher[1], reload_cb, SIGHUP);
-   ev_signal_init((struct ev_signal*)&signal_watcher[2], shutdown_cb, SIGINT);
-   ev_signal_init((struct ev_signal*)&signal_watcher[3], coredump_cb, SIGABRT);
-   ev_signal_init((struct ev_signal*)&signal_watcher[4], shutdown_cb, SIGALRM);
-   ev_signal_init((struct ev_signal*)&signal_watcher[5], sigchld_cb, SIGCHLD);
+   pgexporter_signal_init(&signal_watchers[0], shutdown_cb, SIGTERM);
+   pgexporter_signal_init(&signal_watchers[1], reload_cb, SIGHUP);
+   pgexporter_signal_init(&signal_watchers[2], shutdown_cb, SIGINT);
+   pgexporter_signal_init(&signal_watchers[3], coredump_cb, SIGABRT);
+   pgexporter_signal_init(&signal_watchers[4], shutdown_cb, SIGALRM);
+   pgexporter_signal_init(&signal_watchers[5], sigchld_cb, SIGCHLD);
 
    for (int i = 0; i < 6; i++)
    {
-      signal_watcher[i].slot = -1;
-      ev_signal_start(main_loop, (struct ev_signal*)&signal_watcher[i]);
+      pgexporter_signal_start(&signal_watchers[i]);
    }
 
    if (pgexporter_tls_valid())
@@ -1368,8 +1358,6 @@ main(int argc, char** argv)
    {
       pgexporter_log_debug("Remote management: %d", *(management_fds + i));
    }
-   pgexporter_libev_engines();
-   pgexporter_log_debug("libev engine: %s", pgexporter_libev_engine(ev_backend(main_loop)));
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L)
    pgexporter_log_debug("%s", SSLeay_version(SSLEAY_VERSION));
 #else
@@ -1419,10 +1407,8 @@ main(int argc, char** argv)
 
    pgexporter_close_connections();
 
-   while (keep_running)
-   {
-      ev_loop(main_loop, 0);
-   }
+   /* Run event loop */
+   pgexporter_event_loop_run();
 
    pgexporter_log_info("pgexporter: shutdown");
 #ifdef HAVE_SYSTEMD
@@ -1451,10 +1437,10 @@ main(int argc, char** argv)
 
    for (int i = 0; i < 6; i++)
    {
-      ev_signal_stop(main_loop, (struct ev_signal*)&signal_watcher[i]);
+      pgexporter_signal_stop(&signal_watchers[i]);
    }
 
-   ev_loop_destroy(main_loop);
+   pgexporter_event_loop_destroy();
 
    free(metrics_fds);
    free(console_fds);
@@ -1495,7 +1481,7 @@ main(int argc, char** argv)
 }
 
 static void
-accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
+accept_mgt_cb(struct io_watcher* watcher)
 {
    struct sockaddr_in6 client_addr;
    socklen_t client_addr_length;
@@ -1513,12 +1499,6 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    uint8_t compression = MANAGEMENT_COMPRESSION_NONE;
    uint8_t encryption = MANAGEMENT_ENCRYPTION_NONE;
 
-   if (EV_ERROR & revents)
-   {
-      pgexporter_log_trace("accept_mgt_cb: got invalid event: %s", strerror(errno));
-      return;
-   }
-
    config = (struct configuration*)shmem;
    ai = (struct accept_io*)watcher;
 
@@ -1526,12 +1506,20 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
    memset(&client_addr, 0, sizeof(client_addr));
    client_addr_length = sizeof(client_addr);
-   client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
+   if (watcher->fds.main.client_fd != -1)
+   {
+      client_fd = watcher->fds.main.client_fd;
+      watcher->fds.main.client_fd = -1;
+   }
+   else
+   {
+      client_fd = accept(watcher->fds.main.listen_fd, (struct sockaddr*)&client_addr, &client_addr_length);
+   }
    if (client_fd == -1)
    {
-      if (accept_fatal(errno) && keep_running)
+      if (accept_fatal(errno) && config->keep_running)
       {
-         pgexporter_log_warn("Restarting management due to: %s (%d)", strerror(errno), watcher->fd);
+         pgexporter_log_warn("Restarting management due to: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
 
          shutdown_mgt(false);
 
@@ -1547,7 +1535,7 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
       }
       else
       {
-         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fd);
+         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
       }
       errno = 0;
       return;
@@ -1575,8 +1563,8 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
       pgexporter_management_response_ok(NULL, client_fd, start_time, end_time, compression, encryption, payload);
 
-      ev_break(loop, EVBREAK_ALL);
-      keep_running = 0;
+      config->keep_running = false;
+      pgexporter_event_loop_break();
       stop = 1;
    }
    else if (id == MANAGEMENT_PING)
@@ -1631,6 +1619,11 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
       {
          struct json* pyl = NULL;
 
+         if (main_loop)
+         {
+            pgexporter_event_loop_fork();
+         }
+
          shutdown_ports(false);
 
          pgexporter_json_clone(payload, &pyl);
@@ -1656,6 +1649,11 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
       else if (pid == 0)
       {
          struct json* pyl = NULL;
+
+         if (main_loop)
+         {
+            pgexporter_event_loop_fork();
+         }
 
          shutdown_ports(false);
 
@@ -1699,6 +1697,11 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
       {
          struct json* pyl = NULL;
 
+         if (main_loop)
+         {
+            pgexporter_event_loop_fork();
+         }
+
          shutdown_ports(false);
 
          pgexporter_json_clone(payload, &pyl);
@@ -1724,6 +1727,11 @@ accept_mgt_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
       else if (pid == 0)
       {
          struct json* pyl = NULL;
+
+         if (main_loop)
+         {
+            pgexporter_event_loop_fork();
+         }
 
          shutdown_ports(false);
 
@@ -1761,7 +1769,7 @@ error:
 }
 
 static void
-accept_transfer_cb(struct ev_loop* loop __attribute__((unused)), struct ev_io* watcher, int revents)
+accept_transfer_cb(struct io_watcher* watcher)
 {
    struct sockaddr_in6 client_addr;
    socklen_t client_addr_length;
@@ -1770,11 +1778,7 @@ accept_transfer_cb(struct ev_loop* loop __attribute__((unused)), struct ev_io* w
    int fd = -1;
    struct configuration* config;
 
-   if (EV_ERROR & revents)
-   {
-      pgexporter_log_trace("accept_mgt_cb: got invalid event: %s", strerror(errno));
-      return;
-   }
+   pgexporter_log_trace("accept_transfer_cb: %d", watcher->fds.main.listen_fd);
 
    config = (struct configuration*)shmem;
 
@@ -1782,28 +1786,35 @@ accept_transfer_cb(struct ev_loop* loop __attribute__((unused)), struct ev_io* w
 
    memset(&client_addr, 0, sizeof(client_addr));
    client_addr_length = sizeof(client_addr);
-   client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
+   if (watcher->fds.main.client_fd != -1)
+   {
+      client_fd = watcher->fds.main.client_fd;
+      watcher->fds.main.client_fd = -1;
+   }
+   else
+   {
+      client_fd = accept(watcher->fds.main.listen_fd, (struct sockaddr*)&client_addr, &client_addr_length);
+   }
    if (client_fd == -1)
    {
-      if (accept_fatal(errno) && keep_running)
+      if (accept_fatal(errno) && config->keep_running)
       {
-         pgexporter_log_warn("Restarting transfer due to: %s (%d)", strerror(errno), watcher->fd);
+         pgexporter_log_warn("Restarting transfer due to: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
 
-         shutdown_mgt(false);
+         shutdown_transfer(false);
 
          if (pgexporter_bind_unix_socket(config->unix_socket_dir, TRANSFER_UDS, &unix_transfer_socket))
          {
             pgexporter_log_fatal("pgexporter: Could not bind to %s", config->unix_socket_dir);
             exit(1);
          }
-
-         start_mgt();
+         start_transfer();
 
          pgexporter_log_debug("Transfer: %d", unix_transfer_socket);
       }
       else
       {
-         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fd);
+         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
       }
       errno = 0;
       return;
@@ -1829,7 +1840,7 @@ error:
 }
 
 static void
-accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
+accept_metrics_cb(struct io_watcher* watcher)
 {
    struct sockaddr_in6 client_addr;
    socklen_t client_addr_length;
@@ -1840,26 +1851,30 @@ accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    SSL_CTX* ctx = NULL;
    SSL* client_ssl = NULL;
 
-   if (EV_ERROR & revents)
-   {
-      pgexporter_log_debug("accept_metrics_cb: invalid event: %s", strerror(errno));
-      errno = 0;
-      return;
-   }
-
    config = (struct configuration*)shmem;
    ai = (struct accept_io*)watcher;
+
+   pgexporter_log_trace("accept_metrics_cb: %d", watcher->fds.main.listen_fd);
 
    errno = 0;
 
    memset(&client_addr, 0, sizeof(client_addr));
    client_addr_length = sizeof(client_addr);
-   client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
+   if (watcher->fds.main.client_fd != -1)
+   {
+      client_fd = watcher->fds.main.client_fd;
+      watcher->fds.main.client_fd = -1;
+   }
+   else
+   {
+      client_fd = accept(watcher->fds.main.listen_fd, (struct sockaddr*)&client_addr, &client_addr_length);
+   }
+
    if (client_fd == -1)
    {
-      if (accept_fatal(errno) && keep_running)
+      if (accept_fatal(errno) && config->keep_running)
       {
-         pgexporter_log_warn("Restarting listening port due to: %s (%d)", strerror(errno), watcher->fd);
+         pgexporter_log_warn("Restarting listening port due to: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
 
          shutdown_metrics(false);
 
@@ -1888,12 +1903,14 @@ accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
       }
       else
       {
-         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fd);
+         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
       }
       errno = 0;
       return;
    }
 
+   /* Handle the accepted connection */
+   pgexporter_log_trace("Metrics: Forking for client_fd %d", client_fd);
    pid = fork();
    if (pid == -1)
    {
@@ -1902,7 +1919,13 @@ accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    }
    else if (pid == 0)
    {
-      ev_loop_fork(loop);
+      pgexporter_log_trace("Metrics: Child process started (pid %d)", getpid());
+      /* Child process - fork event loop if needed */
+      if (main_loop)
+      {
+         pgexporter_log_trace("Metrics: Forking event loop in child");
+         pgexporter_event_loop_fork();
+      }
 
       /* We are leaving the socket descriptor valid such that the client won't reuse it */
       shutdown_ports(false);
@@ -1924,6 +1947,7 @@ accept_metrics_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
       pgexporter_prometheus(client_ssl, client_fd);
    }
 
+   pgexporter_log_trace("Metrics: Parent process continuing for client_fd %d", client_fd);
    pgexporter_close_ssl(client_ssl);
    pgexporter_disconnect(client_fd);
 
@@ -1936,7 +1960,7 @@ error:
 }
 
 static void
-accept_console_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
+accept_console_cb(struct io_watcher* watcher)
 {
    struct sockaddr_in6 client_addr;
    socklen_t client_addr_length;
@@ -1945,26 +1969,30 @@ accept_console_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    struct accept_io* ai;
    struct configuration* config;
 
-   if (EV_ERROR & revents)
-   {
-      pgexporter_log_debug("accept_console_cb: invalid event: %s", strerror(errno));
-      errno = 0;
-      return;
-   }
-
    config = (struct configuration*)shmem;
    ai = (struct accept_io*)watcher;
 
-   errno = 0;
+   pgexporter_log_trace("accept_console_cb: %d", watcher->fds.main.listen_fd);
 
+   errno = 0;
    memset(&client_addr, 0, sizeof(client_addr));
    client_addr_length = sizeof(client_addr);
-   client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
+
+   if (watcher->fds.main.client_fd != -1)
+   {
+      client_fd = watcher->fds.main.client_fd;
+      watcher->fds.main.client_fd = -1;
+   }
+   else
+   {
+      client_fd = accept(watcher->fds.main.listen_fd, (struct sockaddr*)&client_addr, &client_addr_length);
+   }
+
    if (client_fd == -1)
    {
-      if (accept_fatal(errno) && keep_running)
+      if (accept_fatal(errno) && config->keep_running)
       {
-         pgexporter_log_warn("Restarting listening port due to: %s (%d)", strerror(errno), watcher->fd);
+         pgexporter_log_warn("Restarting listening port due to: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
 
          shutdown_console(false);
 
@@ -1993,12 +2021,13 @@ accept_console_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
       }
       else
       {
-         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fd);
+         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
       }
       errno = 0;
       return;
    }
 
+   /* Handle the accepted connection */
    pid = fork();
    if (pid == -1)
    {
@@ -2007,11 +2036,17 @@ accept_console_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    }
    else if (pid == 0)
    {
-      ev_loop_fork(loop);
+      /* Child process - fork event loop if needed */
+      if (main_loop)
+      {
+         pgexporter_event_loop_fork();
+      }
+
+      /* We are leaving the socket descriptor valid such that the client won't reuse it */
 
       shutdown_ports(false);
       pgexporter_set_proc_title(1, ai->argv, "console", NULL);
-      pgexporter_console(0, client_fd);
+      pgexporter_console(NULL, client_fd);
    }
 
    pgexporter_disconnect(client_fd);
@@ -2024,21 +2059,17 @@ error:
 }
 
 static void
-accept_bridge_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
+accept_bridge_cb(struct io_watcher* watcher)
 {
    struct sockaddr_in6 client_addr;
    socklen_t client_addr_length;
    int client_fd;
+   char address[INET6_ADDRSTRLEN];
    pid_t pid;
    struct accept_io* ai;
    struct configuration* config;
 
-   if (EV_ERROR & revents)
-   {
-      pgexporter_log_debug("accept_bridge_cb: invalid event: %s", strerror(errno));
-      errno = 0;
-      return;
-   }
+   pgexporter_log_trace("accept_bridge_cb: %d", watcher->fds.main.listen_fd);
 
    config = (struct configuration*)shmem;
    ai = (struct accept_io*)watcher;
@@ -2046,13 +2077,27 @@ accept_bridge_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    errno = 0;
 
    memset(&client_addr, 0, sizeof(client_addr));
+   memset(&client_addr, 0, sizeof(client_addr));
    client_addr_length = sizeof(client_addr);
-   client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
+   if (watcher->fds.main.client_fd != -1)
+   {
+      client_fd = watcher->fds.main.client_fd;
+      watcher->fds.main.client_fd = -1;
+      if (getpeername(client_fd, (struct sockaddr*)&client_addr, &client_addr_length) == -1)
+      {
+         pgexporter_log_debug("getpeername error for fd %d: %s", client_fd, strerror(errno));
+         pgexporter_snprintf(address, sizeof(address), "%s", "unknown");
+      }
+   }
+   else
+   {
+      client_fd = accept(watcher->fds.main.listen_fd, (struct sockaddr*)&client_addr, &client_addr_length);
+   }
    if (client_fd == -1)
    {
-      if (accept_fatal(errno) && keep_running)
+      if (accept_fatal(errno) && config->keep_running)
       {
-         pgexporter_log_warn("Restarting listening port due to: %s (%d)", strerror(errno), watcher->fd);
+         pgexporter_log_warn("Restarting listening port due to: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
 
          shutdown_bridge(false);
 
@@ -2076,12 +2121,12 @@ accept_bridge_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
          for (int i = 0; i < bridge_fds_length; i++)
          {
-            pgexporter_log_debug("Bridge: %d", *(metrics_fds + i));
+            pgexporter_log_debug("Bridge: %d", *(bridge_fds + i));
          }
       }
       else
       {
-         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fd);
+         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
       }
       errno = 0;
       return;
@@ -2095,7 +2140,11 @@ accept_bridge_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    }
    else if (pid == 0)
    {
-      ev_loop_fork(loop);
+      /* Child process - fork event loop if needed */
+      if (main_loop)
+      {
+         pgexporter_event_loop_fork();
+      }
 
       /* We are leaving the socket descriptor valid such that the client won't reuse it */
       shutdown_ports(false);
@@ -2114,7 +2163,7 @@ error:
 }
 
 static void
-accept_bridge_json_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
+accept_bridge_json_cb(struct io_watcher* watcher)
 {
    struct sockaddr_in6 client_addr;
    socklen_t client_addr_length;
@@ -2123,12 +2172,7 @@ accept_bridge_json_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    struct accept_io* ai;
    struct configuration* config;
 
-   if (EV_ERROR & revents)
-   {
-      pgexporter_log_debug("accept_bridge_json_cb: invalid event: %s", strerror(errno));
-      errno = 0;
-      return;
-   }
+   pgexporter_log_trace("accept_bridge_json_cb: %d", watcher->fds.main.listen_fd);
 
    config = (struct configuration*)shmem;
    ai = (struct accept_io*)watcher;
@@ -2137,12 +2181,20 @@ accept_bridge_json_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
    memset(&client_addr, 0, sizeof(client_addr));
    client_addr_length = sizeof(client_addr);
-   client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
+   if (watcher->fds.main.client_fd != -1)
+   {
+      client_fd = watcher->fds.main.client_fd;
+      watcher->fds.main.client_fd = -1;
+   }
+   else
+   {
+      client_fd = accept(watcher->fds.main.listen_fd, (struct sockaddr*)&client_addr, &client_addr_length);
+   }
    if (client_fd == -1)
    {
-      if (accept_fatal(errno) && keep_running)
+      if (accept_fatal(errno) && config->keep_running)
       {
-         pgexporter_log_warn("Restarting listening port due to: %s (%d)", strerror(errno), watcher->fd);
+         pgexporter_log_warn("Restarting listening port due to: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
 
          shutdown_bridge_json(false);
 
@@ -2166,12 +2218,12 @@ accept_bridge_json_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
          for (int i = 0; i < bridge_json_fds_length; i++)
          {
-            pgexporter_log_debug("Bridge JSON: %d", *(metrics_fds + i));
+            pgexporter_log_debug("Bridge JSON: %d", *(bridge_json_fds + i));
          }
       }
       else
       {
-         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fd);
+         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
       }
       errno = 0;
       return;
@@ -2185,7 +2237,11 @@ accept_bridge_json_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    }
    else if (pid == 0)
    {
-      ev_loop_fork(loop);
+      /* Child process - fork event loop if needed */
+      if (main_loop)
+      {
+         pgexporter_event_loop_fork();
+      }
 
       /* We are leaving the socket descriptor valid such that the client won't reuse it */
       shutdown_ports(false);
@@ -2204,7 +2260,7 @@ error:
 }
 
 static void
-accept_management_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
+accept_management_cb(struct io_watcher* watcher)
 {
    struct sockaddr_in6 client_addr;
    socklen_t client_addr_length;
@@ -2212,12 +2268,7 @@ accept_management_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
    char address[INET6_ADDRSTRLEN];
    struct configuration* config;
 
-   if (EV_ERROR & revents)
-   {
-      pgexporter_log_debug("accept_management_cb: invalid event: %s", strerror(errno));
-      errno = 0;
-      return;
-   }
+   pgexporter_log_trace("accept_management_cb: %d", watcher->fds.main.listen_fd);
 
    memset(&address, 0, sizeof(address));
 
@@ -2227,12 +2278,25 @@ accept_management_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 
    memset(&client_addr, 0, sizeof(client_addr));
    client_addr_length = sizeof(client_addr);
-   client_fd = accept(watcher->fd, (struct sockaddr*)&client_addr, &client_addr_length);
+   if (watcher->fds.main.client_fd != -1)
+   {
+      client_fd = watcher->fds.main.client_fd;
+      watcher->fds.main.client_fd = -1;
+      if (getpeername(client_fd, (struct sockaddr*)&client_addr, &client_addr_length) == -1)
+      {
+         pgexporter_log_debug("getpeername error for fd %d: %s", client_fd, strerror(errno));
+         pgexporter_snprintf(address, sizeof(address), "%s", "unknown");
+      }
+   }
+   else
+   {
+      client_fd = accept(watcher->fds.main.listen_fd, (struct sockaddr*)&client_addr, &client_addr_length);
+   }
    if (client_fd == -1)
    {
-      if (accept_fatal(errno) && keep_running)
+      if (accept_fatal(errno) && config->keep_running)
       {
-         pgexporter_log_warn("Restarting listening port due to: %s (%d)", strerror(errno), watcher->fd);
+         pgexporter_log_warn("Restarting listening port due to: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
 
          shutdown_management(false);
 
@@ -2261,19 +2325,26 @@ accept_management_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
       }
       else
       {
-         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fd);
+         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
       }
       errno = 0;
       return;
    }
 
-   pgexporter_get_address((struct sockaddr*)&client_addr, (char*)&address, sizeof(address));
+   if (address[0] == '\0')
+   {
+      pgexporter_get_address((struct sockaddr*)&client_addr, (char*)&address, sizeof(address));
+   }
 
    if (!fork())
    {
       char* addr = strdup(address);
 
-      ev_loop_fork(loop);
+      /* Child process - fork event loop if needed */
+      if (main_loop)
+      {
+         pgexporter_event_loop_fork();
+      }
       shutdown_ports(false);
       /* We are leaving the socket descriptor valid such that the client won't reuse it */
       pgexporter_remote_management(client_fd, addr);
@@ -2283,29 +2354,31 @@ accept_management_cb(struct ev_loop* loop, struct ev_io* watcher, int revents)
 }
 
 static void
-shutdown_cb(struct ev_loop* loop, ev_signal* w __attribute__((unused)), int revents __attribute__((unused)))
+shutdown_cb(void)
 {
+   struct configuration* config = (struct configuration*)shmem;
+
    pgexporter_log_debug("pgexporter: shutdown requested");
-   ev_break(loop, EVBREAK_ALL);
-   keep_running = 0;
+   config->keep_running = false;
+   pgexporter_event_loop_break();
 }
 
 static void
-reload_cb(struct ev_loop* loop __attribute__((unused)), ev_signal* w __attribute__((unused)), int revents __attribute__((unused)))
+reload_cb(void)
 {
    pgexporter_log_debug("pgexporter: reload requested");
    reload_configuration();
 }
 
 static void
-coredump_cb(struct ev_loop* loop __attribute__((unused)), ev_signal* w __attribute__((unused)), int revents __attribute__((unused)))
+coredump_cb(void)
 {
    pgexporter_log_info("pgexporter: core dump requested");
    abort();
 }
 
 static void
-sigchld_cb(struct ev_loop* loop __attribute__((unused)), ev_signal* w __attribute__((unused)), int revents __attribute__((unused)))
+sigchld_cb(void)
 {
    while (waitpid(-1, NULL, WNOHANG) > 0)
    {

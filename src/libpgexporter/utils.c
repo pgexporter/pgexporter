@@ -36,7 +36,6 @@
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
-#include <ev.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <pwd.h>
@@ -50,6 +49,7 @@
 #include <unistd.h>
 #include <openssl/pem.h>
 #include <sys/statvfs.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
@@ -483,161 +483,6 @@ pgexporter_swap(unsigned int i)
           ((i << 8) & 0x00ff0000) |
           ((i >> 8) & 0x0000ff00) |
           ((i >> 24) & 0x000000ff);
-}
-
-void
-pgexporter_libev_engines(void)
-{
-   unsigned int engines = ev_supported_backends();
-
-   if (engines & EVBACKEND_SELECT)
-   {
-      pgexporter_log_debug("libev available: select");
-   }
-   if (engines & EVBACKEND_POLL)
-   {
-      pgexporter_log_debug("libev available: poll");
-   }
-   if (engines & EVBACKEND_EPOLL)
-   {
-      pgexporter_log_debug("libev available: epoll");
-   }
-   if (engines & EVBACKEND_LINUXAIO)
-   {
-      pgexporter_log_debug("libev available: linuxaio");
-   }
-   if (engines & EVBACKEND_IOURING)
-   {
-      pgexporter_log_debug("libev available: iouring");
-   }
-   if (engines & EVBACKEND_KQUEUE)
-   {
-      pgexporter_log_debug("libev available: kqueue");
-   }
-   if (engines & EVBACKEND_DEVPOLL)
-   {
-      pgexporter_log_debug("libev available: devpoll");
-   }
-   if (engines & EVBACKEND_PORT)
-   {
-      pgexporter_log_debug("libev available: port");
-   }
-}
-
-unsigned int
-pgexporter_libev(char* engine)
-{
-   unsigned int engines = ev_supported_backends();
-
-   if (engine)
-   {
-      if (!strcmp("select", engine))
-      {
-         if (engines & EVBACKEND_SELECT)
-         {
-            return EVBACKEND_SELECT;
-         }
-         else
-         {
-            pgexporter_log_warn("libev not available: select");
-         }
-      }
-      else if (!strcmp("poll", engine))
-      {
-         if (engines & EVBACKEND_POLL)
-         {
-            return EVBACKEND_POLL;
-         }
-         else
-         {
-            pgexporter_log_warn("libev not available: poll");
-         }
-      }
-      else if (!strcmp("epoll", engine))
-      {
-         if (engines & EVBACKEND_EPOLL)
-         {
-            return EVBACKEND_EPOLL;
-         }
-         else
-         {
-            pgexporter_log_warn("libev not available: epoll");
-         }
-      }
-      else if (!strcmp("linuxaio", engine))
-      {
-         return EVFLAG_AUTO;
-      }
-      else if (!strcmp("iouring", engine))
-      {
-         if (engines & EVBACKEND_IOURING)
-         {
-            return EVBACKEND_IOURING;
-         }
-         else
-         {
-            pgexporter_log_warn("libev not available: iouring");
-         }
-      }
-      else if (!strcmp("devpoll", engine))
-      {
-         if (engines & EVBACKEND_DEVPOLL)
-         {
-            return EVBACKEND_DEVPOLL;
-         }
-         else
-         {
-            pgexporter_log_warn("libev not available: devpoll");
-         }
-      }
-      else if (!strcmp("port", engine))
-      {
-         if (engines & EVBACKEND_PORT)
-         {
-            return EVBACKEND_PORT;
-         }
-         else
-         {
-            pgexporter_log_warn("libev not available: port");
-         }
-      }
-      else if (!strcmp("auto", engine) || !strcmp("", engine))
-      {
-         return EVFLAG_AUTO;
-      }
-      else
-      {
-         pgexporter_log_warn("libev unknown option: %s", engine);
-      }
-   }
-
-   return EVFLAG_AUTO;
-}
-
-char*
-pgexporter_libev_engine(unsigned int val)
-{
-   switch (val)
-   {
-      case EVBACKEND_SELECT:
-         return "select";
-      case EVBACKEND_POLL:
-         return "poll";
-      case EVBACKEND_EPOLL:
-         return "epoll";
-      case EVBACKEND_LINUXAIO:
-         return "linuxaio";
-      case EVBACKEND_IOURING:
-         return "iouring";
-      case EVBACKEND_KQUEUE:
-         return "kqueue";
-      case EVBACKEND_DEVPOLL:
-         return "devpoll";
-      case EVBACKEND_PORT:
-         return "port";
-   }
-
-   return "Unknown";
 }
 
 char*

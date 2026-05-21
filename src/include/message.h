@@ -107,6 +107,40 @@ void
 pgexporter_free_message(struct message* msg);
 
 /**
+ * Get the message buffer from a watcher
+ * @param watcher The I/O watcher
+ * @return The message buffer
+ */
+struct message*
+pgexporter_get_watcher_message(struct io_watcher* watcher);
+
+/**
+ * Receive a message using a watcher (event loop path)
+ * 
+ * NOTE: Currently UNUSED in pgexporter. Kept for potential future use
+ * if asynchronous PostgreSQL query execution is implemented.
+ * 
+ * @param watcher The I/O watcher
+ * @param msg The resulting message
+ * @return One of MESSAGE_STATUS_ZERO, MESSAGE_STATUS_OK or MESSAGE_STATUS_ERROR
+ */
+int
+pgexporter_recv_message(struct io_watcher* watcher, struct message** msg);
+
+/**
+ * Send a message using a watcher (event loop path)
+ * 
+ * NOTE: Currently UNUSED in pgexporter. Kept for potential future use
+ * if asynchronous PostgreSQL query execution is implemented.
+ * 
+ * @param watcher The I/O watcher
+ * @param msg The message
+ * @return One of MESSAGE_STATUS_ZERO, MESSAGE_STATUS_OK or MESSAGE_STATUS_ERROR
+ */
+int
+pgexporter_send_message(struct io_watcher* watcher, struct message* msg);
+
+/**
  * Is the connection valid
  * @param ssl The SSL struct
  * @param socket The socket descriptor

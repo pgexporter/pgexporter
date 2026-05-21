@@ -96,13 +96,13 @@ We recommend using Fedora to test and run [**pgexporter**][pgexporter], but othe
 * [gcc 8+](https://gcc.gnu.org) (C17)
 * [cmake](https://cmake.org)
 * [make](https://www.gnu.org/software/make/)
-* [libev](http://software.schmorp.de/pkg/libev.html)
+* [liburing](https://github.com/axboe/liburing) (Linux optional, for io_uring when supported at build time)
 * [OpenSSL](http://www.openssl.org/)
 * [systemd](https://www.freedesktop.org/wiki/Software/systemd/)
 * [libyaml](https://pyyaml.org/wiki/LibYAML)
 
 ```sh
-dnf install git gcc cmake make libev libev-devel \
+dnf install git gcc cmake make liburing-devel pkgconf \
             openssl openssl-devel \
             systemd systemd-devel \
             python3-docutils libatomic \
@@ -157,7 +157,7 @@ On FreeBSD, `pkg` is used instead of `dnf` or `yum`.
 Use `pkg install <package name>` to install the following packages
 
 ``` sh
-git gcc cmake libev openssl py39-docutils libyaml
+git gcc cmake openssl py39-docutils libyaml
 ```
 
 ### Build

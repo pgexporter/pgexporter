@@ -38,6 +38,10 @@ extern "C" {
 #include <stdint.h>
 #include <time.h>
 
+/**
+ * @struct history_record
+ * @brief Stored metric sample for the history backend.
+ */
 struct history_record
 {
    time_t ts;                      /**< Unix timestamp of the snapshot */
@@ -54,12 +58,12 @@ struct history_record
  */
 struct history_backend_ops
 {
-   int (*init)(void);
-   int (*write_batch)(struct history_record* records, int count);
+   int (*init)(void);                                             /**< Initialize backend resources. */
+   int (*write_batch)(struct history_record* records, int count); /**< Persist a batch of history records. */
    int (*query_range)(const char* metric, time_t start, time_t end,
-                      struct history_record** out, int* count_out);
-   int (*prune)(void);
-   int (*shutdown)(void);
+                      struct history_record** out, int* count_out); /**< Query records for a metric and time range. */
+   int (*prune)(void);                                              /**< Remove records older than configured retention. */
+   int (*shutdown)(void);                                           /**< Release backend resources. */
 };
 
 /**
@@ -106,17 +110,17 @@ int
 pgexporter_history_shutdown(void);
 
 /**
- * ev_timer callback: fork a history worker to snapshot current metrics.
+ * Periodic callback: fork a history worker to snapshot current metrics.
  * Skipped if a previous worker is still running.
  */
 void
-pgexporter_history_tick_cb(struct ev_loop* loop, ev_timer* watcher, int revents);
+pgexporter_history_tick_cb(void);
 
 /**
- * ev_timer callback: fork a retention worker to prune old records.
+ * Periodic callback: fork a retention worker to prune old records.
  */
 void
-pgexporter_history_retention_tick_cb(struct ev_loop* loop, ev_timer* watcher, int revents);
+pgexporter_history_retention_tick_cb(void);
 
 #ifdef __cplusplus
 }

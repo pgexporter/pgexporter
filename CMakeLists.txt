@@ -68,6 +68,7 @@ endif()
 include(CheckCCompilerFlag)
 include(CheckCSourceCompiles)
 include(CheckIncludeFile)
+include(CheckSymbolExists)
 include(FindPackageHandleStandardArgs)
 include(GNUInstallDirs)
 
@@ -135,12 +136,105 @@ else ()
   message(FATAL_ERROR "lz4 needed")
 endif()
 
-find_package(Libev 4.11)
-if (LIBEV_FOUND)
-  message(STATUS "libev found")
-else ()
-  message(FATAL_ERROR "libev needed")
-endif()
+#
+# Event backend detection (io_uring/epoll/kqueue); custom layer in src/include/ev.h
+#
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+  # Check for io_uring support (liburing >= 2.5)
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(LIBURING liburing>=2.5)
+  
+  if (LIBURING_FOUND)
+    set(HAVE_IO_URING 1 CACHE BOOL "io_uring support available")
+    message(STATUS "io_uring found (liburing ${LIBURING_VERSION})")
+    
+    # Check for required io_uring constants
+    set(CMAKE_REQUIRED_INCLUDES "${LIBURING_INCLUDE_DIRS}")
+    set(HAVE_IO_URING_CONSTANTS ON)
+    set(MISSING_IO_URING_CONSTANTS "")
+    
+    foreach(constant
+            IORING_SETUP_CQSIZE
+            IORING_SETUP_DEFER_TASKRUN
+            IORING_SETUP_SINGLE_ISSUER
+            IORING_TIMEOUT_MULTISHOT
+            IORING_SQ_CQ_OVERFLOW
+            IORING_CQE_BUFFER_SHIFT
+            IORING_CQE_F_MORE)
+      set(IO_URING_CONSTANTS_TEST "
+#include <liburing.h>
+int main(void) {
+  (void)${constant};
+  return 0;
+}
+")
+      set(const_var "HAVE_${constant}")
+      check_c_source_compiles("${IO_URING_CONSTANTS_TEST}" ${const_var})
+      if(${const_var})
+        message(STATUS "io_uring constant check: ${constant}=usable")
+      else()
+        message(STATUS "io_uring constant check: ${constant}=not-usable")
+        set(HAVE_IO_URING_CONSTANTS OFF)
+        list(APPEND MISSING_IO_URING_CONSTANTS "${constant}")
+      endif()
+    endforeach()
+    set(CMAKE_REQUIRED_INCLUDES "")
+    
+    if (HAVE_IO_URING_CONSTANTS)
+      add_compile_options(-DHAVE_IO_URING)
+    else()
+      message(STATUS "io_uring constants missing; falling back to epoll")
+      message(STATUS "Missing io_uring constants: ${MISSING_IO_URING_CONSTANTS}")
+      set(HAVE_IO_URING 0)
+    endif()
+  else ()
+    set(HAVE_IO_URING 0 CACHE BOOL "io_uring support available")
+    message(STATUS "io_uring not found (liburing >= 2.5 required)")
+  endif ()
+  
+  # Check for epoll support
+  include(CheckSymbolExists)
+  check_symbol_exists(epoll_create1 "sys/epoll.h" HAVE_EPOLL)
+  if (HAVE_EPOLL)
+    message(STATUS "epoll found")
+  else ()
+    message(STATUS "epoll not available")
+  endif ()
+  
+  # Check for epoll_pwait2 (Linux 5.11+)
+  check_symbol_exists(epoll_pwait2 "sys/epoll.h" HAVE_EPOLL_PWAIT2)
+  if (HAVE_EPOLL_PWAIT2)
+    message(STATUS "epoll_pwait2 found")
+  endif ()
+  
+  set(HAVE_LINUX 1 CACHE BOOL "Linux system")
+  
+  # Check Linux kernel version (simplified check)
+  execute_process(
+    COMMAND uname -r
+    OUTPUT_VARIABLE KERNEL_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE KERNEL_RESULT
+  )
+  if (KERNEL_RESULT EQUAL 0)
+    message(STATUS "Linux kernel version: ${KERNEL_VERSION}")
+    # Basic version check - io_uring requires 5.1+
+    if (KERNEL_VERSION VERSION_GREATER_EQUAL "5.1")
+      message(STATUS "Kernel supports io_uring (5.1+)")
+    else ()
+      message(STATUS "Kernel may not support io_uring (requires 5.1+)")
+    endif ()
+  endif ()
+  
+elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin" OR ${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD" OR ${CMAKE_SYSTEM_NAME} MATCHES "OpenBSD")
+  # Check for kqueue support (BSD/macOS)
+  check_symbol_exists(kqueue "sys/event.h" HAVE_KQUEUE)
+  if (HAVE_KQUEUE)
+    message(STATUS "kqueue found")
+  else ()
+    message(FATAL_ERROR "kqueue not available")
+  endif ()
+endif ()
 
 find_package(OpenSSL)
 if (OPENSSL_FOUND)
