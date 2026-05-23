@@ -642,7 +642,7 @@ extern "C" {
                       "          description: Database name.\n"                                                                                                                         \
                       "        - type: counter\n"                                                                                                                                       \
                       "          name: age\n"                                                                                                                                           \
-                      "          description: Age since last vaccum.\n"                                                                                                                 \
+                      "          description: Age since last vacuum.\n"                                                                                                                 \
                       "        - type: counter\n"                                                                                                                                       \
                       "          name: age_datminmxid\n"                                                                                                                                \
                       "          description: Multixact age since last vacuum.\n"                                                                                                       \
@@ -664,7 +664,7 @@ extern "C" {
                       "          description: View name.\n"                                                                                                                             \
                       "        - type: counter\n"                                                                                                                                       \
                       "          name: age\n"                                                                                                                                           \
-                      "          description: Age since last vaccum.\n"                                                                                                                 \
+                      "          description: Age since last vacuum.\n"                                                                                                                 \
                       "    tag: pg_view_vacuum\n"                                                                                                                                       \
                       "    sort: data\n"                                                                                                                                                \
                       "    collector: db_vacuum\n"                                                                                                                                      \

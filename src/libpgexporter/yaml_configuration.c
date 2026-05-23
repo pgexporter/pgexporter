@@ -574,7 +574,7 @@ is_yaml_file(char* file)
 static int
 parse_yaml(FILE* file, yaml_config_t* yaml_config)
 {
-   /* State enables checking if the token that is parsed shouuld be allowed,
+   /* State enables checking if the token that is parsed should be allowed,
       or the possible options of where to go from here. Basically a DFA. */
    parser_state_t state = PARSER_INIT;
    char* buf;

@@ -266,7 +266,7 @@ main(int argc, char** argv)
    size_t command_count = sizeof(command_table) / sizeof(struct pgexporter_command);
    struct pgexporter_parsed_command parsed = {.cmd = NULL, .args = {0}};
 
-   // Disable stdout buffering (i.e. write to stdout immediatelly).
+   // Disable stdout buffering (i.e. write to stdout immediately).
    setbuf(stdout, NULL);
 
    char* filepath = NULL;

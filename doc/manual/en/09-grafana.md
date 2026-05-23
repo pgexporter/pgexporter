@@ -122,7 +122,7 @@ Then configure the data source and then "Save & test":
 
 ![image](../images/grafana_add_prometheus.png)
 
-Then you can explore dashboards with queries in "Expore" (Home -> Explore):
+Then you can explore dashboards with queries in "Explore" (Home -> Explore):
 
 ![image](../images/grafana_add_dashboard.png)
 

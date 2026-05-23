@@ -424,7 +424,7 @@ is an array, the function will be no-op. If the JSON item becomes empty after re
 and you can turn it into an array by appending entries to it.
 
 **pgexporter_json_clear**
-For `JSONArray`, the function removes all entries. For `JSONItem`, the funtion removes all key value pairs.
+For `JSONArray`, the function removes all entries. For `JSONItem`, the function removes all key value pairs.
 The JSON object will fall back to undefined status.
 
 **pgexporter_json_get**
