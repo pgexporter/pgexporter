@@ -96,6 +96,10 @@ make
 
 Remember to set the `log_level` configuration option to `debug5`.
 
+## Sponsors
+
+* [mnemosyne systems](https://www.mnemosyne-systems.ai/)
+
 ## Contributing
 
 Contributions to `pgexporter` are managed on [GitHub.com](https://github.com/pgexporter/pgexporter/)
