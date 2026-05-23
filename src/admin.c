@@ -170,7 +170,7 @@ main(int argc, char** argv)
    struct pgexporter_parsed_command parsed = {.cmd = NULL, .args = {0}};
    int32_t output_format = MANAGEMENT_OUTPUT_FORMAT_TEXT;
 
-   // Disable stdout buffering (i.e. write to stdout immediatelly).
+   // Disable stdout buffering (i.e. write to stdout immediately).
    setbuf(stdout, NULL);
 
    char* filepath = NULL;

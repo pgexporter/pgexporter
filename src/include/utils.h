@@ -114,7 +114,7 @@ struct pgexporter_parsed_command
  * @param command_table array containing one `struct pgexporter_command` for
  * every possible command.
  * @param command_count number of commands in `command_table`.
- * @return true if the parsing of the command line was succesful, false
+ * @return true if the parsing of the command line was successful, false
  * otherwise
  *
  */
@@ -822,7 +822,7 @@ pgexporter_version_number(void);
 
 /**
  * Checks if the currently running version number is
- * greater or equal than the specied one.
+ * greater or equal than the specified one.
  *
  * @param major the major version number
  * @param minor the minor version number

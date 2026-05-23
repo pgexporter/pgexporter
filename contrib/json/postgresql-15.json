@@ -599,7 +599,7 @@
             {
               "type": "counter",
               "name": "age",
-              "description": "Age since last vaccum."
+              "description": "Age since last vacuum."
             },
             {
               "type": "counter",
@@ -627,7 +627,7 @@
             {
               "type": "counter",
               "name": "age",
-              "description": "Age since last vaccum."
+              "description": "Age since last vacuum."
             }
           ]
         }

@@ -38,7 +38,7 @@ extern "C" {
 #include <yaml.h>
 
 /**
- * Read the custome configuration from YAML file provided by user.
+ * Read the custom configuration from YAML file provided by user.
  * @param shmem The shared memory segment
  * @return 0 upon success, otherwise 1
  */

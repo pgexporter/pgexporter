@@ -757,7 +757,7 @@ http_read_chunked_body(SSL* ssl, int socket, struct http_response* http_response
       if (chunk_read != chunk_size)
          goto error;
 
-      // read the traling CLF or \r\n
+      // read the trailing CLF or \r\n
       char trailing[2];
       if (prefetched_pos < prefetched_size)
       {

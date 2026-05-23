@@ -83,7 +83,7 @@ pgexporter_bridge(int fd);
  * The cache structure, as well as its dynamically sized payload,
  * are created as shared memory chunks.
  *
- * Assumes the shared memory for the cofiguration is already set.
+ * Assumes the shared memory for the configuration is already set.
  *
  * The cache will be allocated as soon as this method is invoked,
  * even if the cache has not been configured at all!
@@ -114,7 +114,7 @@ pgexporter_bridge_json(int fd);
  * The cache structure, as well as its dynamically sized payload,
  * are created as shared memory chunks.
  *
- * Assumes the shared memory for the cofiguration is already set.
+ * Assumes the shared memory for the configuration is already set.
  *
  * The cache will be allocated as soon as this method is invoked,
  * even if the cache has not been configured at all!

@@ -21,7 +21,7 @@ The shared memory segment is created using the `mmap()` call.
 
 ### Network and messages
 
-All communication is abstracted using the `message_t` data type defined in [messge.h][message_h].
+All communication is abstracted using the `message_t` data type defined in [message.h][message_h].
 
 Reading and writing messages are handled in the [message.h][message_h] ([message.c][message_c])
 files.

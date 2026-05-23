@@ -37,7 +37,7 @@
 <!-- doc/ -->
   [rpm]: https://github.com/pgexporter/pgexporter/blob/main/doc/RPM.md
   [configuration]: https://github.com/pgexporter/pgexporter/blob/main/doc/CONFIGURATION.md
-  [exmaples]: https://github.com/pgexporter/pgexporter/contrib/yaml
+  [examples]: https://github.com/pgexporter/pgexporter/contrib/yaml
 <!-- doc/etc -->
   [sample]: https://github.com/pgexporter/pgexporter/blob/main/doc/etc/pgexporter.conf
 

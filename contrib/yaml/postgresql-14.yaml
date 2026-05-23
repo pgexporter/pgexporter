@@ -327,7 +327,7 @@ metrics:
       description: Database name.
     - type: counter
       name: age
-      description: Age since last vaccum.
+      description: Age since last vacuum.
     - type: counter
       name: age_datminmxid
       description: Multixact age since last vacuum.
@@ -343,7 +343,7 @@ metrics:
       description: View name.
     - type: counter
       name: age
-      description: Age since last vaccum.
+      description: Age since last vacuum.
 - tag: pg_blocked_vacuum
   collector: blocked_vacuum
   sort: data
