@@ -106,6 +106,8 @@ extern "C" {
 #define HUGEPAGE_TRY                 1
 #define HUGEPAGE_ON                  2
 
+#define HISTORY_BACKEND_SQLITE       0
+
 #define VERSION_GREATER              1
 #define VERSION_EQUAL                0
 #define VERSION_LESS                 -1
@@ -432,11 +434,22 @@ struct configuration
    int management;                          /**< The management port */
    int console;                             /**< The console port */
 
-   int bridge;                             /**< The bridge port */
-   pgexporter_time_t bridge_cache_max_age; /**< Cache duration for bridge response */
-   size_t bridge_cache_max_size;           /**< Number of bytes max to cache the bridge response */
-   int bridge_json;                        /**< The bridge port */
-   size_t bridge_json_cache_max_size;      /**< Number of bytes max to cache the bridge response */
+   int history;                         /**< The history API port (-1 = disabled) */
+   pgexporter_time_t history_interval;  /**< Interval between history snapshots */
+   pgexporter_time_t history_retention; /**< How long to retain history records */
+   int history_backend;                 /**< The history storage backend */
+   char history_path[MAX_PATH];         /**< Path for the history storage file */
+
+   int bridge;                                 /**< The bridge port */
+   pgexporter_time_t bridge_cache_max_age;     /**< Cache duration for bridge response */
+   size_t bridge_cache_max_size;               /**< Number of bytes max to cache the bridge response */
+   int bridge_json;                            /**< The bridge port */
+   size_t bridge_json_cache_max_size;          /**< Number of bytes max to cache the bridge response */
+   int bridge_history;                         /**< The bridge history API port (-1 = disabled) */
+   pgexporter_time_t bridge_history_interval;  /**< Interval between bridge history snapshots */
+   pgexporter_time_t bridge_history_retention; /**< How long to retain bridge history records */
+   int bridge_history_backend;                 /**< The bridge history storage backend */
+   char bridge_history_path[MAX_PATH];         /**< Path for the bridge history storage file */
 
    bool cache;          /**< Cache connection */
    bool alerts_enabled; /**< Is alerting enabled */
