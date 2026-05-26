@@ -76,6 +76,7 @@ static int as_logging_type(char* str);
 static int as_logging_level(char* str);
 static int as_logging_mode(char* str);
 static int as_hugepage(char* str);
+static int as_history_backend(char* str);
 static int as_server_type(char* str);
 static unsigned int as_update_process_title(char* str, unsigned int default_policy);
 static int as_logging_rotation_size(char* str, size_t* size);
@@ -104,6 +105,7 @@ static int to_log_level(char* where, int value);
 static int to_log_mode(char* where, int value);
 static int to_server_tls_mode(char* where, int value);
 static int to_hugepage(char* where, int value);
+static int to_history_backend(char* where, int value);
 static int to_update_process_title(char* where, int value);
 static bool pgexporter_is_binary_file(const char* path);
 
@@ -125,11 +127,23 @@ pgexporter_init_configuration(void* shm)
    memset(config->metric_names, 0, sizeof(config->metric_names));
 
    config->console = -1;
+
+   config->history = -1;
+   config->history_interval = PGEXPORTER_TIME_DISABLED;
+   config->history_retention = PGEXPORTER_TIME_DISABLED;
+   config->history_backend = HISTORY_BACKEND_SQLITE;
+   memset(config->history_path, 0, MAX_PATH);
+
    config->bridge = -1;
    config->bridge_cache_max_age = PGEXPORTER_TIME_SEC(300);
    config->bridge_cache_max_size = PROMETHEUS_DEFAULT_BRIDGE_CACHE_SIZE;
    config->bridge_json = -1;
    config->bridge_json_cache_max_size = PROMETHEUS_DEFAULT_BRIDGE_JSON_CACHE_SIZE;
+   config->bridge_history = -1;
+   config->bridge_history_interval = PGEXPORTER_TIME_DISABLED;
+   config->bridge_history_retention = PGEXPORTER_TIME_DISABLED;
+   config->bridge_history_backend = HISTORY_BACKEND_SQLITE;
+   memset(config->bridge_history_path, 0, MAX_PATH);
 
    memset(config->global_extensions, 0, MAX_EXTENSIONS_CONFIG_LENGTH);
    for (int i = 0; i < NUMBER_OF_SERVERS; i++)
@@ -568,6 +582,144 @@ pgexporter_read_configuration(void* shm, char* filename)
                      {
                         unknown = true;
                      }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "history"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     if (as_int(value, &config->history))
+                     {
+                        unknown = true;
+                     }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "history_interval"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     if (as_milliseconds(value, &config->history_interval, PGEXPORTER_TIME_DISABLED))
+                     {
+                        unknown = true;
+                     }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "history_retention"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     if (as_milliseconds(value, &config->history_retention, PGEXPORTER_TIME_DISABLED))
+                     {
+                        unknown = true;
+                     }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "history_backend"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     config->history_backend = as_history_backend(value);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "history_path"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->history_path, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "bridge_history"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     if (as_int(value, &config->bridge_history))
+                     {
+                        unknown = true;
+                     }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "bridge_history_interval"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     if (as_milliseconds(value, &config->bridge_history_interval, PGEXPORTER_TIME_DISABLED))
+                     {
+                        unknown = true;
+                     }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "bridge_history_retention"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     if (as_milliseconds(value, &config->bridge_history_retention, PGEXPORTER_TIME_DISABLED))
+                     {
+                        unknown = true;
+                     }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "bridge_history_backend"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     config->bridge_history_backend = as_history_backend(value);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "bridge_history_path"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->bridge_history_path, value, max);
                   }
                   else
                   {
@@ -2278,6 +2430,84 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
                              (uintptr_t)config->bridge_json_cache_max_size,
                              ValueInt64);
       }
+      else if (!strcmp(key, "history"))
+      {
+         if (as_int(config_value, &config->history))
+         {
+            unknown = true;
+         }
+         pgexporter_json_put(response, key, (uintptr_t)config->history, ValueInt64);
+      }
+      else if (!strcmp(key, "history_interval"))
+      {
+         if (as_milliseconds(config_value, &config->history_interval, PGEXPORTER_TIME_DISABLED))
+         {
+            unknown = true;
+         }
+         pgexporter_json_put(response, key, (uintptr_t)pgexporter_time_convert(config->history_interval, FORMAT_TIME_S), ValueInt64);
+      }
+      else if (!strcmp(key, "history_retention"))
+      {
+         if (as_milliseconds(config_value, &config->history_retention, PGEXPORTER_TIME_DISABLED))
+         {
+            unknown = true;
+         }
+         pgexporter_json_put(response, key, (uintptr_t)pgexporter_time_convert(config->history_retention, FORMAT_TIME_S), ValueInt64);
+      }
+      else if (!strcmp(key, "history_backend"))
+      {
+         config->history_backend = as_history_backend(config_value);
+         pgexporter_json_put(response, key, (uintptr_t)config->history_backend, ValueInt32);
+      }
+      else if (!strcmp(key, "history_path"))
+      {
+         max = strlen(config_value);
+         if (max > MAX_PATH - 1)
+         {
+            max = MAX_PATH - 1;
+         }
+         memcpy(config->history_path, config_value, max);
+         pgexporter_json_put(response, key, (uintptr_t)config->history_path, ValueString);
+      }
+      else if (!strcmp(key, "bridge_history"))
+      {
+         if (as_int(config_value, &config->bridge_history))
+         {
+            unknown = true;
+         }
+         pgexporter_json_put(response, key, (uintptr_t)config->bridge_history, ValueInt64);
+      }
+      else if (!strcmp(key, "bridge_history_interval"))
+      {
+         if (as_milliseconds(config_value, &config->bridge_history_interval, PGEXPORTER_TIME_DISABLED))
+         {
+            unknown = true;
+         }
+         pgexporter_json_put_time_value(response, key, config->bridge_history_interval, FORMAT_TIME_S);
+      }
+      else if (!strcmp(key, "bridge_history_retention"))
+      {
+         if (as_milliseconds(config_value, &config->bridge_history_retention, PGEXPORTER_TIME_DISABLED))
+         {
+            unknown = true;
+         }
+         pgexporter_json_put_time_value(response, key, config->bridge_history_retention, FORMAT_TIME_S);
+      }
+      else if (!strcmp(key, "bridge_history_backend"))
+      {
+         config->bridge_history_backend = as_history_backend(config_value);
+         pgexporter_json_put_enum_value(response, key, config->bridge_history_backend, to_history_backend);
+      }
+      else if (!strcmp(key, "bridge_history_path"))
+      {
+         max = strlen(config_value);
+         if (max > MAX_PATH - 1)
+         {
+            max = MAX_PATH - 1;
+         }
+         memcpy(config->bridge_history_path, config_value, max);
+         pgexporter_json_put(response, key, (uintptr_t)config->bridge_history_path, ValueString);
+      }
       else if (!strcmp(key, "management"))
       {
          if (as_int(config_value, &config->management))
@@ -2689,6 +2919,16 @@ add_configuration_response(struct json* res)
    pgexporter_json_put_size_value(res, CONFIGURATION_ARGUMENT_BRIDGE_CACHE_MAX_SIZE, config->bridge_cache_max_size);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_JSON, (uintptr_t)config->bridge_json, ValueInt64);
    pgexporter_json_put_size_value(res, CONFIGURATION_ARGUMENT_BRIDGE_JSON_CACHE_MAX_SIZE, config->bridge_json_cache_max_size);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_HISTORY, (uintptr_t)config->history, ValueInt64);
+   pgexporter_json_put_time_value(res, CONFIGURATION_ARGUMENT_HISTORY_INTERVAL, config->history_interval, FORMAT_TIME_S);
+   pgexporter_json_put_time_value(res, CONFIGURATION_ARGUMENT_HISTORY_RETENTION, config->history_retention, FORMAT_TIME_S);
+   pgexporter_json_put_enum_value(res, CONFIGURATION_ARGUMENT_HISTORY_BACKEND, config->history_backend, to_history_backend);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_HISTORY_PATH, (uintptr_t)config->history_path, ValueString);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_HISTORY, (uintptr_t)config->bridge_history, ValueInt64);
+   pgexporter_json_put_time_value(res, CONFIGURATION_ARGUMENT_BRIDGE_HISTORY_INTERVAL, config->bridge_history_interval, FORMAT_TIME_S);
+   pgexporter_json_put_time_value(res, CONFIGURATION_ARGUMENT_BRIDGE_HISTORY_RETENTION, config->bridge_history_retention, FORMAT_TIME_S);
+   pgexporter_json_put_enum_value(res, CONFIGURATION_ARGUMENT_BRIDGE_HISTORY_BACKEND, config->bridge_history_backend, to_history_backend);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_HISTORY_PATH, (uintptr_t)config->bridge_history_path, ValueString);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_MANAGEMENT, (uintptr_t)config->management, ValueInt64);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_ALERTS, (uintptr_t)config->alerts_enabled, ValueBool);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_CACHE, (uintptr_t)config->cache, ValueBool);
@@ -3234,6 +3474,17 @@ as_hugepage(char* str)
    return HUGEPAGE_OFF;
 }
 
+static int
+as_history_backend(char* str)
+{
+   if (!strcasecmp(str, "sqlite"))
+   {
+      return HISTORY_BACKEND_SQLITE;
+   }
+
+   return HISTORY_BACKEND_SQLITE;
+}
+
 /**
  * Utility function to understand the setting for updating
  * the process title.
@@ -3715,6 +3966,39 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
       changed = true;
    }
    config->management = reload->management;
+
+   /* history */
+   if (restart_int("history", config->history, reload->history))
+   {
+      changed = true;
+   }
+   config->history_interval = reload->history_interval;
+   config->history_retention = reload->history_retention;
+   if (restart_int("history_backend", config->history_backend, reload->history_backend))
+   {
+      changed = true;
+   }
+   if (restart_string("history_path", config->history_path, reload->history_path))
+   {
+      changed = true;
+   }
+
+   /* bridge history */
+   if (restart_int("bridge_history", config->bridge_history, reload->bridge_history))
+   {
+      changed = true;
+   }
+   config->bridge_history_interval = reload->bridge_history_interval;
+   config->bridge_history_retention = reload->bridge_history_retention;
+   if (restart_int("bridge_history_backend", config->bridge_history_backend, reload->bridge_history_backend))
+   {
+      changed = true;
+   }
+   if (restart_string("bridge_history_path", config->bridge_history_path, reload->bridge_history_path))
+   {
+      changed = true;
+   }
+
    config->cache = reload->cache;
    config->alerts_enabled = reload->alerts_enabled;
 
@@ -4167,6 +4451,24 @@ to_hugepage(char* where, int value)
          break;
       case HUGEPAGE_ON:
          snprintf(where, MISC_LENGTH, "%s", "on");
+         break;
+      default:
+         return 1;
+   }
+   return 0;
+}
+
+static int
+to_history_backend(char* where, int value)
+{
+   if (!where)
+   {
+      return 1;
+   }
+   switch (value)
+   {
+      case HISTORY_BACKEND_SQLITE:
+         snprintf(where, MISC_LENGTH, "%s", "sqlite");
          break;
       default:
          return 1;
