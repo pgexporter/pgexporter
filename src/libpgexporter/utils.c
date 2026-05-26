@@ -170,7 +170,7 @@ pgexporter_extract_username_database(struct message* msg, char** username, char*
 
    if (*database == NULL)
    {
-      *database = *username;
+      *database = strdup(*username);
    }
 
    pgexporter_log_trace("Username: %s", *username);
