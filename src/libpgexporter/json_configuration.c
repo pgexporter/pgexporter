@@ -109,7 +109,7 @@ static void free_json_config(json_config_t* config);
 static int semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t* json_config);
 
 // Read and parse a single JSON file into the prometheus metrics structure
-int pgexporter_read_json(struct prometheus* prometheus, int prometheus_idx, char* filename, int* number_of_metrics);
+int pgexporter_read_json(struct configuration* config, struct prometheus* prometheus, int prometheus_idx, char* filename, int* number_of_metrics);
 
 // Get all JSON files from a directory
 int get_json_files(char* base, int* number_of_json_files, char*** files);
@@ -136,7 +136,7 @@ pgexporter_read_json_metrics_configuration(void* shmem)
    if (pgexporter_is_file(config->metrics_path))
    {
       number_of_metrics = 0;
-      if (pgexporter_read_json(config->prometheus, idx_metrics, config->metrics_path, &number_of_metrics))
+      if (pgexporter_read_json(config, config->prometheus, idx_metrics, config->metrics_path, &number_of_metrics))
       {
          pgexporter_log_error("pgexporter_read_json_metrics_configuration error JSON metrics file: %s", config->metrics_path);
          return 1;
@@ -155,7 +155,7 @@ pgexporter_read_json_metrics_configuration(void* shmem)
                                         "/",
                                         json_files[i]);
 
-         if (pgexporter_read_json(config->prometheus, idx_metrics, json_path, &number_of_metrics))
+         if (pgexporter_read_json(config, config->prometheus, idx_metrics, json_path, &number_of_metrics))
          {
             free(json_path);
             json_path = NULL;
@@ -367,7 +367,7 @@ error:
 }
 
 int
-pgexporter_read_json(struct prometheus* prometheus, int prometheus_idx, char* filename, int* number_of_metrics)
+pgexporter_read_json(struct configuration* config, struct prometheus* prometheus, int prometheus_idx, char* filename, int* number_of_metrics)
 {
    struct json* root = NULL;
    json_config_t json_config;
@@ -403,8 +403,6 @@ pgexporter_read_json(struct prometheus* prometheus, int prometheus_idx, char* fi
    }
 
    *number_of_metrics += json_config.n_metrics;
-
-   struct configuration* config = (struct configuration*)shmem;
 
    /* Validate before inserting them */
    if (pgexporter_validate_json_metrics(config, &json_config))
@@ -973,7 +971,7 @@ semantics_json(struct prometheus* prometheus, int prometheus_idx, json_config_t*
             }
             else
             {
-               pgexporter_log_warn("Maximum metric names reached, skipping: %s", final_metric_name);
+               pgexporter_log_warn("Maximum metric names reached (%d), skipping: %s", NUMBER_OF_METRIC_NAMES, final_metric_name);
             }
          }
       }

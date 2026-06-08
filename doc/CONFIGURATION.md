@@ -50,7 +50,7 @@ See a [sample](./etc/pgexporter.conf) configuration for running `pgexporter` on 
 | alerts | `off` | Bool | No | Enable or disable alerting. If enabled, built-in alerts are parsed and evaluated. Automatically enabled when `--alerts` CLI flag is used. See `ALERT.md` for a list of built-in alerts. |
 | alerts_path | | String | No | Path to a custom alert definitions YAML file. Allows adding new alerts or overriding built-in defaults. Can interpolate environment variables (e.g., `$HOME`). |
 | log_type | console | String | No | The logging type (console, file, syslog) |
-| log_level | info | String | No | The logging level, any of the (case insensitive) strings `FATAL`, `ERROR`, `WARN`, `INFO` and `DEBUG` (that can be more specific as `DEBUG1` thru `DEBUG5`). Debug level greater than 5 will be set to `DEBUG5`. Not recognized values will make the log_level be `INFO` |
+| log_level | info | String | No | The logging level, any of the (case insensitive) strings `FATAL`, `ERROR`, `WARN`, `INFO` and `DEBUG` (that can be more specific as `DEBUG1` thru `DEBUG5`). Debug level greater than 5 will be set to `DEBUG5`. Invalid values are rejected |
 | log_path | pgexporter.log | String | No | The log file location. Can be a strftime(3) compatible string. Can interpolate environment variables (e.g., `$HOME`) |
 | log_rotation_age | 0 | String | No | The age that will trigger a log file rotation. If expressed as a positive number, is managed as seconds. Supports suffixes: 'ms' (milliseconds), 's' (seconds, default), 'm' (minutes), 'h' (hours), 'd' (days), 'w' (weeks). A value of `0` disables. |
 | log_rotation_size | 0 | String | No | The size of the log file that will trigger a log rotation. Supports suffixes: 'B' (bytes), the default if omitted, 'K' or 'KB' (kilobytes), 'M' or 'MB' (megabytes), 'G' or 'GB' (gigabytes). A value of `0` (with or without suffix) disables. |
@@ -191,3 +191,20 @@ pgexporter -d
 ```
 
 Refer to logs for details about which configuration files were loaded and from which locations.
+
+## Runtime Configuration Changes
+
+The `conf set` command modifies runtime configuration values without requiring a restart for most parameters.
+
+**Parameters that require a restart** when changed via `conf set`:
+`host`, `metrics`, `management`, `console`, `history`, `bridge`, `bridge_json`,
+`bridge_history`, `unix_socket_dir`, `pidfile`, `ev_backend`, `hugepage`, `tls`,
+`log_type`, `metrics_cache_max_size`
+
+For these structural parameters, `conf set` will validate the input and report
+that a restart is required, but will **not** modify the running configuration.
+
+The `conf reload` command will also reject structural parameter changes from the
+configuration file and report that a restart is required.
+
+See `CLI.md` for details on `conf set` and `conf reload` output messages.

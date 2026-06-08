@@ -64,7 +64,7 @@ status details
   Detailed status of pgexporter
 
 conf reload
-  Reload the configuration
+  Reload the configuration from disk. Structural parameter changes require a restart.
 
 conf [ls]
   To print the configurations used
@@ -72,8 +72,9 @@ conf [ls]
 conf [get]
   To obtain information about a runtime configuration value
 
-conf [set]
-  To modify the runtime configuration value
+conf set <key> <value>
+  To modify a runtime configuration value. Returns structured feedback:
+  success, restart_required, no_change, invalid_value, or unknown_key.
 
 clear prometheus
   Clear the Prometheus statistics

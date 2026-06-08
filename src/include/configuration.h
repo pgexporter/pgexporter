@@ -92,6 +92,23 @@ extern "C" {
 #define CONFIGURATION_ARGUMENT_USER                       "user"
 #define CONFIGURATION_ARGUMENT_DATA_DIR                   "data_dir"
 #define CONFIGURATION_ARGUMENT_WAL_DIR                    "wal_dir"
+#define CONFIGURATION_RESPONSE_STATUS                     "status"
+#define CONFIGURATION_RESPONSE_MESSAGE                    "message"
+#define CONFIGURATION_RESPONSE_OLD_VALUE                  "old_value"
+#define CONFIGURATION_RESPONSE_NEW_VALUE                  "new_value"
+#define CONFIGURATION_RESPONSE_RESTART_REQUIRED           "restart_required"
+#define CONFIGURATION_RESPONSE_CONFIG_KEY                 "config_key"
+#define CONFIGURATION_RESPONSE_REQUESTED_VALUE            "requested_value"
+#define CONFIGURATION_RESPONSE_CURRENT_VALUE              "current_value"
+#define CONFIGURATION_STATUS_SUCCESS                      "success"
+#define CONFIGURATION_STATUS_RESTART_REQUIRED             "restart_required"
+#define CONFIGURATION_STATUS_NO_CHANGE                    "no_change"
+#define CONFIGURATION_STATUS_ERROR                        "error"
+#define CONFIGURATION_MESSAGE_SUCCESS                     "Configuration change applied successfully"
+#define CONFIGURATION_MESSAGE_RESTART_REQUIRED            "Configuration change requires restart. Current values preserved."
+#define CONFIGURATION_MESSAGE_NO_CHANGE                   "Value unchanged"
+#define CONFIGURATION_MESSAGE_INVALID_VALUE               "Invalid value for configuration key"
+
 #define CONFIGURATION_ARGUMENT_MAIN_CONF_PATH             "main_configuration_path"
 #define CONFIGURATION_ARGUMENT_USER_CONF_PATH             "users_configuration_path"
 #define CONFIGURATION_ARGUMENT_ADMIN_CONF_PATH            "admin_configuration_path"
@@ -203,9 +220,11 @@ pgexporter_conf_get(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryp
  * @param compression The compress method for wire protocol
  * @param encryption The encrypt method for wire protocol
  * @param payload The payload
+ * @param restart_required Output: true if parameter requires restart
+ * @param success Output: true if configuration was successfully applied
  */
 void
-pgexporter_conf_set(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryption, struct json* payload);
+pgexporter_conf_set(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryption, struct json* payload, bool* restart_required, bool* success);
 
 #ifdef __cplusplus
 }

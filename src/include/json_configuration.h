@@ -56,6 +56,7 @@ pgexporter_read_json_from_file_pointer(struct prometheus* prometheus, int promet
 
 /**
  * Read and parse a single JSON file into the prometheus metrics structure
+ * @param config The configuration to validate against (for duplicate detection)
  * @param prometheus The prometheus metrics array
  * @param prometheus_idx Starting index in the prometheus array
  * @param filename Path to the JSON file
@@ -63,7 +64,7 @@ pgexporter_read_json_from_file_pointer(struct prometheus* prometheus, int promet
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_read_json(struct prometheus* prometheus, int prometheus_idx, char* filename, int* number_of_metrics);
+pgexporter_read_json(struct configuration* config, struct prometheus* prometheus, int prometheus_idx, char* filename, int* number_of_metrics);
 
 /**
  * Get all JSON files from a directory

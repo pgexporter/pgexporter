@@ -79,22 +79,21 @@ static int as_hugepage(char* str);
 static int as_history_backend(char* str);
 static ev_backend_t as_ev_backend(char* str);
 static int as_server_type(char* str);
-static unsigned int as_update_process_title(char* str, unsigned int default_policy);
+static int as_update_process_title(char* str);
 static int as_logging_rotation_size(char* str, size_t* size);
 static int as_logging_rotation_age(char* str, pgexporter_time_t* time);
 static int as_milliseconds(char* str, pgexporter_time_t* time, pgexporter_time_t default_age);
 static int as_bytes(char* str, long* bytes, long default_bytes);
 static int as_endpoints(char* str, struct configuration* config, bool reload);
-static bool transfer_configuration(struct configuration* config, struct configuration* reload);
+static bool check_restart_required(struct configuration* config, struct configuration* reload);
+static int transfer_configuration(struct configuration* config, struct configuration* reload);
 static void copy_server(struct server* dst, struct server* src);
+static void copy_server_config(struct server* dst, struct server* src);
 static void copy_user(struct user* dst, struct user* src);
 static void copy_promethus(struct prometheus* dst, struct prometheus* src);
 static void copy_endpoint(struct endpoint* dst, struct endpoint* src);
-static int restart_bool(char* name, bool e, bool n);
 static int restart_int(char* name, int e, int n);
 static int restart_string(char* name, char* e, char* n);
-static bool is_same_tls(struct server* src, struct server* dst);
-static bool is_same_global_tls(struct configuration* src, struct configuration* dst);
 static bool is_supported_backend(ev_backend_t backend);
 static void validate_event_backend(struct configuration* config);
 static const char* ev_backend_to_string(ev_backend_t backend);
@@ -396,6 +395,10 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (strlen(section) > 0)
                   {
                      srv.type = as_server_type(value);
+                     if (srv.type < 0)
+                     {
+                        unknown = true;
+                     }
                   }
                   else
                   {
@@ -642,6 +645,10 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (!strcmp(section, "pgexporter"))
                   {
                      config->history_backend = as_history_backend(value);
+                     if (config->history_backend < 0)
+                     {
+                        unknown = true;
+                     }
                   }
                   else
                   {
@@ -711,6 +718,10 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (!strcmp(section, "pgexporter"))
                   {
                      config->bridge_history_backend = as_history_backend(value);
+                     if (config->bridge_history_backend < 0)
+                     {
+                        unknown = true;
+                     }
                   }
                   else
                   {
@@ -981,7 +992,15 @@ pgexporter_read_configuration(void* shm, char* filename)
                {
                   if (!strcmp(section, "pgexporter"))
                   {
-                     config->update_process_title = as_update_process_title(value, UPDATE_PROCESS_TITLE_VERBOSE);
+                     int t = as_update_process_title(value);
+                     if (t < 0)
+                     {
+                        unknown = true;
+                     }
+                     else
+                     {
+                        config->update_process_title = t;
+                     }
                   }
                   else
                   {
@@ -993,6 +1012,10 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (!strcmp(section, "pgexporter"))
                   {
                      config->log_type = as_logging_type(value);
+                     if (config->log_type < 0)
+                     {
+                        unknown = true;
+                     }
                   }
                   else
                   {
@@ -1004,6 +1027,10 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (!strcmp(section, "pgexporter"))
                   {
                      config->log_level = as_logging_level(value);
+                     if (config->log_level < 0)
+                     {
+                        unknown = true;
+                     }
                   }
                   else
                   {
@@ -1075,6 +1102,10 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (!strcmp(section, "pgexporter"))
                   {
                      config->log_mode = as_logging_mode(value);
+                     if (config->log_mode < 0)
+                     {
+                        unknown = true;
+                     }
                   }
                   else
                   {
@@ -1169,6 +1200,10 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (!strcmp(section, "pgexporter"))
                   {
                      config->hugepage = as_hugepage(value);
+                     if (config->hugepage < 0)
+                     {
+                        unknown = true;
+                     }
                   }
                   else
                   {
@@ -1335,7 +1370,7 @@ pgexporter_read_configuration(void* shm, char* filename)
 
                if (unknown)
                {
-                  warnx("Unknown: Section=%s, Key=%s, Value=%s", strlen(section) > 0 ? section : "<unknown>", key, value);
+                  pgexporter_log_warn("Configuration: Invalid or unknown value for key=<'%s'> in section=<'%s'>", key, strlen(section) > 0 ? section : "<unknown>");
                }
 
                free(key);
@@ -1345,7 +1380,7 @@ pgexporter_read_configuration(void* shm, char* filename)
             }
             else
             {
-               warnx("Unknown: Section=%s, Line=%s", strlen(section) > 0 ? section : "<unknown>", line);
+               warnx("Configuration: Invalid line in section=<'%s': '%s'", strlen(section) > 0 ? section : "<unknown>", line);
 
                free(key);
                free(value);
@@ -1433,6 +1468,48 @@ pgexporter_validate_configuration(void* shm)
       config->backlog = 16;
    }
 
+   /* log_level is set to -1 by as_logging_level for invalid values */
+   if (config->log_level < 0)
+   {
+      pgexporter_log_fatal("pgexporter: Invalid log_level");
+      return 1;
+   }
+
+   /* log_type is set to -1 by as_logging_type for invalid values */
+   if (config->log_type < 0)
+   {
+      pgexporter_log_fatal("pgexporter: Invalid log_type");
+      return 1;
+   }
+
+   /* log_mode is set to -1 by as_logging_mode for invalid values */
+   if (config->log_mode < 0)
+   {
+      pgexporter_log_fatal("pgexporter: Invalid log_mode");
+      return 1;
+   }
+
+   /* hugepage is set to -1 by as_hugepage for invalid values */
+   if (config->hugepage < 0)
+   {
+      pgexporter_log_fatal("pgexporter: Invalid hugepage");
+      return 1;
+   }
+
+   /* history_backend is set to -1 by as_history_backend for invalid values */
+   if (config->history_backend < 0)
+   {
+      pgexporter_log_fatal("pgexporter: Invalid history_backend");
+      return 1;
+   }
+
+   /* bridge_history_backend is set to -1 by as_history_backend for invalid values */
+   if (config->bridge_history_backend < 0)
+   {
+      pgexporter_log_fatal("pgexporter: Invalid bridge_history_backend");
+      return 1;
+   }
+
    if (strlen(config->metrics_cert_file) > 0)
    {
       if (!pgexporter_exists(config->metrics_cert_file))
@@ -1495,6 +1572,13 @@ pgexporter_validate_configuration(void* shm)
       if (config->servers[i].port == 0)
       {
          pgexporter_log_fatal("pgexporter: No port defined for %s", config->servers[i].name);
+         return 1;
+      }
+
+      /* server type is set to -1 by as_server_type for invalid values */
+      if (config->servers[i].type < 0)
+      {
+         pgexporter_log_fatal("pgexporter: Invalid type for %s", config->servers[i].name);
          return 1;
       }
 
@@ -2051,7 +2135,8 @@ pgexporter_reload_configuration(bool* r)
       goto error;
    }
 
-   *r = transfer_configuration(config, reload);
+   int transfer_result = transfer_configuration(config, reload);
+   *r = (transfer_result == 1);
 
    /* Free Old Query Alts AVL Tree */
    for (int i = 0; reload != NULL && i < reload->number_of_metrics; i++)
@@ -2062,7 +2147,14 @@ pgexporter_reload_configuration(bool* r)
 
    pgexporter_destroy_shared_memory((void*)reload, reload_size);
 
-   pgexporter_log_debug("Reload: Success");
+   if (transfer_result == 1)
+   {
+      pgexporter_log_debug("Reload: Deferred (restart required)");
+   }
+   else
+   {
+      pgexporter_log_debug("Reload: Applied successfully");
+   }
 
    return 0;
 
@@ -2143,8 +2235,305 @@ error:
    exit(1);
 }
 
+static void
+get_config_value_str(char* buf, size_t size, struct configuration* cfg, char* key, int server_index)
+{
+   buf[0] = '\0';
+   if (!strcmp(key, "host"))
+   {
+      if (server_index >= 0)
+         pgexporter_snprintf(buf, size, "%s", cfg->servers[server_index].host);
+      else
+         pgexporter_snprintf(buf, size, "%s", cfg->host);
+   }
+   else if (!strcmp(key, "port"))
+   {
+      if (server_index >= 0)
+         pgexporter_snprintf(buf, size, "%d", cfg->servers[server_index].port);
+   }
+   else if (!strcmp(key, "user"))
+   {
+      if (server_index >= 0)
+         pgexporter_snprintf(buf, size, "%s", cfg->servers[server_index].username);
+   }
+   else if (!strcmp(key, "type"))
+   {
+      if (server_index >= 0)
+      {
+         int t = cfg->servers[server_index].type;
+         if (t == SERVER_TYPE_POSTGRESQL)
+            pgexporter_snprintf(buf, size, "postgresql");
+         else if (t == SERVER_TYPE_PROMETHEUS)
+            pgexporter_snprintf(buf, size, "prometheus");
+         else
+            pgexporter_snprintf(buf, size, "unknown");
+      }
+   }
+   else if (!strcmp(key, "metrics"))
+      pgexporter_snprintf(buf, size, "%d", cfg->metrics);
+   else if (!strcmp(key, "metrics_cache_max_size"))
+      pgexporter_snprintf(buf, size, "%zu", cfg->metrics_cache_max_size);
+   else if (!strcmp(key, "metrics_cache_max_age"))
+      pgexporter_snprintf(buf, size, "%lld", (long long)pgexporter_time_convert(cfg->metrics_cache_max_age, FORMAT_TIME_S));
+   else if (!strcmp(key, "metrics_query_timeout"))
+      pgexporter_snprintf(buf, size, "%lld", (long long)pgexporter_time_convert(cfg->metrics_query_timeout, FORMAT_TIME_MS));
+   else if (!strcmp(key, "metrics_path"))
+      pgexporter_snprintf(buf, size, "%s", cfg->metrics_path);
+   else if (!strcmp(key, "console"))
+      pgexporter_snprintf(buf, size, "%d", cfg->console);
+   else if (!strcmp(key, "management"))
+      pgexporter_snprintf(buf, size, "%d", cfg->management);
+   else if (!strcmp(key, "log_type"))
+      to_log_type(buf, cfg->log_type);
+   else if (!strcmp(key, "log_level"))
+      to_log_level(buf, cfg->log_level);
+   else if (!strcmp(key, "log_path"))
+      pgexporter_snprintf(buf, size, "%s", cfg->log_path);
+   else if (!strcmp(key, "log_line_prefix"))
+      pgexporter_snprintf(buf, size, "%s", cfg->log_line_prefix);
+   else if (!strcmp(key, "log_rotation_size"))
+      pgexporter_snprintf(buf, size, "%zu", cfg->log_rotation_size);
+   else if (!strcmp(key, "log_rotation_age"))
+      pgexporter_snprintf(buf, size, "%lld", (long long)pgexporter_time_convert(cfg->log_rotation_age, FORMAT_TIME_S));
+   else if (!strcmp(key, "log_mode"))
+      to_log_mode(buf, cfg->log_mode);
+   else if (!strcmp(key, "cache"))
+      pgexporter_snprintf(buf, size, "%s", cfg->cache ? "true" : "false");
+   else if (!strcmp(key, "alerts_enabled"))
+      pgexporter_snprintf(buf, size, "%s", cfg->alerts_enabled ? "true" : "false");
+   else if (!strcmp(key, "alerts_path"))
+      pgexporter_snprintf(buf, size, "%s", cfg->alerts_path);
+   else if (!strcmp(key, "history"))
+      pgexporter_snprintf(buf, size, "%d", cfg->history);
+   else if (!strcmp(key, "history_interval"))
+      pgexporter_snprintf(buf, size, "%lld", (long long)pgexporter_time_convert(cfg->history_interval, FORMAT_TIME_S));
+   else if (!strcmp(key, "history_retention"))
+      pgexporter_snprintf(buf, size, "%lld", (long long)pgexporter_time_convert(cfg->history_retention, FORMAT_TIME_S));
+   else if (!strcmp(key, "history_backend"))
+      to_history_backend(buf, cfg->history_backend);
+   else if (!strcmp(key, "history_path"))
+      pgexporter_snprintf(buf, size, "%s", cfg->history_path);
+   else if (!strcmp(key, "bridge"))
+      pgexporter_snprintf(buf, size, "%d", cfg->bridge);
+   else if (!strcmp(key, "bridge_endpoints"))
+      pgexporter_snprintf(buf, size, "%s", ""); // complex, skip detailed capture
+   else if (!strcmp(key, "bridge_cache_max_size"))
+      pgexporter_snprintf(buf, size, "%zu", cfg->bridge_cache_max_size);
+   else if (!strcmp(key, "bridge_cache_max_age"))
+      pgexporter_snprintf(buf, size, "%lld", (long long)pgexporter_time_convert(cfg->bridge_cache_max_age, FORMAT_TIME_S));
+   else if (!strcmp(key, "bridge_json"))
+      pgexporter_snprintf(buf, size, "%d", cfg->bridge_json);
+   else if (!strcmp(key, "bridge_json_cache_max_size"))
+      pgexporter_snprintf(buf, size, "%zu", cfg->bridge_json_cache_max_size);
+   else if (!strcmp(key, "bridge_history"))
+      pgexporter_snprintf(buf, size, "%d", cfg->bridge_history);
+   else if (!strcmp(key, "bridge_history_interval"))
+      pgexporter_snprintf(buf, size, "%lld", (long long)pgexporter_time_convert(cfg->bridge_history_interval, FORMAT_TIME_S));
+   else if (!strcmp(key, "bridge_history_retention"))
+      pgexporter_snprintf(buf, size, "%lld", (long long)pgexporter_time_convert(cfg->bridge_history_retention, FORMAT_TIME_S));
+   else if (!strcmp(key, "bridge_history_backend"))
+      to_history_backend(buf, cfg->bridge_history_backend);
+   else if (!strcmp(key, "bridge_history_path"))
+      pgexporter_snprintf(buf, size, "%s", cfg->bridge_history_path);
+   else if (!strcmp(key, "tls"))
+   {
+      if (server_index >= 0)
+         to_server_tls_mode(buf, cfg->servers[server_index].tls_mode);
+      else
+         pgexporter_snprintf(buf, size, "%s", cfg->tls ? "true" : "false");
+   }
+   else if (!strcmp(key, "tls_ca_file"))
+   {
+      if (server_index >= 0)
+         pgexporter_snprintf(buf, size, "%s", cfg->servers[server_index].tls_ca_file);
+      else
+         pgexporter_snprintf(buf, size, "%s", cfg->tls_ca_file);
+   }
+   else if (!strcmp(key, "tls_cert_file"))
+   {
+      if (server_index >= 0)
+         pgexporter_snprintf(buf, size, "%s", cfg->servers[server_index].tls_cert_file);
+      else
+         pgexporter_snprintf(buf, size, "%s", cfg->tls_cert_file);
+   }
+   else if (!strcmp(key, "tls_key_file"))
+   {
+      if (server_index >= 0)
+         pgexporter_snprintf(buf, size, "%s", cfg->servers[server_index].tls_key_file);
+      else
+         pgexporter_snprintf(buf, size, "%s", cfg->tls_key_file);
+   }
+   else if (!strcmp(key, "metrics_ca_file"))
+      pgexporter_snprintf(buf, size, "%s", cfg->metrics_ca_file);
+   else if (!strcmp(key, "metrics_cert_file"))
+      pgexporter_snprintf(buf, size, "%s", cfg->metrics_cert_file);
+   else if (!strcmp(key, "metrics_key_file"))
+      pgexporter_snprintf(buf, size, "%s", cfg->metrics_key_file);
+   else if (!strcmp(key, "blocking_timeout"))
+      pgexporter_snprintf(buf, size, "%lld", (long long)pgexporter_time_convert(cfg->blocking_timeout, FORMAT_TIME_S));
+   else if (!strcmp(key, "authentication_timeout"))
+      pgexporter_snprintf(buf, size, "%lld", (long long)pgexporter_time_convert(cfg->authentication_timeout, FORMAT_TIME_S));
+   else if (!strcmp(key, "keep_alive"))
+      pgexporter_snprintf(buf, size, "%s", cfg->keep_alive ? "true" : "false");
+   else if (!strcmp(key, "nodelay"))
+      pgexporter_snprintf(buf, size, "%s", cfg->nodelay ? "true" : "false");
+   else if (!strcmp(key, "non_blocking"))
+      pgexporter_snprintf(buf, size, "%s", cfg->non_blocking ? "true" : "false");
+   else if (!strcmp(key, "backlog"))
+      pgexporter_snprintf(buf, size, "%d", cfg->backlog);
+   else if (!strcmp(key, "hugepage"))
+      to_hugepage(buf, cfg->hugepage);
+   else if (!strcmp(key, "pidfile"))
+      pgexporter_snprintf(buf, size, "%s", cfg->pidfile);
+   else if (!strcmp(key, "unix_socket_dir"))
+      pgexporter_snprintf(buf, size, "%s", cfg->unix_socket_dir);
+   else if (!strcmp(key, "ev_backend"))
+      to_ev_backend(buf, cfg->ev_backend);
+   else if (!strcmp(key, "update_process_title"))
+      to_update_process_title(buf, cfg->update_process_title);
+   else if (!strcmp(key, "data_dir"))
+   {
+      if (server_index >= 0)
+         pgexporter_snprintf(buf, size, "%s", cfg->servers[server_index].data);
+   }
+   else if (!strcmp(key, "wal_dir"))
+   {
+      if (server_index >= 0)
+         pgexporter_snprintf(buf, size, "%s", cfg->servers[server_index].wal);
+   }
+}
+
+/**
+  * Copy configuration values from src to dst, excluding runtime pointers.
+  * Runtime fields (SSL*, fd, state, query_alts trees, atomics) are preserved in dst.
+  */
+static void
+copy_configuration_values(struct configuration* dst, struct configuration* src)
+{
+   size_t config_size = sizeof(struct configuration);
+   memset(dst, 0, config_size);
+
+   /* Copy all scalar and array configuration values */
+   memcpy(dst->configuration_path, src->configuration_path, MAX_PATH);
+   memcpy(dst->users_path, src->users_path, MAX_PATH);
+   memcpy(dst->admins_path, src->admins_path, MAX_PATH);
+   memcpy(dst->extensions_path, src->extensions_path, MAX_PATH);
+   memcpy(dst->alerts_path, src->alerts_path, MAX_PATH);
+
+   memcpy(dst->host, src->host, MISC_LENGTH);
+   dst->metrics = src->metrics;
+   dst->metrics_cache_max_age = src->metrics_cache_max_age;
+   dst->metrics_cache_max_size = src->metrics_cache_max_size;
+   dst->metrics_query_timeout = src->metrics_query_timeout;
+   dst->management = src->management;
+   dst->console = src->console;
+
+   dst->history = src->history;
+   dst->history_interval = src->history_interval;
+   dst->history_retention = src->history_retention;
+   dst->history_backend = src->history_backend;
+   memcpy(dst->history_path, src->history_path, MAX_PATH);
+
+   dst->bridge = src->bridge;
+   dst->bridge_cache_max_age = src->bridge_cache_max_age;
+   dst->bridge_cache_max_size = src->bridge_cache_max_size;
+   dst->bridge_json = src->bridge_json;
+   dst->bridge_json_cache_max_size = src->bridge_json_cache_max_size;
+   dst->bridge_history = src->bridge_history;
+   dst->bridge_history_interval = src->bridge_history_interval;
+   dst->bridge_history_retention = src->bridge_history_retention;
+   dst->bridge_history_backend = src->bridge_history_backend;
+   memcpy(dst->bridge_history_path, src->bridge_history_path, MAX_PATH);
+
+   dst->cache = src->cache;
+   dst->alerts_enabled = src->alerts_enabled;
+
+   dst->log_type = src->log_type;
+   dst->log_level = src->log_level;
+   memcpy(dst->log_path, src->log_path, MISC_LENGTH);
+   dst->log_mode = src->log_mode;
+   dst->log_rotation_size = src->log_rotation_size;
+   dst->log_rotation_age = src->log_rotation_age;
+   memcpy(dst->log_line_prefix, src->log_line_prefix, MISC_LENGTH);
+
+   dst->tls = src->tls;
+   memcpy(dst->tls_cert_file, src->tls_cert_file, MAX_PATH);
+   memcpy(dst->tls_key_file, src->tls_key_file, MAX_PATH);
+   memcpy(dst->tls_ca_file, src->tls_ca_file, MAX_PATH);
+   memcpy(dst->metrics_cert_file, src->metrics_cert_file, MAX_PATH);
+   memcpy(dst->metrics_key_file, src->metrics_key_file, MAX_PATH);
+   memcpy(dst->metrics_ca_file, src->metrics_ca_file, MAX_PATH);
+
+   dst->blocking_timeout = src->blocking_timeout;
+   dst->authentication_timeout = src->authentication_timeout;
+   memcpy(dst->pidfile, src->pidfile, MAX_PATH);
+   dst->ev_backend = src->ev_backend;
+   dst->keep_alive = src->keep_alive;
+   dst->nodelay = src->nodelay;
+   dst->non_blocking = src->non_blocking;
+   dst->backlog = src->backlog;
+   dst->hugepage = src->hugepage;
+   dst->update_process_title = src->update_process_title;
+   memcpy(dst->unix_socket_dir, src->unix_socket_dir, MISC_LENGTH);
+
+   memcpy(dst->allowed_collectors, src->allowed_collectors, sizeof(dst->allowed_collectors));
+   dst->number_of_allowed_collectors = src->number_of_allowed_collectors;
+   memcpy(dst->excluded_collectors, src->excluded_collectors, sizeof(dst->excluded_collectors));
+   dst->number_of_excluded_collectors = src->number_of_excluded_collectors;
+
+   memcpy(dst->global_extensions, src->global_extensions, MAX_EXTENSIONS_CONFIG_LENGTH);
+
+   /* Copy servers (configuration values only, not runtime state) */
+   for (int i = 0; i < src->number_of_servers; i++)
+   {
+      copy_server_config(dst->servers + i, src->servers + i);
+   }
+   dst->number_of_servers = src->number_of_servers;
+
+   /* Copy users */
+   for (int i = 0; i < src->number_of_users; i++)
+   {
+      copy_user(dst->users + i, src->users + i);
+   }
+   dst->number_of_users = src->number_of_users;
+
+   /* Copy admins */
+   for (int i = 0; i < src->number_of_admins; i++)
+   {
+      copy_user(dst->admins + i, src->admins + i);
+   }
+   dst->number_of_admins = src->number_of_admins;
+
+   /* Copy prometheus metrics configuration */
+   for (int i = 0; i < src->number_of_metrics; i++)
+   {
+      copy_promethus(dst->prometheus + i, src->prometheus + i);
+   }
+   dst->number_of_metrics = src->number_of_metrics;
+
+   /* Copy alerts */
+   for (int i = 0; i < src->number_of_alerts; i++)
+   {
+      memcpy(&dst->alerts[i], &src->alerts[i], sizeof(struct alert_definition));
+   }
+   dst->number_of_alerts = src->number_of_alerts;
+
+   /* Copy endpoints */
+   for (int i = 0; i < src->number_of_endpoints; i++)
+   {
+      copy_endpoint(dst->endpoints + i, src->endpoints + i);
+   }
+   dst->number_of_endpoints = src->number_of_endpoints;
+
+   dst->metrics_path[0] = '\0';
+   if (src->metrics_path[0])
+   {
+      memcpy(dst->metrics_path, src->metrics_path, MAX_PATH);
+   }
+}
+
 void
-pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t compression, uint8_t encryption, struct json* payload)
+pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t compression, uint8_t encryption, struct json* payload, bool* restart_required, bool* success)
 {
    struct json* response = NULL;
    struct json* request = NULL;
@@ -2156,18 +2545,28 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
    int total_seconds;
    char section[MISC_LENGTH];
    char key[MISC_LENGTH];
+   struct configuration* current_config = NULL;
+   struct configuration* temp_config = NULL;
    struct configuration* config = NULL;
    struct json* server_j = NULL;
+   void* temp_shmem = NULL;
+   size_t temp_size = sizeof(struct configuration);
    size_t max;
    int server_index = -1;
    int begin = -1, end = -1;
+   char old_value_str[MISC_LENGTH];
+   bool metrics_path_changed = false;
 
    pgexporter_start_logging();
    pgexporter_memory_init();
 
    start_time = time(NULL);
 
-   config = (struct configuration*)shmem;
+   // Initialize output parameters
+   *restart_required = false;
+   *success = false;
+
+   current_config = (struct configuration*)shmem;
    // Extract config_key and config_value from request
    request = (struct json*)pgexporter_json_get(payload, MANAGEMENT_CATEGORY_REQUEST);
    if (!request)
@@ -2187,7 +2586,23 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       goto error;
    }
 
-   // Modify
+   // Create temporary shared memory for validation (avoids pointer sharing with live config)
+   if (pgexporter_create_shared_memory(temp_size, HUGEPAGE_OFF, &temp_shmem))
+   {
+      pgexporter_management_response_error(NULL, client_fd, NULL, MANAGEMENT_ERROR_CONF_SET_ERROR, compression, encryption, payload);
+      pgexporter_log_error("Conf Set: Unable to allocate temporary configuration");
+      goto error;
+   }
+   temp_config = (struct configuration*)temp_shmem;
+
+   // Initialize temp_config with default values, then copy configuration values from current
+   pgexporter_init_configuration((void*)temp_config);
+   copy_configuration_values(temp_config, current_config);
+
+   config = temp_config;
+
+   // Modify the temporary configuration first. transfer_configuration() will
+   // atomically decide whether the live configuration can accept the change.
    memset(section, 0, MISC_LENGTH);
    memset(key, 0, MISC_LENGTH);
 
@@ -2251,9 +2666,14 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       goto error;
    }
 
+   // Capture old value before modification
+   memset(old_value_str, 0, MISC_LENGTH);
+   get_config_value_str(old_value_str, sizeof(old_value_str), current_config, key, server_index);
+
    if (strlen(key) && config_value)
    {
       bool unknown = false;
+      bool invalid_value = false;
       if (!strcmp(key, "host"))
       {
          if (strlen(section) > 0)
@@ -2286,7 +2706,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
          {
             if (as_int(config_value, &config->servers[server_index].port))
             {
-               unknown = true;
+               invalid_value = true;
             }
             pgexporter_json_put(server_j, key, (uintptr_t)config->servers[server_index].port, ValueInt64);
             pgexporter_json_put(response, config->servers[server_index].name, (uintptr_t)server_j, ValueJSON);
@@ -2306,6 +2726,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
                max = MAX_USERNAME_LENGTH - 1;
             }
             memcpy(&config->servers[server_index].username, config_value, max);
+            config->servers[server_index].username[max] = '\0';
             pgexporter_json_put(server_j, key, (uintptr_t)config->servers[server_index].username, ValueString);
             pgexporter_json_put(response, config->servers[server_index].name, (uintptr_t)server_j, ValueJSON);
          }
@@ -2318,7 +2739,17 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (strlen(section) > 0)
          {
-            config->servers[server_index].type = as_server_type(config_value);
+            {
+               int t = as_server_type(config_value);
+               if (t < 0)
+               {
+                  invalid_value = true;
+               }
+               else
+               {
+                  config->servers[server_index].type = t;
+               }
+            }
             pgexporter_json_put(server_j, key, (uintptr_t)config_value, ValueString);
             pgexporter_json_put(response, config->servers[server_index].name, (uintptr_t)server_j, ValueJSON);
          }
@@ -2331,7 +2762,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (as_int(config_value, &config->metrics))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)config->metrics, ValueInt64);
       }
@@ -2341,7 +2772,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
 
          if (as_bytes(config_value, &l, 0))
          {
-            unknown = true;
+            invalid_value = true;
          }
 
          config->metrics_cache_max_size = (size_t)l;
@@ -2352,7 +2783,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (as_milliseconds(config_value, &config->metrics_cache_max_age, PGEXPORTER_TIME_DISABLED))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)pgexporter_time_convert(config->metrics_cache_max_age, FORMAT_TIME_S), ValueInt64);
       }
@@ -2360,7 +2791,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (as_milliseconds(config_value, &config->metrics_query_timeout, PGEXPORTER_TIME_DISABLED))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)pgexporter_time_convert(config->metrics_query_timeout, FORMAT_TIME_MS), ValueInt64);
       }
@@ -2372,13 +2803,23 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
             max = MAX_PATH - 1;
          }
          memcpy(config->metrics_path, config_value, max);
+         config->metrics_path[max] = '\0';
          pgexporter_json_put(response, key, (uintptr_t)config->metrics_path, ValueString);
+         metrics_path_changed = true;
+      }
+      else if (!strcmp(key, "console"))
+      {
+         if (as_int(config_value, &config->console))
+         {
+            invalid_value = true;
+         }
+         pgexporter_json_put(response, key, (uintptr_t)config->console, ValueInt64);
       }
       else if (!strcmp(key, "bridge"))
       {
          if (as_int(config_value, &config->bridge))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)config->bridge, ValueInt64);
       }
@@ -2386,7 +2827,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (as_endpoints(config_value, config, true))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)config_value, ValueString);
       }
@@ -2396,7 +2837,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
 
          if (as_bytes(config_value, &l, 0))
          {
-            unknown = true;
+            invalid_value = true;
          }
 
          config->bridge_cache_max_size = (size_t)l;
@@ -2407,7 +2848,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (as_milliseconds(config_value, &config->bridge_cache_max_age, PGEXPORTER_TIME_DISABLED))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)pgexporter_time_convert(config->bridge_cache_max_age, FORMAT_TIME_S), ValueInt64);
       }
@@ -2415,7 +2856,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (as_int(config_value, &config->bridge_json))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)config->bridge_json,
                              ValueInt64);
@@ -2426,7 +2867,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
 
          if (as_bytes(config_value, &l, 0))
          {
-            unknown = true;
+            invalid_value = true;
          }
 
          config->bridge_json_cache_max_size = (size_t)l;
@@ -2439,7 +2880,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (as_int(config_value, &config->history))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)config->history, ValueInt64);
       }
@@ -2447,7 +2888,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (as_milliseconds(config_value, &config->history_interval, PGEXPORTER_TIME_DISABLED))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)pgexporter_time_convert(config->history_interval, FORMAT_TIME_S), ValueInt64);
       }
@@ -2455,14 +2896,24 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (as_milliseconds(config_value, &config->history_retention, PGEXPORTER_TIME_DISABLED))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)pgexporter_time_convert(config->history_retention, FORMAT_TIME_S), ValueInt64);
       }
       else if (!strcmp(key, "history_backend"))
       {
-         config->history_backend = as_history_backend(config_value);
-         pgexporter_json_put(response, key, (uintptr_t)config->history_backend, ValueInt32);
+         {
+            int t = as_history_backend(config_value);
+            if (t < 0)
+            {
+               invalid_value = true;
+            }
+            else
+            {
+               config->history_backend = t;
+            }
+            pgexporter_json_put(response, key, (uintptr_t)config->history_backend, ValueInt32);
+         }
       }
       else if (!strcmp(key, "history_path"))
       {
@@ -2472,13 +2923,14 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
             max = MAX_PATH - 1;
          }
          memcpy(config->history_path, config_value, max);
+         config->history_path[max] = '\0';
          pgexporter_json_put(response, key, (uintptr_t)config->history_path, ValueString);
       }
       else if (!strcmp(key, "bridge_history"))
       {
          if (as_int(config_value, &config->bridge_history))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)config->bridge_history, ValueInt64);
       }
@@ -2486,7 +2938,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (as_milliseconds(config_value, &config->bridge_history_interval, PGEXPORTER_TIME_DISABLED))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put_time_value(response, key, config->bridge_history_interval, FORMAT_TIME_S);
       }
@@ -2494,14 +2946,24 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (as_milliseconds(config_value, &config->bridge_history_retention, PGEXPORTER_TIME_DISABLED))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put_time_value(response, key, config->bridge_history_retention, FORMAT_TIME_S);
       }
       else if (!strcmp(key, "bridge_history_backend"))
       {
-         config->bridge_history_backend = as_history_backend(config_value);
-         pgexporter_json_put_enum_value(response, key, config->bridge_history_backend, to_history_backend);
+         {
+            int t = as_history_backend(config_value);
+            if (t < 0)
+            {
+               invalid_value = true;
+            }
+            else
+            {
+               config->bridge_history_backend = t;
+            }
+            pgexporter_json_put_enum_value(response, key, config->bridge_history_backend, to_history_backend);
+         }
       }
       else if (!strcmp(key, "bridge_history_path"))
       {
@@ -2511,13 +2973,14 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
             max = MAX_PATH - 1;
          }
          memcpy(config->bridge_history_path, config_value, max);
+         config->bridge_history_path[max] = '\0';
          pgexporter_json_put(response, key, (uintptr_t)config->bridge_history_path, ValueString);
       }
       else if (!strcmp(key, "management"))
       {
          if (as_int(config_value, &config->management))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)config->management, ValueInt64);
       }
@@ -2525,7 +2988,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (as_bool(config_value, &config->cache))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)config->cache, ValueBool);
       }
@@ -2547,7 +3010,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
             }
             else
             {
-               unknown = true;
+               invalid_value = true;
             }
 
             if (!unknown)
@@ -2560,7 +3023,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
          {
             if (as_bool(config_value, &config->tls))
             {
-               unknown = true;
+               invalid_value = true;
             }
             pgexporter_json_put(response, key, (uintptr_t)config->tls, ValueBool);
          }
@@ -2575,6 +3038,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
                max = MAX_PATH - 1;
             }
             memcpy(&config->servers[server_index].tls_ca_file, config_value, max);
+            config->servers[server_index].tls_ca_file[max] = '\0';
             pgexporter_json_put(server_j, key, (uintptr_t)config->servers[server_index].tls_ca_file, ValueString);
             pgexporter_json_put(response, config->servers[server_index].name, (uintptr_t)server_j, ValueJSON);
          }
@@ -2586,6 +3050,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
                max = MAX_PATH - 1;
             }
             memcpy(config->tls_ca_file, config_value, max);
+            config->tls_ca_file[max] = '\0';
             pgexporter_json_put(response, key, (uintptr_t)config->tls_ca_file, ValueString);
          }
       }
@@ -2599,6 +3064,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
                max = MAX_PATH - 1;
             }
             memcpy(&config->servers[server_index].tls_cert_file, config_value, max);
+            config->servers[server_index].tls_cert_file[max] = '\0';
             pgexporter_json_put(server_j, key, (uintptr_t)config->servers[server_index].tls_cert_file, ValueString);
             pgexporter_json_put(response, config->servers[server_index].name, (uintptr_t)server_j, ValueJSON);
          }
@@ -2610,6 +3076,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
                max = MAX_PATH - 1;
             }
             memcpy(config->tls_cert_file, config_value, max);
+            config->tls_cert_file[max] = '\0';
             pgexporter_json_put(response, key, (uintptr_t)config->tls_cert_file, ValueString);
          }
       }
@@ -2623,6 +3090,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
                max = MAX_PATH - 1;
             }
             memcpy(&config->servers[server_index].tls_key_file, config_value, max);
+            config->servers[server_index].tls_key_file[max] = '\0';
             pgexporter_json_put(server_j, key, (uintptr_t)config->servers[server_index].tls_key_file, ValueString);
             pgexporter_json_put(response, config->servers[server_index].name, (uintptr_t)server_j, ValueJSON);
          }
@@ -2634,6 +3102,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
                max = MAX_PATH - 1;
             }
             memcpy(config->tls_key_file, config_value, max);
+            config->tls_key_file[max] = '\0';
             pgexporter_json_put(response, key, (uintptr_t)config->tls_key_file, ValueString);
          }
       }
@@ -2645,6 +3114,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
             max = MAX_PATH - 1;
          }
          memcpy(config->metrics_ca_file, config_value, max);
+         config->metrics_ca_file[max] = '\0';
          pgexporter_json_put(response, key, (uintptr_t)config->metrics_ca_file, ValueString);
       }
       else if (!strcmp(key, "metrics_cert_file"))
@@ -2655,6 +3125,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
             max = MAX_PATH - 1;
          }
          memcpy(config->metrics_cert_file, config_value, max);
+         config->metrics_cert_file[max] = '\0';
          pgexporter_json_put(response, key, (uintptr_t)config->metrics_cert_file, ValueString);
       }
       else if (!strcmp(key, "metrics_key_file"))
@@ -2665,13 +3136,14 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
             max = MAX_PATH - 1;
          }
          memcpy(config->metrics_key_file, config_value, max);
+         config->metrics_key_file[max] = '\0';
          pgexporter_json_put(response, key, (uintptr_t)config->metrics_key_file, ValueString);
       }
       else if (!strcmp(key, "blocking_timeout"))
       {
          if (as_milliseconds(config_value, &config->blocking_timeout, PGEXPORTER_TIME_SEC(30)))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S), ValueInt64);
       }
@@ -2683,22 +3155,49 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
             max = MAX_PATH - 1;
          }
          memcpy(config->pidfile, config_value, max);
+         config->pidfile[max] = '\0';
          pgexporter_json_put(response, key, (uintptr_t)config->pidfile, ValueString);
       }
       else if (!strcmp(key, "update_process_title"))
       {
-         config->update_process_title = as_update_process_title(config_value, UPDATE_PROCESS_TITLE_VERBOSE);
-         pgexporter_json_put(response, key, (uintptr_t)config->update_process_title, ValueUInt64);
+         int t = as_update_process_title(config_value);
+         if (t < 0)
+         {
+            invalid_value = true;
+         }
+         else
+         {
+            config->update_process_title = t;
+            pgexporter_json_put_enum_value(response, key, config->update_process_title, to_update_process_title);
+         }
       }
       else if (!strcmp(key, "log_type"))
       {
-         config->log_type = as_logging_type(config_value);
-         pgexporter_json_put(response, key, (uintptr_t)config->log_type, ValueInt32);
+         {
+            int t = as_logging_type(config_value);
+            if (t < 0)
+            {
+               invalid_value = true;
+            }
+            else
+            {
+               config->log_type = t;
+            }
+            pgexporter_json_put(response, key, (uintptr_t)config->log_type, ValueInt32);
+         }
       }
       else if (!strcmp(key, "log_level"))
       {
-         config->log_level = as_logging_level(config_value);
-         pgexporter_json_put(response, key, (uintptr_t)config->log_level, ValueInt32);
+         int level = as_logging_level(config_value);
+         if (level < 0)
+         {
+            invalid_value = true;
+         }
+         else
+         {
+            config->log_level = level;
+            pgexporter_json_put(response, key, (uintptr_t)config->log_level, ValueInt32);
+         }
       }
       else if (!strcmp(key, "log_path"))
       {
@@ -2708,13 +3207,14 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
             max = MISC_LENGTH - 1;
          }
          memcpy(config->log_path, config_value, max);
+         config->log_path[max] = '\0';
          pgexporter_json_put(response, key, (uintptr_t)config->log_path, ValueString);
       }
       else if (!strcmp(key, "log_rotation_size"))
       {
          if (as_logging_rotation_size(config_value, &config->log_rotation_size))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)config->log_rotation_size, ValueInt32);
       }
@@ -2722,7 +3222,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (as_logging_rotation_age(config_value, &config->log_rotation_age))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)pgexporter_time_convert(config->log_rotation_age, FORMAT_TIME_S), ValueInt32);
       }
@@ -2734,12 +3234,23 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
             max = MISC_LENGTH - 1;
          }
          memcpy(config->log_line_prefix, config_value, max);
+         config->log_line_prefix[max] = '\0';
          pgexporter_json_put(response, key, (uintptr_t)config->log_line_prefix, ValueString);
       }
       else if (!strcmp(key, "log_mode"))
       {
-         config->log_mode = as_logging_mode(config_value);
-         pgexporter_json_put(response, key, (uintptr_t)config->log_mode, ValueInt32);
+         {
+            int t = as_logging_mode(config_value);
+            if (t < 0)
+            {
+               invalid_value = true;
+            }
+            else
+            {
+               config->log_mode = t;
+            }
+            pgexporter_json_put(response, key, (uintptr_t)config->log_mode, ValueInt32);
+         }
       }
       else if (!strcmp(key, "unix_socket_dir"))
       {
@@ -2749,19 +3260,29 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
             max = MISC_LENGTH - 1;
          }
          memcpy(config->unix_socket_dir, config_value, max);
+         config->unix_socket_dir[max] = '\0';
          pgexporter_json_put(response, key, (uintptr_t)config->unix_socket_dir, ValueString);
       }
       else if (!strcmp(key, "ev_backend"))
       {
-         config->ev_backend = as_ev_backend(config_value);
-         validate_event_backend(config);
-         pgexporter_json_put(response, key, (uintptr_t)ev_backend_to_string(config->ev_backend), ValueString);
+         {
+            int t = as_ev_backend(config_value);
+            if (t < 0)
+            {
+               invalid_value = true;
+            }
+            else
+            {
+               config->ev_backend = t;
+            }
+            pgexporter_json_put_enum_value(response, key, config->ev_backend, to_ev_backend);
+         }
       }
       else if (!strcmp(key, "keep_alive"))
       {
          if (as_bool(config_value, &config->keep_alive))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)config->keep_alive, ValueBool);
       }
@@ -2769,7 +3290,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (as_bool(config_value, &config->nodelay))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)config->nodelay, ValueBool);
       }
@@ -2777,7 +3298,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (as_bool(config_value, &config->non_blocking))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)config->non_blocking, ValueBool);
       }
@@ -2785,13 +3306,21 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (as_int(config_value, &config->backlog))
          {
-            unknown = true;
+            invalid_value = true;
          }
          pgexporter_json_put(response, key, (uintptr_t)config->backlog, ValueInt32);
       }
       else if (!strcmp(key, "hugepage"))
       {
-         config->hugepage = as_hugepage(config_value);
+         int t = as_hugepage(config_value);
+         if (t < 0)
+         {
+            invalid_value = true;
+         }
+         else
+         {
+            config->hugepage = t;
+         }
          pgexporter_json_put(response, key, (uintptr_t)config->hugepage, ValueChar);
       }
       else if (!strcmp(key, "data_dir"))
@@ -2804,6 +3333,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
                max = MAX_USERNAME_LENGTH - 1;
             }
             memcpy(&config->servers[server_index].data, config_value, max);
+            config->servers[server_index].data[max] = '\0';
             pgexporter_json_put(server_j, key, (uintptr_t)config->servers[server_index].data, ValueString);
             pgexporter_json_put(response, config->servers[server_index].name, (uintptr_t)server_j, ValueJSON);
          }
@@ -2822,6 +3352,7 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
                max = MAX_USERNAME_LENGTH - 1;
             }
             memcpy(&config->servers[server_index].wal, config_value, max);
+            config->servers[server_index].wal[max] = '\0';
             pgexporter_json_put(server_j, key, (uintptr_t)config->servers[server_index].wal, ValueString);
             pgexporter_json_put(response, config->servers[server_index].name, (uintptr_t)server_j, ValueJSON);
          }
@@ -2835,6 +3366,13 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
          unknown = true;
       }
 
+      if (invalid_value)
+      {
+         pgexporter_management_response_error(NULL, client_fd, NULL, MANAGEMENT_ERROR_CONF_SET_INVALID_VALUE, compression, encryption, payload);
+         pgexporter_log_error("Conf Set: Invalid value for configuration key '%s': %s", config_key, config_value);
+         goto error;
+      }
+
       if (unknown)
       {
          pgexporter_management_response_error(NULL, client_fd, NULL, MANAGEMENT_ERROR_CONF_SET_UNKNOWN_CONFIGURATION_KEY, compression, encryption, payload);
@@ -2843,7 +3381,84 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       }
    }
 
+   if (metrics_path_changed)
+   {
+      if (pgexporter_read_metrics_configuration((void*)temp_config))
+      {
+         pgexporter_management_response_error(NULL, client_fd, NULL, MANAGEMENT_ERROR_CONF_SET_ERROR, compression, encryption, payload);
+         pgexporter_log_error("Conf Set: Failed to reload metrics from %s", temp_config->metrics_path);
+         goto error;
+      }
+   }
+
+   if (pgexporter_validate_configuration(temp_config) ||
+       pgexporter_validate_users_configuration(temp_config) ||
+       pgexporter_validate_admins_configuration(temp_config))
+   {
+      pgexporter_management_response_error(NULL, client_fd, NULL, MANAGEMENT_ERROR_CONF_SET_ERROR, compression, encryption, payload);
+      pgexporter_log_error("Conf Set: Validation failed for %s=%s", config_key, config_value);
+      goto error;
+   }
+
+   // Atomically check restart requirement and apply changes via transfer_configuration
+   int transfer_result = transfer_configuration(current_config, temp_config);
+   *restart_required = (transfer_result == 1);
+
    end_time = time(NULL);
+
+   *success = true;
+
+   // Check for no-change and build response metadata
+   {
+      char new_value_str[MISC_LENGTH] = "";
+      bool no_change = false;
+
+      get_config_value_str(new_value_str, sizeof(new_value_str), current_config, key, server_index);
+      if (strlen(old_value_str) > 0 && strlen(new_value_str) > 0)
+      {
+         no_change = !strcmp(old_value_str, new_value_str);
+      }
+
+      const char* status = CONFIGURATION_STATUS_SUCCESS;
+      const char* message = CONFIGURATION_MESSAGE_SUCCESS;
+      if (*restart_required)
+      {
+         status = CONFIGURATION_STATUS_RESTART_REQUIRED;
+         message = CONFIGURATION_MESSAGE_RESTART_REQUIRED;
+      }
+      else if (no_change)
+      {
+         status = CONFIGURATION_STATUS_NO_CHANGE;
+         message = CONFIGURATION_MESSAGE_NO_CHANGE;
+      }
+
+      if (!*restart_required && no_change)
+      {
+         pgexporter_log_info("Conf Set: %s is already %s", config_key, old_value_str);
+      }
+      else if (*restart_required)
+      {
+         pgexporter_log_info("Conf Set: %s=%s requires restart - running configuration preserved", config_key, config_value);
+      }
+      else
+      {
+         pgexporter_log_info("Conf Set: Changed %s from '%s' to '%s'", config_key, old_value_str, new_value_str);
+      }
+
+      pgexporter_json_put(response, CONFIGURATION_RESPONSE_STATUS, (uintptr_t)status, ValueString);
+      pgexporter_json_put(response, CONFIGURATION_RESPONSE_MESSAGE, (uintptr_t)message, ValueString);
+      pgexporter_json_put(response, CONFIGURATION_RESPONSE_RESTART_REQUIRED, (uintptr_t)*restart_required, ValueBool);
+      pgexporter_json_put(response, CONFIGURATION_RESPONSE_CONFIG_KEY, (uintptr_t)config_key, ValueString);
+      pgexporter_json_put(response, CONFIGURATION_RESPONSE_REQUESTED_VALUE, (uintptr_t)config_value, ValueString);
+      if (strlen(old_value_str) > 0)
+      {
+         pgexporter_json_put(response, CONFIGURATION_RESPONSE_OLD_VALUE, (uintptr_t)old_value_str, ValueString);
+      }
+      if (strlen(new_value_str) > 0 && !*restart_required)
+      {
+         pgexporter_json_put(response, CONFIGURATION_RESPONSE_NEW_VALUE, (uintptr_t)new_value_str, ValueString);
+      }
+   }
 
    if (pgexporter_management_response_ok(NULL, client_fd, start_time, end_time, compression, encryption, payload))
    {
@@ -2858,25 +3473,23 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
 
    free(elapsed);
    elapsed = NULL;
-
-   pgexporter_json_destroy(payload);
-
-   pgexporter_disconnect(client_fd);
-
-   pgexporter_memory_destroy();
-   pgexporter_stop_logging();
-
-   exit(0);
+   if (temp_shmem != NULL)
+   {
+      pgexporter_destroy_shared_memory(temp_shmem, temp_size);
+      temp_shmem = NULL;
+      temp_config = NULL;
+   }
+   return;
 error:
 
-   pgexporter_json_destroy(payload);
-
-   pgexporter_disconnect(client_fd);
-
-   pgexporter_memory_destroy();
-   pgexporter_stop_logging();
-
-   exit(1);
+   free(elapsed);
+   if (temp_shmem != NULL)
+   {
+      pgexporter_destroy_shared_memory(temp_shmem, temp_size);
+      temp_shmem = NULL;
+      temp_config = NULL;
+   }
+   return;
 }
 
 static void
@@ -3351,7 +3964,7 @@ as_logging_type(char* str)
       return PGEXPORTER_LOGGING_TYPE_SYSLOG;
    }
 
-   return 0;
+   return -1;
 }
 
 static int
@@ -3367,7 +3980,7 @@ as_server_type(char* str)
       return SERVER_TYPE_POSTGRESQL;
    }
 
-   return SERVER_TYPE_POSTGRESQL;
+   return -1;
 }
 
 static int
@@ -3435,7 +4048,7 @@ as_logging_level(char* str)
       return PGEXPORTER_LOGGING_LEVEL_FATAL;
    }
 
-   return PGEXPORTER_LOGGING_LEVEL_INFO;
+   return -1;
 }
 
 static int
@@ -3451,7 +4064,7 @@ as_logging_mode(char* str)
       return PGEXPORTER_LOGGING_MODE_CREATE;
    }
 
-   return PGEXPORTER_LOGGING_MODE_APPEND;
+   return -1;
 }
 
 static int
@@ -3619,21 +4232,17 @@ ev_backend_to_string(ev_backend_t backend)
 }
 
 /**
- * Utility function to understand the setting for updating
- * the process title.
+ * Parses a string to see if it contains
+ * a valid value for update_process_title.
  *
- * @param str the value obtained by the configuration parsing
- * @param default_policy a value to set when the configuration cannot be
- * understood
- *
- * @return The policy
+ * @return The policy value, or -1 on error
  */
-static unsigned int
-as_update_process_title(char* str, unsigned int default_policy)
+static int
+as_update_process_title(char* str)
 {
    if (is_empty_string(str))
    {
-      return default_policy;
+      return -1;
    }
 
    if (!strncmp(str, "never", MISC_LENGTH) || !strncmp(str, "off", MISC_LENGTH))
@@ -3653,16 +4262,9 @@ as_update_process_title(char* str, unsigned int default_policy)
       return UPDATE_PROCESS_TITLE_VERBOSE;
    }
 
-   // not a valid setting
-   return default_policy;
+   return -1;
 }
 
-/**
- * Parses a string to see if it contains
- * a valid value for log rotation size.
- * Returns 0 if parsing ok, 1 otherwise.
- *
- */
 static int
 as_logging_rotation_size(char* str, size_t* size)
 {
@@ -4018,29 +4620,180 @@ error:
    return 1;
 }
 
+/**
+ * Check if two servers have the same host and port
+ */
 static bool
+is_same_server(struct server* s1, struct server* s2)
+{
+   if (strcmp(s1->host, s2->host))
+   {
+      return false;
+   }
+   if (s1->port != s2->port)
+   {
+      return false;
+   }
+   return true;
+}
+
+/**
+ * Check if a server configuration change requires restart
+ */
+static int
+restart_server(struct server* new_srv, struct server* current_srv)
+{
+   char restart_message[2 * MISC_LENGTH];
+
+   if (!is_same_server(new_srv, current_srv))
+   {
+      pgexporter_snprintf(restart_message, sizeof(restart_message), "Server <%s>, parameter <host>", new_srv->name);
+      restart_string(restart_message, current_srv->host, new_srv->host);
+      pgexporter_snprintf(restart_message, sizeof(restart_message), "Server <%s>, parameter <port>", new_srv->name);
+      restart_int(restart_message, current_srv->port, new_srv->port);
+      return 1;
+   }
+
+   return 0;
+}
+
+/**
+ * Check if any structural parameter requires a restart.
+ * This function checks ALL structural parameters before any changes are applied.
+ * 
+ * @param config The current running configuration
+ * @param reload The new configuration to be applied
+ * @return True if restart is required, false otherwise
+ */
+static bool
+check_restart_required(struct configuration* config, struct configuration* reload)
+{
+   bool restart = false;
+
+   /* Network binding - all ports require restart */
+   if (restart_string("host", config->host, reload->host))
+   {
+      restart = true;
+   }
+   if (restart_int("metrics", config->metrics, reload->metrics))
+   {
+      restart = true;
+   }
+   if (restart_int("management", config->management, reload->management))
+   {
+      restart = true;
+   }
+   if (restart_int("console", config->console, reload->console))
+   {
+      restart = true;
+   }
+   if (restart_int("history", config->history, reload->history))
+   {
+      restart = true;
+   }
+   if (restart_int("bridge", config->bridge, reload->bridge))
+   {
+      restart = true;
+   }
+   if (restart_int("bridge_json", config->bridge_json, reload->bridge_json))
+   {
+      restart = true;
+   }
+   if (restart_int("bridge_history", config->bridge_history, reload->bridge_history))
+   {
+      restart = true;
+   }
+
+   /* Logging infrastructure */
+   if (restart_int("log_type", config->log_type, reload->log_type))
+   {
+      restart = true;
+   }
+
+   /* System configuration */
+   if (restart_string("unix_socket_dir", config->unix_socket_dir, reload->unix_socket_dir))
+   {
+      restart = true;
+   }
+   if (restart_string("pidfile", config->pidfile, reload->pidfile))
+   {
+      restart = true;
+   }
+   if (restart_int("ev_backend", config->ev_backend, reload->ev_backend))
+   {
+      restart = true;
+   }
+   if (restart_int("hugepage", config->hugepage, reload->hugepage))
+   {
+      restart = true;
+   }
+
+   /* Cache infrastructure */
+   if (restart_int("metrics_cache_max_size", config->metrics_cache_max_size, reload->metrics_cache_max_size))
+   {
+      restart = true;
+   }
+
+   /* Check if number of servers decreased */
+   if (config->number_of_servers > reload->number_of_servers)
+   {
+      if (restart_int("decreasing number of servers", config->number_of_servers, reload->number_of_servers))
+      {
+         restart = true;
+      }
+   }
+
+   /* Check each server for host/port/TLS changes */
+   for (int i = 0; i < reload->number_of_servers; i++)
+   {
+      if (i < config->number_of_servers)
+      {
+         if (restart_server(&reload->servers[i], &config->servers[i]))
+         {
+            restart = true;
+         }
+      }
+   }
+
+   return restart;
+}
+
+static int
 transfer_configuration(struct configuration* config, struct configuration* reload)
 {
    char* old_endpoints = NULL;
    char* new_endpoints = NULL;
-   bool changed = false;
 
 #ifdef HAVE_SYSTEMD
    sd_notify(0, "RELOADING=1");
 #endif
 
+   /* Check if any parameter requires a restart before applying any changes */
+   if (check_restart_required(config, reload))
+   {
+      pgexporter_log_warn("Configuration reload denied: restart required for one or more structural parameters. Running state preserved.");
+#ifdef HAVE_SYSTEMD
+      sd_notify(0, "READY=1");
+#endif
+      return 1;
+   }
+
+   /* No restart required: apply all changes to the shared memory.
+    * Structural parameters (host, metrics, console, management, etc.) are safe
+    * to copy here because check_restart_required() above verified they are unchanged.
+    */
+
+   /* Network resources */
    memcpy(config->host, reload->host, MISC_LENGTH);
    config->metrics = reload->metrics;
    config->metrics_cache_max_age = reload->metrics_cache_max_age;
+   config->metrics_cache_max_size = reload->metrics_cache_max_size;
    config->metrics_query_timeout = reload->metrics_query_timeout;
-   if (restart_int("metrics_cache_max_size", config->metrics_cache_max_size, reload->metrics_cache_max_size))
-   {
-      changed = true;
-   }
-   if (restart_int("bridge", config->bridge, reload->bridge))
-   {
-      changed = true;
-   }
+   config->console = reload->console;
+   config->management = reload->management;
+
+   /* Bridge configuration */
+   config->bridge = reload->bridge;
 
    if (config->number_of_endpoints > 0)
    {
@@ -4080,76 +4833,38 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
       new_endpoints = pgexporter_append(new_endpoints, "");
    }
 
-   if (restart_string("bridge_endpoints", old_endpoints, new_endpoints))
-   {
-      changed = true;
-   }
-
    config->bridge_cache_max_age = reload->bridge_cache_max_age;
-   if (restart_int("bridge_cache_max_size", config->bridge_cache_max_size, reload->bridge_cache_max_size))
-   {
-      changed = true;
-   }
-   if (restart_int("bridge_json", config->bridge_json, reload->bridge_json))
-   {
-      changed = true;
-   }
-   if (restart_int("bridge_json_cache_max_size", config->bridge_json_cache_max_size, reload->bridge_json_cache_max_size))
-   {
-      changed = true;
-   }
-   config->management = reload->management;
+   config->bridge_cache_max_size = reload->bridge_cache_max_size;
+   config->bridge_json = reload->bridge_json;
+   config->bridge_json_cache_max_size = reload->bridge_json_cache_max_size;
 
-   /* history */
-   if (restart_int("history", config->history, reload->history))
-   {
-      changed = true;
-   }
+   /* History */
+   config->history = reload->history;
    config->history_interval = reload->history_interval;
    config->history_retention = reload->history_retention;
-   if (restart_int("history_backend", config->history_backend, reload->history_backend))
-   {
-      changed = true;
-   }
-   if (restart_string("history_path", config->history_path, reload->history_path))
-   {
-      changed = true;
-   }
+   config->history_backend = reload->history_backend;
+   memcpy(config->history_path, reload->history_path, MAX_PATH);
 
-   /* bridge history */
-   if (restart_int("bridge_history", config->bridge_history, reload->bridge_history))
-   {
-      changed = true;
-   }
+   /* Bridge history */
+   config->bridge_history = reload->bridge_history;
    config->bridge_history_interval = reload->bridge_history_interval;
    config->bridge_history_retention = reload->bridge_history_retention;
-   if (restart_int("bridge_history_backend", config->bridge_history_backend, reload->bridge_history_backend))
-   {
-      changed = true;
-   }
-   if (restart_string("bridge_history_path", config->bridge_history_path, reload->bridge_history_path))
-   {
-      changed = true;
-   }
+   config->bridge_history_backend = reload->bridge_history_backend;
+   memcpy(config->bridge_history_path, reload->bridge_history_path, MAX_PATH);
 
    config->cache = reload->cache;
    config->alerts_enabled = reload->alerts_enabled;
-
-   if (restart_bool("tls", config->tls, reload->tls))
-   {
-      changed = true;
-   }
    config->tls = reload->tls;
 
-   /* log_type */
-   if (restart_int("log_type", config->log_type, reload->log_type))
-   {
-      changed = true;
-   }
+   /* Logging */
+   config->log_type = reload->log_type;
    config->log_level = reload->log_level;
-   // if the log main parameters have changed, we need
-   // to restart the logging system
-   if (strncmp(config->log_path, reload->log_path, MISC_LENGTH) || config->log_rotation_size != reload->log_rotation_size || pgexporter_time_convert(config->log_rotation_age, FORMAT_TIME_MS) != pgexporter_time_convert(reload->log_rotation_age, FORMAT_TIME_MS) || config->log_mode != reload->log_mode)
+
+   /* If the log main parameters have changed, restart the logging system */
+   if (strncmp(config->log_path, reload->log_path, MISC_LENGTH) ||
+       config->log_rotation_size != reload->log_rotation_size ||
+       pgexporter_time_convert(config->log_rotation_age, FORMAT_TIME_MS) != pgexporter_time_convert(reload->log_rotation_age, FORMAT_TIME_MS) ||
+       config->log_mode != reload->log_mode)
    {
       pgexporter_log_debug("Log restart triggered!");
       pgexporter_stop_logging();
@@ -4160,15 +4875,8 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
       memcpy(config->log_path, reload->log_path, MISC_LENGTH);
       pgexporter_start_logging();
    }
-   /* log_lock */
 
-   config->tls = reload->tls;
-
-   if (!is_same_global_tls(config, reload))
-   {
-      pgexporter_log_info("Restart required for global TLS configuration");
-      changed = true;
-   }
+   /* TLS - changes apply to new connections immediately */
    memcpy(config->tls_cert_file, reload->tls_cert_file, MAX_PATH);
    memcpy(config->tls_key_file, reload->tls_key_file, MAX_PATH);
    memcpy(config->tls_ca_file, reload->tls_ca_file, MAX_PATH);
@@ -4176,75 +4884,36 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    memcpy(config->metrics_key_file, reload->metrics_key_file, MAX_PATH);
    memcpy(config->metrics_ca_file, reload->metrics_ca_file, MAX_PATH);
 
+   /* Timeouts */
    config->blocking_timeout = reload->blocking_timeout;
    config->authentication_timeout = reload->authentication_timeout;
-   /* pidfile */
-   if (restart_string("pidfile", config->pidfile, reload->pidfile))
-   {
-      changed = true;
-   }
 
-   /* ev_backend */
-   if (restart_int("ev_backend", config->ev_backend, reload->ev_backend))
-   {
-      changed = true;
-   }
+   /* System */
+   memcpy(config->pidfile, reload->pidfile, MAX_PATH);
+   config->ev_backend = reload->ev_backend;
    config->keep_alive = reload->keep_alive;
    config->nodelay = reload->nodelay;
    config->non_blocking = reload->non_blocking;
    config->backlog = reload->backlog;
-   /* hugepage */
-   if (restart_int("hugepage", config->hugepage, reload->hugepage))
-   {
-      changed = true;
-   }
+   config->hugepage = reload->hugepage;
+   config->update_process_title = reload->update_process_title;
+   memcpy(config->unix_socket_dir, reload->unix_socket_dir, MISC_LENGTH);
 
-   /* update_process_title */
-   if (restart_int("update_process_title", config->update_process_title, reload->update_process_title))
-   {
-      changed = true;
-   }
-
-   /* unix_socket_dir */
-   if (restart_string("unix_socket_dir", config->unix_socket_dir, reload->unix_socket_dir))
-   {
-      changed = true;
-   }
-
-   /* collectors */
+   /* Collectors */
    memcpy(config->allowed_collectors, reload->allowed_collectors, sizeof(config->allowed_collectors));
    config->number_of_allowed_collectors = reload->number_of_allowed_collectors;
    memcpy(config->excluded_collectors, reload->excluded_collectors, sizeof(config->excluded_collectors));
    config->number_of_excluded_collectors = reload->number_of_excluded_collectors;
 
-   memcpy(config->excluded_collectors, reload->excluded_collectors, sizeof(config->excluded_collectors));
-   config->number_of_excluded_collectors = reload->number_of_excluded_collectors;
-
-   /* Evaluate TLS changes before clearing the existing configuration array */
-   for (int i = 0; i < reload->number_of_servers; i++)
-   {
-      for (int j = 0; j < config->number_of_servers; j++)
-      {
-         if (!strcmp(config->servers[j].name, reload->servers[i].name))
-         {
-            if (!is_same_tls(&config->servers[j], &reload->servers[i]))
-            {
-               pgexporter_log_info("Restart required for Server <%s>: TLS configuration changed", reload->servers[i].name);
-               changed = true;
-            }
-            break;
-         }
-      }
-   }
-
-   memset(&config->servers[0], 0, sizeof(struct server) * NUMBER_OF_SERVERS);
+   /* Servers */
    for (int i = 0; i < reload->number_of_servers; i++)
    {
       copy_server(&config->servers[i], &reload->servers[i]);
    }
-
+   memset(&config->servers[reload->number_of_servers], 0, sizeof(struct server) * (NUMBER_OF_SERVERS - reload->number_of_servers));
    config->number_of_servers = reload->number_of_servers;
 
+   /* Users */
    memset(&config->users[0], 0, sizeof(struct user) * NUMBER_OF_USERS);
    for (int i = 0; i < reload->number_of_users; i++)
    {
@@ -4252,6 +4921,7 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    }
    config->number_of_users = reload->number_of_users;
 
+   /* Admins */
    memset(&config->admins[0], 0, sizeof(struct user) * NUMBER_OF_ADMINS);
    for (int i = 0; i < reload->number_of_admins; i++)
    {
@@ -4259,7 +4929,7 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    }
    config->number_of_admins = reload->number_of_admins;
 
-   /* prometheus */
+   /* Prometheus */
    memcpy(config->metrics_path, reload->metrics_path, MAX_PATH);
    for (int i = 0; i < reload->number_of_metrics; i++)
    {
@@ -4267,7 +4937,11 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    }
    config->number_of_metrics = reload->number_of_metrics;
 
-   /* alerts */
+   /* Metric names list */
+   memcpy(config->metric_names, reload->metric_names, sizeof(config->metric_names));
+   config->number_of_metric_names = reload->number_of_metric_names;
+
+   /* Alerts */
    memcpy(config->alerts_path, reload->alerts_path, MAX_PATH);
    for (int i = 0; i < reload->number_of_alerts; i++)
    {
@@ -4275,7 +4949,7 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    }
    config->number_of_alerts = reload->number_of_alerts;
 
-   /* endpoint */
+   /* Endpoints */
    for (int i = 0; i < reload->number_of_endpoints; i++)
    {
       copy_endpoint(&config->endpoints[i], &reload->endpoints[i]);
@@ -4289,26 +4963,88 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    free(old_endpoints);
    free(new_endpoints);
 
-   return changed;
+   return 0;
 }
 
 static void
 copy_server(struct server* dst, struct server* src)
 {
+   SSL* ssl = NULL;
+   int fd = -1;
+   bool is_new = false;
+   int state = SERVER_UNKNOWN;
+   int version = SERVER_UNDERTERMINED_VERSION;
+   int minor_version = 0;
+   int number_of_databases = 0;
+   int number_of_extensions = 0;
+   int fips_enabled = SERVER_FIPS_UNKNOWN;
+   char databases[NUMBER_OF_EXTENSIONS][DB_NAME_LENGTH];
+   struct extension_info extensions[NUMBER_OF_EXTENSIONS];
+   bool preserve_runtime = is_same_server(dst, src);
+
+   memset(databases, 0, sizeof(databases));
+   memset(extensions, 0, sizeof(extensions));
+
+   if (preserve_runtime)
+   {
+      ssl = dst->ssl;
+      fd = dst->fd;
+      is_new = dst->new;
+      state = dst->state;
+      version = dst->version;
+      minor_version = dst->minor_version;
+      number_of_databases = dst->number_of_databases;
+      number_of_extensions = dst->number_of_extensions;
+      fips_enabled = dst->fips_enabled;
+      memcpy(databases, dst->databases, sizeof(databases));
+      memcpy(extensions, dst->extensions, sizeof(extensions));
+   }
+
+   memset(dst, 0, sizeof(struct server));
    memcpy(&dst->name[0], &src->name[0], MISC_LENGTH);
    memcpy(&dst->host[0], &src->host[0], MISC_LENGTH);
    dst->port = src->port;
+   dst->type = src->type;
    dst->tls_mode = src->tls_mode;
    memcpy(&dst->username[0], &src->username[0], MAX_USERNAME_LENGTH);
    memcpy(&dst->data[0], &src->data[0], MISC_LENGTH);
    memcpy(&dst->wal[0], &src->wal[0], MISC_LENGTH);
-
    memcpy(&dst->tls_cert_file[0], &src->tls_cert_file[0], MAX_PATH);
    memcpy(&dst->tls_key_file[0], &src->tls_key_file[0], MAX_PATH);
    memcpy(&dst->tls_ca_file[0], &src->tls_ca_file[0], MAX_PATH);
-
    memcpy(&dst->extensions_config[0], &src->extensions_config[0], MAX_EXTENSIONS_CONFIG_LENGTH);
-   dst->fd = src->fd;
+   dst->ssl = ssl;
+   dst->fd = fd;
+   dst->new = is_new;
+   dst->state = state;
+   dst->version = version;
+   dst->minor_version = minor_version;
+   dst->number_of_databases = number_of_databases;
+   dst->number_of_extensions = number_of_extensions;
+   dst->fips_enabled = fips_enabled;
+   memcpy(dst->databases, databases, sizeof(databases));
+   memcpy(dst->extensions, extensions, sizeof(extensions));
+}
+
+static void
+copy_server_config(struct server* dst, struct server* src)
+{
+   memset(dst, 0, sizeof(struct server));
+   memcpy(&dst->name[0], &src->name[0], MISC_LENGTH);
+   memcpy(&dst->host[0], &src->host[0], MISC_LENGTH);
+   dst->port = src->port;
+   dst->type = src->type;
+   dst->tls_mode = src->tls_mode;
+   memcpy(&dst->username[0], &src->username[0], MAX_USERNAME_LENGTH);
+   memcpy(&dst->data[0], &src->data[0], MISC_LENGTH);
+   memcpy(&dst->wal[0], &src->wal[0], MISC_LENGTH);
+   memcpy(&dst->tls_cert_file[0], &src->tls_cert_file[0], MAX_PATH);
+   memcpy(&dst->tls_key_file[0], &src->tls_key_file[0], MAX_PATH);
+   memcpy(&dst->tls_ca_file[0], &src->tls_ca_file[0], MAX_PATH);
+   memcpy(&dst->extensions_config[0], &src->extensions_config[0], MAX_EXTENSIONS_CONFIG_LENGTH);
+   memcpy(dst->databases, src->databases, sizeof(dst->databases));
+   memcpy(dst->extensions, src->extensions, sizeof(dst->extensions));
+   /* Runtime fields (ssl, fd, state, version, etc.) remain zero/NULL */
 }
 
 static void
@@ -4326,7 +5062,23 @@ copy_promethus(struct prometheus* dst, struct prometheus* src)
    dst->sort_type = src->sort_type;
    dst->server_query_type = src->server_query_type;
 
+   // Always free dst's tree if it exists before copying
+   if (dst->pg_root != NULL)
+   {
+      pgexporter_free_pg_node_avl(&dst->pg_root);
+      dst->pg_root = NULL;
+   }
+
+   // Copy src tree to dst
    pgexporter_copy_pg_query_alts(&dst->pg_root, src->pg_root);
+
+   // Same for extension tree
+   if (dst->ext_root != NULL)
+   {
+      pgexporter_free_extension_node_avl(&dst->ext_root);
+      dst->ext_root = NULL;
+   }
+
    pgexporter_copy_extension_query_alts(src->ext_root, &dst->ext_root);
 }
 
@@ -4342,7 +5094,7 @@ restart_int(char* name, int e, int n)
 {
    if (e != n)
    {
-      pgexporter_log_info("Restart required for %s - Existing %d New %d", name, e, n);
+      pgexporter_log_warn("Restart required for %s - Existing %d New %d", name, e, n);
       return 1;
    }
 
@@ -4354,51 +5106,7 @@ restart_string(char* name, char* e, char* n)
 {
    if (strcmp(e, n))
    {
-      pgexporter_log_info("Restart required for %s - Existing %s New %s", name, e, n);
-      return 1;
-   }
-
-   return 0;
-}
-
-static bool
-is_same_tls(struct server* src, struct server* dst)
-{
-   if (src->tls_mode != dst->tls_mode)
-      return false;
-   if (strcmp(src->tls_cert_file, dst->tls_cert_file))
-      return false;
-   if (strcmp(src->tls_key_file, dst->tls_key_file))
-      return false;
-   if (strcmp(src->tls_ca_file, dst->tls_ca_file))
-      return false;
-   return true;
-}
-
-static bool
-is_same_global_tls(struct configuration* src, struct configuration* dst)
-{
-   if (strcmp(src->tls_cert_file, dst->tls_cert_file))
-      return false;
-   if (strcmp(src->tls_key_file, dst->tls_key_file))
-      return false;
-   if (strcmp(src->tls_ca_file, dst->tls_ca_file))
-      return false;
-   if (strcmp(src->metrics_cert_file, dst->metrics_cert_file))
-      return false;
-   if (strcmp(src->metrics_key_file, dst->metrics_key_file))
-      return false;
-   if (strcmp(src->metrics_ca_file, dst->metrics_ca_file))
-      return false;
-   return true;
-}
-
-static int
-restart_bool(char* name, bool e, bool n)
-{
-   if (e != n)
-   {
-      pgexporter_log_info("Restart required for %s - Existing %s New %s", name, e ? "true" : "false", n ? "true" : "false");
+      pgexporter_log_warn("Restart required for %s - Existing %s New %s", name, e, n);
       return 1;
    }
 
@@ -4478,13 +5186,13 @@ to_log_type(char* where, int value)
    switch (value)
    {
       case PGEXPORTER_LOGGING_TYPE_FILE:
-         snprintf(where, MISC_LENGTH, "%s", "file");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "file");
          break;
       case PGEXPORTER_LOGGING_TYPE_CONSOLE:
-         snprintf(where, MISC_LENGTH, "%s", "console");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "console");
          break;
       case PGEXPORTER_LOGGING_TYPE_SYSLOG:
-         snprintf(where, MISC_LENGTH, "%s", "syslog");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "syslog");
          break;
       default:
          return 1;
@@ -4503,19 +5211,19 @@ to_log_level(char* where, int value)
    {
       case PGEXPORTER_LOGGING_LEVEL_DEBUG1:
       case PGEXPORTER_LOGGING_LEVEL_DEBUG2:
-         snprintf(where, MISC_LENGTH, "%s", "debug");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "debug");
          break;
       case PGEXPORTER_LOGGING_LEVEL_INFO:
-         snprintf(where, MISC_LENGTH, "%s", "info");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "info");
          break;
       case PGEXPORTER_LOGGING_LEVEL_WARN:
-         snprintf(where, MISC_LENGTH, "%s", "warn");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "warn");
          break;
       case PGEXPORTER_LOGGING_LEVEL_ERROR:
-         snprintf(where, MISC_LENGTH, "%s", "error");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "error");
          break;
       case PGEXPORTER_LOGGING_LEVEL_FATAL:
-         snprintf(where, MISC_LENGTH, "%s", "fatal");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "fatal");
          break;
       default:
          return 1;
@@ -4533,10 +5241,10 @@ to_log_mode(char* where, int value)
    switch (value)
    {
       case PGEXPORTER_LOGGING_MODE_CREATE:
-         snprintf(where, MISC_LENGTH, "%s", "create");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "create");
          break;
       case PGEXPORTER_LOGGING_MODE_APPEND:
-         snprintf(where, MISC_LENGTH, "%s", "append");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "append");
          break;
       default:
          return 1;
@@ -4554,16 +5262,16 @@ to_ev_backend(char* where, int value)
    switch (value)
    {
       case PGEXPORTER_EVENT_BACKEND_AUTO:
-         snprintf(where, MISC_LENGTH, "%s", "auto");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "auto");
          break;
       case PGEXPORTER_EVENT_BACKEND_IO_URING:
-         snprintf(where, MISC_LENGTH, "%s", "io_uring");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "io_uring");
          break;
       case PGEXPORTER_EVENT_BACKEND_EPOLL:
-         snprintf(where, MISC_LENGTH, "%s", "epoll");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "epoll");
          break;
       case PGEXPORTER_EVENT_BACKEND_KQUEUE:
-         snprintf(where, MISC_LENGTH, "%s", "kqueue");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "kqueue");
          break;
       default:
          return 1;
@@ -4582,13 +5290,13 @@ to_server_tls_mode(char* where, int value)
    switch (value)
    {
       case SERVER_TLS_OFF:
-         snprintf(where, MISC_LENGTH, "%s", "off");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "off");
          break;
       case SERVER_TLS_TRY:
-         snprintf(where, MISC_LENGTH, "%s", "try");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "try");
          break;
       case SERVER_TLS_ON:
-         snprintf(where, MISC_LENGTH, "%s", "on");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "on");
          break;
       default:
          return 1;
@@ -4607,13 +5315,13 @@ to_hugepage(char* where, int value)
    switch (value)
    {
       case HUGEPAGE_OFF:
-         snprintf(where, MISC_LENGTH, "%s", "off");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "off");
          break;
       case HUGEPAGE_TRY:
-         snprintf(where, MISC_LENGTH, "%s", "try");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "try");
          break;
       case HUGEPAGE_ON:
-         snprintf(where, MISC_LENGTH, "%s", "on");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "on");
          break;
       default:
          return 1;
@@ -4631,7 +5339,7 @@ to_history_backend(char* where, int value)
    switch (value)
    {
       case HISTORY_BACKEND_SQLITE:
-         snprintf(where, MISC_LENGTH, "%s", "sqlite");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "sqlite");
          break;
       default:
          return 1;
@@ -4649,16 +5357,16 @@ to_update_process_title(char* where, int value)
    switch (value)
    {
       case UPDATE_PROCESS_TITLE_NEVER:
-         snprintf(where, MISC_LENGTH, "%s", "never");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "never");
          break;
       case UPDATE_PROCESS_TITLE_STRICT:
-         snprintf(where, MISC_LENGTH, "%s", "strict");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "strict");
          break;
       case UPDATE_PROCESS_TITLE_MINIMAL:
-         snprintf(where, MISC_LENGTH, "%s", "minimal");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "minimal");
          break;
       case UPDATE_PROCESS_TITLE_VERBOSE:
-         snprintf(where, MISC_LENGTH, "%s", "verbose");
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "verbose");
          break;
       default:
          return 1;
