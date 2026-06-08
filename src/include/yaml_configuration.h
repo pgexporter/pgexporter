@@ -58,6 +58,7 @@ pgexporter_read_internal_yaml_metrics(struct configuration* config, bool start);
 
 /**
  * Read and load YAML configuration from file pointer.
+ * @param config The configuration to validate against (for duplicate detection)
  * @param prometheus The array of data structures where the YAML configuration is loaded
  * @param prometheus_idx The index of the data structure in the array
  * @param number_of_metrics The number of metrics the configuration has. This value will be set by the function.
@@ -65,7 +66,7 @@ pgexporter_read_internal_yaml_metrics(struct configuration* config, bool start);
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_read_yaml_from_file_pointer(struct prometheus* prometheus, int prometheus_idx, int* number_of_metrics, FILE* file);
+pgexporter_read_yaml_from_file_pointer(struct configuration* config, struct prometheus* prometheus, int prometheus_idx, int* number_of_metrics, FILE* file);
 
 /**
  * Find and load a specific extension's YAML file

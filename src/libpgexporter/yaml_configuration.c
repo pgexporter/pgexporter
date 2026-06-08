@@ -45,7 +45,7 @@
 #include <yaml.h>
 #include <errno.h>
 
-static int pgexporter_read_yaml(struct prometheus* prometheus, int prometheus_idx, char* filename, int* number_of_metrics);
+static int pgexporter_read_yaml(struct configuration* config, struct prometheus* prometheus, int prometheus_idx, char* filename, int* number_of_metrics);
 
 static int get_yaml_files(char* base, int* number_of_yaml_files, char*** files);
 static bool is_yaml_file(char* filename);
@@ -181,7 +181,7 @@ pgexporter_read_metrics_configuration(void* shmem)
    if (pgexporter_is_file(config->metrics_path))
    {
       number_of_metrics = 0;
-      if (pgexporter_read_yaml(config->prometheus, idx_metrics, config->metrics_path, &number_of_metrics))
+      if (pgexporter_read_yaml(config, config->prometheus, idx_metrics, config->metrics_path, &number_of_metrics))
       {
          return 1;
       }
@@ -199,7 +199,7 @@ pgexporter_read_metrics_configuration(void* shmem)
                                         "/",
                                         yaml_files[i]);
 
-         if (pgexporter_read_yaml(config->prometheus, idx_metrics, yaml_path, &number_of_metrics))
+         if (pgexporter_read_yaml(config, config->prometheus, idx_metrics, yaml_path, &number_of_metrics))
          {
             free(yaml_path);
             yaml_path = NULL;
@@ -234,7 +234,7 @@ pgexporter_read_internal_yaml_metrics(struct configuration* config, bool start)
    int ret;
    FILE* internal_yaml_ptr = fmemopen(INTERNAL_YAML, strlen(INTERNAL_YAML), "r");
 
-   ret = pgexporter_read_yaml_from_file_pointer(config->prometheus, 0, &number_of_metrics, internal_yaml_ptr);
+   ret = pgexporter_read_yaml_from_file_pointer(config, config->prometheus, 0, &number_of_metrics, internal_yaml_ptr);
    fclose(internal_yaml_ptr);
 
    if (ret)
@@ -253,7 +253,7 @@ pgexporter_read_internal_yaml_metrics(struct configuration* config, bool start)
 }
 
 static int
-pgexporter_read_yaml(struct prometheus* prometheus, int prometheus_idx, char* filename, int* number_of_metrics)
+pgexporter_read_yaml(struct configuration* config, struct prometheus* prometheus, int prometheus_idx, char* filename, int* number_of_metrics)
 {
    FILE* file;
 
@@ -264,7 +264,7 @@ pgexporter_read_yaml(struct prometheus* prometheus, int prometheus_idx, char* fi
       return 1;
    }
 
-   int ret = pgexporter_read_yaml_from_file_pointer(prometheus, prometheus_idx, number_of_metrics, file);
+   int ret = pgexporter_read_yaml_from_file_pointer(config, prometheus, prometheus_idx, number_of_metrics, file);
 
    fclose(file);
 
@@ -463,11 +463,10 @@ error:
 }
 
 int
-pgexporter_read_yaml_from_file_pointer(struct prometheus* prometheus, int prometheus_idx, int* number_of_metrics, FILE* file)
+pgexporter_read_yaml_from_file_pointer(struct configuration* config, struct prometheus* prometheus, int prometheus_idx, int* number_of_metrics, FILE* file)
 {
    int ret = 0;
    yaml_config_t yaml_config;
-   struct configuration* config = (struct configuration*)shmem;
 
    memset(&yaml_config, 0, sizeof(yaml_config_t));
 
@@ -1564,7 +1563,7 @@ semantics_yaml(struct prometheus* prometheus, int prometheus_idx, yaml_config_t*
             }
             else
             {
-               pgexporter_log_warn("Maximum metric names reached, skipping: %s", final_metric_name);
+               pgexporter_log_warn("Maximum metric names reached (%d), skipping: %s", NUMBER_OF_METRIC_NAMES, final_metric_name);
             }
          }
       }
@@ -1651,7 +1650,7 @@ pgexporter_load_single_extension_yaml(char* extensions_path, char* extension_nam
    free_yaml_config(&temp_config);
    rewind(file);
 
-   ret = pgexporter_read_yaml_from_file_pointer(NULL, 0, &number_of_metrics, file);
+   ret = pgexporter_read_yaml_from_file_pointer(config, NULL, 0, &number_of_metrics, file);
    if (ret != 0)
    {
       pgexporter_log_debug("Failed to parse extension YAML: %s (extension: %s)",
@@ -1834,7 +1833,7 @@ semantics_extension_yaml(struct configuration* config, yaml_config_t* yaml_confi
             }
             else
             {
-               pgexporter_log_warn("Maximum metric names reached, skipping: %s", final_metric_name);
+               pgexporter_log_warn("Maximum metric names reached (%d), skipping: %s", NUMBER_OF_METRIC_NAMES, final_metric_name);
             }
          }
       }

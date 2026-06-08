@@ -98,7 +98,7 @@ Example
 pgexporter-cli conf reload
 pgexporter-cli conf ls
 pgexporter-cli conf get primary.host
-pgexporter-cli conf set encryption aes256
+pgexporter-cli conf set log_level debug
 ```
 
 **conf get**
@@ -118,6 +118,52 @@ pgexporter-cli conf get host
 pgexporter-cli conf get pgexporter.host
 pgexporter-cli conf get server.primary.host
 pgexporter-cli conf get server.myserver.port
+```
+
+**conf set**
+
+The `conf set` command modifies a runtime configuration parameter.
+
+```
+pgexporter-cli conf set <config_key> <config_value>
+```
+
+If the change is applied immediately:
+```
+Configuration change applied
+   New value: debug
+```
+
+Structural parameters (host, metrics, management, console, history, bridge,
+unix_socket_dir, pidfile, ev_backend, hugepage, tls, log_type, bridge_json,
+bridge_history, metrics_cache_max_size) require a full restart:
+
+```
+Configuration change requires restart. Current values preserved.
+```
+
+If the value is unchanged:
+```
+No change: log_level is already debug
+```
+
+If the value is invalid:
+```
+Configuration change failed
+   Invalid value for configuration key 'log_level'
+```
+
+**conf reload**
+
+Reload the configuration from disk.
+
+```
+Configuration reloaded successfully.
+```
+
+If structural parameters were changed in the configuration file:
+```
+Configuration reload deferred: restart required for structural parameter changes.
 ```
 
 ## clear prometheus

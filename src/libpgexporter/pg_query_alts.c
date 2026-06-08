@@ -52,7 +52,10 @@ pgexporter_copy_pg_query_alts(struct pg_query_alts** dst, struct pg_query_alts* 
 
    void* new_query_alt = NULL;
 
-   pgexporter_create_shared_memory(sizeof(struct pg_query_alts), HUGEPAGE_OFF, &new_query_alt);
+   if (pgexporter_create_shared_memory(sizeof(struct pg_query_alts), HUGEPAGE_OFF, &new_query_alt))
+   {
+      return;
+   }
    *dst = (struct pg_query_alts*)new_query_alt;
 
    (*dst)->height = src->height;
@@ -231,5 +234,6 @@ pgexporter_free_pg_node_avl(struct pg_query_alts** root)
    pgexporter_free_pg_node_avl(&(*root)->left);
    pgexporter_free_pg_node_avl(&(*root)->right);
 
-   pgexporter_destroy_shared_memory(&root, sizeof(struct pg_query_alts*));
+   pgexporter_destroy_shared_memory(*root, sizeof(struct pg_query_alts));
+   *root = NULL;
 }

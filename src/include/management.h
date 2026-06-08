@@ -146,6 +146,8 @@ extern "C" {
 #define MANAGEMENT_ERROR_CONF_SET_UNKNOWN_SERVER            1105
 #define MANAGEMENT_ERROR_CONF_SET_NETWORK                   1106
 #define MANAGEMENT_ERROR_CONF_SET_ERROR                     1107
+#define MANAGEMENT_ERROR_CONF_SET_REQUIRES_RESTART          1108
+#define MANAGEMENT_ERROR_CONF_SET_INVALID_VALUE             1109
 
 /**
  * Output formats

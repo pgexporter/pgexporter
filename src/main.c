@@ -92,11 +92,13 @@ static void accept_bridge_json_cb(struct io_watcher* watcher);
 static void accept_management_cb(struct io_watcher* watcher);
 static void shutdown_cb(void);
 static void reload_cb(void);
+static void service_reload_cb(void);
 static void coredump_cb(void);
 static void sigchld_cb(void);
 static void accept_console_cb(struct io_watcher* watcher);
 static bool accept_fatal(int error);
-static bool reload_configuration(void);
+static int reload_configuration(bool* restart);
+static void reload_set_configuration(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryption, struct json* payload);
 static int create_pidfile(void);
 static void remove_pidfile(void);
 static int create_lockfile(int port);
@@ -133,7 +135,7 @@ static struct accept_io io_management[MAX_FDS];
 static int* management_fds = NULL;
 static int management_fds_length = -1;
 static struct accept_io io_transfer;
-static struct signal_watcher signal_watchers[6];
+static struct signal_watcher signal_watchers[7];
 
 static void
 stop_io_watcher(struct io_watcher* watcher)
@@ -1190,8 +1192,9 @@ main(int argc, char** argv)
    pgexporter_signal_init(&signal_watchers[3], coredump_cb, SIGABRT);
    pgexporter_signal_init(&signal_watchers[4], shutdown_cb, SIGALRM);
    pgexporter_signal_init(&signal_watchers[5], sigchld_cb, SIGCHLD);
+   pgexporter_signal_init(&signal_watchers[6], service_reload_cb, SIGUSR1);
 
-   for (int i = 0; i < 6; i++)
+   for (int i = 0; i < 7; i++)
    {
       pgexporter_signal_start(&signal_watchers[i]);
    }
@@ -1435,7 +1438,7 @@ main(int argc, char** argv)
       }
    }
 
-   for (int i = 0; i < 6; i++)
+   for (int i = 0; i < 7; i++)
    {
       pgexporter_signal_stop(&signal_watchers[i]);
    }
@@ -1596,11 +1599,27 @@ accept_mgt_cb(struct io_watcher* watcher)
 
       start_time = time(NULL);
 
-      restart = reload_configuration();
+      if (reload_configuration(&restart))
+      {
+         pgexporter_management_response_error(NULL, client_fd, server, MANAGEMENT_ERROR_CONF_SET_ERROR, compression, encryption, payload);
+         pgexporter_log_error("Reload: Failed to reload configuration");
+         goto error;
+      }
 
       pgexporter_management_create_response(payload, -1, &response);
 
-      pgexporter_json_put(response, MANAGEMENT_ARGUMENT_RESTART, (uintptr_t)restart, ValueBool);
+      if (restart)
+      {
+         pgexporter_json_put(response, CONFIGURATION_RESPONSE_STATUS, (uintptr_t)CONFIGURATION_STATUS_RESTART_REQUIRED, ValueString);
+         pgexporter_json_put(response, CONFIGURATION_RESPONSE_MESSAGE, (uintptr_t)CONFIGURATION_MESSAGE_RESTART_REQUIRED, ValueString);
+         pgexporter_json_put(response, CONFIGURATION_RESPONSE_RESTART_REQUIRED, (uintptr_t)true, ValueBool);
+      }
+      else
+      {
+         pgexporter_json_put(response, CONFIGURATION_RESPONSE_STATUS, (uintptr_t)CONFIGURATION_STATUS_SUCCESS, ValueString);
+         pgexporter_json_put(response, CONFIGURATION_RESPONSE_MESSAGE, (uintptr_t)CONFIGURATION_MESSAGE_SUCCESS, ValueString);
+         pgexporter_json_put(response, CONFIGURATION_RESPONSE_RESTART_REQUIRED, (uintptr_t)false, ValueBool);
+      }
 
       end_time = time(NULL);
 
@@ -1743,7 +1762,7 @@ accept_mgt_cb(struct io_watcher* watcher)
          payload = NULL;
 
          pgexporter_set_proc_title(1, ai->argv, "conf set", NULL);
-         pgexporter_conf_set(NULL, client_fd, compression, encryption, pyl);
+         reload_set_configuration(NULL, client_fd, compression, encryption, pyl);
       }
    }
    else
@@ -2367,7 +2386,12 @@ static void
 reload_cb(void)
 {
    pgexporter_log_debug("pgexporter: reload requested");
-   reload_configuration();
+   bool restart = false;
+
+   if (reload_configuration(&restart))
+   {
+      pgexporter_log_error("pgexporter: reload failed");
+   }
 }
 
 static void
@@ -2409,122 +2433,79 @@ accept_fatal(int error)
    return true;
 }
 
-static bool
-reload_configuration(void)
+static void
+service_reload_cb(void)
 {
-   bool restart = false;
-   int old_metrics;
-   int old_console;
-   int old_management;
-   struct configuration* config;
+   pgexporter_log_debug("pgexporter: service reload requested (SIGUSR1)");
 
-   config = (struct configuration*)shmem;
+   /* Restart logging (for logrotate support) */
+   pgexporter_stop_logging();
+   pgexporter_start_logging();
+}
 
+static void
+reload_set_configuration(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryption, struct json* payload)
+{
+   bool restart_required = false;
+   bool config_success = false;
+   int exit_code = 0;
+
+   /* Apply configuration changes to shared memory */
+   pgexporter_conf_set(ssl, client_fd, compression, encryption, payload, &restart_required, &config_success);
+
+   /* Only trigger service reload if config change succeeded AND no restart required */
+   if (config_success && !restart_required)
+   {
+      pgexporter_log_info("Configuration applied successfully, reloading services");
+      if (kill(getppid(), SIGUSR1))
+      {
+         pgexporter_log_error("Unable to signal parent process for service reload: %s", strerror(errno));
+         exit_code = 1;
+      }
+   }
+   else if (config_success && restart_required)
+   {
+      pgexporter_log_info("Configuration requires restart - continuing with old configuration");
+   }
+   else
+   {
+      pgexporter_log_error("Configuration change failed, not applying changes");
+      exit_code = 1;
+   }
+
+   /* Clean up resources before exiting the child process */
+   pgexporter_json_destroy(payload);
+   pgexporter_disconnect(client_fd);
+   pgexporter_memory_destroy();
+   pgexporter_stop_logging();
+
+   exit(exit_code);
+}
+
+static int
+reload_configuration(bool* restart)
+{
    errno = 0;
 
-   old_metrics = config->metrics;
-   old_console = config->console;
-   old_management = config->management;
+   *restart = false;
 
-   pgexporter_reload_configuration(&restart);
-
-   if (old_metrics != config->metrics)
+   if (pgexporter_reload_configuration(restart))
    {
-      shutdown_metrics(false);
-
-      free(metrics_fds);
-      metrics_fds = NULL;
-      metrics_fds_length = 0;
-
-      if (config->metrics > 0)
-      {
-         /* Bind metrics socket */
-         if (pgexporter_bind(config->host, config->metrics, &metrics_fds, &metrics_fds_length))
-         {
-            pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->metrics);
-            exit(1);
-         }
-
-         if (metrics_fds_length > MAX_FDS)
-         {
-            pgexporter_log_fatal("pgexporter: Too many descriptors %d", metrics_fds_length);
-            exit(1);
-         }
-
-         start_metrics();
-
-         for (int i = 0; i < metrics_fds_length; i++)
-         {
-            pgexporter_log_debug("Metrics: %d", *(metrics_fds + i));
-         }
-      }
+      pgexporter_log_error("Configuration reload failed");
+      return 1;
    }
 
-   if (old_console != config->console)
+   if (*restart)
    {
-      shutdown_console(false);
-
-      free(console_fds);
-      console_fds = NULL;
-      console_fds_length = 0;
-
-      if (config->console > 0)
-      {
-         /* Bind console socket */
-         if (pgexporter_bind(config->host, config->console, &console_fds, &console_fds_length))
-         {
-            pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->console);
-            exit(1);
-         }
-
-         if (console_fds_length > MAX_FDS)
-         {
-            pgexporter_log_fatal("pgexporter: Too many descriptors %d", console_fds_length);
-            exit(1);
-         }
-
-         start_console();
-
-         for (int i = 0; i < console_fds_length; i++)
-         {
-            pgexporter_log_debug("Console: %d", *(console_fds + i));
-         }
-      }
+      pgexporter_log_warn("Configuration reload denied: restart required for one or more structural parameters. Running state preserved.");
+      pgexporter_log_warn("To apply structural changes (host, metrics, console, management, history, bridge, hugepage, ev_backend), please restart pgexporter.");
+      return 0;
    }
 
-   if (old_management != config->management)
-   {
-      shutdown_management(false);
+   /* Non-structural configuration changes have been applied successfully */
+   pgexporter_log_info("Configuration reloaded successfully");
 
-      free(management_fds);
-      management_fds = NULL;
-      management_fds_length = 0;
-
-      if (config->management > 0)
-      {
-         /* Bind management socket */
-         if (pgexporter_bind(config->host, config->management, &management_fds, &management_fds_length))
-         {
-            pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->management);
-            exit(1);
-         }
-
-         if (management_fds_length > MAX_FDS)
-         {
-            pgexporter_log_fatal("pgexporter: Too many descriptors %d", management_fds_length);
-            exit(1);
-         }
-
-         start_management();
-
-         for (int i = 0; i < management_fds_length; i++)
-         {
-            pgexporter_log_debug("Remote management: %d", *(management_fds + i));
-         }
-      }
-   }
-
-   return restart;
+   return 0;
 }
 
 static int

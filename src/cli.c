@@ -91,6 +91,7 @@ static int conf_set(SSL* ssl, int socket, char* config_key, char* config_value, 
 static int process_result(SSL* ssl, int socket, int32_t output_format);
 static int process_get_result(SSL* ssl, int socket, char* config_key, int32_t output_format);
 static int process_set_result(SSL* ssl, int socket, char* config_key, int32_t output_format);
+static void print_conf_set_error(int32_t error_code, char* config_key);
 
 static int get_config_key_result(char* config_key, struct json* j, uintptr_t* r, int32_t output_format);
 
@@ -974,20 +975,94 @@ error:
 static int
 reload(SSL* ssl, int socket, uint8_t compression, uint8_t encryption, int32_t output_format)
 {
+   struct json* read = NULL;
+   struct json* outcome = NULL;
+   bool outcome_status = true;
+
    if (pgexporter_management_request_reload(ssl, socket, compression, encryption, output_format))
    {
       goto error;
    }
 
-   if (process_result(ssl, socket, output_format))
+   if (pgexporter_management_read_json(ssl, socket, NULL, NULL, &read))
    {
       goto error;
    }
 
+   // Check outcome status
+   outcome = (struct json*)pgexporter_json_get(read, MANAGEMENT_CATEGORY_OUTCOME);
+   if (outcome && pgexporter_json_contains_key(outcome, MANAGEMENT_ARGUMENT_STATUS))
+   {
+      outcome_status = (bool)pgexporter_json_get(outcome, MANAGEMENT_ARGUMENT_STATUS);
+   }
+
+   // JSON output: always print full response
+   if (MANAGEMENT_OUTPUT_FORMAT_JSON == output_format)
+   {
+      pgexporter_json_print(read, FORMAT_JSON);
+      pgexporter_json_destroy(read);
+      return outcome_status ? 0 : 1;
+   }
+
+   // Error response
+   if (!outcome_status)
+   {
+      int32_t error_code = 0;
+      if (outcome && pgexporter_json_contains_key(outcome, MANAGEMENT_ARGUMENT_ERROR))
+      {
+         error_code = (int32_t)pgexporter_json_get(outcome, MANAGEMENT_ARGUMENT_ERROR);
+      }
+      pgexporter_log_error("Reload failed (error %d)", error_code);
+      printf("Reload failed: configuration error (code %d)\n", error_code);
+      pgexporter_json_destroy(read);
+      return 1;
+   }
+
+   // Check for restart required in outcome (legacy) or response
+   struct json* response = (struct json*)pgexporter_json_get(read, MANAGEMENT_CATEGORY_RESPONSE);
+   if (response && pgexporter_json_contains_key(response, CONFIGURATION_RESPONSE_STATUS))
+   {
+      char* resp_status = (char*)pgexporter_json_get(response, CONFIGURATION_RESPONSE_STATUS);
+      char* resp_message = NULL;
+      if (pgexporter_json_contains_key(response, CONFIGURATION_RESPONSE_MESSAGE))
+      {
+         resp_message = (char*)pgexporter_json_get(response, CONFIGURATION_RESPONSE_MESSAGE);
+      }
+
+      if (!strcmp(resp_status, CONFIGURATION_STATUS_RESTART_REQUIRED))
+      {
+         if (resp_message)
+         {
+            printf("%s\n", resp_message);
+         }
+         else
+         {
+            printf("Configuration reload deferred: restart required for structural parameter changes.\n");
+            printf("The configuration file has been validated but changes have NOT been applied.\n");
+            printf("To apply: restart pgexporter.\n");
+         }
+      }
+      else if (!strcmp(resp_status, CONFIGURATION_STATUS_SUCCESS))
+      {
+         printf("Configuration reloaded successfully.\n");
+      }
+      else
+      {
+         printf("Configuration reload: %s\n", resp_status);
+      }
+   }
+   else if (outcome && pgexporter_json_contains_key(outcome, MANAGEMENT_ARGUMENT_RESTART) && (bool)pgexporter_json_get(outcome, MANAGEMENT_ARGUMENT_RESTART))
+   {
+      printf("Configuration reload deferred: restart required for structural parameter changes.\n");
+      printf("The configuration file has been validated but changes have NOT been applied.\n");
+      printf("To apply: restart pgexporter.\n");
+   }
+
+   pgexporter_json_destroy(read);
    return 0;
 
 error:
-
+   pgexporter_json_destroy(read);
    return 1;
 }
 
@@ -1186,17 +1261,122 @@ static int
 process_set_result(SSL* ssl, int socket, char* config_key, int32_t output_format)
 {
    struct json* read = NULL;
+   struct json* outcome = NULL;
+   struct json* response = NULL;
    bool is_char = false;
    char* char_res = NULL;
    int status = 0;
    struct json* json_res = NULL;
    uintptr_t res;
+   bool outcome_status = true;
 
    if (pgexporter_management_read_json(ssl, socket, NULL, NULL, &read))
    {
       goto error;
    }
 
+   // Check outcome status first
+   outcome = (struct json*)pgexporter_json_get(read, MANAGEMENT_CATEGORY_OUTCOME);
+   if (outcome && pgexporter_json_contains_key(outcome, MANAGEMENT_ARGUMENT_STATUS))
+   {
+      outcome_status = (bool)pgexporter_json_get(outcome, MANAGEMENT_ARGUMENT_STATUS);
+   }
+
+   // If JSON output format, always print the full response
+   if (MANAGEMENT_OUTPUT_FORMAT_JSON == output_format)
+   {
+      pgexporter_json_print(read, FORMAT_JSON_COMPACT);
+      pgexporter_json_destroy(read);
+      return outcome_status ? 0 : 1;
+   }
+
+   // Handle error responses
+   if (!outcome_status)
+   {
+      int32_t error_code = 0;
+      if (outcome && pgexporter_json_contains_key(outcome, MANAGEMENT_ARGUMENT_ERROR))
+      {
+         error_code = (int32_t)pgexporter_json_get(outcome, MANAGEMENT_ARGUMENT_ERROR);
+      }
+      pgexporter_log_error("Command failed (error %d)", error_code);
+      print_conf_set_error(error_code, config_key);
+      pgexporter_json_destroy(read);
+      return 1;
+   }
+
+   // Check response metadata
+   response = (struct json*)pgexporter_json_get(read, MANAGEMENT_CATEGORY_RESPONSE);
+   if (response)
+   {
+      char* resp_status = NULL;
+
+      if (pgexporter_json_contains_key(response, CONFIGURATION_RESPONSE_STATUS))
+      {
+         resp_status = (char*)pgexporter_json_get(response, CONFIGURATION_RESPONSE_STATUS);
+      }
+
+      if (resp_status && (!strcmp(resp_status, CONFIGURATION_STATUS_RESTART_REQUIRED) || !strcmp(resp_status, CONFIGURATION_STATUS_ERROR)))
+      {
+         char* resp_message = NULL;
+         if (pgexporter_json_contains_key(response, CONFIGURATION_RESPONSE_MESSAGE))
+         {
+            resp_message = (char*)pgexporter_json_get(response, CONFIGURATION_RESPONSE_MESSAGE);
+         }
+         if (resp_message)
+         {
+            printf("%s\n", resp_message);
+         }
+         else
+         {
+            pgexporter_log_warn("Restart required: Configuration change requires pgexporter restart to take effect.");
+            pgexporter_log_info("The requested change has NOT been applied to the running configuration.");
+            pgexporter_log_info("To apply: restart pgexporter after updating the configuration file.");
+         }
+         pgexporter_json_destroy(read);
+         return 0;
+      }
+
+      if (resp_status && !strcmp(resp_status, CONFIGURATION_STATUS_NO_CHANGE))
+      {
+         char* old_val = NULL;
+         if (pgexporter_json_contains_key(response, CONFIGURATION_RESPONSE_OLD_VALUE))
+         {
+            old_val = (char*)pgexporter_json_get(response, CONFIGURATION_RESPONSE_OLD_VALUE);
+         }
+         if (old_val && strlen(old_val) > 0)
+         {
+            printf("No change: %s is already %s\n", config_key, old_val);
+         }
+         else
+         {
+            printf("No change: %s\n", config_key);
+         }
+         pgexporter_json_destroy(read);
+         return 0;
+      }
+
+      // Success — print the new value from response
+      {
+         char* new_val = NULL;
+         if (pgexporter_json_contains_key(response, CONFIGURATION_RESPONSE_NEW_VALUE))
+         {
+            new_val = (char*)pgexporter_json_get(response, CONFIGURATION_RESPONSE_NEW_VALUE);
+         }
+         if (new_val && strlen(new_val) > 0)
+         {
+            printf("Configuration change applied\n");
+            printf("   New value: %s\n", new_val);
+         }
+         else
+         {
+            printf("Configuration change applied\n");
+         }
+      }
+      pgexporter_json_destroy(read);
+      return 0;
+   }
+
+   // Legacy path (response without status metadata)
    status = get_config_key_result(config_key, read, &res, output_format);
    if (MANAGEMENT_OUTPUT_FORMAT_JSON == output_format)
    {
@@ -1246,6 +1426,34 @@ error:
    }
 
    return 1;
+}
+
+static void
+print_conf_set_error(int32_t error_code, char* config_key)
+{
+   printf("Configuration change failed\n");
+
+   switch (error_code)
+   {
+      case MANAGEMENT_ERROR_CONF_SET_INVALID_VALUE:
+         printf("   Invalid value for configuration key '%s'\n", config_key);
+         break;
+      case MANAGEMENT_ERROR_CONF_SET_UNKNOWN_CONFIGURATION_KEY:
+         printf("   Unknown configuration key '%s'\n", config_key);
+         break;
+      case MANAGEMENT_ERROR_CONF_SET_UNKNOWN_SERVER:
+         printf("   Unknown server in configuration key '%s'\n", config_key);
+         break;
+      case MANAGEMENT_ERROR_CONF_SET_NOCONFIG_KEY_OR_VALUE:
+         printf("   Missing configuration key or value\n");
+         break;
+      case MANAGEMENT_ERROR_CONF_SET_NOREQUEST:
+         printf("   Invalid management request\n");
+         break;
+      default:
+         printf("   Configuration error (code %d)\n", error_code);
+         break;
+   }
 }
 
 static int
