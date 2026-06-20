@@ -39,6 +39,9 @@
 #include <utils.h>
 
 /* system */
+#include <ctype.h>
+#include <errno.h>
+#include <limits.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -91,6 +94,7 @@ static char* get_admin_password(char* username);
 
 static int sasl_prep(char* password, char** password_prep);
 static int generate_nounce(char** nounce);
+static int scram_parse_iterations(char* str, int* iterations);
 static int get_scram_attribute(char attribute, char* input, size_t size, char** value);
 static int client_proof(char* password, char* salt, int salt_length, int iterations,
                         char* client_first_message_bare, size_t client_first_message_bare_length,
@@ -502,7 +506,10 @@ pgexporter_remote_management_scram_sha256(char* username, char* password, int se
 
    pgexporter_base64_decode(base64_salt, strlen(base64_salt), (void**)&salt, &salt_length);
 
-   iteration = atoi(iteration_string);
+   if (scram_parse_iterations(iteration_string, &iteration))
+   {
+      goto error;
+   }
 
    memset(&wo_proof[0], 0, sizeof(wo_proof));
    pgexporter_snprintf(&wo_proof[0], sizeof(wo_proof), "c=biws,r=%s", combined_nounce);
@@ -1569,7 +1576,10 @@ server_scram256(char* username, char* password, SSL* ssl, int server_fd)
 
    pgexporter_base64_decode(base64_salt, strlen(base64_salt), (void**)&salt, &salt_length);
 
-   iteration = atoi(iteration_string);
+   if (scram_parse_iterations(iteration_string, &iteration))
+   {
+      goto error;
+   }
 
    memset(&wo_proof[0], 0, sizeof(wo_proof));
    pgexporter_snprintf(&wo_proof[0], sizeof(wo_proof), "c=biws,r=%s", combined_nounce);
@@ -2078,6 +2088,66 @@ error:
 #endif
 
    return 1;
+}
+
+/* Parse a SCRAM-SHA-256 iteration count from an untrusted peer. Unlike atoi()
+ * this rejects garbage, signs and overflow, and caps the value at
+ * SCRAM_MAX_ITERATIONS so a peer cannot force unbounded PBKDF2 work. */
+static int
+scram_parse_iterations(char* str, int* iterations)
+{
+   char* end = NULL;
+   long value;
+
+   *iterations = 0;
+
+   if (str == NULL || str[0] == '\0')
+   {
+      pgexporter_log_error("SCRAM-SHA-256: missing iteration count");
+      return 1;
+   }
+
+   /* decimal digits only - no sign, whitespace or 0x prefix */
+   for (char* p = str; *p != '\0'; p++)
+   {
+      if (!isdigit((unsigned char)*p))
+      {
+         pgexporter_log_error("SCRAM-SHA-256: invalid iteration count '%s'", str);
+         return 1;
+      }
+   }
+
+   errno = 0;
+   value = strtol(str, &end, 10);
+
+   if (errno != 0 || end == str || *end != '\0')
+   {
+      pgexporter_log_error("SCRAM-SHA-256: invalid iteration count '%s'", str);
+      return 1;
+   }
+
+   if (value <= 0)
+   {
+      pgexporter_log_error("SCRAM-SHA-256: non-positive iteration count '%s'", str);
+      return 1;
+   }
+
+   if (value > INT_MAX)
+   {
+      pgexporter_log_error("SCRAM-SHA-256: iteration count '%s' is out of range", str);
+      return 1;
+   }
+
+   if (value > SCRAM_MAX_ITERATIONS)
+   {
+      pgexporter_log_error("SCRAM-SHA-256: iteration count %ld exceeds the maximum of %d",
+                           value, SCRAM_MAX_ITERATIONS);
+      return 1;
+   }
+
+   *iterations = (int)value;
+
+   return 0;
 }
 
 static int
