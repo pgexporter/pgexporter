@@ -304,6 +304,9 @@ else ()
   message(FATAL_ERROR "LibYAML needed")
 endif()
 
+find_package(SQLite3 REQUIRED)
+message(STATUS "SQLite3 found: ${SQLite3_VERSION}")
+
 find_package(Python3 COMPONENTS Interpreter)
 if (Python3_FOUND)
   message(STATUS "Python3 found: ${Python3_EXECUTABLE}")

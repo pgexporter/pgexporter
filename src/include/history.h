@@ -47,9 +47,21 @@ struct history_record
    time_t ts;                      /**< Unix timestamp of the snapshot */
    char server[MISC_LENGTH];       /**< Server name */
    char metric[PROMETHEUS_LENGTH]; /**< Metric name */
-   char labels[MAX_PATH];          /**< Serialized label set (key=val,...) */
+   char* labels;                   /**< Serialized label set (key=val,...). May be NULL.
+                                        Records returned by query_range own this string — release
+                                        the whole array with pgexporter_history_records_free(). */
    double value;                   /**< Metric value */
 };
+
+/**
+ * Free an array of history records returned by pgexporter_history_query_range,
+ * including each record's heap-allocated labels string.
+ *
+ * @param records The records array (may be NULL)
+ * @param count The number of records in the array
+ */
+void
+pgexporter_history_records_free(struct history_record* records, int count);
 
 /**
  * Virtual function table for a history storage backend.
@@ -108,6 +120,19 @@ pgexporter_history_prune(void);
  */
 int
 pgexporter_history_shutdown(void);
+
+struct prometheus_metrics_container;
+
+/**
+ * Persist a metrics container as one history snapshot.
+ * The container's metrics are serialized to Prometheus exposition text and
+ * written to the history backend, which must already be initialized via
+ * pgexporter_history_init().
+ *
+ * @param container The metrics container to store
+ */
+int
+pgexporter_history_store_metrics(struct prometheus_metrics_container* container);
 
 /**
  * Periodic callback: fork a history worker to snapshot current metrics.

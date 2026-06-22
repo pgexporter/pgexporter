@@ -85,6 +85,7 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     ${BZIP2_INCLUDE_DIRS}
     ${ZSTD_INCLUDE_DIRS}
     ${LZ4_INCLUDE_DIRS}
+    ${SQLite3_INCLUDE_DIRS}
   )
 
   pgexporter_require_shared_libs(
@@ -97,6 +98,7 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     BZIP2_LIBRARIES
     ZSTD_LIBRARIES
     LZ4_LIBRARIES
+    SQLite3_LIBRARIES
   )
 
   #
@@ -112,6 +114,7 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     ${BZIP2_LIBRARIES}
     ${ZSTD_LIBRARIES}
     ${LZ4_LIBRARIES}
+    ${SQLite3_LIBRARIES}
   )
 
   # Link liburing only if available and constants are present
@@ -152,6 +155,7 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     ${BZIP2_INCLUDE_DIRS}
     ${ZSTD_INCLUDE_DIRS}
     ${LZ4_INCLUDE_DIRS}
+    ${SQLite3_INCLUDE_DIRS}
   )
 
   pgexporter_require_shared_libs(
@@ -163,6 +167,7 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     BZIP2_LIBRARIES
     ZSTD_LIBRARIES
     LZ4_LIBRARIES
+    SQLite3_LIBRARIES
   )
 
   # Library directories
@@ -175,6 +180,7 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     ${BZIP2_LIBRARIES}
     ${ZSTD_LIBRARIES}
     ${LZ4_LIBRARIES}
+    ${SQLite3_LIBRARIES}
   )
 
 else()
@@ -201,6 +207,7 @@ else()
     ${BZIP2_INCLUDE_DIRS}
     ${ZSTD_INCLUDE_DIRS}
     ${LZ4_INCLUDE_DIRS}
+    ${SQLite3_INCLUDE_DIRS}
   )
 
   pgexporter_require_shared_libs(
@@ -212,6 +219,7 @@ else()
     BZIP2_LIBRARIES
     ZSTD_LIBRARIES
     LZ4_LIBRARIES
+    SQLite3_LIBRARIES
   )
 
   #
@@ -226,6 +234,7 @@ else()
     ${BZIP2_LIBRARIES}
     ${ZSTD_LIBRARIES}
     ${LZ4_LIBRARIES}
+    ${SQLite3_LIBRARIES}
   )
 
   if (${CMAKE_SYSTEM_NAME} STREQUAL "OpenBSD")

@@ -34,8 +34,62 @@
 extern "C" {
 #endif
 
+#include <art.h>
 #include <ev.h>
 #include <stdlib.h>
+
+/**
+ * ART-based metrics container for each category
+ */
+typedef struct prometheus_metrics_container
+{
+   struct art* general_metrics;
+   struct art* server_metrics;
+   struct art* version_metrics;
+   struct art* uptime_metrics;
+   struct art* primary_metrics;
+   struct art* fips_metrics;
+   struct art* core_metrics;
+   struct art* extension_metrics;
+   struct art* extension_list_metrics;
+   struct art* settings_metrics;
+   struct art* custom_metrics;
+   struct art* alert_metrics;
+} prometheus_metrics_container_t;
+
+/**
+ * Scrape metrics directly from PostgreSQL and populate the container.
+ *
+ * On success the caller owns *container and must release it with pgexporter_prometheus_destroy_container().
+ * On failure no container is returned and the connections are closed first.
+ *
+ * @param container The pointer to store the allocated and populated container
+ * @return 0 on success, 1 on failure
+ */
+int
+pgexporter_prometheus_scrape(prometheus_metrics_container_t** container);
+
+/**
+ * Destroy a metrics container
+ *
+ * @param container The container to destroy
+ */
+void
+pgexporter_prometheus_destroy_container(prometheus_metrics_container_t* container);
+
+/**
+ * Helper to get the formatted string value from a metric iterator.
+ *
+ * The returned string is borrowed from the metric value inside the container
+ * and must NOT be freed by the caller; it is valid until the container is
+ * destroyed.
+ *
+ * @param iter The ART iterator
+ * @param value Output parameter for the string value
+ * @return 1 if successfully retrieved, 0 otherwise
+ */
+int
+pgexporter_prometheus_iterator_value(struct art_iterator* iter, char** value);
 
 /*
  * Value to disable the Prometheus cache,

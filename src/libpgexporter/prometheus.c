@@ -32,6 +32,7 @@
 #include <art.h>
 #include <extension.h>
 #include <fips.h>
+#include <history.h>
 #include <http.h>
 #include <logging.h>
 #include <memory.h>
@@ -128,29 +129,9 @@ typedef struct prometheus_metric_value
    int sort_type;
 } prometheus_metric_value_t;
 
-/**
- * ART-based metrics container for each category
- */
-typedef struct prometheus_metrics_container
-{
-   struct art* general_metrics;
-   struct art* server_metrics;
-   struct art* version_metrics;
-   struct art* uptime_metrics;
-   struct art* primary_metrics;
-   struct art* fips_metrics;
-   struct art* core_metrics;
-   struct art* extension_metrics;
-   struct art* extension_list_metrics;
-   struct art* settings_metrics;
-   struct art* custom_metrics;
-   struct art* alert_metrics;
-} prometheus_metrics_container_t;
-
 static void prometheus_metric_value_destroy_cb(uintptr_t data);
 static char* prometheus_metric_value_string_cb(uintptr_t data, int32_t format, char* tag, int indent);
 static int create_metrics_container(prometheus_metrics_container_t** container);
-static void destroy_metrics_container(prometheus_metrics_container_t* container);
 static int add_metric_to_art(struct art* art_tree, char* key, char* value,
                              char* help, char* type, int sort_type);
 static void output_art_metrics(SSL* client_ssl, int client_fd, struct art* art_tree);
@@ -744,38 +725,36 @@ retry_cache_locking:
          free(data);
          data = NULL;
 
-         pgexporter_open_connections();
-
          /* ART-based metrics container */
          prometheus_metrics_container_t* container = NULL;
-         if (create_metrics_container(&container))
+         if (pgexporter_prometheus_scrape(&container))
          {
             pgexporter_log_error("Failed to create metrics container");
             goto error;
          }
 
-         /* General Metric Collector */
-         general_information(container);
-         version_information(container);
-         uptime_information(container);
-         primary_information(container);
-         fips_information(container);
-         server_information(container);
-         core_information(container);
-         extension_list_information(container);
-         settings_information(container);
-         custom_metrics(container);
-         extension_metrics(container);
-         query_statistics_information(container);
-         alert_information(container);
-
          /* Output ART metrics */
          output_all_metrics(client_ssl, client_fd, container);
 
-         /* Destroy container */
-         destroy_metrics_container(container);
+         /* Store metrics in history */
+         if (config->history > 0)
+         {
+            bool expected = false;
+            if (atomic_compare_exchange_strong(&config->history_worker_running, &expected, true))
+            {
+               if (pgexporter_history_init() == 0)
+               {
+                  if (pgexporter_history_store_metrics(container) != 0)
+                  {
+                     pgexporter_log_warn("history: failed to store metrics snapshot");
+                  }
+               }
+               atomic_store(&config->history_worker_running, false);
+            }
+         }
 
-         pgexporter_close_connections();
+         /* Destroy container */
+         pgexporter_prometheus_destroy_container(container);
 
          prometheus_endpoints_information(client_ssl, client_fd);
 
@@ -3580,7 +3559,7 @@ create_metrics_container(prometheus_metrics_container_t** container)
    return 0;
 
 error:
-   destroy_metrics_container(c);
+   pgexporter_prometheus_destroy_container(c);
    return 1;
 }
 
@@ -3588,8 +3567,8 @@ error:
  * Destroy a metrics container and all its ARTs
  * The destroy callbacks will free all metric values
  */
-static void
-destroy_metrics_container(prometheus_metrics_container_t* container)
+void
+pgexporter_prometheus_destroy_container(prometheus_metrics_container_t* container)
 {
    if (container == NULL)
    {
@@ -3655,6 +3634,56 @@ error:
       free(m);
    }
    return 1;
+}
+
+int
+pgexporter_prometheus_iterator_value(struct art_iterator* iter, char** value)
+{
+   prometheus_metric_value_t* m = NULL;
+
+   if (iter == NULL || iter->value == NULL || iter->value->data == 0)
+   {
+      return 0;
+   }
+
+   m = (prometheus_metric_value_t*)iter->value->data;
+   if (m->value != NULL)
+   {
+      *value = m->value;
+      return 1;
+   }
+
+   return 0;
+}
+
+int
+pgexporter_prometheus_scrape(prometheus_metrics_container_t** container)
+{
+   pgexporter_open_connections();
+
+   if (create_metrics_container(container))
+   {
+      pgexporter_close_connections();
+      return 1;
+   }
+
+   general_information(*container);
+   version_information(*container);
+   uptime_information(*container);
+   primary_information(*container);
+   fips_information(*container);
+   server_information(*container);
+   core_information(*container);
+   extension_list_information(*container);
+   settings_information(*container);
+   custom_metrics(*container);
+   extension_metrics(*container);
+   query_statistics_information(*container);
+   alert_information(*container);
+
+   pgexporter_close_connections();
+
+   return 0;
 }
 
 /**

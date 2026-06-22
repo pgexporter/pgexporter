@@ -37,6 +37,7 @@
 #include <extension.h>
 #include <ext_query_alts.h>
 #include <fips.h>
+#include <history.h>
 #include <internal.h>
 #include <json.h>
 #include <logging.h>
@@ -424,6 +425,9 @@ usage(void)
    printf("pgexporter: %s\n", PGEXPORTER_HOMEPAGE);
    printf("Report bugs: %s\n", PGEXPORTER_ISSUES);
 }
+
+static struct periodic_watcher history_watcher;
+static bool history_started = false;
 
 int
 main(int argc, char** argv)
@@ -1335,6 +1339,34 @@ main(int argc, char** argv)
    }
 
    pgexporter_log_info("pgexporter: started on %s", config->host);
+   if (config->history > 0)
+   {
+      int64_t history_interval_s = pgexporter_time_convert(config->history_interval, FORMAT_TIME_S);
+      pgexporter_log_debug("History configured. Tick interval: %lld seconds", (long long)history_interval_s);
+      if (history_interval_s > 0)
+      {
+         int64_t history_interval_ms = pgexporter_time_convert(config->history_interval, FORMAT_TIME_MS);
+
+         /* pgexporter_periodic_init takes an int millisecond value; clamp so a very
+          * large configured interval cannot overflow into a negative/garbage timer.
+          * INT_MAX ms is ~24.8 days, which is far beyond any sane snapshot interval. */
+         if (history_interval_ms > INT_MAX)
+         {
+            pgexporter_log_warn("History: interval exceeds the maximum supported timer value; capping at ~24.8 days");
+            history_interval_ms = INT_MAX;
+         }
+
+         if (pgexporter_periodic_init(&history_watcher, pgexporter_history_tick_cb, (int)history_interval_ms) == 0)
+         {
+            pgexporter_periodic_start(&history_watcher);
+            history_started = true;
+         }
+         else
+         {
+            pgexporter_log_error("History: failed to initialize the periodic tick watcher; history snapshots disabled");
+         }
+      }
+   }
    pgexporter_log_debug("Management: %d", unix_management_socket);
    pgexporter_log_debug("Transfer: %d", unix_transfer_socket);
    pgexporter_os_kernel_version(&os, &kernel_major, &kernel_minor, &kernel_patch);
@@ -1436,6 +1468,11 @@ main(int argc, char** argv)
       {
          shutdown_bridge_json(true);
       }
+   }
+
+   if (history_started)
+   {
+      pgexporter_periodic_stop(&history_watcher);
    }
 
    for (int i = 0; i < 7; i++)
@@ -2404,9 +2441,19 @@ coredump_cb(void)
 static void
 sigchld_cb(void)
 {
-   while (waitpid(-1, NULL, WNOHANG) > 0)
+   pid_t pid;
+   struct configuration* config = (struct configuration*)shmem;
+
+   while ((pid = waitpid(-1, NULL, WNOHANG)) > 0)
    {
-      /* Wait for child processes to finish */
+      /* If the history ticker worker died before it
+       * could clear its own running flag, clear it here so future ticks and
+       * scrape-time stores are not blocked permanently. */
+      if (config != NULL && pid == (pid_t)atomic_load(&config->history_worker_pid))
+      {
+         atomic_store(&config->history_worker_pid, 0);
+         atomic_store(&config->history_worker_running, false);
+      }
    }
 }
 

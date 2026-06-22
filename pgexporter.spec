@@ -6,9 +6,9 @@ License:       BSD
 URL:           https://github.com/pgexporter/pgexporter
 Source0:       %{name}-%{version}.tar.gz
 
-BuildRequires: gcc cmake make python3-docutils zlib zlib-devel libzstd libzstd-devel lz4 lz4-devel bzip2 bzip2-devel
+BuildRequires: gcc cmake make python3-docutils zlib zlib-devel libzstd libzstd-devel lz4 lz4-devel bzip2 bzip2-devel sqlite sqlite-devel
 BuildRequires: openssl openssl-devel systemd systemd-devel libyaml libyaml-devel liburing-devel
-Requires:      openssl systemd libyaml zlib libzstd lz4 bzip2 liburing
+Requires:      openssl systemd libyaml zlib libzstd lz4 bzip2 liburing sqlite
 
 %description
 Prometheus exporter for PostgreSQL

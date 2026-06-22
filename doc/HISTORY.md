@@ -61,6 +61,8 @@ avoid saving the same data twice.
 Setting the interval to zero disables the automatic timer entirely. Snapshots
 are then only saved when an outside client scrapes the endpoint.
 
+The maximum supported interval is approximately **24.8 days**. Larger values are capped to that maximum and a warning is logged at startup.
+
 ## Backends
 
 The storage backend is selected with `history_backend` (or `bridge_history_backend`

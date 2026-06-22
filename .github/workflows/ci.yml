@@ -92,7 +92,8 @@ jobs:
             check check-devel llvm \
             libasan libubsan \
             iproute net-tools procps-ng \
-            shadow-utils util-linux sudo which curl
+            shadow-utils util-linux sudo which curl \
+            sqlite sqlite-devel
 
       - name: Mark workspace as safe for git
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -185,7 +186,8 @@ jobs:
             docutils \
             check \
             postgresql${POSTGRESQL_VERSION} \
-            curl
+            curl \
+            sqlite
       - name: Add PostgreSQL to PATH
         run: |
           echo "$(brew --prefix postgresql${POSTGRESQL_VERSION})/bin" >> $GITHUB_PATH
