@@ -440,3 +440,163 @@ cleanup:
    unlink_db("test_edge_cases.db");
    MCTF_FINISH();
 }
+
+MCTF_TEST(test_history_prune_deletes_old_keeps_new)
+{
+   struct configuration* config = (struct configuration*)shmem;
+   struct history_record in[4];
+   struct history_record* out = NULL;
+   int count = 0;
+   time_t now = time(NULL);
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "init failed");
+
+   config->history_retention = PGEXPORTER_TIME_SEC(3600); /* keep 1 hour */
+
+   make_record(&in[0], now - 7200, "s", "m", "", 1.0); /* 2h old  -> pruned */
+   make_record(&in[1], now - 3700, "s", "m", "", 2.0); /* >1h old -> pruned */
+   make_record(&in[2], now - 60, "s", "m", "", 3.0);   /* recent  -> kept   */
+   make_record(&in[3], now, "s", "m", "", 4.0);        /* now     -> kept   */
+   MCTF_ASSERT_INT_EQ(pgexporter_history_write_batch(in, 4), 0, cleanup, "write failed");
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(), 0, cleanup, "prune failed");
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_query_range("m", 0, now + 10, &out, &count), 0,
+                      cleanup, "query failed");
+   MCTF_ASSERT_INT_EQ(count, 2, cleanup, "expected 2 rows after prune, got %d", count);
+   MCTF_ASSERT(out[0].ts == now - 60, cleanup, "kept row0 ts wrong");
+   MCTF_ASSERT(out[1].ts == now, cleanup, "kept row1 ts wrong");
+
+cleanup:
+   pgexporter_history_records_free(out, count);
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_history_prune_disabled_keeps_all)
+{
+   struct configuration* config = (struct configuration*)shmem;
+   struct history_record in[3];
+   int count = -1;
+   time_t now = time(NULL);
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "init failed");
+
+   config->history_retention = PGEXPORTER_TIME_DISABLED; /* keep forever */
+
+   make_record(&in[0], now - 100000, "s", "m", "", 1.0);
+   make_record(&in[1], now - 50000, "s", "m", "", 2.0);
+   make_record(&in[2], now, "s", "m", "", 3.0);
+   MCTF_ASSERT_INT_EQ(pgexporter_history_write_batch(in, 3), 0, cleanup, "write failed");
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(), 0, cleanup,
+                      "prune with disabled retention should succeed");
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_query_range("m", 0, now + 10, NULL, &count), 0,
+                      cleanup, "query failed");
+   MCTF_ASSERT_INT_EQ(count, 3, cleanup, "disabled retention should keep all 3, got %d", count);
+
+cleanup:
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_history_prune_removes_all_when_all_old)
+{
+   struct configuration* config = (struct configuration*)shmem;
+   struct history_record in[3];
+   int count = -1;
+   time_t now = time(NULL);
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "init failed");
+
+   config->history_retention = PGEXPORTER_TIME_SEC(60);
+
+   make_record(&in[0], now - 3600, "s", "m", "", 1.0);
+   make_record(&in[1], now - 1800, "s", "m", "", 2.0);
+   make_record(&in[2], now - 600, "s", "m", "", 3.0);
+   MCTF_ASSERT_INT_EQ(pgexporter_history_write_batch(in, 3), 0, cleanup, "write failed");
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(), 0, cleanup, "prune failed");
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_query_range("m", 0, now + 10, NULL, &count), 0,
+                      cleanup, "query failed");
+   MCTF_ASSERT_INT_EQ(count, 0, cleanup,
+                      "all records older than retention should be pruned, got %d", count);
+
+cleanup:
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_history_prune_empty_db_succeeds)
+{
+   struct configuration* config = (struct configuration*)shmem;
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "init failed");
+
+   config->history_retention = PGEXPORTER_TIME_SEC(60);
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(), 0, cleanup, "prune on empty db should succeed");
+
+cleanup:
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_history_prune_idempotent)
+{
+   struct configuration* config = (struct configuration*)shmem;
+   struct history_record in[3];
+   int count = -1;
+   time_t now = time(NULL);
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "init failed");
+
+   config->history_retention = PGEXPORTER_TIME_SEC(3600);
+
+   make_record(&in[0], now - 7200, "s", "m", "", 1.0); /* pruned */
+   make_record(&in[1], now - 30, "s", "m", "", 2.0);   /* kept   */
+   make_record(&in[2], now, "s", "m", "", 3.0);        /* kept   */
+   MCTF_ASSERT_INT_EQ(pgexporter_history_write_batch(in, 3), 0, cleanup, "write failed");
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(), 0, cleanup, "first prune failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_query_range("m", 0, now + 10, NULL, &count), 0,
+                      cleanup, "query failed");
+   MCTF_ASSERT_INT_EQ(count, 2, cleanup, "expected 2 after first prune, got %d", count);
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(), 0, cleanup, "second prune failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_query_range("m", 0, now + 10, NULL, &count), 0,
+                      cleanup, "query failed");
+   MCTF_ASSERT_INT_EQ(count, 2, cleanup, "second prune should be a no-op, got %d", count);
+
+cleanup:
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_history_prune_spans_all_metrics)
+{
+   struct configuration* config = (struct configuration*)shmem;
+   struct history_record in[4];
+   int count = -1;
+   time_t now = time(NULL);
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "init failed");
+
+   config->history_retention = PGEXPORTER_TIME_SEC(3600);
+
+   make_record(&in[0], now - 7200, "s", "metric_a", "", 1.0); /* pruned */
+   make_record(&in[1], now - 30, "s", "metric_a", "", 2.0);   /* kept   */
+   make_record(&in[2], now - 7200, "s", "metric_b", "", 3.0); /* pruned */
+   make_record(&in[3], now - 30, "s", "metric_b", "", 4.0);   /* kept   */
+   MCTF_ASSERT_INT_EQ(pgexporter_history_write_batch(in, 4), 0, cleanup, "write failed");
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(), 0, cleanup, "prune failed");
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_query_range("metric_a", 0, now + 10, NULL, &count), 0,
+                      cleanup, "query metric_a failed");
+   MCTF_ASSERT_INT_EQ(count, 1, cleanup, "metric_a should have 1 row after prune, got %d", count);
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_query_range("metric_b", 0, now + 10, NULL, &count), 0,
+                      cleanup, "query metric_b failed");
+   MCTF_ASSERT_INT_EQ(count, 1, cleanup, "metric_b should have 1 row after prune, got %d", count);
+
+cleanup:
+   MCTF_FINISH();
+}

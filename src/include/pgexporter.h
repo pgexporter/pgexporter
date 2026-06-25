@@ -444,6 +444,8 @@ struct configuration
    atomic_bool history_worker_running;           /**< State of the history ticker */
    atomic_int_least64_t history_last_store_time; /**< Timestamp of last store */
    atomic_int history_worker_pid;                /**< PID of the forked history ticker worker (0 if none) */
+   atomic_bool history_retention_worker_running; /**< State of the retention pruner */
+   atomic_int history_retention_worker_pid;      /**< PID of the forked retention worker (0 if none) */
 
    int bridge;                                 /**< The bridge port */
    pgexporter_time_t bridge_cache_max_age;     /**< Cache duration for bridge response */

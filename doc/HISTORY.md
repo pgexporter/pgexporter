@@ -72,6 +72,33 @@ for bridge history). The currently supported backends are:
 |---------|----------|-------------|
 | SQLite  | `sqlite` | Default. Local file-based storage. |
 
+### SQLite
+
+The SQLite backend stores history in the file pointed to by `history_path`
+(`bridge_history_path` for bridge history). The database is opened with the
+following hardcoded settings:
+
+- `journal_mode = WAL` — write-ahead logging, so a scrape can read the history
+  while a snapshot is being written without blocking.
+- `busy_timeout = 5000` — when the database is momentarily locked (for example a
+  snapshot insert racing an in-flight prune), the writer waits and retries for up
+  to 5 seconds instead of failing immediately.
+- `auto_vacuum = INCREMENTAL` — pages freed by pruning are placed on a free list.
+  After each prune, up to 1000 free pages are returned to the operating system
+  with `PRAGMA incremental_vacuum`, keeping the database file from growing
+  unbounded while never holding the write lock for long.
+
+### Retention and pruning
+
+`history_retention` (and `bridge_history_retention`) set how long records are
+kept. Records older than the retention period are deleted by a pruning task that
+runs on a fixed **hourly** tick, independent of the snapshot interval. A prune is
+also run once at startup so a daemon that was down longer than its retention
+period catches up immediately rather than waiting a full hour.
+
+If `history_retention` is unset (disabled), records are kept forever and no
+pruning is scheduled.
+
 
 ## Access
 

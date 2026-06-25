@@ -436,9 +436,65 @@ pgexporter_history_tick_cb(void)
    history_tick_worker();
 }
 
+/**
+ * Child-process worker that opens its own database connection and prunes
+ * records older than the configured retention. Called after fork(); exit(0)s.
+ */
+static void
+history_retention_worker(void)
+{
+   struct configuration* config = (struct configuration*)shmem;
+
+   if (pgexporter_history_init() != 0)
+   {
+      pgexporter_log_error("history: failed to init history db for retention");
+      goto child_done;
+   }
+
+   if (pgexporter_history_prune() != 0)
+   {
+      pgexporter_log_error("history: prune failed");
+   }
+
+child_done:
+   pgexporter_history_shutdown();
+   atomic_store(&config->history_retention_worker_pid, 0);
+   atomic_store(&config->history_retention_worker_running, false);
+   exit(0);
+}
+
 void
 pgexporter_history_retention_tick_cb(void)
 {
-   /* TODO: fork retention worker */
-   pgexporter_log_debug("history: retention tick (not yet implemented)");
+   struct configuration* config = (struct configuration*)shmem;
+   pid_t pid;
+   bool expected = false;
+
+   if (config == NULL || config->history == 0)
+   {
+      return;
+   }
+
+   if (!atomic_compare_exchange_strong(&config->history_retention_worker_running, &expected, true))
+   {
+      /* Previous retention worker still running */
+      return;
+   }
+
+   pid = fork();
+   if (pid < 0)
+   {
+      pgexporter_log_error("history: failed to fork retention worker");
+      atomic_store(&config->history_retention_worker_running, false);
+      return;
+   }
+   else if (pid > 0)
+   {
+      /* Record worker pid so sigchld_cb can clear the running flag
+       * if the worker dies before resetting it itself. */
+      atomic_store(&config->history_retention_worker_pid, (int)pid);
+      return;
+   }
+
+   history_retention_worker();
 }

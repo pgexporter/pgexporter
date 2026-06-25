@@ -53,12 +53,18 @@
 
 static sqlite3* db = NULL;
 
+/* Maximum free pages reclaimed per prune via PRAGMA incremental_vacuum */
+#define HISTORY_SQLITE_VACUUM_PAGES 1000
+
 int
 pgexporter_history_sqlite_init(void)
 {
    struct configuration* config;
    char* err_msg = NULL;
-   const char* sql = "CREATE TABLE IF NOT EXISTS history ("
+   const char* sql = "PRAGMA auto_vacuum=INCREMENTAL;"
+                     "PRAGMA journal_mode=WAL;"
+                     "PRAGMA busy_timeout=5000;"
+                     "CREATE TABLE IF NOT EXISTS history ("
                      "ts INTEGER, "
                      "server TEXT, "
                      "metric TEXT, "
@@ -297,6 +303,7 @@ pgexporter_history_sqlite_prune(void)
    struct configuration* config;
    sqlite3_stmt* stmt = NULL;
    const char* sql = "DELETE FROM history WHERE ts < ?;";
+   char vacuum_sql[48];
    time_t cutoff;
    int64_t retention_s;
 
@@ -330,6 +337,14 @@ pgexporter_history_sqlite_prune(void)
 
    sqlite3_finalize(stmt);
    stmt = NULL;
+
+   /* Hand reclaimed pages back to the OS. Bounded so the write lock is held
+    * only briefly; a no-op when auto_vacuum freed nothing. */
+   pgexporter_snprintf(vacuum_sql, sizeof(vacuum_sql), "PRAGMA incremental_vacuum(%d);", HISTORY_SQLITE_VACUUM_PAGES);
+   if (sqlite3_exec(db, vacuum_sql, NULL, NULL, NULL) != SQLITE_OK)
+   {
+      pgexporter_log_warn("history_sqlite: incremental_vacuum failed: %s", sqlite3_errmsg(db));
+   }
 
    return 0;
 

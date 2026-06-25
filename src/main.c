@@ -426,8 +426,13 @@ usage(void)
    printf("Report bugs: %s\n", PGEXPORTER_ISSUES);
 }
 
+/* Fixed interval for the history retention pruning tick (1 hour, in ms) */
+#define HISTORY_RETENTION_PRUNE_INTERVAL_MS (60 * 60 * 1000)
+
 static struct periodic_watcher history_watcher;
+static struct periodic_watcher history_retention_watcher;
 static bool history_started = false;
+static bool history_retention_started = false;
 
 int
 main(int argc, char** argv)
@@ -1366,6 +1371,24 @@ main(int argc, char** argv)
             pgexporter_log_error("History: failed to initialize the periodic tick watcher; history snapshots disabled");
          }
       }
+
+      /* Retention pruning runs on a fixed hourly tick, independent of the
+       * snapshot interval */
+      if (pgexporter_time_is_valid(config->history_retention))
+      {
+         if (pgexporter_periodic_init(&history_retention_watcher, pgexporter_history_retention_tick_cb, HISTORY_RETENTION_PRUNE_INTERVAL_MS) == 0)
+         {
+            pgexporter_periodic_start(&history_retention_watcher);
+            history_retention_started = true;
+
+            /* Prune once at startup */
+            pgexporter_history_retention_tick_cb();
+         }
+         else
+         {
+            pgexporter_log_error("History: failed to initialize the retention tick watcher; pruning disabled");
+         }
+      }
    }
    pgexporter_log_debug("Management: %d", unix_management_socket);
    pgexporter_log_debug("Transfer: %d", unix_transfer_socket);
@@ -1468,6 +1491,11 @@ main(int argc, char** argv)
       {
          shutdown_bridge_json(true);
       }
+   }
+
+   if (history_retention_started)
+   {
+      pgexporter_periodic_stop(&history_retention_watcher);
    }
 
    if (history_started)
@@ -2453,6 +2481,13 @@ sigchld_cb(void)
       {
          atomic_store(&config->history_worker_pid, 0);
          atomic_store(&config->history_worker_running, false);
+      }
+
+      /* Same safeguard for the retention pruner worker. */
+      if (config != NULL && pid == (pid_t)atomic_load(&config->history_retention_worker_pid))
+      {
+         atomic_store(&config->history_retention_worker_pid, 0);
+         atomic_store(&config->history_retention_worker_running, false);
       }
    }
 }
