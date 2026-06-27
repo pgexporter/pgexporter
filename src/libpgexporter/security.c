@@ -450,7 +450,7 @@ pgexporter_remote_management_scram_sha256(char* username, char* password, int se
       goto error;
    }
 
-   status = pgexporter_read_block_message(ssl, server_fd, &msg);
+   status = pgexporter_read_complete_message(ssl, server_fd, &msg);
    if (status != MESSAGE_STATUS_OK)
    {
       goto error;
@@ -481,7 +481,7 @@ pgexporter_remote_management_scram_sha256(char* username, char* password, int se
       goto error;
    }
 
-   status = pgexporter_read_block_message(ssl, server_fd, &msg);
+   status = pgexporter_read_complete_message(ssl, server_fd, &msg);
    if (status != MESSAGE_STATUS_OK)
    {
       goto error;
@@ -489,12 +489,23 @@ pgexporter_remote_management_scram_sha256(char* username, char* password, int se
 
    sasl_continue = pgexporter_copy_message(msg);
 
+   /* 'R' + length + AuthenticationSASLContinue + payload */
+   if (sasl_continue->length <= 9)
+   {
+      goto error;
+   }
+
    get_scram_attribute('r', (char*)(sasl_continue->data + 9), sasl_continue->length - 9, &combined_nounce);
    get_scram_attribute('s', (char*)(sasl_continue->data + 9), sasl_continue->length - 9, &base64_salt);
    get_scram_attribute('i', (char*)(sasl_continue->data + 9), sasl_continue->length - 9, &iteration_string);
    get_scram_attribute('e', (char*)(sasl_continue->data + 9), sasl_continue->length - 9, &err);
 
    if (err != NULL)
+   {
+      goto error;
+   }
+
+   if (combined_nounce == NULL || base64_salt == NULL || iteration_string == NULL)
    {
       goto error;
    }
@@ -538,13 +549,19 @@ pgexporter_remote_management_scram_sha256(char* username, char* password, int se
       goto error;
    }
 
-   status = pgexporter_read_block_message(ssl, server_fd, &msg);
+   status = pgexporter_read_complete_message(ssl, server_fd, &msg);
    if (status != MESSAGE_STATUS_OK)
    {
       goto error;
    }
 
    if (pgexporter_extract_message('R', msg, &sasl_final))
+   {
+      goto error;
+   }
+
+   /* 'R' + length + AuthenticationSASLFinal + 'v' attribute */
+   if (sasl_final->length <= 11)
    {
       goto error;
    }
@@ -815,11 +832,23 @@ retry:
       pgexporter_socket_nonblocking(client_fd, false);
    }
 
+   /* 'p' + length + mechanism + "n,,n=,r=" + nounce */
+   if (msg->length <= 26)
+   {
+      goto error;
+   }
+
    client_first_message_bare = malloc(msg->length - 25);
    memset(client_first_message_bare, 0, msg->length - 25);
    memcpy(client_first_message_bare, msg->data + 26, msg->length - 26);
 
    get_scram_attribute('r', (char*)msg->data + 26, msg->length - 26, &client_nounce);
+
+   if (client_nounce == NULL)
+   {
+      goto error;
+   }
+
    generate_nounce(&server_nounce);
    generate_salt(&salt, &salt_length);
    pgexporter_base64_encode(salt, salt_length, &base64_salt, &base64_salt_length);
@@ -851,7 +880,19 @@ retry:
       goto error;
    }
 
+   /* 'p' + length + "c=biws,r=" + nounces (57 bytes) + ",p=" + proof */
+   if (msg->length < 62)
+   {
+      goto error;
+   }
+
    get_scram_attribute('p', (char*)msg->data + 5, msg->length - 5, &base64_client_proof);
+
+   if (base64_client_proof == NULL)
+   {
+      goto error;
+   }
+
    pgexporter_base64_decode(base64_client_proof, strlen(base64_client_proof), (void**)&client_proof_received, &client_proof_received_length);
 
    client_final_message_without_proof = malloc(58);
@@ -1361,7 +1402,12 @@ server_scram256(char* username, char* password, SSL* ssl, int server_fd)
       goto error;
    }
 
-   status = pgexporter_read_block_message(ssl, server_fd, &msg);
+   status = pgexporter_read_complete_message(ssl, server_fd, &msg);
+   if (status != MESSAGE_STATUS_OK)
+   {
+      goto error;
+   }
+
    if (msg->length > SECURITY_BUFFER_SIZE)
    {
       pgexporter_log_message(msg);
@@ -1375,6 +1421,12 @@ server_scram256(char* username, char* password, SSL* ssl, int server_fd)
    memcpy(&security_messages[auth_index], sasl_continue->data, sasl_continue->length);
    auth_index++;
 
+   /* 'R' + length + AuthenticationSASLContinue + payload */
+   if (sasl_continue->length <= 9)
+   {
+      goto error;
+   }
+
    get_scram_attribute('r', (char*)(sasl_continue->data + 9), sasl_continue->length - 9, &combined_nounce);
    get_scram_attribute('s', (char*)(sasl_continue->data + 9), sasl_continue->length - 9, &base64_salt);
    get_scram_attribute('i', (char*)(sasl_continue->data + 9), sasl_continue->length - 9, &iteration_string);
@@ -1383,6 +1435,11 @@ server_scram256(char* username, char* password, SSL* ssl, int server_fd)
    if (err != NULL)
    {
       pgexporter_log_error("SCRAM-SHA-256: %s", err);
+      goto error;
+   }
+
+   if (combined_nounce == NULL || base64_salt == NULL || iteration_string == NULL)
+   {
       goto error;
    }
 
@@ -1429,7 +1486,12 @@ server_scram256(char* username, char* password, SSL* ssl, int server_fd)
       goto error;
    }
 
-   status = pgexporter_read_block_message(ssl, server_fd, &msg);
+   status = pgexporter_read_complete_message(ssl, server_fd, &msg);
+   if (status != MESSAGE_STATUS_OK)
+   {
+      goto error;
+   }
+
    if (msg->length > SECURITY_BUFFER_SIZE)
    {
       pgexporter_log_message(msg);
@@ -1442,6 +1504,12 @@ server_scram256(char* username, char* password, SSL* ssl, int server_fd)
    auth_index++;
 
    if (pgexporter_extract_message('R', msg, &sasl_final))
+   {
+      goto error;
+   }
+
+   /* 'R' + length + AuthenticationSASLFinal + 'v' attribute */
+   if (sasl_final->length <= 11)
    {
       goto error;
    }
