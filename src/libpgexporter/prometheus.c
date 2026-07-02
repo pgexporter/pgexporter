@@ -34,6 +34,7 @@
 #include <fips.h>
 #include <history.h>
 #include <http.h>
+#include <http_server.h>
 #include <logging.h>
 #include <memory.h>
 #include <message.h>
@@ -57,11 +58,6 @@
 
 #define CHUNK_SIZE                       32768
 #define DEFAULT_BLOCKING_TIMEOUT_SECONDS 30
-
-#define PAGE_UNKNOWN                     0
-#define PAGE_HOME                        1
-#define PAGE_METRICS                     2
-#define BAD_REQUEST                      3
 
 #define MAX_ARR_LENGTH                   256
 #define NUMBER_OF_HISTOGRAM_COLUMNS      4
@@ -137,13 +133,8 @@ static int add_metric_to_art(struct art* art_tree, char* key, char* value,
 static void output_art_metrics(SSL* client_ssl, int client_fd, struct art* art_tree);
 static void output_all_metrics(SSL* client_ssl, int client_fd, prometheus_metrics_container_t* container);
 
-static int resolve_page(struct message* msg);
-static int badrequest_page(SSL* client_ssl, int client_fd);
-static int unknown_page(SSL* client_ssl, int client_fd);
 static int home_page(SSL* client_ssl, int client_fd);
 static int metrics_page(SSL* client_ssl, int client_fd);
-static int bad_request(SSL* client_ssl, int client_fd);
-static int redirect_page(SSL* client_ssl, int client_fd, char* path);
 
 static bool allowed_collector(const char* collector);
 static bool excluded_collector(const char* collector);
@@ -173,7 +164,6 @@ static void handle_default_histogram(column_store_t* store, int* n_store, query_
 static void handle_gauge_counter(column_store_t* store, int* n_store, query_list_t* temp);
 static void handle_default_gauge_counter(column_store_t* store, int* n_store, query_list_t* temp);
 
-static int send_chunk(SSL* client_ssl, int client_fd, char* data);
 static int parse_list(char* list_str, char** strs, int* n_strs);
 
 static char* get_value(char* tag, char* name, char* val);
@@ -189,44 +179,51 @@ static bool metrics_cache_finalize(void);
 static size_t metrics_cache_size_to_alloc(void);
 static void metrics_cache_invalidate(void);
 
+static struct http_route prometheus_routes[] = {
+   {"/", home_page},
+   {"/index.html", home_page},
+   {"/metrics", metrics_page},
+};
+
 void
 pgexporter_prometheus(SSL* client_ssl, int client_fd)
 {
-   int status;
-   int page;
-   struct message* msg = NULL;
+   struct http_server_request* req = NULL;
    struct configuration* config;
 
    pgexporter_start_logging();
    pgexporter_memory_init();
 
    config = (struct configuration*)shmem;
+
    if (client_ssl)
    {
-      char buffer[5] = {0};
+      int ssl_status = pgexporter_http_server_ssl_accept(client_ssl, client_fd);
 
-      recv(client_fd, buffer, 5, MSG_PEEK);
-
-      if ((unsigned char)buffer[0] == 0x16 || (unsigned char)buffer[0] == 0x80) // SSL/TLS request
+      if (ssl_status == MESSAGE_STATUS_ERROR)
       {
-         if (SSL_accept(client_ssl) <= 0)
-         {
-            pgexporter_log_error("Failed to accept SSL connection");
-            goto error;
-         }
+         pgexporter_log_error("Metrics: SSL accept failed");
+         goto error;
       }
-      else
+
+      if (ssl_status == MESSAGE_STATUS_ZERO)
       {
+         /*
+          * Plain HTTP on a TLS port — redirect to HTTPS. Read the raw message
+          * here (not via pgexporter_http_server_parse) because we need the path
+          * for the redirect URL and the process exits immediately after.
+          */
+         struct message* redirect_msg = NULL;
          char* path = "/";
          char* base_url = NULL;
 
-         if (pgexporter_read_timeout_message(NULL, client_fd, (int)pgexporter_time_convert(config->authentication_timeout, FORMAT_TIME_S), &msg) != MESSAGE_STATUS_OK)
+         if (pgexporter_read_timeout_message(NULL, client_fd, (int)pgexporter_time_convert(config->authentication_timeout, FORMAT_TIME_S), &redirect_msg) != MESSAGE_STATUS_OK)
          {
-            pgexporter_log_error("Failed to read message");
+            pgexporter_log_error("Failed to read redirect message");
             goto error;
          }
 
-         char* path_start = strstr(msg->data, " ");
+         char* path_start = strstr(redirect_msg->data, " ");
          if (path_start)
          {
             path_start++;
@@ -240,70 +237,49 @@ pgexporter_prometheus(SSL* client_ssl, int client_fd)
 
          base_url = pgexporter_format_and_append(base_url, "https://localhost:%d%s", config->metrics, path);
 
-         if (redirect_page(NULL, client_fd, base_url) != MESSAGE_STATUS_OK)
+         if (pgexporter_http_respond_redirect(NULL, client_fd, base_url) != MESSAGE_STATUS_OK)
          {
             pgexporter_log_error("Failed to redirect to: %s", base_url);
             free(base_url);
             goto error;
          }
 
+         free(base_url);
          pgexporter_close_ssl(client_ssl);
          pgexporter_disconnect(client_fd);
-
          pgexporter_memory_destroy();
          pgexporter_stop_logging();
-
-         free(base_url);
-
          exit(0);
       }
+      /* MESSAGE_STATUS_OK: TLS handshake done, proceed to parse */
    }
-   status = pgexporter_read_timeout_message(client_ssl, client_fd, (int)pgexporter_time_convert(config->authentication_timeout, FORMAT_TIME_S), &msg);
 
-   if (status != MESSAGE_STATUS_OK)
+   if (pgexporter_http_server_parse(client_ssl, client_fd, &req) != MESSAGE_STATUS_OK)
    {
       goto error;
    }
 
-   page = resolve_page(msg);
+   pgexporter_http_server_dispatch(client_ssl, client_fd, req,
+                                   prometheus_routes,
+                                   sizeof(prometheus_routes) / sizeof(prometheus_routes[0]));
 
-   if (page == PAGE_HOME)
-   {
-      home_page(client_ssl, client_fd);
-   }
-   else if (page == PAGE_METRICS)
-   {
-      metrics_page(client_ssl, client_fd);
-   }
-   else if (page == PAGE_UNKNOWN)
-   {
-      unknown_page(client_ssl, client_fd);
-   }
-   else
-   {
-      bad_request(client_ssl, client_fd);
-   }
-
+   pgexporter_http_server_request_destroy(req);
    pgexporter_close_ssl(client_ssl);
    pgexporter_disconnect(client_fd);
-
    pgexporter_memory_destroy();
    pgexporter_stop_logging();
-
    OPENSSL_cleanup();
 
    exit(0);
 
 error:
 
-   badrequest_page(client_ssl, client_fd);
-
+   pgexporter_http_respond_400(client_ssl, client_fd);
+   pgexporter_http_server_request_destroy(req);
    pgexporter_close_ssl(client_ssl);
    pgexporter_disconnect(client_fd);
-
    pgexporter_memory_destroy();
    pgexporter_stop_logging();
-
    OPENSSL_cleanup();
 
    exit(1);
@@ -366,194 +342,19 @@ pgexporter_prometheus_logging(int type)
 }
 
 static int
-redirect_page(SSL* client_ssl, int client_fd, char* path)
-{
-   char* data = NULL;
-   time_t now;
-   char time_buf[32];
-   int status;
-   struct message msg;
-
-   memset(&msg, 0, sizeof(struct message));
-   memset(&data, 0, sizeof(data));
-
-   now = time(NULL);
-
-   memset(&time_buf, 0, sizeof(time_buf));
-   ctime_r(&now, &time_buf[0]);
-   time_buf[strlen(time_buf) - 1] = 0;
-
-   data = pgexporter_append(data, "HTTP/1.1 301 Moved Permanently\r\n");
-   data = pgexporter_append(data, "Location: ");
-   data = pgexporter_append(data, path);
-   data = pgexporter_append(data, "\r\n");
-   data = pgexporter_append(data, "Date: ");
-   data = pgexporter_append(data, &time_buf[0]);
-   data = pgexporter_append(data, "\r\n");
-   data = pgexporter_append(data, "Content-Length: 0\r\n");
-   data = pgexporter_append(data, "Connection: close\r\n");
-   data = pgexporter_append(data, "\r\n");
-
-   msg.kind = 0;
-   msg.length = strlen(data);
-   msg.data = data;
-
-   status = pgexporter_write_message(client_ssl, client_fd, &msg);
-
-   free(data);
-
-   return status;
-}
-
-static int
-resolve_page(struct message* msg)
-{
-   char* from = NULL;
-   int index;
-
-   if (msg == NULL || msg->data == NULL || msg->length < 3 ||
-       strncmp((char*)msg->data, "GET", 3) != 0)
-   {
-      pgexporter_log_debug("Prometheus: Not a GET request");
-      return BAD_REQUEST;
-   }
-
-   index = 4;
-   from = (char*)msg->data + index;
-
-   while (index < msg->length && pgexporter_read_byte(msg->data + index) != ' ')
-   {
-      index++;
-   }
-
-   if (index >= msg->length)
-   {
-      return BAD_REQUEST;
-   }
-
-   pgexporter_write_byte(msg->data + index, '\0');
-
-   if (strcmp(from, "/") == 0 || strcmp(from, "/index.html") == 0)
-   {
-      return PAGE_HOME;
-   }
-   else if (strcmp(from, "/metrics") == 0)
-   {
-      return PAGE_METRICS;
-   }
-
-   return PAGE_UNKNOWN;
-}
-
-static int
-badrequest_page(SSL* client_ssl, int client_fd)
-{
-   char* data = NULL;
-   time_t now;
-   char time_buf[32];
-   int status;
-   struct message msg;
-
-   memset(&msg, 0, sizeof(struct message));
-   memset(&data, 0, sizeof(data));
-
-   now = time(NULL);
-
-   memset(&time_buf, 0, sizeof(time_buf));
-   ctime_r(&now, &time_buf[0]);
-   time_buf[strlen(time_buf) - 1] = 0;
-
-   data = pgexporter_vappend(data, 4,
-                             "HTTP/1.1 400 Bad Request\r\n",
-                             "Date: ",
-                             &time_buf[0],
-                             "\r\n");
-
-   msg.kind = 0;
-   msg.length = strlen(data);
-   msg.data = data;
-
-   status = pgexporter_write_message(client_ssl, client_fd, &msg);
-
-   free(data);
-
-   return status;
-}
-
-static int
-unknown_page(SSL* client_ssl, int client_fd)
-{
-   char* data = NULL;
-   time_t now;
-   char time_buf[32];
-   int status;
-   struct message msg;
-
-   memset(&msg, 0, sizeof(struct message));
-   memset(&data, 0, sizeof(data));
-
-   now = time(NULL);
-
-   memset(&time_buf, 0, sizeof(time_buf));
-   ctime_r(&now, &time_buf[0]);
-   time_buf[strlen(time_buf) - 1] = 0;
-
-   data = pgexporter_vappend(data, 4,
-                             "HTTP/1.1 403 Forbidden\r\n",
-                             "Date: ",
-                             &time_buf[0],
-                             "\r\n");
-
-   msg.kind = 0;
-   msg.length = strlen(data);
-   msg.data = data;
-
-   status = pgexporter_write_message(client_ssl, client_fd, &msg);
-
-   free(data);
-
-   return status;
-}
-
-static int
 home_page(SSL* client_ssl, int client_fd)
 {
    char* data = NULL;
    int status;
-   time_t now;
-   char time_buf[32];
-   struct message msg;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
 
-   now = time(NULL);
-
-   memset(&time_buf, 0, sizeof(time_buf));
-   ctime_r(&now, &time_buf[0]);
-   time_buf[strlen(time_buf) - 1] = 0;
-
-   data = pgexporter_vappend(data, 7,
-                             "HTTP/1.1 200 OK\r\n",
-                             "Content-Type: text/html; charset=utf-8\r\n",
-                             "Date: ",
-                             &time_buf[0],
-                             "\r\n",
-                             "Transfer-Encoding: chunked\r\n",
-                             "\r\n");
-
-   msg.kind = 0;
-   msg.length = strlen(data);
-   msg.data = data;
-
-   status = pgexporter_write_message(client_ssl, client_fd, &msg);
+   status = pgexporter_http_respond_chunked_start(client_ssl, client_fd, "text/html; charset=utf-8");
    if (status != MESSAGE_STATUS_OK)
    {
       goto error;
    }
-
-   free(data);
-   data = NULL;
 
    data = pgexporter_vappend(data, 12,
                              "<html>\n",
@@ -569,7 +370,7 @@ home_page(SSL* client_ssl, int client_fd)
                              "  Support for\n",
                              "  <ul>\n");
 
-   send_chunk(client_ssl, client_fd, data);
+   pgexporter_http_respond_chunked_write(client_ssl, client_fd, data);
    free(data);
    data = NULL;
 
@@ -593,7 +394,7 @@ home_page(SSL* client_ssl, int client_fd)
                              "  <li>pgexporter_alert_xid_wraparound</li>\n",
                              "  <li>pgexporter_alert_multixact_wraparound</li>\n");
 
-   send_chunk(client_ssl, client_fd, data);
+   pgexporter_http_respond_chunked_write(client_ssl, client_fd, data);
    free(data);
    data = NULL;
 
@@ -619,7 +420,7 @@ home_page(SSL* client_ssl, int client_fd)
       }
    }
 
-   send_chunk(client_ssl, client_fd, data);
+   pgexporter_http_respond_chunked_write(client_ssl, client_fd, data);
    free(data);
    data = NULL;
 
@@ -630,12 +431,11 @@ home_page(SSL* client_ssl, int client_fd)
                              "</body>\n",
                              "</html>\n");
 
-   /* Footer */
-   data = pgexporter_append(data, "\r\n\r\n");
-
-   send_chunk(client_ssl, client_fd, data);
+   pgexporter_http_respond_chunked_write(client_ssl, client_fd, data);
    free(data);
    data = NULL;
+
+   pgexporter_http_respond_chunked_end(client_ssl, client_fd);
 
    return 0;
 
@@ -701,13 +501,18 @@ retry_cache_locking:
          ctime_r(&now, &time_buf[0]);
          time_buf[strlen(time_buf) - 1] = 0;
 
+         /*
+          * Build the response header manually instead of using
+          * pgexporter_http_respond_chunked_start() because the cache must store
+          * only the status line + content-type + date
+          */
          data = pgexporter_vappend(data, 5,
                                    "HTTP/1.1 200 OK\r\n",
                                    "Content-Type: text/plain; version=0.0.1; charset=utf-8\r\n",
                                    "Date: ",
                                    &time_buf[0],
                                    "\r\n");
-         metrics_cache_append(data); // cache here to avoid the chunking for the cache
+         metrics_cache_append(data);
          data = pgexporter_vappend(data, 2,
                                    "Transfer-Encoding: chunked\r\n",
                                    "\r\n");
@@ -759,13 +564,7 @@ retry_cache_locking:
          prometheus_endpoints_information(client_ssl, client_fd);
 
          /* Footer */
-         data = pgexporter_append(data, "0\r\n\r\n");
-
-         msg.kind = 0;
-         msg.length = strlen(data);
-         msg.data = data;
-
-         status = pgexporter_write_message(client_ssl, client_fd, &msg);
+         status = pgexporter_http_respond_chunked_end(client_ssl, client_fd);
          if (status != MESSAGE_STATUS_OK)
          {
             goto error;
@@ -800,41 +599,6 @@ error:
    free(data);
 
    return 1;
-}
-
-static int
-bad_request(SSL* client_ssl, int client_fd)
-{
-   char* data = NULL;
-   time_t now;
-   char time_buf[32];
-   int status;
-   struct message msg;
-
-   memset(&msg, 0, sizeof(struct message));
-   memset(&data, 0, sizeof(data));
-
-   now = time(NULL);
-
-   memset(&time_buf, 0, sizeof(time_buf));
-   ctime_r(&now, &time_buf[0]);
-   time_buf[strlen(time_buf) - 1] = 0;
-
-   data = pgexporter_vappend(data, 4,
-                             "HTTP/1.1 400 Bad Request\r\n",
-                             "Date: ",
-                             &time_buf[0],
-                             "\r\n");
-
-   msg.kind = 0;
-   msg.length = strlen(data);
-   msg.data = data;
-
-   status = pgexporter_write_message(client_ssl, client_fd, &msg);
-
-   free(data);
-
-   return status;
 }
 
 static bool
@@ -3019,54 +2783,6 @@ append_type_info(char** data, char* tag, char* name, int typeId)
    *data = pgexporter_append(*data, "\n");
 }
 
-static int
-send_chunk(SSL* client_ssl, int client_fd, char* data)
-{
-   int status;
-   char* m = NULL;
-   struct message msg;
-
-   memset(&msg, 0, sizeof(struct message));
-
-   if (data == NULL)
-   {
-      return MESSAGE_STATUS_ERROR;
-   }
-
-   m = malloc(20);
-
-   if (m == NULL)
-   {
-      goto error;
-   }
-
-   memset(m, 0, 20);
-
-   pgexporter_snprintf(m, 20, "%zX\r\n", strlen(data));
-
-   m = pgexporter_vappend(m, 2,
-                          data,
-                          "\r\n");
-   if (m == NULL)
-   {
-      goto error;
-   }
-
-   msg.kind = 0;
-   msg.length = strlen(m);
-   msg.data = m;
-
-   status = pgexporter_write_message(client_ssl, client_fd, &msg);
-
-   free(m);
-
-   return status;
-
-error:
-
-   return MESSAGE_STATUS_ERROR;
-}
-
 static char*
 get_value(char* tag __attribute__((unused)), char* name __attribute__((unused)), char* val)
 {
@@ -3447,7 +3163,7 @@ prometheus_endpoints_information(SSL* client_ssl, int client_fd)
 
          free(body_copy);
 
-         send_chunk(client_ssl, client_fd, data);
+         pgexporter_http_respond_chunked_write(client_ssl, client_fd, data);
          metrics_cache_append(data);
          free(data);
          data = NULL;
@@ -3718,7 +3434,7 @@ output_art_metrics(SSL* client_ssl, int client_fd, struct art* art_tree)
 
    if (data != NULL)
    {
-      send_chunk(client_ssl, client_fd, data);
+      pgexporter_http_respond_chunked_write(client_ssl, client_fd, data);
       metrics_cache_append(data);
       free(data);
    }
