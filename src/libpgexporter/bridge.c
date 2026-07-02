@@ -30,6 +30,7 @@
 #include <pgexporter.h>
 #include <art.h>
 #include <bridge.h>
+#include <http_server.h>
 #include <cache.h>
 #include <deque.h>
 #include <logging.h>
@@ -53,19 +54,8 @@
 #define CHUNK_SIZE                       32768
 #define DEFAULT_BLOCKING_TIMEOUT_SECONDS 30
 
-#define PAGE_UNKNOWN                     0
-#define PAGE_HOME                        1
-#define PAGE_METRICS                     2
-#define BAD_REQUEST                      3
-
-static int resolve_page(struct message* msg);
-static int badrequest_page(int client_fd);
-static int unknown_page(int client_fd);
-static int home_page(int client_fd);
-static int metrics_page(int client_fd);
-static int bad_request(int client_fd);
-
-static int send_chunk(int client_fd, char* data);
+static int home_page(SSL* ssl, int fd);
+static int metrics_page(SSL* ssl, int fd);
 
 static bool is_bridge_cache_configured(void);
 static bool is_bridge_cache_valid(void);
@@ -78,262 +68,86 @@ static bool is_bridge_json_cache_configured(void);
 static bool bridge_json_cache_set(char* data);
 static size_t bridge_json_cache_size_to_alloc(void);
 
-static void bridge_metrics(int client_fd);
-static void bridge_json_metrics(int client_fd);
+static void bridge_metrics(SSL* ssl, int client_fd);
+static int bridge_json_metrics(SSL* ssl, int fd);
+
+static struct http_route bridge_routes[] = {
+   {"/", home_page},
+   {"/index.html", home_page},
+   {"/metrics", metrics_page},
+};
+
+static struct http_route bridge_json_routes[] = {
+   {"/", bridge_json_metrics},
+   {"/index.html", bridge_json_metrics},
+   {"/metrics", bridge_json_metrics},
+};
 
 void
 pgexporter_bridge(int client_fd)
 {
-   int status;
-   int page;
-   struct message* msg = NULL;
-   struct configuration* config;
+   struct http_server_request* req = NULL;
 
    pgexporter_start_logging();
    pgexporter_memory_init();
 
-   config = (struct configuration*)shmem;
-
-   status = pgexporter_read_timeout_message(
-      NULL, client_fd, (int)pgexporter_time_convert(config->authentication_timeout, FORMAT_TIME_S), &msg);
-
-   if (status != MESSAGE_STATUS_OK)
+   if (pgexporter_http_server_parse(NULL, client_fd, &req) != MESSAGE_STATUS_OK)
    {
-      goto error;
-   }
-
-   page = resolve_page(msg);
-
-   if (page == PAGE_HOME)
-   {
-      home_page(client_fd);
-   }
-   else if (page == PAGE_METRICS)
-   {
-      metrics_page(client_fd);
-   }
-   else if (page == PAGE_UNKNOWN)
-   {
-      unknown_page(client_fd);
+      pgexporter_http_respond_400(NULL, client_fd);
    }
    else
    {
-      bad_request(client_fd);
+      pgexporter_http_server_dispatch(NULL, client_fd, req,
+                                      bridge_routes,
+                                      sizeof(bridge_routes) / sizeof(bridge_routes[0]));
    }
 
+   pgexporter_http_server_request_destroy(req);
    pgexporter_disconnect(client_fd);
-
    pgexporter_memory_destroy();
    pgexporter_stop_logging();
 
    exit(0);
-
-error:
-
-   badrequest_page(client_fd);
-
-   pgexporter_disconnect(client_fd);
-
-   pgexporter_memory_destroy();
-   pgexporter_stop_logging();
-
-   exit(1);
 }
 
 void
 pgexporter_bridge_json(int client_fd)
 {
-   int status;
-   int page;
-   struct message* msg = NULL;
-   struct configuration* config;
+   struct http_server_request* req = NULL;
 
    pgexporter_start_logging();
    pgexporter_memory_init();
 
-   config = (struct configuration*)shmem;
-
-   status = pgexporter_read_timeout_message(NULL, client_fd, (int)pgexporter_time_convert(config->authentication_timeout, FORMAT_TIME_S), &msg);
-
-   if (status != MESSAGE_STATUS_OK)
+   if (pgexporter_http_server_parse(NULL, client_fd, &req) != MESSAGE_STATUS_OK)
    {
-      goto error;
-   }
-
-   page = resolve_page(msg);
-
-   if (page == PAGE_HOME || page == PAGE_METRICS)
-   {
-      bridge_json_metrics(client_fd);
-   }
-   else if (page == PAGE_UNKNOWN)
-   {
-      unknown_page(client_fd);
+      pgexporter_http_respond_400(NULL, client_fd);
    }
    else
    {
-      bad_request(client_fd);
+      pgexporter_http_server_dispatch(NULL, client_fd, req,
+                                      bridge_json_routes,
+                                      sizeof(bridge_json_routes) / sizeof(bridge_json_routes[0]));
    }
 
+   pgexporter_http_server_request_destroy(req);
    pgexporter_disconnect(client_fd);
-
    pgexporter_memory_destroy();
    pgexporter_stop_logging();
 
    exit(0);
-
-error:
-
-   badrequest_page(client_fd);
-
-   pgexporter_disconnect(client_fd);
-
-   pgexporter_memory_destroy();
-   pgexporter_stop_logging();
-
-   exit(1);
 }
 
 static int
-resolve_page(struct message* msg)
-{
-   char* from = NULL;
-   int index;
-
-   if (msg->length < 3 || strncmp((char*)msg->data, "GET", 3) != 0)
-   {
-      pgexporter_log_debug("Bridge: Not a GET request");
-      return BAD_REQUEST;
-   }
-
-   index = 4;
-   from = (char*)msg->data + index;
-
-   while (pgexporter_read_byte(msg->data + index) != ' ')
-   {
-      index++;
-   }
-
-   pgexporter_write_byte(msg->data + index, '\0');
-
-   if (strcmp(from, "/") == 0 || strcmp(from, "/index.html") == 0)
-   {
-      return PAGE_HOME;
-   }
-   else if (strcmp(from, "/metrics") == 0)
-   {
-      return PAGE_METRICS;
-   }
-
-   return PAGE_UNKNOWN;
-}
-
-static int
-badrequest_page(int client_fd)
-{
-   char* data = NULL;
-   time_t now;
-   char time_buf[32];
-   int status;
-   struct message msg;
-
-   memset(&msg, 0, sizeof(struct message));
-   memset(&data, 0, sizeof(data));
-
-   now = time(NULL);
-
-   memset(&time_buf, 0, sizeof(time_buf));
-   ctime_r(&now, &time_buf[0]);
-   time_buf[strlen(time_buf) - 1] = 0;
-
-   data = pgexporter_vappend(data, 4,
-                             "HTTP/1.1 400 Bad Request\r\n",
-                             "Date: ",
-                             &time_buf[0],
-                             "\r\n");
-
-   msg.kind = 0;
-   msg.length = strlen(data);
-   msg.data = data;
-
-   status = pgexporter_write_message(NULL, client_fd, &msg);
-
-   free(data);
-
-   return status;
-}
-
-static int
-unknown_page(int client_fd)
-{
-   char* data = NULL;
-   time_t now;
-   char time_buf[32];
-   int status;
-   struct message msg;
-
-   memset(&msg, 0, sizeof(struct message));
-   memset(&data, 0, sizeof(data));
-
-   now = time(NULL);
-
-   memset(&time_buf, 0, sizeof(time_buf));
-   ctime_r(&now, &time_buf[0]);
-   time_buf[strlen(time_buf) - 1] = 0;
-
-   data = pgexporter_vappend(data, 4,
-                             "HTTP/1.1 403 Forbidden\r\n",
-                             "Date: ",
-                             &time_buf[0],
-                             "\r\n");
-
-   msg.kind = 0;
-   msg.length = strlen(data);
-   msg.data = data;
-
-   status = pgexporter_write_message(NULL, client_fd, &msg);
-
-   free(data);
-
-   return status;
-}
-
-static int
-home_page(int client_fd)
+home_page(SSL* ssl, int fd)
 {
    char* data = NULL;
    int status;
-   time_t now;
-   char time_buf[32];
-   struct message msg;
 
-   now = time(NULL);
-
-   memset(&time_buf, 0, sizeof(time_buf));
-   ctime_r(&now, &time_buf[0]);
-   time_buf[strlen(time_buf) - 1] = 0;
-
-   data = pgexporter_vappend(data, 7,
-                             "HTTP/1.1 200 OK\r\n",
-                             "Content-Type: text/html; charset=utf-8\r\n",
-                             "Date: ",
-                             &time_buf[0],
-                             "\r\n",
-                             "Transfer-Encoding: chunked\r\n",
-                             "\r\n");
-
-   msg.kind = 0;
-   msg.length = strlen(data);
-   msg.data = data;
-
-   status = pgexporter_write_message(NULL, client_fd, &msg);
+   status = pgexporter_http_respond_chunked_start(ssl, fd, "text/html; charset=utf-8");
    if (status != MESSAGE_STATUS_OK)
    {
       goto error;
    }
-
-   free(data);
-   data = NULL;
 
    data = pgexporter_vappend(data, 13,
                              "<html>\n", "<head>\n",
@@ -349,16 +163,11 @@ home_page(int client_fd)
                              "</body>\n",
                              "</html>\n");
 
-   send_chunk(client_fd, data);
+   pgexporter_http_respond_chunked_write(ssl, fd, data);
    free(data);
    data = NULL;
 
-   /* Footer */
-   data = pgexporter_append(data, "\r\n\r\n");
-
-   send_chunk(client_fd, data);
-   free(data);
-   data = NULL;
+   pgexporter_http_respond_chunked_end(ssl, fd);
 
    return 0;
 
@@ -370,14 +179,11 @@ error:
 }
 
 static int
-metrics_page(int client_fd)
+metrics_page(SSL* ssl, int fd)
 {
-   char* data = NULL;
    time_t start_time;
    int dt;
-   char time_buf[32];
    int status;
-   struct message msg;
    struct prometheus_cache* cache;
    signed char cache_is_free;
    struct configuration* config;
@@ -385,13 +191,7 @@ metrics_page(int client_fd)
    config = (struct configuration*)shmem;
    cache = (struct prometheus_cache*)bridge_cache_shmem;
 
-   memset(&msg, 0, sizeof(struct message));
-
    start_time = time(NULL);
-
-   memset(&time_buf, 0, sizeof(time_buf));
-   ctime_r(&start_time, &time_buf[0]);
-   time_buf[strlen(time_buf) - 1] = 0;
 
 retry_cache_locking:
    cache_is_free = STATE_FREE;
@@ -402,48 +202,16 @@ retry_cache_locking:
       {
          // serve the message directly out of the cache
          pgexporter_log_debug("Serving bridge out of cache (%d/%d bytes valid until %lld)",
-                              strlen(cache->data),
-                              cache->size,
-                              cache->valid_until);
+                              strlen(cache->data), cache->size, cache->valid_until);
 
-         /* Header */
-         data = pgexporter_vappend(data, 7,
-                                   "HTTP/1.1 200 OK\r\n",
-                                   "Content-Type: text/plain; charset=utf-8\r\n",
-                                   "Date: ", &time_buf[0], "\r\n",
-                                   "Transfer-Encoding: chunked\r\n", "\r\n");
-
-         msg.kind = 0;
-         msg.length = strlen(data);
-         msg.data = data;
-
-         status = pgexporter_write_message(NULL, client_fd, &msg);
+         status = pgexporter_http_respond_chunked_start(ssl, fd, "text/plain; charset=utf-8");
          if (status != MESSAGE_STATUS_OK)
          {
             goto error;
          }
 
-         free(data);
-         data = NULL;
-
-         /* Cache */
-         send_chunk(client_fd, cache->data);
-
-         /* Footer */
-         data = pgexporter_append(data, "0\r\n\r\n");
-
-         msg.kind = 0;
-         msg.length = strlen(data);
-         msg.data = data;
-
-         status = pgexporter_write_message(NULL, client_fd, &msg);
-         if (status != MESSAGE_STATUS_OK)
-         {
-            goto error;
-         }
-
-         free(data);
-         data = NULL;
+         pgexporter_http_respond_chunked_write(ssl, fd, cache->data);
+         pgexporter_http_respond_chunked_end(ssl, fd);
       }
       else
       {
@@ -451,44 +219,17 @@ retry_cache_locking:
 
          bridge_cache_invalidate();
 
-         data = pgexporter_vappend(data, 7,
-                                   "HTTP/1.1 200 OK\r\n",
-                                   "Content-Type: text/plain; version=0.0.1; charset=utf-8\r\n",
-                                   "Date: ", &time_buf[0], "\r\n",
-                                   "Transfer-Encoding: chunked\r\n",
-                                   "\r\n");
-
-         msg.kind = 0;
-         msg.length = strlen(data);
-         msg.data = data;
-
-         status = pgexporter_write_message(NULL, client_fd, &msg);
+         status = pgexporter_http_respond_chunked_start(ssl, fd,
+                                                        "text/plain; version=0.0.1; charset=utf-8");
          if (status != MESSAGE_STATUS_OK)
          {
             goto error;
          }
 
-         free(data);
-         data = NULL;
-
-         /* Metrics */
-         bridge_metrics(client_fd);
-
-         /* Footer */
-         data = pgexporter_append(data, "0\r\n\r\n");
-
-         msg.kind = 0;
-         msg.length = strlen(data);
-         msg.data = data;
-
-         status = pgexporter_write_message(NULL, client_fd, &msg);
-         if (status != MESSAGE_STATUS_OK)
-         {
-            goto error;
-         }
+         bridge_metrics(ssl, fd);
+         pgexporter_http_respond_chunked_end(ssl, fd);
       }
 
-      // free the cache
       atomic_store(&cache->lock, STATE_FREE);
    }
    else
@@ -503,87 +244,11 @@ retry_cache_locking:
       SLEEP_AND_GOTO(10000000L, retry_cache_locking);
    }
 
-   free(data);
-
    return 0;
 
 error:
 
-   free(data);
-
    return 1;
-}
-
-static int
-bad_request(int client_fd)
-{
-   char* data = NULL;
-   time_t now;
-   char time_buf[32];
-   int status;
-   struct message msg;
-
-   memset(&msg, 0, sizeof(struct message));
-   memset(&data, 0, sizeof(data));
-
-   now = time(NULL);
-
-   memset(&time_buf, 0, sizeof(time_buf));
-   ctime_r(&now, &time_buf[0]);
-   time_buf[strlen(time_buf) - 1] = 0;
-
-   data = pgexporter_vappend(data, 4,
-                             "HTTP/1.1 400 Bad Request\r\n",
-                             "Date: ",
-                             &time_buf[0],
-                             "\r\n");
-
-   msg.kind = 0;
-   msg.length = strlen(data);
-   msg.data = data;
-
-   status = pgexporter_write_message(NULL, client_fd, &msg);
-
-   free(data);
-
-   return status;
-}
-
-static int
-send_chunk(int client_fd, char* data)
-{
-   int status;
-   char* m = NULL;
-   struct message msg;
-
-   memset(&msg, 0, sizeof(struct message));
-
-   m = malloc(20);
-
-   if (m == NULL)
-   {
-      goto error;
-   }
-
-   memset(m, 0, 20);
-
-   sprintf(m, "%zX\r\n", strlen(data));
-
-   m = pgexporter_vappend(m, 2, data, "\r\n");
-
-   msg.kind = 0;
-   msg.length = strlen(m);
-   msg.data = m;
-
-   status = pgexporter_write_message(NULL, client_fd, &msg);
-
-   free(m);
-
-   return status;
-
-error:
-
-   return MESSAGE_STATUS_ERROR;
 }
 
 /**
@@ -888,7 +553,7 @@ bridge_json_cache_set(char* data)
 }
 
 static void
-bridge_metrics(int client_fd)
+bridge_metrics(SSL* ssl, int client_fd)
 {
    time_t start_time;
    int dt;
@@ -1035,7 +700,7 @@ retry_cache_json_locking:
          bridge_cache_append(data);
       }
 
-      send_chunk(client_fd, data);
+      pgexporter_http_respond_chunked_write(ssl, client_fd, data);
 
       pgexporter_deque_iterator_destroy(definition_iterator);
 
@@ -1075,15 +740,12 @@ error:
    pgexporter_prometheus_client_destroy_bridge(bridge);
 }
 
-static void
-bridge_json_metrics(int client_fd)
+static int
+bridge_json_metrics(SSL* ssl, int fd)
 {
-   char* data = NULL;
    time_t start_time;
    int dt;
-   char time_buf[32];
    int status;
-   struct message msg;
    struct prometheus_cache* cache;
    signed char cache_is_free;
    struct configuration* config = NULL;
@@ -1092,15 +754,7 @@ bridge_json_metrics(int client_fd)
    cache = (struct prometheus_cache*)bridge_json_cache_shmem;
 
    cache_is_free = STATE_FREE;
-
    start_time = time(NULL);
-
-   memset(&msg, 0, sizeof(struct message));
-   memset(&data, 0, sizeof(data));
-
-   memset(&time_buf, 0, sizeof(time_buf));
-   ctime_r(&start_time, &time_buf[0]);
-   time_buf[strlen(time_buf) - 1] = 0;
 
 retry_cache_locking:
    if (is_bridge_json_cache_configured())
@@ -1117,51 +771,22 @@ retry_cache_locking:
          SLEEP_AND_GOTO(10000000L, retry_cache_locking);
       }
 
-      /* Header */
-      data = pgexporter_vappend(data, 7,
-                                "HTTP/1.1 200 OK\r\n",
-                                "Content-Type: text/plain; charset=utf-8\r\n",
-                                "Date: ", &time_buf[0], "\r\n",
-                                "Transfer-Encoding: chunked\r\n", "\r\n");
-
-      msg.kind = 0;
-      msg.length = strlen(data);
-      msg.data = data;
-
-      status = pgexporter_write_message(NULL, client_fd, &msg);
+      status = pgexporter_http_respond_chunked_start(ssl, fd, "text/plain; charset=utf-8");
       if (status != MESSAGE_STATUS_OK)
       {
          goto error;
       }
 
-      free(data);
-      data = NULL;
-
-      /* Cache */
       if (strlen(cache->data) > 0)
       {
-         send_chunk(client_fd, cache->data);
+         pgexporter_http_respond_chunked_write(ssl, fd, cache->data);
       }
       else
       {
-         send_chunk(client_fd, "{\n}\n");
+         pgexporter_http_respond_chunked_write(ssl, fd, "{\n}\n");
       }
 
-      /* Footer */
-      data = pgexporter_append(data, "0\r\n\r\n");
-
-      msg.kind = 0;
-      msg.length = strlen(data);
-      msg.data = data;
-
-      status = pgexporter_write_message(NULL, client_fd, &msg);
-      if (status != MESSAGE_STATUS_OK)
-      {
-         goto error;
-      }
-
-      free(data);
-      data = NULL;
+      pgexporter_http_respond_chunked_end(ssl, fd);
 
       atomic_store(&cache->lock, STATE_FREE);
    }
@@ -1170,9 +795,10 @@ retry_cache_locking:
       goto error;
    }
 
-   return;
+   return MESSAGE_STATUS_OK;
 
 error:
 
-   pgexporter_log_error("bridge_json_metrics called");
+   pgexporter_log_error("bridge_json_metrics: failed to serve response");
+   return MESSAGE_STATUS_ERROR;
 }

@@ -114,6 +114,22 @@ struct accept_io
    char** argv;
 };
 
+static void http_child_serve(int client_fd, struct accept_io* ai, const char* title,
+                             const char* cert_file, const char* key_file, const char* ca_file,
+                             void (*serve_fn)(SSL* ssl, int fd));
+static void accept_http_cb(struct io_watcher* watcher,
+                           void (*serve_fn)(SSL* ssl, int fd),
+                           const char* title,
+                           const char* cert_file, const char* key_file, const char* ca_file,
+                           int fork_error_code,
+                           void (*restart_fn)(void));
+static void restart_metrics(void);
+static void restart_console(void);
+static void restart_bridge(void);
+static void restart_bridge_json(void);
+static void bridge_serve(SSL* ssl, int fd);
+static void bridge_json_serve(SSL* ssl, int fd);
+
 static volatile int stop = 0;
 static char** argv_ptr;
 static struct event_loop* main_loop = NULL;
@@ -1924,7 +1940,184 @@ error:
 }
 
 static void
-accept_metrics_cb(struct io_watcher* watcher)
+http_child_serve(int client_fd, struct accept_io* ai, const char* title,
+                 const char* cert_file, const char* key_file, const char* ca_file,
+                 void (*serve_fn)(SSL* ssl, int fd))
+{
+   SSL_CTX* ctx = NULL;
+   SSL* client_ssl = NULL;
+
+   if (main_loop)
+   {
+      pgexporter_event_loop_fork();
+   }
+
+   shutdown_ports(false);
+
+   if (cert_file != NULL && key_file != NULL &&
+       strlen(cert_file) > 0 && strlen(key_file) > 0)
+   {
+      if (pgexporter_create_ssl_ctx(false, &ctx))
+      {
+         pgexporter_log_error("http_child_serve: could not create SSL context for %s", title);
+         exit(1);
+      }
+
+      if (pgexporter_create_ssl_server(ctx, (char*)key_file, (char*)cert_file, (char*)ca_file, client_fd, &client_ssl))
+      {
+         pgexporter_log_error("http_child_serve: could not create SSL server for %s", title);
+         SSL_CTX_free(ctx);
+         exit(1);
+      }
+   }
+
+   pgexporter_set_proc_title(1, ai->argv, (char*)title, NULL);
+   serve_fn(client_ssl, client_fd);
+}
+
+static void
+bridge_serve(SSL* ssl __attribute__((unused)), int fd)
+{
+   pgexporter_bridge(fd);
+}
+
+static void
+bridge_json_serve(SSL* ssl __attribute__((unused)), int fd)
+{
+   pgexporter_bridge_json(fd);
+}
+
+static void
+restart_metrics(void)
+{
+   struct configuration* config = (struct configuration*)shmem;
+
+   shutdown_metrics(false);
+
+   free(metrics_fds);
+   metrics_fds = NULL;
+   metrics_fds_length = 0;
+
+   if (pgexporter_bind(config->host, config->metrics, &metrics_fds, &metrics_fds_length))
+   {
+      pgexporter_log_fatal("Could not bind to %s:%d", config->host, config->metrics);
+      exit(1);
+   }
+
+   if (metrics_fds_length > MAX_FDS)
+   {
+      pgexporter_log_fatal("Too many descriptors %d", metrics_fds_length);
+      exit(1);
+   }
+
+   start_metrics();
+
+   for (int i = 0; i < metrics_fds_length; i++)
+   {
+      pgexporter_log_debug("Metrics: %d", *(metrics_fds + i));
+   }
+}
+
+static void
+restart_console(void)
+{
+   struct configuration* config = (struct configuration*)shmem;
+
+   shutdown_console(false);
+
+   free(console_fds);
+   console_fds = NULL;
+   console_fds_length = 0;
+
+   if (pgexporter_bind(config->host, config->console, &console_fds, &console_fds_length))
+   {
+      pgexporter_log_fatal("Could not bind to %s:%d", config->host, config->console);
+      exit(1);
+   }
+
+   if (console_fds_length > MAX_FDS)
+   {
+      pgexporter_log_fatal("Too many descriptors %d", console_fds_length);
+      exit(1);
+   }
+
+   start_console();
+
+   for (int i = 0; i < console_fds_length; i++)
+   {
+      pgexporter_log_debug("Console: %d", *(console_fds + i));
+   }
+}
+
+static void
+restart_bridge(void)
+{
+   struct configuration* config = (struct configuration*)shmem;
+
+   shutdown_bridge(false);
+
+   free(bridge_fds);
+   bridge_fds = NULL;
+   bridge_fds_length = 0;
+
+   if (pgexporter_bind(config->host, config->bridge, &bridge_fds, &bridge_fds_length))
+   {
+      pgexporter_log_fatal("Could not bind to %s:%d", config->host, config->bridge);
+      exit(1);
+   }
+
+   if (bridge_fds_length > MAX_FDS)
+   {
+      pgexporter_log_fatal("Too many descriptors %d", bridge_fds_length);
+      exit(1);
+   }
+
+   start_bridge();
+
+   for (int i = 0; i < bridge_fds_length; i++)
+   {
+      pgexporter_log_debug("Bridge: %d", *(bridge_fds + i));
+   }
+}
+
+static void
+restart_bridge_json(void)
+{
+   struct configuration* config = (struct configuration*)shmem;
+
+   shutdown_bridge_json(false);
+
+   free(bridge_json_fds);
+   bridge_json_fds = NULL;
+   bridge_json_fds_length = 0;
+
+   if (pgexporter_bind(config->host, config->bridge_json, &bridge_json_fds, &bridge_json_fds_length))
+   {
+      pgexporter_log_fatal("Could not bind to %s:%d", config->host, config->bridge_json);
+      exit(1);
+   }
+
+   if (bridge_json_fds_length > MAX_FDS)
+   {
+      pgexporter_log_fatal("Too many descriptors %d", bridge_json_fds_length);
+      exit(1);
+   }
+
+   start_bridge_json();
+
+   for (int i = 0; i < bridge_json_fds_length; i++)
+   {
+      pgexporter_log_debug("Bridge JSON: %d", *(bridge_json_fds + i));
+   }
+}
+
+static void
+accept_http_cb(struct io_watcher* watcher,
+               void (*serve_fn)(SSL* ssl, int fd),
+               const char* title,
+               const char* cert_file, const char* key_file, const char* ca_file,
+               int fork_error_code,
+               void (*restart_fn)(void))
 {
    struct sockaddr_in6 client_addr;
    socklen_t client_addr_length;
@@ -1932,18 +2125,16 @@ accept_metrics_cb(struct io_watcher* watcher)
    pid_t pid;
    struct accept_io* ai;
    struct configuration* config;
-   SSL_CTX* ctx = NULL;
-   SSL* client_ssl = NULL;
 
    config = (struct configuration*)shmem;
    ai = (struct accept_io*)watcher;
 
-   pgexporter_log_trace("accept_metrics_cb: %d", watcher->fds.main.listen_fd);
+   pgexporter_log_trace("accept_%s_cb: %d", title, watcher->fds.main.listen_fd);
 
    errno = 0;
-
    memset(&client_addr, 0, sizeof(client_addr));
    client_addr_length = sizeof(client_addr);
+
    if (watcher->fds.main.client_fd != -1)
    {
       client_fd = watcher->fds.main.client_fd;
@@ -1959,31 +2150,7 @@ accept_metrics_cb(struct io_watcher* watcher)
       if (accept_fatal(errno) && config->keep_running)
       {
          pgexporter_log_warn("Restarting listening port due to: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
-
-         shutdown_metrics(false);
-
-         free(metrics_fds);
-         metrics_fds = NULL;
-         metrics_fds_length = 0;
-
-         if (pgexporter_bind(config->host, config->metrics, &metrics_fds, &metrics_fds_length))
-         {
-            pgexporter_log_fatal("Could not bind to %s:%d", config->host, config->metrics);
-            exit(1);
-         }
-
-         if (metrics_fds_length > MAX_FDS)
-         {
-            pgexporter_log_fatal("Too many descriptors %d", metrics_fds_length);
-            exit(1);
-         }
-
-         start_metrics();
-
-         for (int i = 0; i < metrics_fds_length; i++)
-         {
-            pgexporter_log_debug("Metrics: %d", *(metrics_fds + i));
-         }
+         restart_fn();
       }
       else
       {
@@ -1993,354 +2160,54 @@ accept_metrics_cb(struct io_watcher* watcher)
       return;
    }
 
-   /* Handle the accepted connection */
-   pgexporter_log_trace("Metrics: Forking for client_fd %d", client_fd);
    pid = fork();
    if (pid == -1)
    {
-      pgexporter_log_error("Metrics: No fork (%d)", MANAGEMENT_ERROR_METRICS_NOFORK);
-      goto error;
+      pgexporter_log_error("%s: No fork (%d)", title, fork_error_code);
+      pgexporter_disconnect(client_fd);
+      return;
    }
-   else if (pid == 0)
+
+   if (pid == 0)
    {
-      pgexporter_log_trace("Metrics: Child process started (pid %d)", getpid());
-      /* Child process - fork event loop if needed */
-      if (main_loop)
-      {
-         pgexporter_log_trace("Metrics: Forking event loop in child");
-         pgexporter_event_loop_fork();
-      }
-
-      /* We are leaving the socket descriptor valid such that the client won't reuse it */
-      shutdown_ports(false);
-      if (strlen(config->metrics_cert_file) > 0 && strlen(config->metrics_key_file) > 0)
-      {
-         if (pgexporter_create_ssl_ctx(false, &ctx))
-         {
-            pgexporter_log_error("Could not create metrics SSL context");
-            return;
-         }
-
-         if (pgexporter_create_ssl_server(ctx, config->metrics_key_file, config->metrics_cert_file, config->metrics_ca_file, client_fd, &client_ssl))
-         {
-            pgexporter_log_error("Could not create metrics SSL server");
-            return;
-         }
-      }
-      pgexporter_set_proc_title(1, ai->argv, "metrics", NULL);
-      pgexporter_prometheus(client_ssl, client_fd);
+      http_child_serve(client_fd, ai, title, cert_file, key_file, ca_file, serve_fn);
    }
 
-   pgexporter_log_trace("Metrics: Parent process continuing for client_fd %d", client_fd);
-   pgexporter_close_ssl(client_ssl);
    pgexporter_disconnect(client_fd);
+}
 
-   return;
-
-error:
-
-   pgexporter_close_ssl(client_ssl);
-   pgexporter_disconnect(client_fd);
+static void
+accept_metrics_cb(struct io_watcher* watcher)
+{
+   struct configuration* config = (struct configuration*)shmem;
+   accept_http_cb(watcher, pgexporter_prometheus, "metrics",
+                  config->metrics_cert_file, config->metrics_key_file,
+                  config->metrics_ca_file, MANAGEMENT_ERROR_METRICS_NOFORK,
+                  restart_metrics);
 }
 
 static void
 accept_console_cb(struct io_watcher* watcher)
 {
-   struct sockaddr_in6 client_addr;
-   socklen_t client_addr_length;
-   int client_fd;
-   pid_t pid;
-   struct accept_io* ai;
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-   ai = (struct accept_io*)watcher;
-
-   pgexporter_log_trace("accept_console_cb: %d", watcher->fds.main.listen_fd);
-
-   errno = 0;
-   memset(&client_addr, 0, sizeof(client_addr));
-   client_addr_length = sizeof(client_addr);
-
-   if (watcher->fds.main.client_fd != -1)
-   {
-      client_fd = watcher->fds.main.client_fd;
-      watcher->fds.main.client_fd = -1;
-   }
-   else
-   {
-      client_fd = accept(watcher->fds.main.listen_fd, (struct sockaddr*)&client_addr, &client_addr_length);
-   }
-
-   if (client_fd == -1)
-   {
-      if (accept_fatal(errno) && config->keep_running)
-      {
-         pgexporter_log_warn("Restarting listening port due to: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
-
-         shutdown_console(false);
-
-         free(console_fds);
-         console_fds = NULL;
-         console_fds_length = 0;
-
-         if (pgexporter_bind(config->host, config->console, &console_fds, &console_fds_length))
-         {
-            pgexporter_log_fatal("Could not bind to %s:%d", config->host, config->console);
-            exit(1);
-         }
-
-         if (console_fds_length > MAX_FDS)
-         {
-            pgexporter_log_fatal("Too many descriptors %d", console_fds_length);
-            exit(1);
-         }
-
-         start_console();
-
-         for (int i = 0; i < console_fds_length; i++)
-         {
-            pgexporter_log_debug("Console: %d", *(console_fds + i));
-         }
-      }
-      else
-      {
-         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
-      }
-      errno = 0;
-      return;
-   }
-
-   /* Handle the accepted connection */
-   pid = fork();
-   if (pid == -1)
-   {
-      pgexporter_log_error("Console: No fork (%d)", MANAGEMENT_ERROR_CONSOLE_NOFORK);
-      goto error;
-   }
-   else if (pid == 0)
-   {
-      /* Child process - fork event loop if needed */
-      if (main_loop)
-      {
-         pgexporter_event_loop_fork();
-      }
-
-      /* We are leaving the socket descriptor valid such that the client won't reuse it */
-
-      shutdown_ports(false);
-      pgexporter_set_proc_title(1, ai->argv, "console", NULL);
-      pgexporter_console(NULL, client_fd);
-   }
-
-   pgexporter_disconnect(client_fd);
-
-   return;
-
-error:
-
-   pgexporter_disconnect(client_fd);
+   accept_http_cb(watcher, pgexporter_console, "console",
+                  NULL, NULL, NULL, MANAGEMENT_ERROR_CONSOLE_NOFORK,
+                  restart_console);
 }
 
 static void
 accept_bridge_cb(struct io_watcher* watcher)
 {
-   struct sockaddr_in6 client_addr;
-   socklen_t client_addr_length;
-   int client_fd;
-   char address[INET6_ADDRSTRLEN];
-   pid_t pid;
-   struct accept_io* ai;
-   struct configuration* config;
-
-   pgexporter_log_trace("accept_bridge_cb: %d", watcher->fds.main.listen_fd);
-
-   config = (struct configuration*)shmem;
-   ai = (struct accept_io*)watcher;
-
-   errno = 0;
-
-   memset(&client_addr, 0, sizeof(client_addr));
-   memset(&client_addr, 0, sizeof(client_addr));
-   client_addr_length = sizeof(client_addr);
-   if (watcher->fds.main.client_fd != -1)
-   {
-      client_fd = watcher->fds.main.client_fd;
-      watcher->fds.main.client_fd = -1;
-      if (getpeername(client_fd, (struct sockaddr*)&client_addr, &client_addr_length) == -1)
-      {
-         pgexporter_log_debug("getpeername error for fd %d: %s", client_fd, strerror(errno));
-         pgexporter_snprintf(address, sizeof(address), "%s", "unknown");
-      }
-   }
-   else
-   {
-      client_fd = accept(watcher->fds.main.listen_fd, (struct sockaddr*)&client_addr, &client_addr_length);
-   }
-   if (client_fd == -1)
-   {
-      if (accept_fatal(errno) && config->keep_running)
-      {
-         pgexporter_log_warn("Restarting listening port due to: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
-
-         shutdown_bridge(false);
-
-         free(bridge_fds);
-         bridge_fds = NULL;
-         bridge_fds_length = 0;
-
-         if (pgexporter_bind(config->host, config->bridge, &bridge_fds, &bridge_fds_length))
-         {
-            pgexporter_log_fatal("Could not bind to %s:%d", config->host, config->bridge);
-            exit(1);
-         }
-
-         if (bridge_fds_length > MAX_FDS)
-         {
-            pgexporter_log_fatal("Too many descriptors %d", bridge_fds_length);
-            exit(1);
-         }
-
-         start_bridge();
-
-         for (int i = 0; i < bridge_fds_length; i++)
-         {
-            pgexporter_log_debug("Bridge: %d", *(bridge_fds + i));
-         }
-      }
-      else
-      {
-         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
-      }
-      errno = 0;
-      return;
-   }
-
-   pid = fork();
-   if (pid == -1)
-   {
-      pgexporter_log_error("Bridge: No fork (%d)", MANAGEMENT_ERROR_BRIDGE_NOFORK);
-      goto error;
-   }
-   else if (pid == 0)
-   {
-      /* Child process - fork event loop if needed */
-      if (main_loop)
-      {
-         pgexporter_event_loop_fork();
-      }
-
-      /* We are leaving the socket descriptor valid such that the client won't reuse it */
-      shutdown_ports(false);
-
-      pgexporter_set_proc_title(1, ai->argv, "bridge", NULL);
-      pgexporter_bridge(client_fd);
-   }
-
-   pgexporter_disconnect(client_fd);
-
-   return;
-
-error:
-
-   pgexporter_disconnect(client_fd);
+   accept_http_cb(watcher, bridge_serve, "bridge",
+                  NULL, NULL, NULL, MANAGEMENT_ERROR_BRIDGE_NOFORK,
+                  restart_bridge);
 }
 
 static void
 accept_bridge_json_cb(struct io_watcher* watcher)
 {
-   struct sockaddr_in6 client_addr;
-   socklen_t client_addr_length;
-   int client_fd;
-   pid_t pid;
-   struct accept_io* ai;
-   struct configuration* config;
-
-   pgexporter_log_trace("accept_bridge_json_cb: %d", watcher->fds.main.listen_fd);
-
-   config = (struct configuration*)shmem;
-   ai = (struct accept_io*)watcher;
-
-   errno = 0;
-
-   memset(&client_addr, 0, sizeof(client_addr));
-   client_addr_length = sizeof(client_addr);
-   if (watcher->fds.main.client_fd != -1)
-   {
-      client_fd = watcher->fds.main.client_fd;
-      watcher->fds.main.client_fd = -1;
-   }
-   else
-   {
-      client_fd = accept(watcher->fds.main.listen_fd, (struct sockaddr*)&client_addr, &client_addr_length);
-   }
-   if (client_fd == -1)
-   {
-      if (accept_fatal(errno) && config->keep_running)
-      {
-         pgexporter_log_warn("Restarting listening port due to: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
-
-         shutdown_bridge_json(false);
-
-         free(bridge_json_fds);
-         bridge_json_fds = NULL;
-         bridge_json_fds_length = 0;
-
-         if (pgexporter_bind(config->host, config->bridge_json, &bridge_json_fds, &bridge_json_fds_length))
-         {
-            pgexporter_log_fatal("Could not bind to %s:%d", config->host, config->bridge_json);
-            exit(1);
-         }
-
-         if (bridge_json_fds_length > MAX_FDS)
-         {
-            pgexporter_log_fatal("Too many descriptors %d", bridge_json_fds_length);
-            exit(1);
-         }
-
-         start_bridge_json();
-
-         for (int i = 0; i < bridge_json_fds_length; i++)
-         {
-            pgexporter_log_debug("Bridge JSON: %d", *(bridge_json_fds + i));
-         }
-      }
-      else
-      {
-         pgexporter_log_debug("accept: %s (%d)", strerror(errno), watcher->fds.main.listen_fd);
-      }
-      errno = 0;
-      return;
-   }
-
-   pid = fork();
-   if (pid == -1)
-   {
-      pgexporter_log_error("Bridge JSON: No fork (%d)", MANAGEMENT_ERROR_BRIDGE_JSON_NOFORK);
-      goto error;
-   }
-   else if (pid == 0)
-   {
-      /* Child process - fork event loop if needed */
-      if (main_loop)
-      {
-         pgexporter_event_loop_fork();
-      }
-
-      /* We are leaving the socket descriptor valid such that the client won't reuse it */
-      shutdown_ports(false);
-
-      pgexporter_set_proc_title(1, ai->argv, "bridge_json", NULL);
-      pgexporter_bridge_json(client_fd);
-   }
-
-   pgexporter_disconnect(client_fd);
-
-   return;
-
-error:
-
-   pgexporter_disconnect(client_fd);
+   accept_http_cb(watcher, bridge_json_serve, "bridge_json",
+                  NULL, NULL, NULL, MANAGEMENT_ERROR_BRIDGE_JSON_NOFORK,
+                  restart_bridge_json);
 }
 
 static void
