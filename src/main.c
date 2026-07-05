@@ -97,6 +97,7 @@ static void service_reload_cb(void);
 static void coredump_cb(void);
 static void sigchld_cb(void);
 static void accept_console_cb(struct io_watcher* watcher);
+static void accept_history_cb(struct io_watcher* watcher);
 static bool accept_fatal(int error);
 static int reload_configuration(bool* restart);
 static void reload_set_configuration(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryption, struct json* payload);
@@ -125,6 +126,7 @@ static void accept_http_cb(struct io_watcher* watcher,
                            void (*restart_fn)(void));
 static void restart_metrics(void);
 static void restart_console(void);
+static void restart_history(void);
 static void restart_bridge(void);
 static void restart_bridge_json(void);
 static void bridge_serve(SSL* ssl, int fd);
@@ -142,6 +144,9 @@ static int metrics_fds_length = -1;
 static struct accept_io io_console[MAX_FDS];
 static int* console_fds = NULL;
 static int console_fds_length = -1;
+static struct accept_io io_history[MAX_FDS];
+static int* history_fds = NULL;
+static int history_fds_length = -1;
 static struct accept_io io_bridge[MAX_FDS];
 static int* bridge_fds = NULL;
 static int bridge_fds_length = -1;
@@ -270,6 +275,43 @@ shutdown_metrics(bool remove __attribute__((unused)))
    {
       stop_io_watcher(&io_metrics[i].watcher);
       pgexporter_disconnect(io_metrics[i].socket);
+      errno = 0;
+   }
+}
+
+static void
+start_history(void)
+{
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   pgexporter_log_info("start_history: config->history=%d, history_fds_length=%d", config->history, history_fds_length);
+
+   if (config->history != -1)
+   {
+      for (int i = 0; i < history_fds_length; i++)
+      {
+         int sockfd = *(history_fds + i);
+
+         pgexporter_log_info("start_history: registering fd=%d with epoll", sockfd);
+
+         memset(&io_history[i], 0, sizeof(struct accept_io));
+         pgexporter_event_accept_init(&io_history[i].watcher, sockfd, accept_history_cb);
+         io_history[i].socket = sockfd;
+         io_history[i].argv = argv_ptr;
+         pgexporter_io_start(&io_history[i].watcher);
+      }
+   }
+}
+
+static void
+shutdown_history(bool remove __attribute__((unused)))
+{
+   for (int i = 0; i < history_fds_length; i++)
+   {
+      stop_io_watcher(&io_history[i].watcher);
+      pgexporter_disconnect(io_history[i].socket);
       errno = 0;
    }
 }
@@ -1287,6 +1329,30 @@ main(int argc, char** argv)
       start_console();
    }
 
+   if (config->history > 0)
+   {
+      /* Bind history socket */
+      if (pgexporter_bind(config->host, config->history, &history_fds, &history_fds_length))
+      {
+         pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->history);
+#ifdef HAVE_SYSTEMD
+         sd_notifyf(0, "STATUS=Could not bind to %s:%d", config->host, config->history);
+#endif
+         exit(1);
+      }
+
+      if (history_fds_length > MAX_FDS)
+      {
+         pgexporter_log_fatal("pgexporter: Too many descriptors %d", history_fds_length);
+#ifdef HAVE_SYSTEMD
+         sd_notifyf(0, "STATUS=Too many descriptors %d", history_fds_length);
+#endif
+         exit(1);
+      }
+
+      start_history();
+   }
+
    if (config->bridge > 0)
    {
       /* Bind bridge socket */
@@ -1519,6 +1585,11 @@ main(int argc, char** argv)
       pgexporter_periodic_stop(&history_watcher);
    }
 
+   if (config->history != -1)
+   {
+      shutdown_history(true);
+   }
+
    for (int i = 0; i < 7; i++)
    {
       pgexporter_signal_stop(&signal_watchers[i]);
@@ -1528,6 +1599,7 @@ main(int argc, char** argv)
 
    free(metrics_fds);
    free(console_fds);
+   free(history_fds);
    free(bridge_fds);
    free(bridge_json_fds);
    free(management_fds);
@@ -2050,6 +2122,37 @@ restart_console(void)
 }
 
 static void
+restart_history(void)
+{
+   struct configuration* config = (struct configuration*)shmem;
+
+   shutdown_history(false);
+
+   free(history_fds);
+   history_fds = NULL;
+   history_fds_length = 0;
+
+   if (pgexporter_bind(config->host, config->history, &history_fds, &history_fds_length))
+   {
+      pgexporter_log_fatal("Could not bind to %s:%d", config->host, config->history);
+      exit(1);
+   }
+
+   if (history_fds_length > MAX_FDS)
+   {
+      pgexporter_log_fatal("Too many descriptors %d", history_fds_length);
+      exit(1);
+   }
+
+   start_history();
+
+   for (int i = 0; i < history_fds_length; i++)
+   {
+      pgexporter_log_debug("History: %d", *(history_fds + i));
+   }
+}
+
+static void
 restart_bridge(void)
 {
    struct configuration* config = (struct configuration*)shmem;
@@ -2192,6 +2295,16 @@ accept_console_cb(struct io_watcher* watcher)
    accept_http_cb(watcher, pgexporter_console, "console",
                   NULL, NULL, NULL, MANAGEMENT_ERROR_CONSOLE_NOFORK,
                   restart_console);
+}
+
+static void
+accept_history_cb(struct io_watcher* watcher)
+{
+   struct configuration* config = (struct configuration*)shmem;
+   accept_http_cb(watcher, pgexporter_history_http, "history",
+                  config->history_cert_file, config->history_key_file,
+                  config->history_ca_file, MANAGEMENT_ERROR_HISTORY_NOFORK,
+                  restart_history);
 }
 
 static void

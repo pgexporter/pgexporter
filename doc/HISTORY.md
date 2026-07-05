@@ -23,7 +23,14 @@ history_interval  = 60s
 history_retention = 30d
 history_backend   = sqlite
 history_path      = /var/lib/pgexporter/history.db
+history_cert_file = /path/to/server.crt
+history_key_file  = /path/to/server.key
+history_ca_file   = /path/to/ca.crt
 ```
+
+`history_cert_file`, `history_key_file` and `history_ca_file` are optional;
+when omitted the history HTTP API is served over plain HTTP. If a configured
+file does not exist, TLS is disabled and a warning is logged at startup.
 
 ### Bridge metrics history
 
@@ -102,20 +109,37 @@ pruning is scheduled.
 
 ## Access
 
-The history component acts as a JSON HTTP endpoint. You can access it with
+The history component exposes a JSON HTTP API on the `history` port:
 
-```sh
-curl http://localhost:5005/metrics?name=pg_stat_database_xact_commit&from=-1h
+```
+GET /history/<metric_name>?timestamp=<epoch_seconds>&duration=<seconds>
 ```
 
-The endpoint accepts a metric name and a time window and returns the
-matching records as JSON.
+Both query parameters are optional:
 
-Bridge history is available on its own port:
+- `timestamp` — the anchor point of the query window, as a Unix epoch
+  timestamp. Defaults to the current time.
+- `duration` — the size of the window in seconds, relative to `timestamp`.
+  May be negative to look backwards. Defaults to `-3600` (the last hour).
+
+The queried window is `[timestamp + min(0, duration), timestamp + max(0,
+duration)]`. For example:
 
 ```sh
-curl http://localhost:5006/metrics?name=pg_stat_database_xact_commit&from=-1h
+# Last 10 minutes of pg_stat_database_xact_commit, ending now
+curl http://localhost:5005/history/pg_stat_database_xact_commit?duration=-600
+
+# A specific 10 minute window starting at a fixed timestamp
+curl "http://localhost:5005/history/pg_stat_database_xact_commit?timestamp=1735689600&duration=600"
 ```
+
+An unknown path returns `404`, an unparsable `timestamp`/`duration` returns
+`400`, and a successful (possibly empty) query returns `200` with a JSON
+array of matching records.
+
+The endpoint supports TLS via the `history_cert_file`, `history_key_file`
+and `history_ca_file` configuration keys (see [Configuration](#configuration)
+below); when unset, the endpoint serves plain HTTP.
 
 ## Console integration
 

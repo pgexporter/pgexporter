@@ -137,6 +137,9 @@ pgexporter_init_configuration(void* shm)
    config->history_retention = PGEXPORTER_TIME_DISABLED;
    config->history_backend = HISTORY_BACKEND_SQLITE;
    memset(config->history_path, 0, MAX_PATH);
+   memset(config->history_cert_file, 0, MAX_PATH);
+   memset(config->history_key_file, 0, MAX_PATH);
+   memset(config->history_ca_file, 0, MAX_PATH);
 
    config->bridge = -1;
    config->bridge_cache_max_age = PGEXPORTER_TIME_SEC(300);
@@ -308,7 +311,7 @@ pgexporter_read_configuration(void* shm, char* filename)
          }
          else
          {
-            if (pgexporter_starts_with(line, "unix_socket_dir") || pgexporter_starts_with(line, "metrics_path") || pgexporter_starts_with(line, "alerts_path") || pgexporter_starts_with(line, "log_path") || pgexporter_starts_with(line, "tls_cert_file") || pgexporter_starts_with(line, "tls_key_file") || pgexporter_starts_with(line, "tls_ca_file") || pgexporter_starts_with(line, "metrics_cert_file") || pgexporter_starts_with(line, "metrics_key_file") || pgexporter_starts_with(line, "metrics_ca_file"))
+            if (pgexporter_starts_with(line, "unix_socket_dir") || pgexporter_starts_with(line, "metrics_path") || pgexporter_starts_with(line, "alerts_path") || pgexporter_starts_with(line, "log_path") || pgexporter_starts_with(line, "tls_cert_file") || pgexporter_starts_with(line, "tls_key_file") || pgexporter_starts_with(line, "tls_ca_file") || pgexporter_starts_with(line, "metrics_cert_file") || pgexporter_starts_with(line, "metrics_key_file") || pgexporter_starts_with(line, "metrics_ca_file") || pgexporter_starts_with(line, "history_cert_file") || pgexporter_starts_with(line, "history_key_file") || pgexporter_starts_with(line, "history_ca_file"))
             {
                extract_syskey_value(line, &key, &value);
             }
@@ -665,6 +668,54 @@ pgexporter_read_configuration(void* shm, char* filename)
                         max = MAX_PATH - 1;
                      }
                      memcpy(config->history_path, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "history_cert_file"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->history_cert_file, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "history_key_file"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->history_key_file, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "history_ca_file"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->history_ca_file, value, max);
                   }
                   else
                   {
@@ -1540,6 +1591,39 @@ pgexporter_validate_configuration(void* shm)
          memset(config->metrics_cert_file, 0, sizeof(config->metrics_cert_file));
          memset(config->metrics_key_file, 0, sizeof(config->metrics_key_file));
          memset(config->metrics_ca_file, 0, sizeof(config->metrics_ca_file));
+      }
+   }
+
+   if (strlen(config->history_cert_file) > 0)
+   {
+      if (!pgexporter_exists(config->history_cert_file))
+      {
+         pgexporter_log_error("history cert file does not exist, falling back to plain HTTP");
+         memset(config->history_cert_file, 0, sizeof(config->history_cert_file));
+         memset(config->history_key_file, 0, sizeof(config->history_key_file));
+         memset(config->history_ca_file, 0, sizeof(config->history_ca_file));
+      }
+   }
+
+   if (strlen(config->history_key_file) > 0)
+   {
+      if (!pgexporter_exists(config->history_key_file))
+      {
+         pgexporter_log_error("history key file does not exist, falling back to plain HTTP");
+         memset(config->history_cert_file, 0, sizeof(config->history_cert_file));
+         memset(config->history_key_file, 0, sizeof(config->history_key_file));
+         memset(config->history_ca_file, 0, sizeof(config->history_ca_file));
+      }
+   }
+
+   if (strlen(config->history_ca_file) > 0)
+   {
+      if (!pgexporter_exists(config->history_ca_file))
+      {
+         pgexporter_log_error("history ca file does not exist, falling back to plain HTTP");
+         memset(config->history_cert_file, 0, sizeof(config->history_cert_file));
+         memset(config->history_key_file, 0, sizeof(config->history_key_file));
+         memset(config->history_ca_file, 0, sizeof(config->history_ca_file));
       }
    }
 

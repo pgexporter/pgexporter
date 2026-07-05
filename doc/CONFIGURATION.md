@@ -34,6 +34,9 @@ See a [sample](./etc/pgexporter.conf) configuration for running `pgexporter` on 
 | history_retention | 0 | String | No | How long records are kept before being pruned. If set to zero, records are kept forever. Supports suffixes: 'ms' (milliseconds), 's' (seconds, default), 'm' (minutes), 'h' (hours), 'd' (days), 'w' (weeks). |
 | history_backend | `sqlite` | String | No | The history storage backend. Valid options: `sqlite`. Only takes effect when `history` is set. Changes require restart. |
 | history_path | | String | No | Filesystem path to the history storage file (used by the `sqlite` backend). Can interpolate environment variables (e.g., `$HOME`). |
+| history_cert_file | | String | No | Certificate file for TLS for the history JSON API. This file must be owned by either the user running pgexporter or root. |
+| history_key_file | | String | No | Private key file for TLS for the history JSON API. This file must be owned by either the user running pgexporter or root. Additionally permissions must be at least `0640` when owned by root or `0600` otherwise. |
+| history_ca_file | | String | No | Certificate Authority (CA) file for TLS for the history JSON API. This file must be owned by either the user running pgexporter or root. |
 | bridge | | Int | No | The bridge port |
 | bridge_endpoints | | String | No | A comma-separated list of bridge endpoints specified by host:port |
 | bridge_cache_max_age | `5m` | String | No | The duration to keep in cache a Prometheus (metrics) response. If set to zero, the caching will be disabled. Supports suffixes: 'ms' (milliseconds), 's' (seconds, default), 'm' (minutes), 'h' (hours), 'd' (days), 'w' (weeks). |
