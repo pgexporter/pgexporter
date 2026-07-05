@@ -38,6 +38,8 @@ extern "C" {
 #include <stdint.h>
 #include <time.h>
 
+#include <openssl/ssl.h>
+
 /**
  * @struct history_record
  * @brief Stored metric sample for the history backend.
@@ -146,6 +148,20 @@ pgexporter_history_tick_cb(void);
  */
 void
 pgexporter_history_retention_tick_cb(void);
+
+/**
+ * HTTP entry point for the history JSON API.
+ *
+ * Serves GET /history/<metric_name>?timestamp=<epoch>&duration=<seconds>.
+ * Both query parameters are optional; timestamp defaults to now and duration
+ * defaults to -3600. duration may be negative, in which case
+ * the queried window ends at timestamp and starts duration seconds earlier.
+ *
+ * @param ssl The SSL connection, or NULL for plain HTTP
+ * @param fd  The client socket file descriptor
+ */
+void
+pgexporter_history_http(SSL* ssl, int fd);
 
 #ifdef __cplusplus
 }

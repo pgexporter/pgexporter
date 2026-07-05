@@ -441,6 +441,9 @@ struct configuration
    pgexporter_time_t history_retention;          /**< How long to retain history records */
    int history_backend;                          /**< The history storage backend */
    char history_path[MAX_PATH];                  /**< Path for the history storage file */
+   char history_cert_file[MAX_PATH];             /**< History API TLS certificate path */
+   char history_key_file[MAX_PATH];              /**< History API TLS key path */
+   char history_ca_file[MAX_PATH];               /**< History API TLS CA certificate path */
    atomic_bool history_worker_running;           /**< State of the history ticker */
    atomic_int_least64_t history_last_store_time; /**< Timestamp of last store */
    atomic_int history_worker_pid;                /**< PID of the forked history ticker worker (0 if none) */

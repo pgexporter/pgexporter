@@ -123,6 +123,8 @@ extern "C" {
 
 #define MANAGEMENT_ERROR_CONSOLE_NOFORK                     200
 
+#define MANAGEMENT_ERROR_HISTORY_NOFORK                     300
+
 #define MANAGEMENT_ERROR_STATUS_NOFORK                      700
 #define MANAGEMENT_ERROR_STATUS_NETWORK                     701
 

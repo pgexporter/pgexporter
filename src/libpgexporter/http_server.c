@@ -253,6 +253,35 @@ pgexporter_http_respond_404(SSL* ssl, int fd)
 }
 
 int
+pgexporter_http_respond_500(SSL* ssl, int fd)
+{
+   char* data = NULL;
+   char time_buf[32];
+   struct message msg;
+   int status;
+
+   memset(&msg, 0, sizeof(struct message));
+   fill_date(time_buf, sizeof(time_buf));
+
+   data = pgexporter_vappend(data, 6,
+                             "HTTP/1.1 500 Internal Server Error\r\n",
+                             "Date: ",
+                             time_buf,
+                             "\r\n",
+                             "Content-Length: 0\r\n",
+                             "Connection: close\r\n\r\n");
+
+   msg.kind = 0;
+   msg.length = strlen(data);
+   msg.data = data;
+
+   status = pgexporter_write_message(ssl, fd, &msg);
+
+   free(data);
+   return status;
+}
+
+int
 pgexporter_http_respond_redirect(SSL* ssl, int fd, const char* location)
 {
    char* data = NULL;

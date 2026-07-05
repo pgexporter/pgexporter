@@ -154,6 +154,15 @@ int
 pgexporter_http_respond_404(SSL* ssl, int fd);
 
 /**
+ * Send an HTTP 500 Internal Server Error response.
+ * @param ssl The SSL connection, or NULL for plain HTTP
+ * @param fd  The client socket file descriptor
+ * @return MESSAGE_STATUS_OK on success, otherwise MESSAGE_STATUS_ERROR
+ */
+int
+pgexporter_http_respond_500(SSL* ssl, int fd);
+
+/**
  * Send an HTTP 301 Moved Permanently redirect.
  * @param ssl      The SSL connection, or NULL for plain HTTP
  * @param fd       The client socket file descriptor
