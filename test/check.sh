@@ -89,11 +89,13 @@ cleanup() {
    set +e
    echo "Shutdown pgexporter"
    if [[ -f "/tmp/pgexporter.localhost.pid" ]]; then
-     $EXECUTABLE_DIRECTORY/pgexporter-cli -c $CONFIGURATION_DIRECTORY/pgexporter.conf shutdown
-     sleep 5
+     if [[ -f "$CONFIGURATION_DIRECTORY/pgexporter.conf" ]]; then
+       $EXECUTABLE_DIRECTORY/pgexporter-cli -c $CONFIGURATION_DIRECTORY/pgexporter.conf shutdown
+       sleep 5
+     fi
      if [[ -f "/tmp/pgexporter.localhost.pid" ]]; then
        echo "Force stop pgexporter"
-       kill -9 $(pgrep pgexporter)
+       kill -9 $(pgrep pgexporter) 2>/dev/null || true
        rm -f "/tmp/pgexporter.localhost.pid"
      fi
    fi
@@ -206,6 +208,13 @@ start_postgresql_container() {
     fi
   fi
 
+  if ss -tlnp 2>/dev/null | grep -q ":$PORT "; then
+    local free_port
+    free_port=$(find_free_port $((PORT + 1)))
+    echo "Port $PORT is already in use; using port $free_port instead"
+    PORT=$free_port
+  fi
+
   $CONTAINER_ENGINE run -p $PORT:5432 -v "$PG_LOG_DIR:/pglog:z" -v "$PGCONF_DIRECTORY:/conf:z"\
   --name $CONTAINER_NAME -d \
   -e PG_DATABASE=$PG_DATABASE \
@@ -237,6 +246,14 @@ start_postgresql_container() {
 remove_postgresql_container() {
   $CONTAINER_ENGINE stop $CONTAINER_NAME 2>/dev/null || true
   $CONTAINER_ENGINE rm -f $CONTAINER_NAME 2>/dev/null || true
+}
+
+find_free_port() {
+  local p=$1
+  while ss -tlnp 2>/dev/null | grep -q ":$p "; do
+    p=$((p + 1))
+  done
+  echo $p
 }
 
 start_local_postgresql() {
