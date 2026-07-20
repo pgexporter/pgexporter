@@ -67,6 +67,14 @@
 
 #define LINE_LENGTH 512
 
+/*
+ * Credential files (users/admins) store each entry as
+ * "username:base64(AES-256-GCM(password))". A password near MAX_PASSWORD_LENGTH
+ * (cloud IAM DB-auth tokens) expands under encryption + base64 well beyond
+ * LINE_LENGTH, so these files are read with a dedicated, larger line buffer.
+ */
+#define MAX_USER_LINE_LENGTH 16384
+
 static int extract_syskey_value(char* str, char** key, char** value);
 static void extract_key_value(char* str, char** key, char** value);
 static int as_int(char* str, int* i);
@@ -1691,7 +1699,7 @@ int
 pgexporter_read_users_configuration(void* shm, char* filename)
 {
    FILE* file;
-   char line[LINE_LENGTH];
+   char line[MAX_USER_LINE_LENGTH];
    int index;
    char* master_key = NULL;
    char* username = NULL;
@@ -1776,9 +1784,9 @@ pgexporter_read_users_configuration(void* shm, char* filename)
                decoded = NULL;
                continue;
             }
-            if (char_count > MAX_PASSWORD_CHARS)
+            if (strlen(password) >= MAX_PASSWORD_LENGTH)
             {
-               pgexporter_log_warn("Password too long for user '%s' (%zu characters)", username, char_count);
+               pgexporter_log_warn("Password too long for user '%s' (%zu bytes, max %d)", username, strlen(password), MAX_PASSWORD_LENGTH - 1);
                warnx("pgexporter: Invalid USER entry");
                warnx("%s", line);
                free(password);
@@ -1930,7 +1938,7 @@ int
 pgexporter_read_admins_configuration(void* shm, char* filename)
 {
    FILE* file;
-   char line[LINE_LENGTH];
+   char line[MAX_USER_LINE_LENGTH];
    int index;
    char* master_key = NULL;
    char* username = NULL;
@@ -2015,9 +2023,9 @@ pgexporter_read_admins_configuration(void* shm, char* filename)
                decoded = NULL;
                continue;
             }
-            if (char_count > MAX_PASSWORD_CHARS)
+            if (strlen(password) >= MAX_PASSWORD_LENGTH)
             {
-               pgexporter_log_warn("Password too long for user '%s' (%zu characters)", username, char_count);
+               pgexporter_log_warn("Password too long for user '%s' (%zu bytes, max %d)", username, strlen(password), MAX_PASSWORD_LENGTH - 1);
                warnx("pgexporter: Invalid ADMIN entry");
                warnx("%s", line);
                free(password);

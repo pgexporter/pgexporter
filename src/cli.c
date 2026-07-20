@@ -700,9 +700,9 @@ password:
          warnx("pgexporter-cli: Error counting UTF-8 characters in password");
          goto password;
       }
-      if (char_count > MAX_PASSWORD_CHARS)
+      if (strlen(password) >= MAX_PASSWORD_LENGTH)
       {
-         warnx("pgexporter-cli: Password too long (%zu characters). Maximum allowed: %d characters.", char_count, MAX_PASSWORD_CHARS);
+         warnx("pgexporter-cli: Password too long (%zu bytes). Maximum allowed: %d bytes.", strlen(password), MAX_PASSWORD_LENGTH - 1);
          goto password;
       }
 

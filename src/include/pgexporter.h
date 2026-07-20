@@ -62,8 +62,7 @@ extern "C" {
 #define MESSAGE_PARSE_BUFFER_SIZE    (DEFAULT_BUFFER_SIZE - RECV_BUFFER_HEADROOM)
 
 #define MAX_USERNAME_LENGTH          128
-#define MAX_PASSWORD_LENGTH          1024
-#define MAX_PASSWORD_CHARS           256
+#define MAX_PASSWORD_LENGTH          8192 /* Bytes; the single password-length limit, sized for cloud IAM DB-auth tokens (AWS RDS/Aurora, Azure AD, GCP) */
 
 #define MAX_PATH                     1024
 #define MISC_LENGTH                  128
