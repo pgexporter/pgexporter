@@ -1543,6 +1543,129 @@ extern "C" {
                       "    collector: stat_user_tables\n"                                                                                                                               \
                       "    database: all\n"                                                                                                                                             \
                       "\n"                                                                                                                                                              \
+                      "# Table-level statistics without vacuum and analyze\n"                                                                                                           \
+                      "  - queries:\n"                                                                                                                                                  \
+                      "    - query: SELECT\n"                                                                                                                                           \
+                      "                schemaname,\n"                                                                                                                                   \
+                      "                relname,\n"                                                                                                                                      \
+                      "                seq_scan,\n"                                                                                                                                     \
+                      "                seq_tup_read,\n"                                                                                                                                 \
+                      "                idx_scan,\n"                                                                                                                                     \
+                      "                idx_tup_fetch,\n"                                                                                                                                \
+                      "                n_tup_ins,\n"                                                                                                                                    \
+                      "                n_tup_upd,\n"                                                                                                                                    \
+                      "                n_tup_del,\n"                                                                                                                                    \
+                      "                n_tup_hot_upd,\n"                                                                                                                                \
+                      "                n_live_tup,\n"                                                                                                                                   \
+                      "                n_dead_tup\n"                                                                                                                                    \
+                      "              FROM pg_stat_user_tables\n"                                                                                                                        \
+                      "              ORDER BY n_dead_tup DESC;\n"                                                                                                                       \
+                      "      version: 13\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: schemaname\n"                                                                                                                                    \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: relname\n"                                                                                                                                       \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: seq_scan\n"                                                                                                                                      \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of sequential scans initiated on this table\n"                                                                                     \
+                      "        - name: seq_tup_read\n"                                                                                                                                  \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of live rows fetched by sequential scans\n"                                                                                        \
+                      "        - name: idx_scan\n"                                                                                                                                      \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of index scans initiated on this table\n"                                                                                          \
+                      "        - name: idx_tup_fetch\n"                                                                                                                                 \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of live rows fetched by index scans\n"                                                                                             \
+                      "        - name: n_tup_ins\n"                                                                                                                                     \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of rows inserted\n"                                                                                                                \
+                      "        - name: n_tup_upd\n"                                                                                                                                     \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of rows updated\n"                                                                                                                 \
+                      "        - name: n_tup_del\n"                                                                                                                                     \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of rows deleted\n"                                                                                                                 \
+                      "        - name: n_tup_hot_upd\n"                                                                                                                                 \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of rows HOT updated\n"                                                                                                             \
+                      "        - name: n_live_tup\n"                                                                                                                                    \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Estimated number of live rows\n"                                                                                                          \
+                      "        - name: n_dead_tup\n"                                                                                                                                    \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Estimated number of dead rows\n"                                                                                                          \
+                      "\n"                                                                                                                                                              \
+                      "    - query: SELECT\n"                                                                                                                                           \
+                      "                schemaname,\n"                                                                                                                                   \
+                      "                relname,\n"                                                                                                                                      \
+                      "                seq_scan,\n"                                                                                                                                     \
+                      "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_seq_scan))::bigint, -1) AS last_seq_scan_seconds,\n"                                       \
+                      "                seq_tup_read,\n"                                                                                                                                 \
+                      "                idx_scan,\n"                                                                                                                                     \
+                      "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_idx_scan))::bigint, -1) AS last_idx_scan_seconds,\n"                                       \
+                      "                idx_tup_fetch,\n"                                                                                                                                \
+                      "                n_tup_ins,\n"                                                                                                                                    \
+                      "                n_tup_upd,\n"                                                                                                                                    \
+                      "                n_tup_del,\n"                                                                                                                                    \
+                      "                n_tup_hot_upd,\n"                                                                                                                                \
+                      "                n_tup_newpage_upd,\n"                                                                                                                            \
+                      "                n_live_tup,\n"                                                                                                                                   \
+                      "                n_dead_tup\n"                                                                                                                                    \
+                      "              FROM pg_stat_user_tables\n"                                                                                                                        \
+                      "              ORDER BY n_dead_tup DESC;\n"                                                                                                                       \
+                      "      version: 16\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: schemaname\n"                                                                                                                                    \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: relname\n"                                                                                                                                       \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: seq_scan\n"                                                                                                                                      \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of sequential scans initiated on this table\n"                                                                                     \
+                      "        - name: last_seq_scan_seconds\n"                                                                                                                         \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Seconds since last sequential scan (-1 if never)\n"                                                                                       \
+                      "        - name: seq_tup_read\n"                                                                                                                                  \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of live rows fetched by sequential scans\n"                                                                                        \
+                      "        - name: idx_scan\n"                                                                                                                                      \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of index scans initiated on this table\n"                                                                                          \
+                      "        - name: last_idx_scan_seconds\n"                                                                                                                         \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Seconds since last index scan (-1 if never)\n"                                                                                            \
+                      "        - name: idx_tup_fetch\n"                                                                                                                                 \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of live rows fetched by index scans\n"                                                                                             \
+                      "        - name: n_tup_ins\n"                                                                                                                                     \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of rows inserted\n"                                                                                                                \
+                      "        - name: n_tup_upd\n"                                                                                                                                     \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of rows updated\n"                                                                                                                 \
+                      "        - name: n_tup_del\n"                                                                                                                                     \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of rows deleted\n"                                                                                                                 \
+                      "        - name: n_tup_hot_upd\n"                                                                                                                                 \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of rows HOT updated\n"                                                                                                             \
+                      "        - name: n_tup_newpage_upd\n"                                                                                                                             \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of rows updated where successor goes to new heap page\n"                                                                           \
+                      "        - name: n_live_tup\n"                                                                                                                                    \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Estimated number of live rows\n"                                                                                                          \
+                      "        - name: n_dead_tup\n"                                                                                                                                    \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Estimated number of dead rows\n"                                                                                                          \
+                      "\n"                                                                                                                                                              \
+                      "    tag: pg_stat_user_tables_light\n"                                                                                                                            \
+                      "    sort: data\n"                                                                                                                                                \
+                      "    collector: stat_user_tables_light\n"                                                                                                                         \
+                      "    database: all\n"                                                                                                                                             \
+                      "\n"                                                                                                                                                              \
                       "# Table read/write activity ratios\n"                                                                                                                            \
                       "  - queries:\n"                                                                                                                                                  \
                       "    - query: WITH table_activity AS (\n"                                                                                                                         \
