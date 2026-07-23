@@ -108,8 +108,6 @@ static int server_signature(char* password, char* salt, int salt_length, int ite
                             char* client_final_message_wo_proof, size_t client_final_message_wo_proof_length,
                             unsigned char** result, size_t* result_length);
 
-static int create_ssl_client(SSL_CTX* ctx, char* key, char* cert, char* root, int socket, SSL** ssl);
-
 int
 pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl)
 {
@@ -386,7 +384,7 @@ pgexporter_remote_management_scram_sha256(char* username, char* password, int se
                      memset(&root_file, 0, sizeof(root_file));
                   }
 
-                  if (create_ssl_client(ctx, &key_file[0], &cert_file[0], &root_file[0], server_fd, &ssl))
+                  if (pgexporter_create_ssl_client(ctx, &key_file[0], &cert_file[0], &root_file[0], server_fd, &ssl))
                   {
                      goto error;
                   }
@@ -1097,7 +1095,7 @@ pgexporter_server_authenticate(int server, char* database, char* username, char*
          pgexporter_log_trace("%s: Certificate file @ %s", config->servers[server].name, config->servers[server].tls_cert_file);
          pgexporter_log_trace("%s: CA file @ %s", config->servers[server].name, config->servers[server].tls_ca_file);
 
-         if (create_ssl_client(ctx, config->servers[server].tls_key_file, config->servers[server].tls_cert_file, config->servers[server].tls_ca_file, server_fd, &c_ssl))
+         if (pgexporter_create_ssl_client(ctx, config->servers[server].tls_key_file, config->servers[server].tls_cert_file, config->servers[server].tls_ca_file, server_fd, &c_ssl))
          {
             goto error;
          }
@@ -2617,8 +2615,8 @@ error:
    return 1;
 }
 
-static int
-create_ssl_client(SSL_CTX* ctx, char* key, char* cert, char* root, int socket, SSL** ssl)
+int
+pgexporter_create_ssl_client(SSL_CTX* ctx, char* key, char* cert, char* root, int socket, SSL** ssl)
 {
    SSL* s = NULL;
    bool have_cert = false;

@@ -21,6 +21,22 @@ The console requires the metrics endpoint to be enabled. Start pgexporter:
 pgexporter -c /etc/pgexporter/pgexporter.conf
 ```
 
+## TLS
+
+The console listener can serve HTTPS the same way the `/metrics` endpoint does.
+Add the following to `pgexporter.conf` to enable it:
+
+```ini
+[pgexporter]
+
+console_cert_file = /path/to/server.crt
+console_key_file = /path/to/server.key
+console_ca_file = /path/to/ca.crt
+```
+
+`console_ca_file` is optional. If `console_cert_file`/`console_key_file` are not
+set, or the referenced files can't be found, the console falls back to plain HTTP.
+
 ## Open the console
 
 Navigate to your console endpoint:

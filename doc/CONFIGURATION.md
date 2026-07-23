@@ -68,6 +68,15 @@ See a [sample](./etc/pgexporter.conf) configuration for running `pgexporter` on 
 | metrics_cert_file | | String | No | Certificate file for TLS for Prometheus metrics. This file must be owned by either the user running pgexporter or root. |
 | metrics_key_file | | String | No | Private key file for TLS for Prometheus metrics. This file must be owned by either the user running pgexporter or root. Additionally permissions must be at least `0640` when owned by root or `0600` otherwise. |
 | metrics_ca_file | | String | No | Certificate Authority (CA) file for TLS for Prometheus metrics. This file must be owned by either the user running pgexporter or root.  |
+| console_cert_file | | String | No | Certificate file for TLS for the web console. This file must be owned by either the user running pgexporter or root. |
+| console_key_file | | String | No | Private key file for TLS for the web console. This file must be owned by either the user running pgexporter or root. Additionally permissions must be at least `0640` when owned by root or `0600` otherwise. |
+| console_ca_file | | String | No | Certificate Authority (CA) file for TLS for the web console. This file must be owned by either the user running pgexporter or root. |
+| bridge_cert_file | | String | No | Certificate file for TLS for the bridge and bridge/JSON endpoints. This file must be owned by either the user running pgexporter or root. |
+| bridge_key_file | | String | No | Private key file for TLS for the bridge and bridge/JSON endpoints. This file must be owned by either the user running pgexporter or root. Additionally permissions must be at least `0640` when owned by root or `0600` otherwise. |
+| bridge_ca_file | | String | No | Certificate Authority (CA) file for TLS for the bridge and bridge/JSON endpoints. This file must be owned by either the user running pgexporter or root. |
+| scrape_cert_file | | String | No | Client certificate file presented by the console/bridge when scraping a `https://` Prometheus endpoint. Only needed if the target enforces mutual TLS. |
+| scrape_key_file | | String | No | Client private key file presented by the console/bridge when scraping a `https://` Prometheus endpoint. Only needed if the target enforces mutual TLS. |
+| scrape_ca_file | | String | No | Certificate Authority (CA) file used to verify a `https://` Prometheus endpoint's certificate when the console or bridge scrape it. Optional — without it, the scrape still succeeds over TLS, just unverified. |
 | ev_backend | `auto` | String | No | Event loop backend: `auto`, `io_uring`, `epoll` (Linux), or `kqueue` (BSD/macOS). Linux defaults to io_uring when built with liburing and supported kernel, else epoll |
 | keep_alive | on | Bool | No | Have `SO_KEEPALIVE` on sockets |
 | nodelay | on | Bool | No | Have `TCP_NODELAY` on sockets |

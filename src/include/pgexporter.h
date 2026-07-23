@@ -398,6 +398,7 @@ struct endpoint
 {
    char host[MISC_LENGTH]; /**< The host */
    int port;               /**< The port */
+   bool tls;               /**< Scrape this endpoint over TLS */
 } __attribute__((aligned(64)));
 
 /** @struct alert_definition
@@ -480,6 +481,18 @@ struct configuration
    char metrics_cert_file[MAX_PATH]; /**< Metrics TLS certificate path */
    char metrics_key_file[MAX_PATH];  /**< Metrics TLS key path */
    char metrics_ca_file[MAX_PATH];   /**< Metrics TLS CA certificate path */
+
+   char console_cert_file[MAX_PATH]; /**< Console TLS certificate path */
+   char console_key_file[MAX_PATH];  /**< Console TLS key path */
+   char console_ca_file[MAX_PATH];   /**< Console TLS CA certificate path */
+
+   char bridge_cert_file[MAX_PATH]; /**< Bridge TLS certificate path */
+   char bridge_key_file[MAX_PATH];  /**< Bridge TLS key path */
+   char bridge_ca_file[MAX_PATH];   /**< Bridge TLS CA certificate path */
+
+   char scrape_cert_file[MAX_PATH]; /**< Outbound scrape TLS client certificate path (mutual TLS) */
+   char scrape_key_file[MAX_PATH];  /**< Outbound scrape TLS client key path (mutual TLS) */
+   char scrape_ca_file[MAX_PATH];   /**< Outbound scrape TLS CA certificate path */
 
    pgexporter_time_t blocking_timeout;       /**< The blocking timeout */
    pgexporter_time_t authentication_timeout; /**< The authentication timeout */

@@ -105,11 +105,14 @@ struct http
  * @param hostname The host to connect to
  * @param port The port number
  * @param secure Use SSL if true
+ * @param key_file The client TLS key file path, may be NULL/empty
+ * @param cert_file The client TLS certificate file path, may be NULL/empty
+ * @param ca_file The CA file path used to verify the server certificate, may be NULL/empty
  * @param result The resulting HTTP connection
  * @return PGEXPORTER_HTTP_STATUS_OK upon success, otherwise PGEXPORTER_HTTP_STATUS_ERROR
  */
 int
-pgexporter_http_create(char* hostname, int port, bool secure, struct http** result);
+pgexporter_http_create(char* hostname, int port, bool secure, char* key_file, char* cert_file, char* ca_file, struct http** result);
 
 /**
  * Create a HTTP request

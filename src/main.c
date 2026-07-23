@@ -2026,6 +2026,12 @@ http_child_serve(int client_fd, struct accept_io* ai, const char* title,
 
    shutdown_ports(false);
 
+   /*
+    * A non-blocking fd here makes the single-shot recv()/SSL_accept() calls
+    * in pgexporter_http_server_ssl_accept() fail with WANT_READ/WANT_WRITE.
+    */
+   pgexporter_socket_nonblocking(client_fd, false);
+
    if (cert_file != NULL && key_file != NULL &&
        strlen(cert_file) > 0 && strlen(key_file) > 0)
    {
@@ -2048,15 +2054,15 @@ http_child_serve(int client_fd, struct accept_io* ai, const char* title,
 }
 
 static void
-bridge_serve(SSL* ssl __attribute__((unused)), int fd)
+bridge_serve(SSL* ssl, int fd)
 {
-   pgexporter_bridge(fd);
+   pgexporter_bridge(ssl, fd);
 }
 
 static void
-bridge_json_serve(SSL* ssl __attribute__((unused)), int fd)
+bridge_json_serve(SSL* ssl, int fd)
 {
-   pgexporter_bridge_json(fd);
+   pgexporter_bridge_json(ssl, fd);
 }
 
 static void
@@ -2292,8 +2298,10 @@ accept_metrics_cb(struct io_watcher* watcher)
 static void
 accept_console_cb(struct io_watcher* watcher)
 {
+   struct configuration* config = (struct configuration*)shmem;
    accept_http_cb(watcher, pgexporter_console, "console",
-                  NULL, NULL, NULL, MANAGEMENT_ERROR_CONSOLE_NOFORK,
+                  config->console_cert_file, config->console_key_file,
+                  config->console_ca_file, MANAGEMENT_ERROR_CONSOLE_NOFORK,
                   restart_console);
 }
 
@@ -2310,16 +2318,20 @@ accept_history_cb(struct io_watcher* watcher)
 static void
 accept_bridge_cb(struct io_watcher* watcher)
 {
+   struct configuration* config = (struct configuration*)shmem;
    accept_http_cb(watcher, bridge_serve, "bridge",
-                  NULL, NULL, NULL, MANAGEMENT_ERROR_BRIDGE_NOFORK,
+                  config->bridge_cert_file, config->bridge_key_file,
+                  config->bridge_ca_file, MANAGEMENT_ERROR_BRIDGE_NOFORK,
                   restart_bridge);
 }
 
 static void
 accept_bridge_json_cb(struct io_watcher* watcher)
 {
+   struct configuration* config = (struct configuration*)shmem;
    accept_http_cb(watcher, bridge_json_serve, "bridge_json",
-                  NULL, NULL, NULL, MANAGEMENT_ERROR_BRIDGE_JSON_NOFORK,
+                  config->bridge_cert_file, config->bridge_key_file,
+                  config->bridge_ca_file, MANAGEMENT_ERROR_BRIDGE_JSON_NOFORK,
                   restart_bridge_json);
 }
 

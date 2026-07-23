@@ -140,6 +140,19 @@ pgexporter_create_ssl_ctx(bool client, SSL_CTX** ctx);
 int
 pgexporter_create_ssl_server(SSL_CTX* ctx, char* key, char* cert, char* root, int socket, SSL** ssl);
 
+/**
+ * Create a SSL client
+ * @param ctx The SSL context
+ * @param key The key file path, may be NULL
+ * @param cert The certificate file path, may be NULL
+ * @param root The root CA file path, may be NULL
+ * @param socket The socket
+ * @param ssl The SSL structure
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_create_ssl_client(SSL_CTX* ctx, char* key, char* cert, char* root, int socket, SSL** ssl);
+
 #ifdef __cplusplus
 }
 #endif

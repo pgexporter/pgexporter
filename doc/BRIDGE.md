@@ -17,7 +17,50 @@ bridge_endpoints = localhost:5001, localhost:5002
 ```
 
 The `bridge_endpoints` setting is a comma-separated list of endpoints that should
-be aggregated.
+be aggregated. Prefix an endpoint with `https://` to scrape it over TLS, e.g.
+`bridge_endpoints = localhost:5001, https://localhost:5002`.
+
+### Inbound TLS
+
+The bridge (and bridge/JSON) listener can serve HTTPS the same way the
+`/metrics` endpoint does. Add the following to `pgexporter.conf` to enable it:
+
+```ini
+[pgexporter]
+
+bridge_cert_file = /path/to/server.crt
+bridge_key_file = /path/to/server.key
+bridge_ca_file = /path/to/ca.crt
+```
+
+`bridge_ca_file` is optional. If `bridge_cert_file`/`bridge_key_file` are not
+set, or the referenced files can't be found, the bridge falls back to plain HTTP.
+
+### Outbound TLS (scraping a `https://` endpoint)
+
+If a `bridge_endpoints` entry (or the local `/metrics` endpoint the console
+falls back to) is `https://`-prefixed, the scrape connects over TLS. To verify
+the target's certificate, set:
+
+```ini
+[pgexporter]
+
+scrape_ca_file = /path/to/ca.crt
+```
+
+`scrape_ca_file` is optional — without it, the scrape still succeeds over TLS,
+just without verifying the target's certificate.
+
+If the target itself enforces mutual TLS (i.e. it has its own CA file
+configured, forcing client-certificate verification), also set a client
+certificate/key for the scrape to present:
+
+```ini
+[pgexporter]
+
+scrape_cert_file = /path/to/client.crt
+scrape_key_file = /path/to/client.key
+```
 
 ## Access
 

@@ -319,7 +319,7 @@ pgexporter_read_configuration(void* shm, char* filename)
          }
          else
          {
-            if (pgexporter_starts_with(line, "unix_socket_dir") || pgexporter_starts_with(line, "metrics_path") || pgexporter_starts_with(line, "alerts_path") || pgexporter_starts_with(line, "log_path") || pgexporter_starts_with(line, "tls_cert_file") || pgexporter_starts_with(line, "tls_key_file") || pgexporter_starts_with(line, "tls_ca_file") || pgexporter_starts_with(line, "metrics_cert_file") || pgexporter_starts_with(line, "metrics_key_file") || pgexporter_starts_with(line, "metrics_ca_file") || pgexporter_starts_with(line, "history_cert_file") || pgexporter_starts_with(line, "history_key_file") || pgexporter_starts_with(line, "history_ca_file"))
+            if (pgexporter_starts_with(line, "unix_socket_dir") || pgexporter_starts_with(line, "metrics_path") || pgexporter_starts_with(line, "alerts_path") || pgexporter_starts_with(line, "log_path") || pgexporter_starts_with(line, "tls_cert_file") || pgexporter_starts_with(line, "tls_key_file") || pgexporter_starts_with(line, "tls_ca_file") || pgexporter_starts_with(line, "metrics_cert_file") || pgexporter_starts_with(line, "metrics_key_file") || pgexporter_starts_with(line, "metrics_ca_file") || pgexporter_starts_with(line, "history_cert_file") || pgexporter_starts_with(line, "history_key_file") || pgexporter_starts_with(line, "history_ca_file") || pgexporter_starts_with(line, "console_cert_file") || pgexporter_starts_with(line, "console_key_file") || pgexporter_starts_with(line, "console_ca_file") || pgexporter_starts_with(line, "bridge_cert_file") || pgexporter_starts_with(line, "bridge_key_file") || pgexporter_starts_with(line, "bridge_ca_file") || pgexporter_starts_with(line, "scrape_ca_file") || pgexporter_starts_with(line, "scrape_cert_file") || pgexporter_starts_with(line, "scrape_key_file"))
             {
                extract_syskey_value(line, &key, &value);
             }
@@ -1017,6 +1017,150 @@ pgexporter_read_configuration(void* shm, char* filename)
                      unknown = true;
                   }
                }
+               else if (!strcmp(key, "console_ca_file"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->console_ca_file, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "console_cert_file"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->console_cert_file, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "console_key_file"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->console_key_file, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "bridge_ca_file"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->bridge_ca_file, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "bridge_cert_file"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->bridge_cert_file, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "bridge_key_file"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->bridge_key_file, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "scrape_ca_file"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->scrape_ca_file, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "scrape_cert_file"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->scrape_cert_file, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "scrape_key_file"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     max = strlen(value);
+                     if (max > MAX_PATH - 1)
+                     {
+                        max = MAX_PATH - 1;
+                     }
+                     memcpy(config->scrape_key_file, value, max);
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
                else if (!strcmp(key, "blocking_timeout"))
                {
                   if (!strcmp(section, "pgexporter"))
@@ -1599,6 +1743,101 @@ pgexporter_validate_configuration(void* shm)
          memset(config->metrics_cert_file, 0, sizeof(config->metrics_cert_file));
          memset(config->metrics_key_file, 0, sizeof(config->metrics_key_file));
          memset(config->metrics_ca_file, 0, sizeof(config->metrics_ca_file));
+      }
+   }
+
+   if (strlen(config->console_cert_file) > 0)
+   {
+      if (!pgexporter_exists(config->console_cert_file))
+      {
+         pgexporter_log_error("console cert file does not exist, falling back to plain HTTP");
+         memset(config->console_cert_file, 0, sizeof(config->console_cert_file));
+         memset(config->console_key_file, 0, sizeof(config->console_key_file));
+         memset(config->console_ca_file, 0, sizeof(config->console_ca_file));
+      }
+   }
+
+   if (strlen(config->console_key_file) > 0)
+   {
+      if (!pgexporter_exists(config->console_key_file))
+      {
+         pgexporter_log_error("console key file does not exist, falling back to plain HTTP");
+         memset(config->console_cert_file, 0, sizeof(config->console_cert_file));
+         memset(config->console_key_file, 0, sizeof(config->console_key_file));
+         memset(config->console_ca_file, 0, sizeof(config->console_ca_file));
+      }
+   }
+
+   if (strlen(config->console_ca_file) > 0)
+   {
+      if (!pgexporter_exists(config->console_ca_file))
+      {
+         pgexporter_log_error("console ca file does not exist, falling back to plain HTTP");
+         memset(config->console_cert_file, 0, sizeof(config->console_cert_file));
+         memset(config->console_key_file, 0, sizeof(config->console_key_file));
+         memset(config->console_ca_file, 0, sizeof(config->console_ca_file));
+      }
+   }
+
+   if (strlen(config->bridge_cert_file) > 0)
+   {
+      if (!pgexporter_exists(config->bridge_cert_file))
+      {
+         pgexporter_log_error("bridge cert file does not exist, falling back to plain HTTP");
+         memset(config->bridge_cert_file, 0, sizeof(config->bridge_cert_file));
+         memset(config->bridge_key_file, 0, sizeof(config->bridge_key_file));
+         memset(config->bridge_ca_file, 0, sizeof(config->bridge_ca_file));
+      }
+   }
+
+   if (strlen(config->bridge_key_file) > 0)
+   {
+      if (!pgexporter_exists(config->bridge_key_file))
+      {
+         pgexporter_log_error("bridge key file does not exist, falling back to plain HTTP");
+         memset(config->bridge_cert_file, 0, sizeof(config->bridge_cert_file));
+         memset(config->bridge_key_file, 0, sizeof(config->bridge_key_file));
+         memset(config->bridge_ca_file, 0, sizeof(config->bridge_ca_file));
+      }
+   }
+
+   if (strlen(config->bridge_ca_file) > 0)
+   {
+      if (!pgexporter_exists(config->bridge_ca_file))
+      {
+         pgexporter_log_error("bridge ca file does not exist, falling back to plain HTTP");
+         memset(config->bridge_cert_file, 0, sizeof(config->bridge_cert_file));
+         memset(config->bridge_key_file, 0, sizeof(config->bridge_key_file));
+         memset(config->bridge_ca_file, 0, sizeof(config->bridge_ca_file));
+      }
+   }
+
+   if (strlen(config->scrape_ca_file) > 0)
+   {
+      if (!pgexporter_exists(config->scrape_ca_file))
+      {
+         pgexporter_log_error("scrape ca file does not exist, disabling outbound scrape verification: %s", config->scrape_ca_file);
+         memset(config->scrape_ca_file, 0, sizeof(config->scrape_ca_file));
+      }
+   }
+
+   if (strlen(config->scrape_cert_file) > 0)
+   {
+      if (!pgexporter_exists(config->scrape_cert_file))
+      {
+         pgexporter_log_error("scrape cert file does not exist, disabling outbound scrape client certificate: %s", config->scrape_cert_file);
+         memset(config->scrape_cert_file, 0, sizeof(config->scrape_cert_file));
+         memset(config->scrape_key_file, 0, sizeof(config->scrape_key_file));
+      }
+   }
+
+   if (strlen(config->scrape_key_file) > 0)
+   {
+      if (!pgexporter_exists(config->scrape_key_file))
+      {
+         pgexporter_log_error("scrape key file does not exist, disabling outbound scrape client certificate: %s", config->scrape_key_file);
+         memset(config->scrape_cert_file, 0, sizeof(config->scrape_cert_file));
+         memset(config->scrape_key_file, 0, sizeof(config->scrape_key_file));
       }
    }
 
@@ -2461,6 +2700,24 @@ get_config_value_str(char* buf, size_t size, struct configuration* cfg, char* ke
       pgexporter_snprintf(buf, size, "%s", cfg->metrics_cert_file);
    else if (!strcmp(key, "metrics_key_file"))
       pgexporter_snprintf(buf, size, "%s", cfg->metrics_key_file);
+   else if (!strcmp(key, "console_ca_file"))
+      pgexporter_snprintf(buf, size, "%s", cfg->console_ca_file);
+   else if (!strcmp(key, "console_cert_file"))
+      pgexporter_snprintf(buf, size, "%s", cfg->console_cert_file);
+   else if (!strcmp(key, "console_key_file"))
+      pgexporter_snprintf(buf, size, "%s", cfg->console_key_file);
+   else if (!strcmp(key, "bridge_ca_file"))
+      pgexporter_snprintf(buf, size, "%s", cfg->bridge_ca_file);
+   else if (!strcmp(key, "bridge_cert_file"))
+      pgexporter_snprintf(buf, size, "%s", cfg->bridge_cert_file);
+   else if (!strcmp(key, "bridge_key_file"))
+      pgexporter_snprintf(buf, size, "%s", cfg->bridge_key_file);
+   else if (!strcmp(key, "scrape_ca_file"))
+      pgexporter_snprintf(buf, size, "%s", cfg->scrape_ca_file);
+   else if (!strcmp(key, "scrape_cert_file"))
+      pgexporter_snprintf(buf, size, "%s", cfg->scrape_cert_file);
+   else if (!strcmp(key, "scrape_key_file"))
+      pgexporter_snprintf(buf, size, "%s", cfg->scrape_key_file);
    else if (!strcmp(key, "blocking_timeout"))
       pgexporter_snprintf(buf, size, "%lld", (long long)pgexporter_time_convert(cfg->blocking_timeout, FORMAT_TIME_S));
    else if (!strcmp(key, "authentication_timeout"))
@@ -2555,6 +2812,15 @@ copy_configuration_values(struct configuration* dst, struct configuration* src)
    memcpy(dst->metrics_cert_file, src->metrics_cert_file, MAX_PATH);
    memcpy(dst->metrics_key_file, src->metrics_key_file, MAX_PATH);
    memcpy(dst->metrics_ca_file, src->metrics_ca_file, MAX_PATH);
+   memcpy(dst->console_cert_file, src->console_cert_file, MAX_PATH);
+   memcpy(dst->console_key_file, src->console_key_file, MAX_PATH);
+   memcpy(dst->console_ca_file, src->console_ca_file, MAX_PATH);
+   memcpy(dst->bridge_cert_file, src->bridge_cert_file, MAX_PATH);
+   memcpy(dst->bridge_key_file, src->bridge_key_file, MAX_PATH);
+   memcpy(dst->bridge_ca_file, src->bridge_ca_file, MAX_PATH);
+   memcpy(dst->scrape_cert_file, src->scrape_cert_file, MAX_PATH);
+   memcpy(dst->scrape_key_file, src->scrape_key_file, MAX_PATH);
+   memcpy(dst->scrape_ca_file, src->scrape_ca_file, MAX_PATH);
 
    dst->blocking_timeout = src->blocking_timeout;
    dst->authentication_timeout = src->authentication_timeout;
@@ -3231,6 +3497,105 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
          config->metrics_key_file[max] = '\0';
          pgexporter_json_put(response, key, (uintptr_t)config->metrics_key_file, ValueString);
       }
+      else if (!strcmp(key, "console_ca_file"))
+      {
+         max = strlen(config_value);
+         if (max > MAX_PATH - 1)
+         {
+            max = MAX_PATH - 1;
+         }
+         memcpy(config->console_ca_file, config_value, max);
+         config->console_ca_file[max] = '\0';
+         pgexporter_json_put(response, key, (uintptr_t)config->console_ca_file, ValueString);
+      }
+      else if (!strcmp(key, "console_cert_file"))
+      {
+         max = strlen(config_value);
+         if (max > MAX_PATH - 1)
+         {
+            max = MAX_PATH - 1;
+         }
+         memcpy(config->console_cert_file, config_value, max);
+         config->console_cert_file[max] = '\0';
+         pgexporter_json_put(response, key, (uintptr_t)config->console_cert_file, ValueString);
+      }
+      else if (!strcmp(key, "console_key_file"))
+      {
+         max = strlen(config_value);
+         if (max > MAX_PATH - 1)
+         {
+            max = MAX_PATH - 1;
+         }
+         memcpy(config->console_key_file, config_value, max);
+         config->console_key_file[max] = '\0';
+         pgexporter_json_put(response, key, (uintptr_t)config->console_key_file, ValueString);
+      }
+      else if (!strcmp(key, "bridge_ca_file"))
+      {
+         max = strlen(config_value);
+         if (max > MAX_PATH - 1)
+         {
+            max = MAX_PATH - 1;
+         }
+         memcpy(config->bridge_ca_file, config_value, max);
+         config->bridge_ca_file[max] = '\0';
+         pgexporter_json_put(response, key, (uintptr_t)config->bridge_ca_file, ValueString);
+      }
+      else if (!strcmp(key, "bridge_cert_file"))
+      {
+         max = strlen(config_value);
+         if (max > MAX_PATH - 1)
+         {
+            max = MAX_PATH - 1;
+         }
+         memcpy(config->bridge_cert_file, config_value, max);
+         config->bridge_cert_file[max] = '\0';
+         pgexporter_json_put(response, key, (uintptr_t)config->bridge_cert_file, ValueString);
+      }
+      else if (!strcmp(key, "bridge_key_file"))
+      {
+         max = strlen(config_value);
+         if (max > MAX_PATH - 1)
+         {
+            max = MAX_PATH - 1;
+         }
+         memcpy(config->bridge_key_file, config_value, max);
+         config->bridge_key_file[max] = '\0';
+         pgexporter_json_put(response, key, (uintptr_t)config->bridge_key_file, ValueString);
+      }
+      else if (!strcmp(key, "scrape_cert_file"))
+      {
+         max = strlen(config_value);
+         if (max > MAX_PATH - 1)
+         {
+            max = MAX_PATH - 1;
+         }
+         memcpy(config->scrape_cert_file, config_value, max);
+         config->scrape_cert_file[max] = '\0';
+         pgexporter_json_put(response, key, (uintptr_t)config->scrape_cert_file, ValueString);
+      }
+      else if (!strcmp(key, "scrape_key_file"))
+      {
+         max = strlen(config_value);
+         if (max > MAX_PATH - 1)
+         {
+            max = MAX_PATH - 1;
+         }
+         memcpy(config->scrape_key_file, config_value, max);
+         config->scrape_key_file[max] = '\0';
+         pgexporter_json_put(response, key, (uintptr_t)config->scrape_key_file, ValueString);
+      }
+      else if (!strcmp(key, "scrape_ca_file"))
+      {
+         max = strlen(config_value);
+         if (max > MAX_PATH - 1)
+         {
+            max = MAX_PATH - 1;
+         }
+         memcpy(config->scrape_ca_file, config_value, max);
+         config->scrape_ca_file[max] = '\0';
+         pgexporter_json_put(response, key, (uintptr_t)config->scrape_ca_file, ValueString);
+      }
       else if (!strcmp(key, "blocking_timeout"))
       {
          if (as_milliseconds(config_value, &config->blocking_timeout, PGEXPORTER_TIME_SEC(30)))
@@ -3653,6 +4018,15 @@ add_configuration_response(struct json* res)
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_CERT_FILE, (uintptr_t)config->metrics_cert_file, ValueString);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_CA_FILE, (uintptr_t)config->metrics_ca_file, ValueString);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_METRICS_KEY_FILE, (uintptr_t)config->metrics_key_file, ValueString);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_CONSOLE_CERT_FILE, (uintptr_t)config->console_cert_file, ValueString);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_CONSOLE_CA_FILE, (uintptr_t)config->console_ca_file, ValueString);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_CONSOLE_KEY_FILE, (uintptr_t)config->console_key_file, ValueString);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_CERT_FILE, (uintptr_t)config->bridge_cert_file, ValueString);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_CA_FILE, (uintptr_t)config->bridge_ca_file, ValueString);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_BRIDGE_KEY_FILE, (uintptr_t)config->bridge_key_file, ValueString);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_SCRAPE_CERT_FILE, (uintptr_t)config->scrape_cert_file, ValueString);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_SCRAPE_KEY_FILE, (uintptr_t)config->scrape_key_file, ValueString);
+   pgexporter_json_put(res, CONFIGURATION_ARGUMENT_SCRAPE_CA_FILE, (uintptr_t)config->scrape_ca_file, ValueString);
    pgexporter_json_put_enum_value(res, CONFIGURATION_ARGUMENT_EV_BACKEND, config->ev_backend, to_ev_backend);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_KEEP_ALIVE, (uintptr_t)config->keep_alive, ValueBool);
    pgexporter_json_put(res, CONFIGURATION_ARGUMENT_NODELAY, (uintptr_t)config->nodelay, ValueBool);
@@ -4632,9 +5006,12 @@ as_endpoints(char* str, struct configuration* config, bool reload)
    {
       char* t = token;
       char* n = NULL;
+      bool use_tls = false;
 
       n = pgexporter_remove_whitespace(t);
       t = n;
+
+      use_tls = pgexporter_starts_with(t, "https://");
 
       n = pgexporter_remove_prefix(t, "https://");
       free(t);
@@ -4676,8 +5053,9 @@ as_endpoints(char* str, struct configuration* config, bool reload)
          {
             pgexporter_snprintf(config->endpoints[idx].host, MISC_LENGTH, "%s", host);
             config->endpoints[idx].port = atoi(port);
+            config->endpoints[idx].tls = use_tls;
 
-            pgexporter_log_trace("Bridge Endpoint %d | Host: %s, Port: %s", idx, host, port);
+            pgexporter_log_trace("Bridge Endpoint %d | Host: %s, Port: %s, TLS: %s", idx, host, port, use_tls ? "yes" : "no");
 
             idx++;
          }
@@ -4975,6 +5353,15 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    memcpy(config->metrics_cert_file, reload->metrics_cert_file, MAX_PATH);
    memcpy(config->metrics_key_file, reload->metrics_key_file, MAX_PATH);
    memcpy(config->metrics_ca_file, reload->metrics_ca_file, MAX_PATH);
+   memcpy(config->console_cert_file, reload->console_cert_file, MAX_PATH);
+   memcpy(config->console_key_file, reload->console_key_file, MAX_PATH);
+   memcpy(config->console_ca_file, reload->console_ca_file, MAX_PATH);
+   memcpy(config->bridge_cert_file, reload->bridge_cert_file, MAX_PATH);
+   memcpy(config->bridge_key_file, reload->bridge_key_file, MAX_PATH);
+   memcpy(config->bridge_ca_file, reload->bridge_ca_file, MAX_PATH);
+   memcpy(config->scrape_cert_file, reload->scrape_cert_file, MAX_PATH);
+   memcpy(config->scrape_key_file, reload->scrape_key_file, MAX_PATH);
+   memcpy(config->scrape_ca_file, reload->scrape_ca_file, MAX_PATH);
 
    /* Timeouts */
    config->blocking_timeout = reload->blocking_timeout;
@@ -5179,6 +5566,7 @@ copy_endpoint(struct endpoint* dst, struct endpoint* src)
 {
    memcpy(dst->host, src->host, MISC_LENGTH);
    dst->port = src->port;
+   dst->tls = src->tls;
 }
 
 static int

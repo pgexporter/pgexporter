@@ -33,6 +33,8 @@
 extern "C" {
 #endif
 
+#include <pgexporter.h>
+
 #include <stdlib.h>
 
 /*
@@ -72,10 +74,11 @@ extern "C" {
 
 /**
  * Create a prometheus bridge
+ * @param client_ssl The client SSL structure, may be NULL
  * @param fd The client descriptor
  */
 void
-pgexporter_bridge(int fd);
+pgexporter_bridge(SSL* client_ssl, int fd);
 
 /**
  * Allocates, for the first time, the bridge cache.
@@ -103,10 +106,11 @@ pgexporter_bridge_init_cache(size_t* p_size, void** p_shmem);
 
 /**
  * Create a prometheus JSON bridge
+ * @param client_ssl The client SSL structure, may be NULL
  * @param fd The client descriptor
  */
 void
-pgexporter_bridge_json(int fd);
+pgexporter_bridge_json(SSL* client_ssl, int fd);
 
 /**
  * Allocates, for the first time, the bridge JSON cache.
