@@ -65,7 +65,7 @@ MCTF_TEST(test_http_metrics)
 
    config = (struct configuration*)shmem;
 
-   ret = pgexporter_http_create("localhost", config->metrics, false, &connection);
+   ret = pgexporter_http_create("localhost", config->metrics, false, NULL, NULL, NULL, &connection);
    MCTF_ASSERT(ret == 0, cleanup, "Failed to connect to HTTP endpoint localhost:%d", config->metrics);
 
    ret = pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/metrics", &request);
@@ -119,7 +119,7 @@ MCTF_TEST(test_http_bridge_endpoint)
 
    MCTF_ASSERT(config->bridge > 0, cleanup, "Bridge port not configured");
 
-   ret = pgexporter_http_create("localhost", config->bridge, false, &connection);
+   ret = pgexporter_http_create("localhost", config->bridge, false, NULL, NULL, NULL, &connection);
    MCTF_ASSERT(ret == 0, cleanup, "Failed to connect to bridge endpoint localhost:%d", config->bridge);
 
    ret = pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/metrics", &request);
@@ -203,7 +203,7 @@ MCTF_TEST(test_http_metrics_no_empty_labels)
 
    config = (struct configuration*)shmem;
 
-   ret = pgexporter_http_create("localhost", config->metrics, false, &connection);
+   ret = pgexporter_http_create("localhost", config->metrics, false, NULL, NULL, NULL, &connection);
    MCTF_ASSERT(ret == 0, cleanup, "Failed to connect to HTTP endpoint localhost:%d", config->metrics);
 
    ret = pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/metrics", &request);
@@ -273,7 +273,7 @@ MCTF_TEST(test_http_metrics_valid_values)
 
    config = (struct configuration*)shmem;
 
-   ret = pgexporter_http_create("localhost", config->metrics, false, &connection);
+   ret = pgexporter_http_create("localhost", config->metrics, false, NULL, NULL, NULL, &connection);
    MCTF_ASSERT(ret == 0, cleanup, "Failed to connect to HTTP endpoint localhost:%d", config->metrics);
 
    ret = pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/metrics", &request);
@@ -528,7 +528,7 @@ MCTF_TEST(test_http_write_cb_content_length)
    response->write_cb = collect_write_cb;
    response->write_userdata = &write_context;
 
-   MCTF_ASSERT(pgexporter_http_create("localhost", 9999, false, &connection) == 0, cleanup, "failed to establish connection");
+   MCTF_ASSERT(pgexporter_http_create("localhost", 9999, false, NULL, NULL, NULL, &connection) == 0, cleanup, "failed to establish connection");
    MCTF_ASSERT(pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/test", &request) == 0, cleanup, "failed to create request");
 
    status = pgexporter_http_invoke(connection, request, &response);
@@ -572,7 +572,7 @@ MCTF_TEST(test_http_write_cb_chunked)
    response->write_cb = collect_write_cb;
    response->write_userdata = &write_context;
 
-   MCTF_ASSERT(pgexporter_http_create("localhost", 9999, false, &connection) == 0, cleanup, "failed to establish connection");
+   MCTF_ASSERT(pgexporter_http_create("localhost", 9999, false, NULL, NULL, NULL, &connection) == 0, cleanup, "failed to establish connection");
    MCTF_ASSERT(pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/test", &request) == 0, cleanup, "failed to create request");
 
    status = pgexporter_http_invoke(connection, request, &response);

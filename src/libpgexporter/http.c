@@ -47,7 +47,7 @@ static int http_build_request(struct http* connection, struct http_request* requ
 static char* http_method_to_string(int method);
 
 int
-pgexporter_http_create(char* hostname, int port, bool secure, struct http** result)
+pgexporter_http_create(char* hostname, int port, bool secure, char* key_file, char* cert_file, char* ca_file, struct http** result)
 {
    struct http* connection = NULL;
    int socket_fd = -1;
@@ -90,22 +90,9 @@ pgexporter_http_create(char* hostname, int port, bool secure, struct http** resu
          goto error;
       }
 
-      if (SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION) == 0)
+      if (pgexporter_create_ssl_client(ctx, key_file, cert_file, ca_file, socket_fd, &ssl))
       {
-         pgexporter_log_error("Failed to set minimum TLS version");
-         goto error;
-      }
-
-      ssl = SSL_new(ctx);
-      if (ssl == NULL)
-      {
-         pgexporter_log_error("Failed to create SSL structure");
-         goto error;
-      }
-
-      if (SSL_set_fd(ssl, socket_fd) == 0)
-      {
-         pgexporter_log_error("Failed to set SSL file descriptor");
+         pgexporter_log_error("Failed to create SSL client for %s:%d", hostname, port);
          goto error;
       }
 

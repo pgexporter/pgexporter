@@ -335,6 +335,7 @@ console_refresh_metrics(int endpoint, struct console_page* console)
             strncpy(config->endpoints[0].host, h, MISC_LENGTH - 1);
             config->endpoints[0].host[MISC_LENGTH - 1] = '\0';
             config->endpoints[0].port = config->metrics;
+            config->endpoints[0].tls = strlen(config->metrics_cert_file) > 0;
          }
          else
          {
@@ -2084,9 +2085,70 @@ pgexporter_console(SSL* client_ssl, int client_fd)
 {
    struct http_server_request* req = NULL;
    int status = MESSAGE_STATUS_OK;
+   struct configuration* config;
 
    pgexporter_start_logging();
    pgexporter_memory_init();
+
+   config = (struct configuration*)shmem;
+
+   if (client_ssl)
+   {
+      int ssl_status = pgexporter_http_server_ssl_accept(client_ssl, client_fd);
+
+      if (ssl_status == MESSAGE_STATUS_ERROR)
+      {
+         pgexporter_log_error("Console: SSL accept failed");
+         goto error;
+      }
+
+      if (ssl_status == MESSAGE_STATUS_ZERO)
+      {
+         /*
+          * Plain HTTP on a TLS port — redirect to HTTPS. Read the raw message
+          * here (not via pgexporter_http_server_parse) because we need the path
+          * for the redirect URL and the process exits immediately after.
+          */
+         struct message* redirect_msg = NULL;
+         char* path = "/";
+         char* base_url = NULL;
+
+         if (pgexporter_read_timeout_message(NULL, client_fd, (int)pgexporter_time_convert(config->authentication_timeout, FORMAT_TIME_S), &redirect_msg) != MESSAGE_STATUS_OK)
+         {
+            pgexporter_log_error("Failed to read redirect message");
+            goto error;
+         }
+
+         char* path_start = strstr(redirect_msg->data, " ");
+         if (path_start)
+         {
+            path_start++;
+            char* path_end = strstr(path_start, " ");
+            if (path_end)
+            {
+               *path_end = '\0';
+               path = path_start;
+            }
+         }
+
+         base_url = pgexporter_format_and_append(base_url, "https://localhost:%d%s", config->console, path);
+
+         if (pgexporter_http_respond_redirect(NULL, client_fd, base_url) != MESSAGE_STATUS_OK)
+         {
+            pgexporter_log_error("Failed to redirect to: %s", base_url);
+            free(base_url);
+            goto error;
+         }
+
+         free(base_url);
+         pgexporter_close_ssl(client_ssl);
+         pgexporter_disconnect(client_fd);
+         pgexporter_memory_destroy();
+         pgexporter_stop_logging();
+         exit(0);
+      }
+      /* MESSAGE_STATUS_OK: TLS handshake done, proceed to parse */
+   }
 
    if (pgexporter_http_server_parse(client_ssl, client_fd, &req) != MESSAGE_STATUS_OK)
    {

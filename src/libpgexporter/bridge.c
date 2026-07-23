@@ -83,26 +83,108 @@ static struct http_route bridge_json_routes[] = {
    {"/metrics", bridge_json_metrics},
 };
 
+static int
+bridge_ssl_accept_or_redirect(SSL* client_ssl, int client_fd, int port)
+{
+   int ssl_status;
+
+   if (!client_ssl)
+   {
+      return MESSAGE_STATUS_OK;
+   }
+
+   ssl_status = pgexporter_http_server_ssl_accept(client_ssl, client_fd);
+
+   if (ssl_status == MESSAGE_STATUS_ERROR)
+   {
+      pgexporter_log_error("Bridge: SSL accept failed");
+      return MESSAGE_STATUS_ERROR;
+   }
+
+   if (ssl_status == MESSAGE_STATUS_ZERO)
+   {
+      /*
+       * Plain HTTP on a TLS port — redirect to HTTPS. Read the raw message
+       * here (not via pgexporter_http_server_parse) because we need the path
+       * for the redirect URL and the process exits immediately after.
+       */
+      struct configuration* config;
+      struct message* redirect_msg = NULL;
+      char* path = "/";
+      char* base_url = NULL;
+
+      config = (struct configuration*)shmem;
+
+      if (pgexporter_read_timeout_message(NULL, client_fd, (int)pgexporter_time_convert(config->authentication_timeout, FORMAT_TIME_S), &redirect_msg) != MESSAGE_STATUS_OK)
+      {
+         pgexporter_log_error("Failed to read redirect message");
+         return MESSAGE_STATUS_ERROR;
+      }
+
+      char* path_start = strstr(redirect_msg->data, " ");
+      if (path_start)
+      {
+         path_start++;
+         char* path_end = strstr(path_start, " ");
+         if (path_end)
+         {
+            *path_end = '\0';
+            path = path_start;
+         }
+      }
+
+      base_url = pgexporter_format_and_append(base_url, "https://localhost:%d%s", port, path);
+
+      if (pgexporter_http_respond_redirect(NULL, client_fd, base_url) != MESSAGE_STATUS_OK)
+      {
+         pgexporter_log_error("Failed to redirect to: %s", base_url);
+         free(base_url);
+         return MESSAGE_STATUS_ERROR;
+      }
+
+      free(base_url);
+      pgexporter_close_ssl(client_ssl);
+      pgexporter_disconnect(client_fd);
+      pgexporter_memory_destroy();
+      pgexporter_stop_logging();
+      exit(0);
+   }
+
+   /* MESSAGE_STATUS_OK: TLS handshake done, proceed to parse */
+   return MESSAGE_STATUS_OK;
+}
+
 void
-pgexporter_bridge(int client_fd)
+pgexporter_bridge(SSL* client_ssl, int client_fd)
 {
    struct http_server_request* req = NULL;
+   struct configuration* config;
 
    pgexporter_start_logging();
    pgexporter_memory_init();
 
-   if (pgexporter_http_server_parse(NULL, client_fd, &req) != MESSAGE_STATUS_OK)
+   config = (struct configuration*)shmem;
+
+   if (bridge_ssl_accept_or_redirect(client_ssl, client_fd, config->bridge) != MESSAGE_STATUS_OK)
    {
-      pgexporter_http_respond_400(NULL, client_fd);
+      pgexporter_http_respond_400(client_ssl, client_fd);
+      goto done;
+   }
+
+   if (pgexporter_http_server_parse(client_ssl, client_fd, &req) != MESSAGE_STATUS_OK)
+   {
+      pgexporter_http_respond_400(client_ssl, client_fd);
    }
    else
    {
-      pgexporter_http_server_dispatch(NULL, client_fd, req,
+      pgexporter_http_server_dispatch(client_ssl, client_fd, req,
                                       bridge_routes,
                                       sizeof(bridge_routes) / sizeof(bridge_routes[0]));
    }
 
+done:
    pgexporter_http_server_request_destroy(req);
+   pgexporter_close_ssl(client_ssl);
    pgexporter_disconnect(client_fd);
    pgexporter_memory_destroy();
    pgexporter_stop_logging();
@@ -111,25 +193,36 @@ pgexporter_bridge(int client_fd)
 }
 
 void
-pgexporter_bridge_json(int client_fd)
+pgexporter_bridge_json(SSL* client_ssl, int client_fd)
 {
    struct http_server_request* req = NULL;
+   struct configuration* config;
 
    pgexporter_start_logging();
    pgexporter_memory_init();
 
-   if (pgexporter_http_server_parse(NULL, client_fd, &req) != MESSAGE_STATUS_OK)
+   config = (struct configuration*)shmem;
+
+   if (bridge_ssl_accept_or_redirect(client_ssl, client_fd, config->bridge_json) != MESSAGE_STATUS_OK)
    {
-      pgexporter_http_respond_400(NULL, client_fd);
+      pgexporter_http_respond_400(client_ssl, client_fd);
+      goto done;
+   }
+
+   if (pgexporter_http_server_parse(client_ssl, client_fd, &req) != MESSAGE_STATUS_OK)
+   {
+      pgexporter_http_respond_400(client_ssl, client_fd);
    }
    else
    {
-      pgexporter_http_server_dispatch(NULL, client_fd, req,
+      pgexporter_http_server_dispatch(client_ssl, client_fd, req,
                                       bridge_json_routes,
                                       sizeof(bridge_json_routes) / sizeof(bridge_json_routes[0]));
    }
 
+done:
    pgexporter_http_server_request_destroy(req);
+   pgexporter_close_ssl(client_ssl);
    pgexporter_disconnect(client_fd);
    pgexporter_memory_destroy();
    pgexporter_stop_logging();

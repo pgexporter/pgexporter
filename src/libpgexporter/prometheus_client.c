@@ -122,9 +122,13 @@ pgexporter_prometheus_client_get(int endpoint, struct prometheus_bridge* bridge)
 
    config = (struct configuration*)shmem;
 
-   pgexporter_log_debug("Endpoint http://%s:%d/metrics", config->endpoints[endpoint].host, config->endpoints[endpoint].port);
+   pgexporter_log_debug("Endpoint %s://%s:%d/metrics", config->endpoints[endpoint].tls ? "https" : "http",
+                        config->endpoints[endpoint].host, config->endpoints[endpoint].port);
 
-   if (pgexporter_http_create(config->endpoints[endpoint].host, config->endpoints[endpoint].port, false, &connection))
+   if (pgexporter_http_create(config->endpoints[endpoint].host, config->endpoints[endpoint].port,
+                              config->endpoints[endpoint].tls,
+                              config->scrape_key_file, config->scrape_cert_file, config->scrape_ca_file,
+                              &connection))
    {
       pgexporter_log_error("Failed to connect to HTTP endpoint %d (%s:%d)",
                            endpoint,

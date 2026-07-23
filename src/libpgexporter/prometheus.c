@@ -3108,7 +3108,10 @@ prometheus_endpoints_information(SSL* client_ssl, int client_fd)
 
       pgexporter_log_trace("Scraping Prometheus endpoint: %s:%d", config->servers[i].host, config->servers[i].port);
 
-      if (pgexporter_http_create(config->servers[i].host, config->servers[i].port, false, &connection))
+      if (pgexporter_http_create(config->servers[i].host, config->servers[i].port,
+                                 config->servers[i].tls_mode != SERVER_TLS_OFF,
+                                 config->servers[i].tls_key_file, config->servers[i].tls_cert_file,
+                                 config->servers[i].tls_ca_file, &connection))
       {
          pgexporter_log_warn("Failed to connect to Prometheus endpoint %s (%s:%d)",
                              config->servers[i].name,
