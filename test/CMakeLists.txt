@@ -31,6 +31,7 @@ FILE(GLOB_RECURSE HEADER_FILES "include/*.h")
 # With tail-append registration, tests run in link order. HTTP must be last so shutdown runs last.
 set(TESTCASE_FILES
   testcases/test_configuration.c
+  testcases/test_utils.c
   testcases/test_database.c
   testcases/test_cli.c
   testcases/test_cache.c
