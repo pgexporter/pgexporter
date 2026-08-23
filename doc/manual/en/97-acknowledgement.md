@@ -44,6 +44,7 @@ youssef-joe <joe92228@gmail.com>
 Omar ElAzouny <omarlazouny@gmail.com>
 Mohamed Adel <mmomoadel@gmail.com>
 Mohamed Hamed <alkmohamed40@gmail.com>
+Hanu-man12 <shawharshit116@gmail.com>
 ```
 
 ## Committers
