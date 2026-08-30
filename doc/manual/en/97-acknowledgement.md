@@ -42,6 +42,7 @@ Sakshi Aggarwal <sakshiaggarwal2706@gmail.com>
 Ameen Sakr <ameensakr623@gmail.com>
 youssef-joe <joe92228@gmail.com>
 Omar ElAzouny <omarlazouny@gmail.com>
+Mohamed Adel <mmomoadel@gmail.com>
 ```
 
 ## Committers

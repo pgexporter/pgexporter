@@ -52,6 +52,39 @@
 
 static int validate_metrics_response(char* response_body, const char* metric_pattern);
 
+struct metrics_write_cb_context
+{
+   char* data;
+   size_t data_size;
+};
+
+static size_t collect_metrics_write_cb(void* buffer, size_t size, void* userdata);
+
+static size_t
+collect_metrics_write_cb(void* buffer, size_t size, void* userdata)
+{
+   struct metrics_write_cb_context* context = (struct metrics_write_cb_context*)userdata;
+   char* data;
+
+   if (context == NULL)
+   {
+      return 0;
+   }
+
+   data = realloc(context->data, context->data_size + size + 1);
+   if (data == NULL)
+   {
+      return 0;
+   }
+
+   memcpy(data + context->data_size, buffer, size);
+   context->data = data;
+   context->data_size += size;
+   context->data[context->data_size] = '\0';
+
+   return size;
+}
+
 MCTF_TEST(test_http_metrics)
 {
    struct http* connection = NULL;
@@ -79,6 +112,10 @@ MCTF_TEST(test_http_metrics)
    response_body = strdup((char*)response->payload.data);
    MCTF_ASSERT_PTR_NONNULL(response_body, cleanup, "Failed to duplicate response body");
    MCTF_ASSERT(strlen(response_body) > 0, cleanup, "Response body is empty");
+   MCTF_ASSERT(strstr(response_body, "# HELP pgexporter_state The state of pgexporter\n") != NULL,
+               cleanup, "Missing Prometheus HELP line");
+   MCTF_ASSERT(strstr(response_body, "# TYPE pgexporter_state gauge\n") != NULL,
+               cleanup, "Missing Prometheus TYPE line");
 
    ret = validate_metrics_response(response_body, "pgexporter_state 1");
    MCTF_ASSERT(ret == 0, cleanup, "HTTP metrics response validation failed");
@@ -110,6 +147,7 @@ MCTF_TEST(test_http_bridge_endpoint)
    struct http_request* request = NULL;
    struct http_response* response = NULL;
    struct configuration* config;
+   struct metrics_write_cb_context write_context = {0};
    char* response_body = NULL;
    int ret;
 
@@ -125,18 +163,29 @@ MCTF_TEST(test_http_bridge_endpoint)
    ret = pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/metrics", &request);
    MCTF_ASSERT(ret == 0, cleanup, "Failed to create HTTP request");
 
+   response = calloc(1, sizeof(struct http_response));
+   MCTF_ASSERT_PTR_NONNULL(response, cleanup, "Failed to allocate HTTP response");
+   response->write_cb = collect_metrics_write_cb;
+   response->write_userdata = &write_context;
+
    ret = pgexporter_http_invoke(connection, request, &response);
    MCTF_ASSERT(ret == 0, cleanup, "Failed to execute HTTP GET /metrics");
 
-   MCTF_ASSERT_PTR_NONNULL(response->payload.data, cleanup, "HTTP response body is NULL");
+   MCTF_ASSERT_PTR_NONNULL(write_context.data, cleanup, "HTTP response body is NULL");
 
-   response_body = strdup((char*)response->payload.data);
+   response_body = strdup(write_context.data);
    MCTF_ASSERT_PTR_NONNULL(response_body, cleanup, "Failed to duplicate response body");
    MCTF_ASSERT(strlen(response_body) > 0, cleanup, "Response body is empty");
+   MCTF_ASSERT(strstr(response_body, "# HELP pgexporter_state The state of pgexporter\n") != NULL,
+               cleanup, "Missing Prometheus HELP line");
+   MCTF_ASSERT(strstr(response_body, "# TYPE pgexporter_state gauge\n") != NULL,
+               cleanup, "Missing Prometheus TYPE line");
 
    ret = validate_metrics_response(response_body, "pgexporter_state{endpoint=");
    MCTF_ASSERT(ret == 0, cleanup, "HTTP bridge metrics response validation failed");
 
+   free(write_context.data);
+   write_context.data = NULL;
    free(response_body);
    response_body = NULL;
    pgexporter_http_response_destroy(response);
@@ -148,6 +197,8 @@ MCTF_TEST(test_http_bridge_endpoint)
 cleanup:
    if (response_body)
       free(response_body);
+   if (write_context.data)
+      free(write_context.data);
    if (response)
       pgexporter_http_response_destroy(response);
    if (request)

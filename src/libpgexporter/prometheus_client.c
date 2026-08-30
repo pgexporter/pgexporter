@@ -1026,6 +1026,7 @@ parse_body_to_bridge(int endpoint, time_t timestamp, char* body, struct promethe
          }
          else
          {
+            pgexporter_log_error("parse_body_to_bridge: unknown # line: %s", line);
             goto error;
          }
       }
