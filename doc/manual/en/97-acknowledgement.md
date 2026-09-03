@@ -46,6 +46,7 @@ Omar ElAzouny <omarlazouny@gmail.com>
 Mohamed Adel <mmomoadel@gmail.com>
 Mohamed Hamed <alkmohamed40@gmail.com>
 Hanu-man12 <shawharshit116@gmail.com>
+R Sai Pranav <rajasaipranav0@gmail.com>
 ```
 
 ## Committers
