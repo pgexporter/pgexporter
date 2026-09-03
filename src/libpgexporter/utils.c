@@ -582,7 +582,7 @@ pgexporter_get_password(void)
 
    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
 
-   while ((c = getchar()) != '\n' && c != EOF && i < MAX_PASSWORD_LENGTH)
+   while ((c = getchar()) != '\n' && c != EOF && i < MAX_PASSWORD_LENGTH - 1)
    {
       p[i++] = c;
    }
