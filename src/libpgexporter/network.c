@@ -468,14 +468,27 @@ pgexporter_socket_nonblocking(int fd, bool value)
    int flags;
 
    flags = fcntl(fd, F_GETFL);
+   if (flags == -1)
+   {
+      pgexporter_log_warn("socket_nonblocking: F_GETFL %d %s", fd, strerror(errno));
+      errno = 0;
+      return 1;
+   }
 
    if (value)
    {
-      fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+      flags |= O_NONBLOCK;
    }
    else
    {
-      fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+      flags &= ~O_NONBLOCK;
+   }
+
+   if (fcntl(fd, F_SETFL, flags) == -1)
+   {
+      pgexporter_log_warn("socket_nonblocking: F_SETFL %d %s", fd, strerror(errno));
+      errno = 0;
+      return 1;
    }
 
    return 0;
