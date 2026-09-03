@@ -493,6 +493,19 @@ pgexporter_event_accept_init(struct io_watcher* watcher, int listen_fd, io_cb cb
    watcher->fds.main.listen_fd = listen_fd;
    watcher->fds.main.client_fd = -1;
    watcher->cb = cb;
+
+   /* The listener must be non-blocking. The kqueue handler drains the accept
+    * backlog in a loop and relies on accept() returning EAGAIN/EWOULDBLOCK to
+    * stop; on a blocking listener that final accept() would block the daemon
+    * forever once the backlog empties. A non-blocking listener is also correct
+    * for the epoll path, which already treats EAGAIN as "no more pending", and
+    * is harmless to the io_uring multishot accept. */
+   if (pgexporter_socket_nonblocking(listen_fd, true))
+   {
+      pgexporter_log_error("Could not make the listener non-blocking");
+      return PGEXPORTER_EVENT_RC_ERROR;
+   }
+
    return PGEXPORTER_EVENT_RC_OK;
 }
 
@@ -1878,17 +1891,25 @@ ev_kqueue_io_handler(struct kevent* kev)
    switch (type)
    {
       case PGEXPORTER_EVENT_TYPE_MAIN:
-         watcher->fds.main.client_fd = accept(watcher->fds.main.listen_fd, NULL, NULL);
-         if (watcher->fds.main.client_fd == -1)
+         /* The listener is registered EV_CLEAR (edge-triggered), so kqueue
+          * reports readiness only once per readable transition. Several
+          * connections can be queued on the backlog behind a single
+          * notification. Accepting only one per event would strand the rest in
+          * the backlog until the next new connection produced a fresh edge.
+          * Drain the accept queue until it is empty, or until a callback
+          * breaks the loop, so no new connection is taken during shutdown. */
+         while (pgexporter_event_loop_is_running())
          {
-            if (errno != EAGAIN && errno != EWOULDBLOCK)
+            watcher->fds.main.client_fd = accept(watcher->fds.main.listen_fd, NULL, NULL);
+            if (watcher->fds.main.client_fd == -1)
             {
-               pgexporter_log_error("accept error: %s", strerror(errno));
-               rc = PGEXPORTER_EVENT_RC_ERROR;
+               if (errno != EAGAIN && errno != EWOULDBLOCK)
+               {
+                  pgexporter_log_error("accept error: %s", strerror(errno));
+                  rc = PGEXPORTER_EVENT_RC_ERROR;
+               }
+               break;
             }
-         }
-         else
-         {
             watcher->cb(watcher);
          }
          break;
