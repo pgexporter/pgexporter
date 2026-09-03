@@ -748,6 +748,7 @@ error:
 static int
 parse_metrics(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, yaml_config_t* yaml_config, yaml_metric_t** metrics, int* n_metrics)
 {
+   yaml_metric_t* tmp_metrics = NULL;
    yaml_event_delete(event_ptr);
 
    char* buf = NULL;
@@ -781,7 +782,12 @@ parse_metrics(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
             {
                goto error;
             }
-            *metrics = realloc(*metrics, (*n_metrics + 1) * sizeof(yaml_metric_t));
+            tmp_metrics = realloc(*metrics, (*n_metrics + 1) * sizeof(yaml_metric_t));
+            if (tmp_metrics == NULL)
+            {
+               goto error;
+            }
+            *metrics = tmp_metrics;
             memset(&(*metrics)[*n_metrics], 0, sizeof(yaml_metric_t));
             *state_ptr = PARSER_MAP_START;
             break;
@@ -912,6 +918,7 @@ error:
 static int
 parse_queries(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, yaml_config_t* yaml_config, yaml_query_t** queries, int* n_queries)
 {
+   yaml_query_t* tmp_queries = NULL;
    yaml_event_delete(event_ptr);
 
    char* buf = NULL;
@@ -946,7 +953,12 @@ parse_queries(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
                goto error;
             }
 
-            *queries = realloc(*queries, (*n_queries + 1) * sizeof(yaml_query_t));
+            tmp_queries = realloc(*queries, (*n_queries + 1) * sizeof(yaml_query_t));
+            if (tmp_queries == NULL)
+            {
+               goto error;
+            }
+            *queries = tmp_queries;
             memset(&(*queries)[*n_queries], 0, sizeof(yaml_query_t));
 
             *state_ptr = PARSER_MAP_START;
@@ -1050,6 +1062,7 @@ error:
 static int
 parse_columns(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t* state_ptr, yaml_query_t* query, yaml_column_t** columns, int* n_columns)
 {
+   yaml_column_t* tmp_columns = NULL;
    yaml_event_delete(event_ptr);
 
    char* buf = NULL;
@@ -1083,7 +1096,12 @@ parse_columns(yaml_parser_t* parser_ptr, yaml_event_t* event_ptr, parser_state_t
             {
                goto error;
             }
-            *columns = realloc(*columns, (*n_columns + 1) * sizeof(yaml_column_t));
+            tmp_columns = realloc(*columns, (*n_columns + 1) * sizeof(yaml_column_t));
+            if (tmp_columns == NULL)
+            {
+               goto error;
+            }
+            *columns = tmp_columns;
             memset(&(*columns)[*n_columns], 0, sizeof(yaml_column_t));
             *state_ptr = PARSER_MAP_START;
             break;
