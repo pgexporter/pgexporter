@@ -865,6 +865,14 @@ password:
    entry = pgexporter_append(entry, encoded);
    entry = pgexporter_append(entry, "\n");
 
+   /* The stream is open in update mode and was just read to end of file.
+    * Reposition explicitly so the write does not depend on that, since
+    * fgets also returns NULL on a read error. */
+   if (fseek(users_file, 0, SEEK_END) != 0)
+   {
+      goto error;
+   }
+
    fputs(entry, users_file);
 
    free(entry);
