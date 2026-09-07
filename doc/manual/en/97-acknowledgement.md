@@ -18,6 +18,7 @@ Andreas Wahlen <andreas.wahlen@nerou.de>
 John Hsu <hsuchen@amazon.com>
 Haoran Zhang <andrewzhr9911@gmail.com>
 Georg Pfuetzenreuter <mail@georg-pfuetzenreuter.net>
+Shrouk El-Mahalawy <shroukelmahallwy@gmail.com>
 Bassam Adnan <mailbassam@gmail.com>
 Sangkeun J.C. Kim <jchrys@me.com>
 Tejas Tyagi <tejastyagi.tt@gmail.com>

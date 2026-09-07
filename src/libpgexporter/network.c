@@ -83,7 +83,6 @@ pgexporter_bind(const char* hostname, int port, int** fds, int* length)
              (ifa->ifa_flags & IFF_UP))
          {
             int* new_fds = NULL;
-            int* tmp_fds = NULL;
             int new_length = 0;
 
             memset(addr, 0, sizeof(addr));
@@ -110,21 +109,19 @@ pgexporter_bind(const char* hostname, int port, int** fds, int* length)
                star_fds = malloc(new_length * sizeof(int));
                if (star_fds == NULL)
                {
-                  free(new_fds);
-                  continue;
+                  return 1;
                }
                memcpy(star_fds, new_fds, new_length * sizeof(int));
                star_length = new_length;
             }
             else
             {
-               tmp_fds = realloc(star_fds, (star_length + new_length) * sizeof(int));
-               if (tmp_fds == NULL)
+               int* temp = realloc(star_fds, (star_length + new_length) * sizeof(int));
+               if (temp == NULL)
                {
-                  free(new_fds);
-                  continue;
+                  return 1;
                }
-               star_fds = tmp_fds;
+               star_fds = temp;
                memcpy(star_fds + star_length, new_fds, new_length * sizeof(int));
                star_length += new_length;
             }
@@ -480,27 +477,14 @@ pgexporter_socket_nonblocking(int fd, bool value)
    int flags;
 
    flags = fcntl(fd, F_GETFL);
-   if (flags == -1)
-   {
-      pgexporter_log_warn("socket_nonblocking: F_GETFL %d %s", fd, strerror(errno));
-      errno = 0;
-      return 1;
-   }
 
    if (value)
    {
-      flags |= O_NONBLOCK;
+      fcntl(fd, F_SETFL, flags | O_NONBLOCK);
    }
    else
    {
-      flags &= ~O_NONBLOCK;
-   }
-
-   if (fcntl(fd, F_SETFL, flags) == -1)
-   {
-      pgexporter_log_warn("socket_nonblocking: F_SETFL %d %s", fd, strerror(errno));
-      errno = 0;
-      return 1;
+      fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
    }
 
    return 0;
