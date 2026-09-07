@@ -30,6 +30,7 @@
 #include <mctf.h>
 #include <utils.h>
 
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -89,5 +90,76 @@ MCTF_TEST(test_utils_compare_string)
                "different strings should not compare equal");
 
 cleanup:
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_utils_append_numbers)
+{
+   char* s = NULL;
+
+   /* The largest value of each type is the corner case: it needs every digit
+      the buffer can hold, so a size argument that is one short truncates it
+      silently rather than overflowing. */
+   s = pgexporter_append_int(NULL, INT_MIN);
+   MCTF_ASSERT_PTR_NONNULL(s, cleanup, "append_int returned NULL");
+   MCTF_ASSERT_STR_EQ(s, "-2147483648", cleanup, "append_int truncated INT_MIN");
+   free(s);
+   s = NULL;
+
+   s = pgexporter_append_int(NULL, INT_MAX);
+   MCTF_ASSERT_STR_EQ(s, "2147483647", cleanup, "append_int wrong for INT_MAX");
+   free(s);
+   s = NULL;
+
+   s = pgexporter_append_ulong(NULL, ULONG_MAX);
+   MCTF_ASSERT_PTR_NONNULL(s, cleanup, "append_ulong returned NULL");
+   MCTF_ASSERT_STR_EQ(s, "18446744073709551615", cleanup, "append_ulong truncated ULONG_MAX");
+   free(s);
+   s = NULL;
+
+   s = pgexporter_append_ullong(NULL, ULLONG_MAX);
+   MCTF_ASSERT_PTR_NONNULL(s, cleanup, "append_ullong returned NULL");
+   MCTF_ASSERT_STR_EQ(s, "18446744073709551615", cleanup, "append_ullong truncated ULLONG_MAX");
+   free(s);
+   s = NULL;
+
+   /* Appending onto an existing string must concatenate, not replace */
+   s = pgexporter_append(NULL, "n=");
+   s = pgexporter_append_ulong(s, ULONG_MAX);
+   MCTF_ASSERT_STR_EQ(s, "n=18446744073709551615", cleanup, "append_ulong did not concatenate");
+
+cleanup:
+   free(s);
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_utils_append_double)
+{
+   char* s = NULL;
+
+   /* %lf writes the whole integer part, so a large double needs far more
+      room than a small fixed buffer: 1e19 alone is 20 digits before the
+      six decimals. */
+   s = pgexporter_append_double(NULL, 1e19);
+   MCTF_ASSERT_PTR_NONNULL(s, cleanup, "append_double returned NULL");
+   MCTF_ASSERT_STR_EQ(s, "10000000000000000000.000000", cleanup, "append_double truncated 1e19");
+   free(s);
+   s = NULL;
+
+   s = pgexporter_append_double(NULL, 0.5);
+   MCTF_ASSERT_STR_EQ(s, "0.500000", cleanup, "append_double wrong for 0.5");
+   free(s);
+   s = NULL;
+
+   s = pgexporter_append_double_precision(NULL, 1e19, 2);
+   MCTF_ASSERT_STR_EQ(s, "10000000000000000000.00", cleanup, "append_double_precision truncated 1e19");
+   free(s);
+   s = NULL;
+
+   s = pgexporter_append_double_precision(NULL, 3.14159, 3);
+   MCTF_ASSERT_STR_EQ(s, "3.142", cleanup, "append_double_precision wrong for 3.14159");
+
+cleanup:
+   free(s);
    MCTF_FINISH();
 }

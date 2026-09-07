@@ -912,17 +912,30 @@ char*
 pgexporter_format_and_append(char* buf, char* format, ...)
 {
    va_list args;
-   va_start(args, format);
+   int len;
+   char* formatted_str = NULL;
 
    // Determine the required buffer size
-   int size_needed = vsnprintf(NULL, 0, format, args) + 1;
+   va_start(args, format);
+   len = vsnprintf(NULL, 0, format, args);
    va_end(args);
 
+   // Leave buf as it is on failure, like pgexporter_append() does
+   if (len < 0)
+   {
+      return buf;
+   }
+
    // Allocate buffer to hold the formatted string
-   char* formatted_str = malloc(size_needed);
+   formatted_str = malloc((size_t)len + 1);
+
+   if (formatted_str == NULL)
+   {
+      return buf;
+   }
 
    va_start(args, format);
-   vsnprintf(formatted_str, size_needed, format, args);
+   vsnprintf(formatted_str, (size_t)len + 1, format, args);
    va_end(args);
 
    buf = pgexporter_append(buf, formatted_str);
@@ -935,23 +948,39 @@ pgexporter_format_and_append(char* buf, char* format, ...)
 char*
 pgexporter_append_int(char* orig, int i)
 {
-   char number[12];
-
-   memset(&number[0], 0, sizeof(number));
-   snprintf(&number[0], 11, "%d", i);
-   orig = pgexporter_append(orig, number);
-
-   return orig;
+   return pgexporter_format_and_append(orig, "%d", i);
 }
 
 char*
 pgexporter_append_ulong(char* orig, unsigned long l)
 {
-   char number[21];
+   return pgexporter_format_and_append(orig, "%lu", l);
+}
 
-   memset(&number[0], 0, sizeof(number));
-   snprintf(&number[0], 20, "%lu", l);
-   orig = pgexporter_append(orig, number);
+char*
+pgexporter_append_ullong(char* orig, unsigned long long l)
+{
+   return pgexporter_format_and_append(orig, "%llu", l);
+}
+
+char*
+pgexporter_append_double(char* orig, double d)
+{
+   return pgexporter_format_and_append(orig, "%lf", d);
+}
+
+char*
+pgexporter_append_double_precision(char* orig, double d, int precision)
+{
+   char* format = NULL;
+   format = pgexporter_append_char(format, '%');
+   format = pgexporter_append_char(format, '.');
+   format = pgexporter_append_int(format, precision);
+   format = pgexporter_append_char(format, 'f');
+
+   orig = pgexporter_format_and_append(orig, format, d);
+
+   free(format);
 
    return orig;
 }
@@ -981,6 +1010,24 @@ pgexporter_append_char(char* orig, char c)
    orig = pgexporter_append(orig, str);
 
    return orig;
+}
+
+char*
+pgexporter_append_bytes(char* orig, const char* s, size_t s_length, size_t orig_length)
+{
+   char* n = NULL;
+   if (s == NULL || s_length == 0)
+   {
+      return orig;
+   }
+   n = (char*)realloc(orig, orig_length + s_length + 1);
+   if (n == NULL)
+   {
+      return orig;
+   }
+   memcpy(n + orig_length, s, s_length);
+   n[orig_length + s_length] = '\0';
+   return n;
 }
 
 char*
