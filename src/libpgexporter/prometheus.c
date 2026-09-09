@@ -544,7 +544,7 @@ retry_cache_locking:
          /* Store metrics in history immediately. */
          if (config->history > 0)
          {
-            if (pgexporter_history_claim_slot(-1))
+            if (pgexporter_history_claim_slot((int)(config->history_interval.ms / 1000)))
             {
                if (pgexporter_history_init() == 0)
                {
