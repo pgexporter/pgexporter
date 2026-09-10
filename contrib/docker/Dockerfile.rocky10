@@ -1,4 +1,5 @@
-# Copyright (C) 2025 The pgexporter community
+#
+# Copyright (C) 2026 The pgexporter community
 #
 # Redistribution and use in source and binary forms, with or without modification,
 # are permitted provided that the following conditions are met:
@@ -24,42 +25,35 @@
 # TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-FROM rockylinux:9 AS builder
+FROM rockylinux/rockylinux:10 AS builder
 
-RUN rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm && \
-    dnf -y upgrade && \
-    dnf install -y dnf-plugins-core && \
+RUN dnf -y install dnf-plugins-core && \
     dnf config-manager --set-enabled crb && \
+    dnf -y install epel-release && \
+    dnf -y upgrade && \
     dnf makecache && \
     dnf install -y \
         git \
         gcc \
         cmake \
         make \
-        postgresql-devel \
+        pkgconf \
+        openssl \
+        openssl-devel \
         zlib \
         zlib-devel \
-        zstd \
+        libzstd \
         libzstd-devel \
         lz4 \
         lz4-devel \
         bzip2 \
         bzip2-devel \
-        libpq \
-        libpq-devel \
         liburing-devel \
-        pkgconf \
-        python3-docutils \
-        pandoc \
-        texlive \
-        doxygen \
-        graphviz \
-        openssl-devel \
         libatomic \
         libyaml-devel \
-        libasan \
-        libasan-static \
-        yaml-cpp-devel && \
+        python3-docutils \
+        sqlite \
+        sqlite-devel && \
     dnf clean all
 
 WORKDIR /src
@@ -69,10 +63,12 @@ COPY . .
 RUN rm -rf build && mkdir build
 
 RUN cd build && \
-    cmake .. -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_INSTALL_RPATH=/usr/local/lib && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DDOCS=FALSE \
+             -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_INSTALL_RPATH=/usr/local/lib && \
+    make -j$(nproc) && \
     make install
 
-FROM rockylinux:9
+FROM rockylinux/rockylinux:10
 
 RUN dnf -y update && \
     dnf install -y \
@@ -82,7 +78,8 @@ RUN dnf -y update && \
         zstd \
         liburing \
         lz4 \
-        bzip2 && \
+        bzip2 \
+        sqlite && \
     dnf clean all
 
 RUN useradd --create-home --shell /bin/bash pgexporter
@@ -91,6 +88,7 @@ WORKDIR /pgexporter
 
 COPY --from=builder /usr/local/bin/pgexporter /usr/local/bin/pgexporter-cli /usr/local/bin/pgexporter-admin /usr/local/bin/
 COPY --from=builder /usr/local/lib/libpgexporter.so* /usr/local/lib/
+COPY --from=builder /usr/local/share/pgexporter/ /usr/local/share/pgexporter/
 
 COPY contrib/docker/pgexporter.conf /etc/pgexporter/pgexporter.conf
 
@@ -107,4 +105,4 @@ RUN echo "pgexporter" | /usr/local/bin/pgexporter-admin master-key && \
 HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
     CMD pgexporter-cli -c /etc/pgexporter/pgexporter.conf ping || exit 1
 
-CMD ["/usr/local/bin/pgexporter", "-c", "/etc/pgexporter/pgexporter.conf", "-u", "/etc/pgexporter/pgexporter_users.conf"]
+CMD ["/usr/local/bin/pgexporter", "-c", "/etc/pgexporter/pgexporter.conf", "-u","/etc/pgexporter/pgexporter_users.conf"]

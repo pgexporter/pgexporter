@@ -64,14 +64,14 @@ There are two Dockerfiles available:
    podman build -t pgexporter:latest -f ./contrib/docker/Dockerfile.alpine .
    ```
 
-2. **Rocky Linux 9-based image**
+2. **Rocky Linux 10-based image**
    **Using Docker**
    ```sh
-   docker build -t pgexporter:latest -f ./contrib/docker/Dockerfile.rocky9 .
+   docker build -t pgexporter:latest -f ./contrib/docker/Dockerfile.rocky10 .
    ```
    **Using Podman**
    ```sh
-   podman build -t pgexporter:latest -f ./contrib/docker/Dockerfile.rocky9 .
+   podman build -t pgexporter:latest -f ./contrib/docker/Dockerfile.rocky10 .
    ```
 
 ## Step 4: Run pgexporter as a Docker Container
