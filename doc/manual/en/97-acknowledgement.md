@@ -42,6 +42,7 @@ Sakshi Aggarwal <sakshiaggarwal2706@gmail.com>
 Ameen Sakr <ameensakr623@gmail.com>
 youssef-joe <joe92228@gmail.com>
 Omar ElAzouny <omarlazouny@gmail.com>
+Ahmed Ramadan <ahmedmm2ddr4@gmail.com>
 ```
 
 ## Committers
@@ -58,10 +59,10 @@ Tejas Tyagi <tejastyagi.tt@gmail.com>
 
 Contributions to [**pgexporter**][pgexporter] are managed on [GitHub][pgexporter]
 
-* [Ask a question][ask]
-* [Raise an issue][issue]
-* [Feature request][request]
-* [Code submission][submission]
+- [Ask a question][ask]
+- [Raise an issue][issue]
+- [Feature request][request]
+- [Code submission][submission]
 
 Contributions are most welcome!
 
@@ -70,4 +71,4 @@ community.
 
 Consider giving the project a [star][star] on [GitHub][pgexporter] if you find it useful.
 
-* Som Shegokar
+- Som Shegokar
