@@ -675,6 +675,23 @@
       ]
     },
     {
+      "tag": "pg_wal_replay_paused",
+      "collector": "wal_replay_paused",
+      "server": "replica",
+      "queries": [
+        {
+          "query": "SELECT ( CASE pg_is_wal_replay_paused() WHEN 't' THEN 't' ELSE 'f' END );",
+          "version": 10,
+          "columns": [
+            {
+              "description": "Is WAL replay paused on the replica",
+              "type": "gauge"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "tag": "pg_stat_walreceiver",
       "collector": "stat_walreceiver",
       "server": "replica",

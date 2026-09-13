@@ -4163,7 +4163,13 @@ Port number of the upstream WAL sender.
 | slot_name | Replication slot name. |
 | status | WAL receiver activity status. |
 | sender_host | Upstream sender host. |
+## pgexporter_pg_wal_replay_paused
 
+Reports whether WAL replay is currently paused on a replica/standby server.
+
+| Attribute | Description | Values |
+| :-------- | :---------- | :----- |
+| server | The configured name/identifier for the PostgreSQL server (the replica). | 1: WAL replay is paused., 0: WAL replay is not paused. |
 ## pgexporter_pg_stat_archiver_archived_count
 
 Reflects `archived_count` from `pg_stat_archiver`: the total number of WAL files successfully archived since server start.

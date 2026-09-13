@@ -741,6 +741,17 @@ extern "C" {
                       "    collector: wal_last_received\n"                                                                                                                              \
                       "    server: replica\n"                                                                                                                                           \
                       "\n"                                                                                                                                                              \
+                      "# WAL replay paused\n"                                                                                                                                           \
+                      "  - queries:\n"                                                                                                                                                  \
+                      "    - query: SELECT ( CASE pg_is_wal_replay_paused() WHEN 't' THEN 't' ELSE 'f' END );\n"                                                                        \
+                      "      version: 10\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - description: Is WAL replay paused on the replica\n"                                                                                                    \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "    tag: pg_wal_replay_paused\n"                                                                                                                                 \
+                      "    collector: wal_replay_paused\n"                                                                                                                              \
+                      "    server: replica\n"                                                                                                                                           \
+                      "\n"                                                                                                                                                              \
                       "# WAL receiver statistics\n"                                                                                                                                     \
                       "  - queries:\n"                                                                                                                                                  \
                       "    - query: SELECT\n"                                                                                                                                           \
