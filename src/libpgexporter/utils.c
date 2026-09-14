@@ -421,15 +421,20 @@ pgexporter_read_int64(void* data)
    else
    {
       unsigned char* bytes = (unsigned char*)data;
-      int64_t res = ((int64_t)bytes[0] << 56) |
-                    ((int64_t)bytes[1] << 48) |
-                    ((int64_t)bytes[2] << 40) |
-                    ((int64_t)bytes[3] << 32) |
-                    ((int64_t)bytes[4] << 24) |
-                    ((int64_t)bytes[5] << 16) |
-                    ((int64_t)bytes[6] << 8) |
-                    ((int64_t)bytes[7]);
-      return res;
+      /*
+       * Accumulate into an unsigned type: shifting a set bit into the sign bit
+       * of a signed integer is undefined behaviour, which trips UBSan for any
+       * value with the high bit set (e.g. -1).
+       */
+      uint64_t res = ((uint64_t)bytes[0] << 56) |
+                     ((uint64_t)bytes[1] << 48) |
+                     ((uint64_t)bytes[2] << 40) |
+                     ((uint64_t)bytes[3] << 32) |
+                     ((uint64_t)bytes[4] << 24) |
+                     ((uint64_t)bytes[5] << 16) |
+                     ((uint64_t)bytes[6] << 8) |
+                     ((uint64_t)bytes[7]);
+      return (int64_t)res;
    }
 }
 

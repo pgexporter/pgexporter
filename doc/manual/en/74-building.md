@@ -115,7 +115,7 @@ dnf install git gcc cmake make liburing-devel pkgconf \
             sqlite sqlite-devel
 ```
 
-Alternative [clang 8+](https://clang.llvm.org/) can be used.
+Alternative [clang 16+](https://clang.llvm.org/) can be used. Older Clang releases -- notably Apple Clang 15, bundled with the Xcode 15 command line tools -- reject a plain `= {0}` initializer on an `_Atomic`-qualified pointer/function-pointer type (`error: incompatible integer to pointer conversion`), so on macOS install a newer toolchain via `brew install llvm` (or update the Xcode command line tools) rather than downgrading the code to accommodate it.
 
 ### RHEL / RockyLinux
 
