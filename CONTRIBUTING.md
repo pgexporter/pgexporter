@@ -46,6 +46,8 @@ dnf install git gcc clang clang-analyzer clang-tools-extra cmake make liburing-d
 
 in order to get the necessary dependencies.
 
+**macOS note:** the codebase requires Clang 16+. The Xcode 15 command line tools ship Apple Clang 15, which rejects a plain `= {0}` initializer on an `_Atomic`-qualified pointer/function-pointer type. Install a newer toolchain with `brew install llvm` (and point `CMAKE_C_COMPILER`/`CC` at it) or update your Xcode command line tools instead of opening a PR to work around the old compiler.
+
 ## Building the main branch
 
 To build the `main` branch:

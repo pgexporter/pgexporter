@@ -44,6 +44,8 @@ set(TESTCASE_FILES
   testcases/test_history_postgresql.c
   testcases/test_history_http.c
   testcases/test_message_complete.c
+  testcases/test_value.c
+  testcases/test_json.c
   testcases/test_tls.c
   testcases/test_connection.c
 )
