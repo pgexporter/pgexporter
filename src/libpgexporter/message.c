@@ -53,6 +53,9 @@ static int write_message_from_buffer(struct io_watcher* watcher, struct message*
 static int ssl_read_message(SSL* ssl, int timeout, struct message** msg);
 static int ssl_write_message(SSL* ssl, struct message* msg);
 
+static int create_message(signed char kind, size_t size, struct message** msg);
+static int create_target_message(signed char kind, char type, char* name, struct message** msg);
+
 int
 pgexporter_read_block_message(SSL* ssl, int socket, struct message** msg)
 {
@@ -701,6 +704,188 @@ pgexporter_create_startup_message(char* username, char* database, struct message
    return MESSAGE_STATUS_OK;
 }
 
+int
+pgexporter_create_query_message(char* sql, struct message** msg)
+{
+   struct message* m = NULL;
+
+   *msg = NULL;
+
+   if (sql == NULL)
+   {
+      goto error;
+   }
+
+   if (create_message('Q', 1 + 4 + strlen(sql) + 1, &m))
+   {
+      goto error;
+   }
+
+   pgexporter_write_string(m->data + 5, sql);
+
+   *msg = m;
+
+   return 0;
+
+error:
+
+   return 1;
+}
+
+int
+pgexporter_create_parse_message(char* stmt, char* sql, int nparams, struct message** msg)
+{
+   struct message* m = NULL;
+   size_t offset;
+
+   *msg = NULL;
+
+   if (stmt == NULL || sql == NULL || nparams < 0 || nparams > UINT16_MAX)
+   {
+      goto error;
+   }
+
+   if (create_message('P', 1 + 4 + strlen(stmt) + 1 + strlen(sql) + 1 + 2 + (4 * (size_t)nparams), &m))
+   {
+      goto error;
+   }
+
+   offset = 5;
+   pgexporter_write_string(m->data + offset, stmt);
+   offset += strlen(stmt) + 1;
+   pgexporter_write_string(m->data + offset, sql);
+   offset += strlen(sql) + 1;
+   pgexporter_write_uint16(m->data + offset, (uint16_t)nparams);
+
+   /* Parameter type OIDs stay 0 from the zeroed buffer */
+
+   *msg = m;
+
+   return 0;
+
+error:
+
+   return 1;
+}
+
+int
+pgexporter_create_bind_message(char* portal, char* stmt, int nparams, char** values, struct message** msg)
+{
+   struct message* m = NULL;
+   size_t size;
+   size_t offset;
+   size_t length;
+
+   *msg = NULL;
+
+   if (portal == NULL || stmt == NULL || nparams < 0 || nparams > UINT16_MAX || (nparams > 0 && values == NULL))
+   {
+      goto error;
+   }
+
+   size = 1 + 4 + strlen(portal) + 1 + strlen(stmt) + 1 + 2 + 2 + 2;
+   for (int i = 0; i < nparams; i++)
+   {
+      size += 4;
+      if (values[i] != NULL)
+      {
+         size += strlen(values[i]);
+      }
+   }
+
+   if (create_message('B', size, &m))
+   {
+      goto error;
+   }
+
+   offset = 5;
+   pgexporter_write_string(m->data + offset, portal);
+   offset += strlen(portal) + 1;
+   pgexporter_write_string(m->data + offset, stmt);
+   offset += strlen(stmt) + 1;
+
+   /* No parameter format codes: all text */
+   pgexporter_write_uint16(m->data + offset, 0);
+   offset += 2;
+
+   pgexporter_write_uint16(m->data + offset, (uint16_t)nparams);
+   offset += 2;
+
+   for (int i = 0; i < nparams; i++)
+   {
+      if (values[i] == NULL)
+      {
+         pgexporter_write_int32(m->data + offset, -1);
+         offset += 4;
+         continue;
+      }
+
+      length = strlen(values[i]);
+      pgexporter_write_int32(m->data + offset, (int32_t)length);
+      offset += 4;
+      memcpy(m->data + offset, values[i], length);
+      offset += length;
+   }
+
+   /* No result format codes: all text */
+   pgexporter_write_uint16(m->data + offset, 0);
+
+   *msg = m;
+
+   return 0;
+
+error:
+
+   return 1;
+}
+
+int
+pgexporter_create_describe_message(char type, char* name, struct message** msg)
+{
+   return create_target_message('D', type, name, msg);
+}
+
+int
+pgexporter_create_execute_message(char* portal, int max_rows, struct message** msg)
+{
+   struct message* m = NULL;
+
+   *msg = NULL;
+
+   if (portal == NULL || max_rows < 0)
+   {
+      goto error;
+   }
+
+   if (create_message('E', 1 + 4 + strlen(portal) + 1 + 4, &m))
+   {
+      goto error;
+   }
+
+   pgexporter_write_string(m->data + 5, portal);
+   pgexporter_write_int32(m->data + 5 + strlen(portal) + 1, max_rows);
+
+   *msg = m;
+
+   return 0;
+
+error:
+
+   return 1;
+}
+
+int
+pgexporter_create_sync_message(struct message** msg)
+{
+   return create_message('S', 1 + 4, msg);
+}
+
+int
+pgexporter_create_close_message(char type, char* name, struct message** msg)
+{
+   return create_target_message('C', type, name, msg);
+}
+
 static int
 read_message(int socket, bool block, int timeout, struct message** msg)
 {
@@ -1205,4 +1390,76 @@ write_message_from_buffer(struct io_watcher* watcher, struct message* msg)
       return MESSAGE_STATUS_ERROR;
    }
    return MESSAGE_STATUS_OK;
+}
+
+static int
+create_message(signed char kind, size_t size, struct message** msg)
+{
+   struct message* m = NULL;
+
+   *msg = NULL;
+
+   if (size < 5 || size - 1 > INT32_MAX)
+   {
+      goto error;
+   }
+
+   m = (struct message*)malloc(sizeof(struct message));
+   if (m == NULL)
+   {
+      goto error;
+   }
+
+   m->data = malloc(size);
+   if (m->data == NULL)
+   {
+      goto error;
+   }
+
+   memset(m->data, 0, size);
+
+   m->kind = kind;
+   m->length = size;
+
+   pgexporter_write_byte(m->data, kind);
+   pgexporter_write_int32(m->data + 1, (int32_t)(size - 1));
+
+   *msg = m;
+
+   return 0;
+
+error:
+
+   free(m);
+
+   return 1;
+}
+
+static int
+create_target_message(signed char kind, char type, char* name, struct message** msg)
+{
+   struct message* m = NULL;
+
+   *msg = NULL;
+
+   if ((type != 'S' && type != 'P') || name == NULL)
+   {
+      goto error;
+   }
+
+   if (create_message(kind, 1 + 4 + 1 + strlen(name) + 1, &m))
+   {
+      goto error;
+   }
+
+   pgexporter_write_byte(m->data + 5, type);
+   pgexporter_write_string(m->data + 6, name);
+
+   *msg = m;
+
+   return 0;
+
+error:
+
+   return 1;
 }

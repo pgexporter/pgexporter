@@ -1010,6 +1010,22 @@ error:
 int
 pgexporter_server_authenticate(int server, char* database, char* username, char* password, SSL** ssl, int* fd)
 {
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   return pgexporter_authenticate_host(config->servers[server].name, config->servers[server].host,
+                                       config->servers[server].port, config->servers[server].tls_mode,
+                                       config->servers[server].tls_cert_file, config->servers[server].tls_key_file,
+                                       config->servers[server].tls_ca_file,
+                                       database, username, password, ssl, fd);
+}
+
+int
+pgexporter_authenticate_host(char* name, char* host, int port, int tls_mode,
+                             char* tls_cert_file, char* tls_key_file, char* tls_ca_file,
+                             char* database, char* username, char* password, SSL** ssl, int* fd)
+{
    int server_fd;
    int auth_type;
    int ret;
@@ -1018,31 +1034,29 @@ pgexporter_server_authenticate(int server, char* database, char* username, char*
    struct message* ssl_msg = NULL;
    struct message* startup_msg = NULL;
    struct message* msg = NULL;
-   struct configuration* config;
 
    *ssl = NULL;
    *fd = -1;
 
    auth_type = SECURITY_INVALID;
    server_fd = -1;
-   config = (struct configuration*)shmem;
 
    for (int i = 0; i < NUMBER_OF_SECURITY_MESSAGES; i++)
    {
       memset(&security_messages[i], 0, SECURITY_BUFFER_SIZE);
    }
 
-   if (config->servers[server].host[0] == '/')
+   if (host[0] == '/')
    {
       char pgsql[MISC_LENGTH];
 
       memset(&pgsql, 0, sizeof(pgsql));
-      pgexporter_snprintf(&pgsql[0], sizeof(pgsql), ".s.PGSQL.%d", config->servers[server].port);
-      ret = pgexporter_connect_unix_socket(config->servers[server].host, &pgsql[0], &server_fd);
+      pgexporter_snprintf(&pgsql[0], sizeof(pgsql), ".s.PGSQL.%d", port);
+      ret = pgexporter_connect_unix_socket(host, &pgsql[0], &server_fd);
    }
    else
    {
-      ret = pgexporter_connect(config->servers[server].host, config->servers[server].port, &server_fd);
+      ret = pgexporter_connect(host, port, &server_fd);
    }
 
    if (ret != 0)
@@ -1050,14 +1064,13 @@ pgexporter_server_authenticate(int server, char* database, char* username, char*
       goto error;
    }
 
-   if (config->servers[server].tls_mode == SERVER_TLS_ON &&
-       strlen(config->servers[server].tls_ca_file) == 0)
+   if (tls_mode == SERVER_TLS_ON && strlen(tls_ca_file) == 0)
    {
-      pgexporter_log_error("%s: tls=on requires tls_ca_file to be set", config->servers[server].name);
+      pgexporter_log_error("%s: tls=on requires tls_ca_file to be set", name);
       goto error;
    }
 
-   if (config->servers[server].tls_mode != SERVER_TLS_OFF)
+   if (tls_mode != SERVER_TLS_OFF)
    {
       ret = pgexporter_create_ssl_message(&ssl_msg);
       if (ret != MESSAGE_STATUS_OK)
@@ -1077,9 +1090,9 @@ pgexporter_server_authenticate(int server, char* database, char* username, char*
          goto error;
       }
 
-      if (msg->kind != 'S' && config->servers[server].tls_mode == SERVER_TLS_ON)
+      if (msg->kind != 'S' && tls_mode == SERVER_TLS_ON)
       {
-         pgexporter_log_error("%s: tls=on requested but server declined TLS", config->servers[server].name);
+         pgexporter_log_error("%s: tls=on requested but server declined TLS", name);
          goto error;
       }
 
@@ -1093,12 +1106,12 @@ pgexporter_server_authenticate(int server, char* database, char* username, char*
             goto error;
          }
 
-         pgexporter_log_trace("%s: Key file @ %s", config->servers[server].name, config->servers[server].tls_key_file);
-         pgexporter_log_trace("%s: Certificate file @ %s", config->servers[server].name, config->servers[server].tls_cert_file);
-         pgexporter_log_trace("%s: CA file @ %s", config->servers[server].name, config->servers[server].tls_ca_file);
+         pgexporter_log_trace("%s: Key file @ %s", name, tls_key_file);
+         pgexporter_log_trace("%s: Certificate file @ %s", name, tls_cert_file);
+         pgexporter_log_trace("%s: CA file @ %s", name, tls_ca_file);
 
          /* Create a socket-decoupled client context */
-         if (pgexporter_tls_create_client(ctx, config->servers[server].tls_key_file, config->servers[server].tls_cert_file, config->servers[server].tls_ca_file, &t))
+         if (pgexporter_tls_create_client(ctx, tls_key_file, tls_cert_file, tls_ca_file, &t))
          {
             pgexporter_log_error("Client failed");
             goto error;

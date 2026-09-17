@@ -32,6 +32,7 @@
 #include <deque.h>
 #include <extension.h>
 #include <logging.h>
+#include <memory.h>
 #include <message.h>
 #include <network.h>
 #include <queries.h>
@@ -46,6 +47,12 @@
 #define SQLSTATE_QUERY_CANCELED "57014"
 
 static int query_execute(int server, char* qs, char* tag, int columns, char* names[], struct query** query);
+static int round_trip(SSL* ssl, int fd, struct message* msg, void** data, size_t* data_size);
+static int append_message(struct message* msg, void** buffer, size_t* size);
+static int send_buffer(SSL* ssl, int fd, void* buffer, size_t size, void** data, size_t* data_size);
+static int build_query(void* data, size_t data_size, int server, char* tag, int columns, char* names[], struct query** query);
+static void log_error_response(void* data, size_t data_size);
+static char* get_error_field(struct message* error_msg, char field);
 static bool is_query_timeout_error(struct message* error_msg);
 static void* data_append(void* orig, size_t orig_size, void* n, size_t n_size);
 static int create_D_tuple(int server, int number_of_columns, struct message* msg, struct tuple** tuple);
@@ -246,65 +253,28 @@ pgexporter_query_execute(int server, char* sql, char* tag, struct query** query)
 int
 pgexporter_execute_command(int server, char* sql)
 {
-   int status;
-   bool cont = true;
-   struct message qmsg = {0};
-   struct message* msg = NULL;
-   size_t size;
-   char* content = NULL;
+   struct message* qmsg = NULL;
    void* data = NULL;
    size_t data_size = 0;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
 
-   size = 1 + 4 + strlen(sql) + 1;
-   content = (char*)malloc(size);
-   memset(content, 0, size);
-
-   pgexporter_write_byte(content, 'Q');
-   pgexporter_write_int32(content + 1, size - 1);
-   pgexporter_write_string(content + 5, sql);
-
-   qmsg.kind = 'Q';
-   qmsg.length = size;
-   qmsg.data = content;
-
-   status = pgexporter_write_message(config->servers[server].ssl, config->servers[server].fd, &qmsg);
-   if (status != MESSAGE_STATUS_OK)
+   if (pgexporter_create_query_message(sql, &qmsg))
    {
-      pgexporter_log_error("pgexporter_execute_command: failed to write message");
+      pgexporter_log_error("pgexporter_execute_command: failed to create message");
       goto error;
    }
 
-   while (cont)
+   if (round_trip(config->servers[server].ssl, config->servers[server].fd, qmsg, &data, &data_size))
    {
-      status = pgexporter_read_block_message(config->servers[server].ssl, config->servers[server].fd, &msg);
-
-      if (status == MESSAGE_STATUS_OK)
-      {
-         data = data_append(data, data_size, msg->data, msg->length);
-         data_size += msg->length;
-
-         if (pgexporter_has_message('Z', data, data_size))
-         {
-            cont = false;
-         }
-      }
-      else
-      {
-         pgexporter_log_error("pgexporter_execute_command: failed to read message, status=%d", status);
-         goto error;
-      }
-
-      pgexporter_clear_message();
-      msg = NULL;
+      pgexporter_log_error("pgexporter_execute_command: failed to send or receive");
+      goto error;
    }
 
-   /* Check for errors */
    if (pgexporter_has_message('E', data, data_size))
    {
-      pgexporter_log_error("pgexporter_execute_command: found error message in response");
+      log_error_response(data, data_size);
       goto error;
    }
 
@@ -314,7 +284,7 @@ pgexporter_execute_command(int server, char* sql)
       goto error;
    }
 
-   free(content);
+   pgexporter_free_message(qmsg);
    free(data);
 
    return 0;
@@ -322,11 +292,233 @@ pgexporter_execute_command(int server, char* sql)
 error:
    pgexporter_log_error("pgexporter_execute_command: command failed");
 
-   pgexporter_clear_message();
-   free(content);
+   pgexporter_free_message(qmsg);
    free(data);
 
    return 1;
+}
+
+int
+pgexporter_query_execute_params(SSL* ssl, int fd, char* sql, int nparams, char** values, char* tag, struct query** query)
+{
+   struct message* m = NULL;
+   void* buffer = NULL;
+   size_t size = 0;
+   void* data = NULL;
+   size_t data_size = 0;
+
+   *query = NULL;
+
+   if (pgexporter_create_parse_message("", sql, nparams, &m) || append_message(m, &buffer, &size) ||
+       pgexporter_create_bind_message("", "", nparams, values, &m) || append_message(m, &buffer, &size) ||
+       pgexporter_create_describe_message('P', "", &m) || append_message(m, &buffer, &size) ||
+       pgexporter_create_execute_message("", 0, &m) || append_message(m, &buffer, &size) ||
+       pgexporter_create_sync_message(&m) || append_message(m, &buffer, &size))
+   {
+      pgexporter_log_error("pgexporter_query_execute_params: failed to create messages");
+      goto error;
+   }
+
+   if (send_buffer(ssl, fd, buffer, size, &data, &data_size))
+   {
+      pgexporter_log_error("pgexporter_query_execute_params: failed to send or receive");
+      goto error;
+   }
+
+   if (pgexporter_has_message('E', data, data_size))
+   {
+      log_error_response(data, data_size);
+      goto error;
+   }
+
+   if (build_query(data, data_size, -1, tag, -1, NULL, query))
+   {
+      pgexporter_log_error("pgexporter_query_execute_params: no result set");
+      goto error;
+   }
+
+   free(buffer);
+   free(data);
+
+   return 0;
+
+error:
+   free(buffer);
+   free(data);
+
+   return 1;
+}
+
+int
+pgexporter_execute_command_params(SSL* ssl, int fd, char* sql, int nparams, char** values)
+{
+   struct message* m = NULL;
+   void* buffer = NULL;
+   size_t size = 0;
+   void* data = NULL;
+   size_t data_size = 0;
+
+   if (pgexporter_create_parse_message("", sql, nparams, &m) || append_message(m, &buffer, &size) ||
+       pgexporter_create_bind_message("", "", nparams, values, &m) || append_message(m, &buffer, &size) ||
+       pgexporter_create_execute_message("", 0, &m) || append_message(m, &buffer, &size) ||
+       pgexporter_create_sync_message(&m) || append_message(m, &buffer, &size))
+   {
+      pgexporter_log_error("pgexporter_execute_command_params: failed to create messages");
+      goto error;
+   }
+
+   if (send_buffer(ssl, fd, buffer, size, &data, &data_size))
+   {
+      pgexporter_log_error("pgexporter_execute_command_params: failed to send or receive");
+      goto error;
+   }
+
+   if (pgexporter_has_message('E', data, data_size))
+   {
+      log_error_response(data, data_size);
+      goto error;
+   }
+
+   if (!pgexporter_has_message('C', data, data_size))
+   {
+      pgexporter_log_error("pgexporter_execute_command_params: no CommandComplete message found");
+      goto error;
+   }
+
+   free(buffer);
+   free(data);
+
+   return 0;
+
+error:
+   free(buffer);
+   free(data);
+
+   return 1;
+}
+
+int
+pgexporter_pipeline_create(struct query_pipeline** pipeline)
+{
+   struct query_pipeline* p = NULL;
+
+   *pipeline = NULL;
+
+   p = (struct query_pipeline*)calloc(1, sizeof(struct query_pipeline));
+   if (p == NULL)
+   {
+      return 1;
+   }
+
+   *pipeline = p;
+
+   return 0;
+}
+
+int
+pgexporter_pipeline_prepare(struct query_pipeline* pipeline, char* stmt, char* sql, int nparams)
+{
+   struct message* m = NULL;
+
+   if (pipeline == NULL)
+   {
+      return 1;
+   }
+
+   /* Closing a statement that does not exist is not an error */
+   if (pgexporter_create_close_message('S', stmt, &m) || append_message(m, &pipeline->data, &pipeline->size) ||
+       pgexporter_create_parse_message(stmt, sql, nparams, &m) || append_message(m, &pipeline->data, &pipeline->size))
+   {
+      pgexporter_log_error("pgexporter_pipeline_prepare: failed to queue %s", stmt != NULL ? stmt : "");
+      return 1;
+   }
+
+   return 0;
+}
+
+int
+pgexporter_pipeline_execute(struct query_pipeline* pipeline, char* stmt, int nparams, char** values)
+{
+   struct message* m = NULL;
+
+   if (pipeline == NULL)
+   {
+      return 1;
+   }
+
+   if (pgexporter_create_bind_message("", stmt, nparams, values, &m) || append_message(m, &pipeline->data, &pipeline->size) ||
+       pgexporter_create_execute_message("", 0, &m) || append_message(m, &pipeline->data, &pipeline->size))
+   {
+      pgexporter_log_error("pgexporter_pipeline_execute: failed to queue %s", stmt != NULL ? stmt : "");
+      return 1;
+   }
+
+   pipeline->count++;
+
+   return 0;
+}
+
+int
+pgexporter_pipeline_sync(SSL* ssl, int fd, struct query_pipeline* pipeline)
+{
+   struct message* m = NULL;
+   void* data = NULL;
+   size_t data_size = 0;
+
+   if (pipeline == NULL)
+   {
+      return 1;
+   }
+
+   if (pipeline->size == 0)
+   {
+      return 0;
+   }
+
+   if (pgexporter_create_sync_message(&m) || append_message(m, &pipeline->data, &pipeline->size))
+   {
+      pgexporter_log_error("pgexporter_pipeline_sync: failed to create message");
+      goto error;
+   }
+
+   if (send_buffer(ssl, fd, pipeline->data, pipeline->size, &data, &data_size))
+   {
+      pgexporter_log_error("pgexporter_pipeline_sync: failed to send or receive");
+      goto error;
+   }
+
+   if (pgexporter_has_message('E', data, data_size))
+   {
+      log_error_response(data, data_size);
+      goto error;
+   }
+
+   free(pipeline->data);
+   pipeline->data = NULL;
+   pipeline->size = 0;
+   pipeline->count = 0;
+   free(data);
+
+   return 0;
+
+error:
+   free(pipeline->data);
+   pipeline->data = NULL;
+   pipeline->size = 0;
+   pipeline->count = 0;
+   free(data);
+
+   return 1;
+}
+
+void
+pgexporter_pipeline_destroy(struct query_pipeline* pipeline)
+{
+   if (pipeline != NULL)
+   {
+      free(pipeline->data);
+      free(pipeline);
+   }
 }
 
 int
@@ -664,129 +856,102 @@ pgexporter_get_column_by_name(char* name, struct query* query, struct tuple* tup
    return NULL;
 }
 
-static bool
-is_query_timeout_error(struct message* error_msg)
-{
-   bool is_timeout = false;
-   if (error_msg != NULL && error_msg->length > 5)
-   {
-      char* payload = (char*)error_msg->data;
-      size_t offset = 5; /* kind (1) + length (4) */
-
-      while (offset < error_msg->length)
-      {
-         char field_type = payload[offset];
-         if (field_type == '\0')
-         {
-            break;
-         }
-
-         char* value = pgexporter_read_string(payload + offset + 1);
-
-         if (field_type == 'C')
-         {
-            if (!strcmp(value, SQLSTATE_QUERY_CANCELED))
-            {
-               is_timeout = true;
-               break;
-            }
-         }
-         else if (field_type == 'M')
-         {
-            if (strstr(value, "statement timeout") != NULL || strstr(value, "canceling statement due to user request") != NULL)
-            {
-               is_timeout = true;
-               break;
-            }
-         }
-
-         offset += 1 + strlen(value) + 1;
-      }
-   }
-
-   return is_timeout;
-}
-
 static int
-query_execute(int server, char* qs, char* tag, int columns, char* names[], struct query** query)
+round_trip(SSL* ssl, int fd, struct message* msg, void** data, size_t* data_size)
 {
    int status;
-   bool cont;
-   int cols;
-   char* name = NULL;
-   struct message qmsg = {0};
-   struct message* tmsg = NULL;
+   bool cont = true;
+   struct message* reply = NULL;
+   void* d = NULL;
    size_t size = 0;
-   char* content = NULL;
-   struct message* msg = NULL;
-   struct query* q = NULL;
-   struct tuple* current = NULL;
-   void* data = NULL;
-   size_t data_size = 0;
-   size_t offset = 0;
-   struct configuration* config;
-   bool query_timeout = false;
 
-   config = (struct configuration*)shmem;
+   *data = NULL;
+   *data_size = 0;
 
-   atomic_fetch_add(&config->query_executions_total, 1);
-
-   *query = NULL;
-
-   memset(&qmsg, 0, sizeof(struct message));
-
-   size = 1 + 4 + strlen(qs) + 1;
-   content = (char*)malloc(size);
-   memset(content, 0, size);
-
-   pgexporter_write_byte(content, 'Q');
-   pgexporter_write_int32(content + 1, size - 1);
-   pgexporter_write_string(content + 5, qs);
-
-   qmsg.kind = 'Q';
-   qmsg.length = size;
-   qmsg.data = content;
-
-   status = pgexporter_write_message(config->servers[server].ssl, config->servers[server].fd, &qmsg);
+   status = pgexporter_write_message(ssl, fd, msg);
    if (status != MESSAGE_STATUS_OK)
    {
+      pgexporter_log_debug("round_trip: failed to write message, status=%d", status);
       goto error;
    }
 
-   cont = true;
    while (cont)
    {
-      status = pgexporter_read_block_message(config->servers[server].ssl, config->servers[server].fd, &msg);
+      status = pgexporter_read_block_message(ssl, fd, &reply);
 
       if (status == MESSAGE_STATUS_OK)
       {
-         data = data_append(data, data_size, msg->data, msg->length);
-         data_size += msg->length;
+         d = data_append(d, size, reply->data, reply->length);
+         size += reply->length;
 
-         if (pgexporter_has_message('Z', data, data_size))
+         if (pgexporter_has_message('Z', d, size))
          {
             cont = false;
          }
       }
       else
       {
+         pgexporter_log_debug("round_trip: failed to read message, status=%d", status);
          goto error;
       }
 
       pgexporter_clear_message();
-      msg = NULL;
+      reply = NULL;
    }
 
-   if (pgexporter_has_message('E', data, data_size))
+   *data = d;
+   *data_size = size;
+
+   return 0;
+
+error:
+   pgexporter_clear_message();
+   free(d);
+
+   return 1;
+}
+
+static int
+append_message(struct message* msg, void** buffer, size_t* size)
+{
+   if (msg == NULL)
    {
-      struct message* error_msg = NULL;
-      if (!pgexporter_extract_message_from_data('E', data, data_size, &error_msg))
-      {
-         query_timeout = is_query_timeout_error(error_msg);
-         pgexporter_free_message(error_msg);
-      }
-      goto error;
+      return 1;
    }
+
+   *buffer = pgexporter_memory_dynamic_append(*buffer, *size, msg->data, msg->length, size);
+
+   pgexporter_free_message(msg);
+
+   return 0;
+}
+
+static int
+send_buffer(SSL* ssl, int fd, void* buffer, size_t size, void** data, size_t* data_size)
+{
+   struct message msg;
+
+   memset(&msg, 0, sizeof(struct message));
+
+   msg.kind = pgexporter_read_byte(buffer);
+   msg.length = size;
+   msg.data = buffer;
+
+   return round_trip(ssl, fd, &msg, data, data_size);
+}
+
+static int
+build_query(void* data, size_t data_size, int server, char* tag, int columns, char* names[], struct query** query)
+{
+   int cols;
+   char* name = NULL;
+   struct message* tmsg = NULL;
+   struct message* msg = NULL;
+   struct query* q = NULL;
+   struct tuple* current = NULL;
+   size_t offset = 0;
+
+   *query = NULL;
 
    if (pgexporter_extract_message_from_data('T', data, data_size, &tmsg))
    {
@@ -860,7 +1025,133 @@ query_execute(int server, char* qs, char* tag, int columns, char* names[], struc
 
    pgexporter_free_message(tmsg);
 
-   free(content);
+   return 0;
+
+error:
+   if (q != NULL)
+   {
+      pgexporter_free_query(q);
+   }
+   pgexporter_free_message(tmsg);
+
+   return 1;
+}
+
+static void
+log_error_response(void* data, size_t data_size)
+{
+   struct message* error_msg = NULL;
+   char* code = NULL;
+   char* message = NULL;
+
+   if (!pgexporter_extract_message_from_data('E', data, data_size, &error_msg))
+   {
+      code = get_error_field(error_msg, 'C');
+      message = get_error_field(error_msg, 'M');
+   }
+
+   pgexporter_log_error("Server error: %s (SQLSTATE %s)",
+                        message != NULL ? message : "unknown",
+                        code != NULL ? code : "unknown");
+
+   pgexporter_free_message(error_msg);
+}
+
+static char*
+get_error_field(struct message* error_msg, char field)
+{
+   size_t offset = 5; /* kind (1) + length (4) */
+
+   if (error_msg == NULL)
+   {
+      return NULL;
+   }
+
+   while (offset < (size_t)error_msg->length)
+   {
+      char type = ((char*)error_msg->data)[offset];
+      char* value = NULL;
+
+      if (type == '\0')
+      {
+         break;
+      }
+
+      value = pgexporter_read_string((char*)error_msg->data + offset + 1);
+
+      if (type == field)
+      {
+         return value;
+      }
+
+      offset += 1 + strlen(value) + 1;
+   }
+
+   return NULL;
+}
+
+static bool
+is_query_timeout_error(struct message* error_msg)
+{
+   char* code = NULL;
+   char* message = NULL;
+
+   code = get_error_field(error_msg, 'C');
+   if (code != NULL && !strcmp(code, SQLSTATE_QUERY_CANCELED))
+   {
+      return true;
+   }
+
+   message = get_error_field(error_msg, 'M');
+   if (message != NULL && (strstr(message, "statement timeout") != NULL || strstr(message, "canceling statement due to user request") != NULL))
+   {
+      return true;
+   }
+
+   return false;
+}
+
+static int
+query_execute(int server, char* qs, char* tag, int columns, char* names[], struct query** query)
+{
+   struct message* qmsg = NULL;
+   struct message* error_msg = NULL;
+   void* data = NULL;
+   size_t data_size = 0;
+   struct configuration* config;
+   bool query_timeout = false;
+
+   config = (struct configuration*)shmem;
+
+   atomic_fetch_add(&config->query_executions_total, 1);
+
+   *query = NULL;
+
+   if (pgexporter_create_query_message(qs, &qmsg))
+   {
+      goto error;
+   }
+
+   if (round_trip(config->servers[server].ssl, config->servers[server].fd, qmsg, &data, &data_size))
+   {
+      goto error;
+   }
+
+   if (pgexporter_has_message('E', data, data_size))
+   {
+      if (!pgexporter_extract_message_from_data('E', data, data_size, &error_msg))
+      {
+         query_timeout = is_query_timeout_error(error_msg);
+      }
+      goto error;
+   }
+
+   if (build_query(data, data_size, server, tag, columns, names, query))
+   {
+      goto error;
+   }
+
+   pgexporter_free_message(qmsg);
    free(data);
 
    return 0;
@@ -871,13 +1162,8 @@ error:
    {
       atomic_fetch_add(&config->query_timeouts_total, 1);
    }
-   if (q != NULL)
-   {
-      pgexporter_free_query(q);
-   }
-   pgexporter_clear_message();
-   pgexporter_free_message(tmsg);
-   free(content);
+   pgexporter_free_message(error_msg);
+   pgexporter_free_message(qmsg);
    free(data);
 
    return 1;

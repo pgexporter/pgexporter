@@ -58,6 +58,27 @@ int
 pgexporter_server_authenticate(int server, char* database, char* username, char* password, SSL** ssl, int* fd);
 
 /**
+ * Connect to a PostgreSQL instance that is not in the server list and authenticate
+ * @param name The name used in log messages
+ * @param host The host name, or a Unix socket directory when it starts with '/'
+ * @param port The port, or the Unix socket number
+ * @param tls_mode The TLS negotiation mode (SERVER_TLS_*)
+ * @param tls_cert_file The client certificate path, or "" for none
+ * @param tls_key_file The client key path, or "" for none
+ * @param tls_ca_file The CA certificate path; required when tls_mode is SERVER_TLS_ON
+ * @param database The database
+ * @param username The username
+ * @param password The password
+ * @param ssl The resulting SSL structure
+ * @param fd The resulting socket
+ * @return AUTH_SUCCESS, AUTH_BAD_PASSWORD or AUTH_ERROR
+ */
+int
+pgexporter_authenticate_host(char* name, char* host, int port, int tls_mode,
+                             char* tls_cert_file, char* tls_key_file, char* tls_ca_file,
+                             char* database, char* username, char* password, SSL** ssl, int* fd);
+
+/**
  * Authenticate a remote management user
  * @param client_fd The descriptor
  * @param address The client address

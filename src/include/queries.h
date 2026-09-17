@@ -124,6 +124,93 @@ int
 pgexporter_execute_command(int server, char* sql);
 
 /**
+ * Execute a parameterized query with the extended query protocol.
+ * Values are sent separately from the SQL, so they need no quoting.
+ * Unlike pgexporter_query_execute this is not tied to a monitored server
+ * and does not count towards the query statistics.
+ * @param ssl The SSL structure, or NULL
+ * @param fd The socket
+ * @param sql The SQL text, using $1..$n placeholders
+ * @param nparams The number of parameters
+ * @param values The parameter values as text; a NULL entry is SQL NULL
+ * @param tag The tag of the resulting query
+ * @param query The resulting query
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_query_execute_params(SSL* ssl, int fd, char* sql, int nparams, char** values, char* tag, struct query** query);
+
+/**
+ * Execute a parameterized command that doesn't return result sets
+ * @param ssl The SSL structure, or NULL
+ * @param fd The socket
+ * @param sql The SQL text, using $1..$n placeholders
+ * @param nparams The number of parameters
+ * @param values The parameter values as text; a NULL entry is SQL NULL
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_execute_command_params(SSL* ssl, int fd, char* sql, int nparams, char** values);
+
+/** @struct query_pipeline
+ * A batch of extended query protocol commands sent in one round trip.
+ */
+struct query_pipeline
+{
+   void* data;  /**< The encoded messages */
+   size_t size; /**< The number of bytes in data */
+   int count;   /**< The number of queued executions */
+};
+
+/**
+ * Create an empty pipeline
+ * @param pipeline The resulting pipeline
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_pipeline_create(struct query_pipeline** pipeline);
+
+/**
+ * Queue a named prepared statement.
+ * @param pipeline The pipeline
+ * @param stmt The statement name
+ * @param sql The SQL text, using $1..$n placeholders
+ * @param nparams The number of parameters
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_pipeline_prepare(struct query_pipeline* pipeline, char* stmt, char* sql, int nparams);
+
+/**
+ * Queue an execution of a prepared statement. Any rows it returns are discarded.
+ * @param pipeline The pipeline
+ * @param stmt The statement name, as given to pgexporter_pipeline_prepare
+ * @param nparams The number of parameters
+ * @param values The parameter values as text; a NULL entry is SQL NULL
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_pipeline_execute(struct query_pipeline* pipeline, char* stmt, int nparams, char** values);
+
+/**
+ * Send the queued commands followed by a Sync and wait for the result.
+ * The pipeline is emptied afterwards, whether or not it succeeded, and can be reused.
+ * @param ssl The SSL structure, or NULL
+ * @param fd The socket
+ * @param pipeline The pipeline
+ * @return 0 if every command succeeded, otherwise 1
+ */
+int
+pgexporter_pipeline_sync(SSL* ssl, int fd, struct query_pipeline* pipeline);
+
+/**
+ * Destroy a pipeline
+ * @param pipeline The pipeline, may be NULL
+ */
+void
+pgexporter_pipeline_destroy(struct query_pipeline* pipeline);
+
+/**
  * Query PostgreSQL version
  * @param server The server
  * @param query The resulting query

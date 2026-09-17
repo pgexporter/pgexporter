@@ -309,6 +309,78 @@ pgexporter_create_ssl_message(struct message** msg);
 int
 pgexporter_create_startup_message(char* username, char* database, struct message** msg);
 
+/**
+ * Create a Query message for the simple query protocol
+ * @param sql The SQL text
+ * @param msg The resulting message
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_create_query_message(char* sql, struct message** msg);
+
+/**
+ * Create a Parse message for the extended query protocol.
+ * All parameter types are left unspecified so the server infers them.
+ * @param stmt The prepared statement name, or "" for the unnamed statement
+ * @param sql The SQL text, using $1..$n placeholders
+ * @param nparams The number of parameters, 0 to 65535
+ * @param msg The resulting message
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_create_parse_message(char* stmt, char* sql, int nparams, struct message** msg);
+
+/**
+ * Create a Bind message for the extended query protocol.
+ * Parameters are sent and results requested in text format.
+ * @param portal The portal name, or "" for the unnamed portal
+ * @param stmt The prepared statement name, or "" for the unnamed statement
+ * @param nparams The number of parameters, 0 to 65535
+ * @param values The parameter values; a NULL entry is sent as SQL NULL
+ * @param msg The resulting message
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_create_bind_message(char* portal, char* stmt, int nparams, char** values, struct message** msg);
+
+/**
+ * Create a Describe message for the extended query protocol
+ * @param type 'S' for a prepared statement, 'P' for a portal
+ * @param name The statement or portal name, or "" for the unnamed one
+ * @param msg The resulting message
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_create_describe_message(char type, char* name, struct message** msg);
+
+/**
+ * Create an Execute message for the extended query protocol
+ * @param portal The portal name, or "" for the unnamed portal
+ * @param max_rows The maximum number of rows to return, 0 for no limit
+ * @param msg The resulting message
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_create_execute_message(char* portal, int max_rows, struct message** msg);
+
+/**
+ * Create a Sync message for the extended query protocol
+ * @param msg The resulting message
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_create_sync_message(struct message** msg);
+
+/**
+ * Create a Close message for the extended query protocol
+ * @param type 'S' for a prepared statement, 'P' for a portal
+ * @param name The statement or portal name, or "" for the unnamed one
+ * @param msg The resulting message
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_create_close_message(char type, char* name, struct message** msg);
+
 #ifdef __cplusplus
 }
 #endif

@@ -271,6 +271,22 @@ void
 pgexporter_write_uint8(void* data, uint8_t b);
 
 /**
+ * Write an int16
+ * @param data Pointer to the data
+ * @param i The int16
+ */
+void
+pgexporter_write_int16(void* data, int16_t i);
+
+/**
+ * Write an uint16
+ * @param data Pointer to the data
+ * @param i The uint16
+ */
+void
+pgexporter_write_uint16(void* data, uint16_t i);
+
+/**
  * Write an int32
  * @param data Pointer to the data
  * @param i The int32
