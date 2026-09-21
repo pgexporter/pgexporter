@@ -105,8 +105,8 @@ exec_sql(const char* sql, const char* what)
    return 0;
 }
 
-int
-pgexporter_history_sqlite_init(void)
+static int
+open_db(void)
 {
    struct configuration* config;
 
@@ -139,12 +139,6 @@ pgexporter_history_sqlite_init(void)
       goto error;
    }
 
-   if (exec_sql(schema_sql, "schema create"))
-   {
-      goto error;
-   }
-
-   pgexporter_log_debug("history_sqlite: initialized at %s", config->history_path);
    return 0;
 
 error:
@@ -156,6 +150,42 @@ error:
    }
 
    return 1;
+}
+
+int
+pgexporter_history_sqlite_create(void)
+{
+   struct configuration* config = (struct configuration*)shmem;
+   bool opened = db != NULL;
+   int ret = 1;
+
+   if (open_db())
+   {
+      goto done;
+   }
+
+   ret = exec_sql(schema_sql, "schema create");
+
+   if (ret == 0)
+   {
+      pgexporter_log_debug("history_sqlite: created at %s", config->history_path);
+   }
+
+done:
+
+   if (!opened && db)
+   {
+      sqlite3_close_v2(db);
+      db = NULL;
+   }
+
+   return ret;
+}
+
+int
+pgexporter_history_sqlite_init(void)
+{
+   return open_db();
 }
 
 /**
@@ -515,6 +545,7 @@ pgexporter_history_sqlite_shutdown(void)
 }
 
 const struct history_backend_ops pgexporter_history_sqlite_ops = {
+   .create = pgexporter_history_sqlite_create,
    .init = pgexporter_history_sqlite_init,
    .write_batch = pgexporter_history_sqlite_write_batch,
    .query_range = pgexporter_history_sqlite_query_range,

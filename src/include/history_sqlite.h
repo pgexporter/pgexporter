@@ -37,6 +37,13 @@ extern "C" {
 #include <time.h>
 
 /**
+ * Create the database file and its schema if they do not exist yet.
+ * @return 0 on success, 1 on failure
+ */
+int
+pgexporter_history_sqlite_create(void);
+
+/**
  * Open (or create) the SQLite database file and initialise the schema.
  * The path is taken from config->history_path.
  * @return 0 on success, 1 on failure

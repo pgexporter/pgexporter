@@ -214,6 +214,17 @@ int
 pgexporter_read_admins_configuration(void* shmem, char* filename);
 
 /**
+ * Read the history store credential from history_postgresql_password_file.
+ * Does nothing unless history is enabled with the postgresql backend. Without a
+ * password file only the user name is set, for trust or peer authentication.
+ * @param shmem The shared memory segment
+ * @return 0 upon success, 1 if the file can't be read, 2 for an invalid master key,
+ *         3 if the file holds more than one entry, 4 if its user is not history_postgresql_user
+ */
+int
+pgexporter_read_history_user_configuration(void* shmem);
+
+/**
  * Validate the ADMINS configuration from a file
  * @param shmem The shared memory segment
  * @return 0 upon success, otherwise 1

@@ -27,6 +27,9 @@
 CREATE ROLE PG_USER_NAME WITH LOGIN PASSWORD 'PG_USER_PASSWORD';
 CREATE DATABASE PG_DATABASE WITH OWNER PG_USER_NAME TEMPLATE template0 ENCODING UTF8;
 
+-- History store for the postgresql history backend
+CREATE DATABASE pgexporter_history WITH OWNER PG_USER_NAME TEMPLATE template0 ENCODING UTF8;
+
 -- Grant necessary privileges for pgexporter
 GRANT pg_monitor TO PG_USER_NAME;
 

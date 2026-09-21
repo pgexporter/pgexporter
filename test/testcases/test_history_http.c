@@ -211,6 +211,8 @@ MCTF_TEST_SETUP(history_http)
    pgexporter_snprintf(db_path, MAX_PATH, "/tmp/pgexporter-test/history-http-%d.db", (int)getpid());
    unlink_db(db_path);
    pgexporter_snprintf(config->history_path, MAX_PATH, "%s", db_path);
+
+   pgexporter_history_create();
 }
 
 MCTF_TEST_TEARDOWN(history_http)

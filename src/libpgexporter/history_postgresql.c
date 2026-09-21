@@ -28,10 +28,15 @@
 
 #include <history_postgresql.h>
 #include <logging.h>
+#include <message.h>
+#include <network.h>
 #include <pgexporter.h>
+#include <queries.h>
+#include <security.h>
 #include <shmem.h>
 #include <utils.h>
 
+#include <stdbool.h>
 #include <string.h>
 
 /**
@@ -42,8 +47,33 @@
  * SQLite backend.
  */
 
-int
-pgexporter_history_postgresql_init(void)
+static SSL* ssl = NULL;
+static int fd = -1;
+
+static const char* schema_sql[] = {
+   "CREATE SCHEMA IF NOT EXISTS pgexporter",
+   "CREATE TABLE IF NOT EXISTS pgexporter.series ("
+   "series_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "
+   "metric text NOT NULL, "
+   "server text NOT NULL DEFAULT '', "
+   "label_hash text NOT NULL, "
+   "labels text NOT NULL DEFAULT '', "
+   "UNIQUE (metric, server, label_hash))",
+   "CREATE TABLE IF NOT EXISTS pgexporter.sample ("
+   "series_id bigint NOT NULL REFERENCES pgexporter.series (series_id), "
+   "ts bigint NOT NULL, "
+   "value double precision NOT NULL, "
+   "PRIMARY KEY (series_id, ts))",
+   "CREATE INDEX IF NOT EXISTS idx_sample_ts ON pgexporter.sample (ts)",
+};
+
+static int validate_configuration(void);
+static int connect_store(void);
+static int create_schema(void);
+static void disconnect_store(void);
+
+static int
+validate_configuration(void)
 {
    struct configuration* config;
 
@@ -67,9 +97,52 @@ pgexporter_history_postgresql_init(void)
       return 1;
    }
 
-   pgexporter_log_error("history_postgresql: not yet implemented (init)");
+   return 0;
+}
 
-   return 1;
+int
+pgexporter_history_postgresql_create(void)
+{
+   bool connected = fd != -1;
+   int ret = 1;
+
+   if (pgexporter_history_postgresql_init())
+   {
+      goto done;
+   }
+
+   ret = create_schema();
+
+done:
+
+   if (!connected)
+   {
+      disconnect_store();
+   }
+
+   return ret;
+}
+
+int
+pgexporter_history_postgresql_init(void)
+{
+   if (validate_configuration())
+   {
+      return 1;
+   }
+
+   if (fd != -1)
+   {
+      return 0;
+   }
+
+   if (connect_store())
+   {
+      disconnect_store();
+      return 1;
+   }
+
+   return 0;
 }
 
 int
@@ -117,13 +190,97 @@ pgexporter_history_postgresql_prune(void)
 int
 pgexporter_history_postgresql_shutdown(void)
 {
+   disconnect_store();
+
    return 0;
 }
 
 const struct history_backend_ops pgexporter_history_postgresql_ops = {
+   .create = pgexporter_history_postgresql_create,
    .init = pgexporter_history_postgresql_init,
    .write_batch = pgexporter_history_postgresql_write_batch,
    .query_range = pgexporter_history_postgresql_query_range,
    .prune = pgexporter_history_postgresql_prune,
    .shutdown = pgexporter_history_postgresql_shutdown,
 };
+
+static int
+connect_store(void)
+{
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (pgexporter_authenticate_host("history", config->history_postgresql_host, config->history_postgresql_port,
+                                    config->history_postgresql_tls, config->history_postgresql_tls_cert_file,
+                                    config->history_postgresql_tls_key_file, config->history_postgresql_tls_ca_file,
+                                    config->history_postgresql_database, config->history_user.username,
+                                    config->history_user.password, &ssl, &fd) != AUTH_SUCCESS)
+   {
+      pgexporter_log_error("history_postgresql: failed to connect to %s:%d/%s as %s",
+                           config->history_postgresql_host, config->history_postgresql_port,
+                           config->history_postgresql_database, config->history_user.username);
+      return 1;
+   }
+
+   pgexporter_log_debug("history_postgresql: connected to %s:%d/%s",
+                        config->history_postgresql_host, config->history_postgresql_port,
+                        config->history_postgresql_database);
+
+   return 0;
+}
+
+static int
+create_schema(void)
+{
+   struct query_pipeline* pipeline = NULL;
+
+   if (pgexporter_pipeline_create(&pipeline))
+   {
+      goto error;
+   }
+
+   for (size_t i = 0; i < sizeof(schema_sql) / sizeof(schema_sql[0]); i++)
+   {
+      if (pgexporter_pipeline_prepare(pipeline, "schema", (char*)schema_sql[i], 0) ||
+          pgexporter_pipeline_execute(pipeline, "schema", 0, NULL))
+      {
+         goto error;
+      }
+   }
+
+   if (pgexporter_pipeline_sync(ssl, fd, pipeline))
+   {
+      pgexporter_log_error("history_postgresql: failed to create schema");
+      goto error;
+   }
+
+   pgexporter_pipeline_destroy(pipeline);
+
+   return 0;
+
+error:
+
+   pgexporter_pipeline_destroy(pipeline);
+
+   return 1;
+}
+
+static void
+disconnect_store(void)
+{
+   if (fd != -1)
+   {
+      pgexporter_write_terminate(ssl, fd);
+   }
+
+   pgexporter_close_ssl(ssl);
+
+   if (fd != -1)
+   {
+      pgexporter_disconnect(fd);
+   }
+
+   ssl = NULL;
+   fd = -1;
+}

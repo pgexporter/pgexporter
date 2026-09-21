@@ -108,6 +108,7 @@ static void validate_event_backend(struct configuration* config);
 static const char* ev_backend_to_string(ev_backend_t backend);
 
 static bool is_empty_string(char* s);
+static int read_user_file(char* filename, char* kind, struct user* users, int max_users, int* count);
 
 static void add_configuration_response(struct json* res);
 static void add_servers_configuration_response(struct json* res);
@@ -1877,6 +1878,12 @@ pgexporter_validate_configuration(void* shm)
             return 1;
          }
 
+         if (strlen(config->history_postgresql_user) == 0)
+         {
+            pgexporter_log_fatal("pgexporter: history_backend is postgresql but history_postgresql_user is not set");
+            return 1;
+         }
+
          /* tls=on needs a CA to verify against, same rule the servers use */
          if (config->history_postgresql_tls == SERVER_TLS_ON &&
              strlen(config->history_postgresql_tls_ca_file) == 0)
@@ -2111,194 +2118,11 @@ pgexporter_validate_configuration(void* shm)
 int
 pgexporter_read_users_configuration(void* shm, char* filename)
 {
-   FILE* file;
-   char line[MAX_USER_LINE_LENGTH];
-   int index;
-   char* master_key = NULL;
-   char* username = NULL;
-   char* password = NULL;
-   char* decoded = NULL;
-   size_t decoded_length = 0;
-   char* ptr = NULL;
    struct configuration* config;
 
-   file = fopen(filename, "r");
-
-   if (!file)
-   {
-      goto error;
-   }
-
-   unsigned char* master_salt = NULL;
-
-   if (pgexporter_get_master_key_and_salt(&master_key, &master_salt, NULL))
-   {
-      goto masterkey;
-   }
-
-   pgexporter_set_master_salt(master_salt);
-   free(master_salt);
-
-   index = 0;
    config = (struct configuration*)shm;
 
-   while (fgets(line, sizeof(line), file))
-   {
-      if (!is_empty_string(line))
-      {
-         if (line[0] == '#' || line[0] == ';')
-         {
-            /* Comment, so ignore */
-         }
-         else
-         {
-            ptr = strtok(line, ":");
-
-            username = ptr;
-
-            ptr = strtok(NULL, ":");
-
-            if (ptr == NULL)
-            {
-               goto error;
-            }
-
-            if (pgexporter_base64_decode(ptr, strlen(ptr), (void**)&decoded, &decoded_length))
-            {
-               goto error;
-            }
-
-            if (pgexporter_decrypt(decoded, decoded_length, master_key, &password, ENCRYPTION_AES_256_GCM))
-            {
-               goto error;
-            }
-
-            // Validate password is valid UTF-8
-            if (!pgexporter_utf8_valid((unsigned char*)password, strlen(password)))
-            {
-               warnx("pgexporter: Invalid USER entry: invalid UTF-8 password for user '%s'", username);
-               warnx("%s", line);
-               free(password);
-               free(decoded);
-               password = NULL;
-               decoded = NULL;
-               continue;
-            }
-
-            // Check character length
-            size_t char_count = pgexporter_utf8_char_length((unsigned char*)password, strlen(password));
-            if (char_count == (size_t)-1)
-            {
-               warnx("pgexporter: Invalid USER entry: error counting UTF-8 characters for user '%s'", username);
-               warnx("%s", line);
-               free(password);
-               free(decoded);
-               password = NULL;
-               decoded = NULL;
-               continue;
-            }
-            if (strlen(password) >= MAX_PASSWORD_LENGTH)
-            {
-               pgexporter_log_warn("Password too long for user '%s' (%zu bytes, max %d)", username, strlen(password), MAX_PASSWORD_LENGTH - 1);
-               warnx("pgexporter: Invalid USER entry");
-               warnx("%s", line);
-               free(password);
-               free(decoded);
-               password = NULL;
-               decoded = NULL;
-               continue;
-            }
-
-            if (strlen(username) < MAX_USERNAME_LENGTH &&
-                strlen(password) < MAX_PASSWORD_LENGTH)
-            {
-               pgexporter_snprintf(&config->users[index].username[0], MAX_USERNAME_LENGTH, "%s", username);
-               pgexporter_snprintf(&config->users[index].password[0], MAX_PASSWORD_LENGTH, "%s", password);
-            }
-            else
-            {
-               warnx("pgexporter: Invalid USER entry");
-               warnx("%s\n", line);
-            }
-
-            free(password);
-            free(decoded);
-
-            password = NULL;
-            decoded = NULL;
-
-            index++;
-         }
-      }
-   }
-
-   config->number_of_users = index;
-
-   if (config->number_of_users > NUMBER_OF_USERS)
-   {
-      goto above;
-   }
-
-   if (master_key != NULL)
-   {
-      pgexporter_cleanse(master_key, strlen(master_key));
-   }
-   free(master_key);
-
-   fclose(file);
-
-   return 0;
-
-error:
-
-   if (master_key != NULL)
-   {
-      pgexporter_cleanse(master_key, strlen(master_key));
-   }
-   free(master_key);
-   free(password);
-   free(decoded);
-
-   if (file)
-   {
-      fclose(file);
-   }
-
-   return 1;
-
-masterkey:
-
-   if (master_key != NULL)
-   {
-      pgexporter_cleanse(master_key, strlen(master_key));
-   }
-   free(master_key);
-   free(password);
-   free(decoded);
-
-   if (file)
-   {
-      fclose(file);
-   }
-
-   return 2;
-
-above:
-
-   if (master_key != NULL)
-   {
-      pgexporter_cleanse(master_key, strlen(master_key));
-   }
-   free(master_key);
-   free(password);
-   free(decoded);
-
-   if (file)
-   {
-      fclose(file);
-   }
-
-   return 3;
+   return read_user_file(filename, "USER", config->users, NUMBER_OF_USERS, &config->number_of_users);
 }
 
 /**
@@ -2350,202 +2174,53 @@ pgexporter_validate_users_configuration(void* shm)
 int
 pgexporter_read_admins_configuration(void* shm, char* filename)
 {
-   FILE* file;
-   char line[MAX_USER_LINE_LENGTH];
-   int index;
-   char* master_key = NULL;
-   char* username = NULL;
-   char* password = NULL;
-   char* decoded = NULL;
-   size_t decoded_length = 0;
-   char* ptr = NULL;
    struct configuration* config;
 
-   file = fopen(filename, "r");
-
-   if (!file)
-   {
-      goto error;
-   }
-
-   unsigned char* master_salt = NULL;
-
-   if (pgexporter_get_master_key_and_salt(&master_key, &master_salt, NULL))
-   {
-      goto masterkey;
-   }
-
-   pgexporter_set_master_salt(master_salt);
-   free(master_salt);
-
-   index = 0;
    config = (struct configuration*)shm;
 
-   while (fgets(line, sizeof(line), file))
+   return read_user_file(filename, "ADMIN", config->admins, NUMBER_OF_ADMINS, &config->number_of_admins);
+}
+
+/**
+ *
+ */
+int
+pgexporter_read_history_user_configuration(void* shm)
+{
+   int count = 0;
+   int ret;
+   struct configuration* config;
+
+   config = (struct configuration*)shm;
+
+   memset(&config->history_user, 0, sizeof(struct user));
+
+   if (config->history <= 0 || config->history_backend != HISTORY_BACKEND_POSTGRESQL)
    {
-      if (!is_empty_string(line))
-      {
-         if (line[0] == '#' || line[0] == ';')
-         {
-            /* Comment, so ignore */
-         }
-         else
-         {
-            ptr = strtok(line, ":");
-
-            username = ptr;
-
-            ptr = strtok(NULL, ":");
-
-            if (ptr == NULL)
-            {
-               goto error;
-            }
-
-            if (pgexporter_base64_decode(ptr, strlen(ptr), (void**)&decoded, &decoded_length))
-            {
-               goto error;
-            }
-
-            if (pgexporter_decrypt(decoded, decoded_length, master_key, &password, ENCRYPTION_AES_256_GCM))
-            {
-               goto error;
-            }
-
-            // Validate password is valid UTF-8
-            if (!pgexporter_utf8_valid((unsigned char*)password, strlen(password)))
-            {
-               warnx("pgexporter: Invalid ADMIN entry: invalid UTF-8 password for user '%s'", username);
-               warnx("%s", line);
-               free(password);
-               free(decoded);
-               password = NULL;
-               decoded = NULL;
-               continue;
-            }
-
-            // Check character length
-            size_t char_count = pgexporter_utf8_char_length((unsigned char*)password, strlen(password));
-            if (char_count == (size_t)-1)
-            {
-               warnx("pgexporter: Invalid ADMIN entry: error counting UTF-8 characters for user '%s'", username);
-               warnx("%s", line);
-               free(password);
-               free(decoded);
-               password = NULL;
-               decoded = NULL;
-               continue;
-            }
-            if (strlen(password) >= MAX_PASSWORD_LENGTH)
-            {
-               pgexporter_log_warn("Password too long for user '%s' (%zu bytes, max %d)", username, strlen(password), MAX_PASSWORD_LENGTH - 1);
-               warnx("pgexporter: Invalid ADMIN entry");
-               warnx("%s", line);
-               free(password);
-               free(decoded);
-               password = NULL;
-               decoded = NULL;
-               continue;
-            }
-
-            if (strlen(username) < MAX_USERNAME_LENGTH &&
-                strlen(password) < MAX_PASSWORD_LENGTH)
-            {
-               pgexporter_snprintf(&config->admins[index].username[0], MAX_USERNAME_LENGTH, "%s", username);
-               pgexporter_snprintf(&config->admins[index].password[0], MAX_PASSWORD_LENGTH, "%s", password);
-            }
-            else
-            {
-               warnx("pgexporter: Invalid ADMIN entry");
-               warnx("%s", line);
-            }
-
-            free(password);
-            free(decoded);
-
-            password = NULL;
-            decoded = NULL;
-
-            index++;
-
-            free(password);
-            free(decoded);
-
-            password = NULL;
-            decoded = NULL;
-
-            index++;
-         }
-      }
+      return 0;
    }
 
-   config->number_of_admins = index;
-
-   if (config->number_of_admins > NUMBER_OF_ADMINS)
+   /* No credential file means trust or peer authentication */
+   if (strlen(config->history_postgresql_password_file) == 0)
    {
-      goto above;
+      pgexporter_snprintf(&config->history_user.username[0], MAX_USERNAME_LENGTH, "%s", config->history_postgresql_user);
+      return 0;
    }
 
-   if (master_key != NULL)
+   ret = read_user_file(config->history_postgresql_password_file, "HISTORY USER", &config->history_user, 1, &count);
+   if (ret != 0)
    {
-      pgexporter_cleanse(master_key, strlen(master_key));
+      memset(&config->history_user, 0, sizeof(struct user));
+      return ret;
    }
-   free(master_key);
 
-   fclose(file);
+   if (count == 0 || strcmp(config->history_user.username, config->history_postgresql_user))
+   {
+      memset(&config->history_user, 0, sizeof(struct user));
+      return 4;
+   }
 
    return 0;
-
-error:
-
-   if (master_key != NULL)
-   {
-      pgexporter_cleanse(master_key, strlen(master_key));
-   }
-   free(master_key);
-   free(password);
-   free(decoded);
-
-   if (file)
-   {
-      fclose(file);
-   }
-
-   return 1;
-
-masterkey:
-
-   if (master_key != NULL)
-   {
-      pgexporter_cleanse(master_key, strlen(master_key));
-   }
-   free(master_key);
-   free(password);
-   free(decoded);
-
-   if (file)
-   {
-      fclose(file);
-   }
-
-   return 2;
-
-above:
-
-   if (master_key != NULL)
-   {
-      pgexporter_cleanse(master_key, strlen(master_key));
-   }
-   free(master_key);
-   free(password);
-   free(decoded);
-
-   if (file)
-   {
-      fclose(file);
-   }
-
-   return 3;
 }
 
 /**
@@ -6242,4 +5917,124 @@ to_update_process_title(char* where, int value)
          return 1;
    }
    return 0;
+}
+
+static int
+read_user_file(char* filename, char* kind, struct user* users, int max_users, int* count)
+{
+   FILE* file;
+   char line[MAX_USER_LINE_LENGTH];
+   int index = 0;
+   int ret = 1;
+   char* master_key = NULL;
+   unsigned char* master_salt = NULL;
+   char* username = NULL;
+   char* password = NULL;
+   char* decoded = NULL;
+   size_t decoded_length = 0;
+   char* ptr = NULL;
+
+   file = fopen(filename, "r");
+
+   if (!file)
+   {
+      goto done;
+   }
+
+   if (pgexporter_get_master_key_and_salt(&master_key, &master_salt, NULL))
+   {
+      ret = 2;
+      goto done;
+   }
+
+   pgexporter_set_master_salt(master_salt);
+   free(master_salt);
+
+   while (fgets(line, sizeof(line), file))
+   {
+      if (is_empty_string(line) || line[0] == '#' || line[0] == ';')
+      {
+         continue;
+      }
+
+      ptr = strtok(line, ":");
+
+      username = ptr;
+
+      ptr = strtok(NULL, ":");
+
+      if (ptr == NULL)
+      {
+         goto done;
+      }
+
+      if (pgexporter_base64_decode(ptr, strlen(ptr), (void**)&decoded, &decoded_length))
+      {
+         goto done;
+      }
+
+      if (pgexporter_decrypt(decoded, decoded_length, master_key, &password, ENCRYPTION_AES_256_GCM))
+      {
+         goto done;
+      }
+
+      if (!pgexporter_utf8_valid((unsigned char*)password, strlen(password)))
+      {
+         warnx("pgexporter: Invalid %s entry: invalid UTF-8 password for user '%s'", kind, username);
+         warnx("%s", line);
+      }
+      else if (pgexporter_utf8_char_length((unsigned char*)password, strlen(password)) == (size_t)-1)
+      {
+         warnx("pgexporter: Invalid %s entry: error counting UTF-8 characters for user '%s'", kind, username);
+         warnx("%s", line);
+      }
+      else if (strlen(password) >= MAX_PASSWORD_LENGTH)
+      {
+         pgexporter_log_warn("Password too long for user '%s' (%zu bytes, max %d)", username, strlen(password), MAX_PASSWORD_LENGTH - 1);
+         warnx("pgexporter: Invalid %s entry", kind);
+         warnx("%s", line);
+      }
+      else
+      {
+         if (strlen(username) >= MAX_USERNAME_LENGTH)
+         {
+            warnx("pgexporter: Invalid %s entry", kind);
+            warnx("%s", line);
+         }
+         else if (index < max_users)
+         {
+            pgexporter_snprintf(&users[index].username[0], MAX_USERNAME_LENGTH, "%s", username);
+            pgexporter_snprintf(&users[index].password[0], MAX_PASSWORD_LENGTH, "%s", password);
+         }
+
+         index++;
+      }
+
+      free(password);
+      free(decoded);
+
+      password = NULL;
+      decoded = NULL;
+   }
+
+   *count = index;
+
+   ret = index > max_users ? 3 : 0;
+
+done:
+
+   if (master_key != NULL)
+   {
+      pgexporter_cleanse(master_key, strlen(master_key));
+   }
+   free(master_key);
+   free(password);
+   free(decoded);
+
+   if (file)
+   {
+      fclose(file);
+   }
+
+   return ret;
 }

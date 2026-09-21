@@ -1075,6 +1075,32 @@ main(int argc, char** argv)
       exit(1);
    }
 
+   /* History store credential */
+   ret = pgexporter_read_history_user_configuration(shmem);
+   if (ret != 0)
+   {
+      if (ret == 2)
+      {
+         warnx("pgexporter: Invalid master key file");
+      }
+      else if (ret == 3)
+      {
+         warnx("pgexporter: HISTORY: More than one user in %s", config->history_postgresql_password_file);
+      }
+      else if (ret == 4)
+      {
+         warnx("pgexporter: HISTORY: %s does not hold a password for %s", config->history_postgresql_password_file, config->history_postgresql_user);
+      }
+      else
+      {
+         warnx("pgexporter: HISTORY: Unable to read %s", config->history_postgresql_password_file);
+      }
+#ifdef HAVE_SYSTEMD
+      sd_notify(0, "STATUS=Invalid history_postgresql_password_file");
+#endif
+      exit(1);
+   }
+
    config = (struct configuration*)shmem;
 
    if (create_pidfile())
@@ -1192,6 +1218,15 @@ main(int argc, char** argv)
    }
 
    pgexporter_set_proc_title(argc, argv, "main", NULL);
+
+   /* The store is created here and errors surface at startup */
+   if (config->history > 0 && pgexporter_history_create())
+   {
+#ifdef HAVE_SYSTEMD
+      sd_notify(0, "STATUS=Error in creating the history store");
+#endif
+      errx(1, "Error in creating the history store");
+   }
 
    if (pgexporter_init_prometheus_cache(&prometheus_cache_shmem_size, &prometheus_cache_shmem))
    {

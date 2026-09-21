@@ -109,7 +109,8 @@ pgexporter_history_records_free(struct history_record* records, int count);
  */
 struct history_backend_ops
 {
-   int (*init)(void);                                             /**< Initialize backend resources. */
+   int (*create)(void);                                           /**< Create the store: schema or file. */
+   int (*init)(void);                                             /**< Open the store for this process. */
    int (*write_batch)(struct history_record* records, int count); /**< Persist a batch of history records. */
    int (*query_range)(const char* metric, time_t start, time_t end,
                       struct history_record** out, int* count_out); /**< Query records for a metric and time range. */
@@ -118,7 +119,16 @@ struct history_backend_ops
 };
 
 /**
- * Open the backend connection/file and create the schema if needed.
+ * Create the store, meaning the schema or the file, if it does not exist yet.
+ * Called once at startup, before any worker is forked, and leaves the store closed
+ * unless it was already open.
+ * @return 0 on success, 1 on failure
+ */
+int
+pgexporter_history_create(void);
+
+/**
+ * Open the backend connection/file. The store must already have been created.
  * @return 0 on success, 1 on failure
  */
 int

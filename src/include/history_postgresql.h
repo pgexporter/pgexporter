@@ -37,12 +37,14 @@ extern "C" {
 #include <time.h>
 
 /**
- * Validate the history store configuration.
- *
- * The connection itself is not opened here. This runs before the metrics scrape
- * in the forked history worker, so a connection opened at this point would sit
- * idle across the whole scrape. It is established on first use instead.
- *
+ * Create the schema in the history store if it does not exist yet.
+ * @return 0 on success, 1 on failure
+ */
+int
+pgexporter_history_postgresql_create(void);
+
+/**
+ * Connect to the history store. Does nothing when already connected.
  * @return 0 on success, 1 on failure
  */
 int

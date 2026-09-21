@@ -80,6 +80,10 @@ for bridge history). The currently supported backends are:
 | SQLite     | `sqlite`     | Default. Local file-based storage. |
 | PostgreSQL | `postgresql` | Stores history in a PostgreSQL database. |
 
+Either way the store, meaning the SQLite file or the PostgreSQL schema, is created
+when pgexporter starts, so a missing database or a wrong credential is reported
+right away at startup.
+
 ### SQLite
 
 The SQLite backend stores history in the file pointed to by `history_path`
@@ -126,10 +130,15 @@ The credential lives in its own encrypted file rather than in
 pgexporter-admin -f /etc/pgexporter/pgexporter_history.conf -U pgexporter user add
 ```
 
+`history_postgresql_user` is required, and the file must hold a single entry for that
+user. Leave `history_postgresql_password_file` unset when the history server uses
+`trust` or `peer` authentication.
+
 #### Privileges
 
-pgexporter creates and owns its own schema in the database it is pointed at, so the
-role needs `CREATE` on that database as well as `CONNECT`. Because the tables are
+pgexporter creates and owns a `pgexporter` schema, holding the `series` and `sample`
+tables, in the database it is pointed at, so the role needs `CREATE` on that
+database as well as `CONNECT`. Because the tables are
 then owned by that role, no further grants are needed - it can read, write and
 prune its own objects.
 

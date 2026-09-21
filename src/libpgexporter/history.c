@@ -355,8 +355,8 @@ static const struct
 
 #define BACKEND_REGISTRY_SIZE (sizeof(backend_registry) / sizeof(backend_registry[0]))
 
-int
-pgexporter_history_init(void)
+static const struct history_backend_ops*
+lookup_backend(void)
 {
    struct configuration* config = (struct configuration*)shmem;
    int backend = config->history_backend;
@@ -365,13 +365,40 @@ pgexporter_history_init(void)
    {
       if (backend_registry[i].id == backend)
       {
-         ops = backend_registry[i].ops;
-         return ops->init();
+         return backend_registry[i].ops;
       }
    }
 
    pgexporter_log_error("history: unknown backend %d", backend);
-   return 1;
+   return NULL;
+}
+
+int
+pgexporter_history_create(void)
+{
+   const struct history_backend_ops* backend = lookup_backend();
+
+   if (backend == NULL)
+   {
+      return 1;
+   }
+
+   return backend->create();
+}
+
+int
+pgexporter_history_init(void)
+{
+   const struct history_backend_ops* backend = lookup_backend();
+
+   if (backend == NULL)
+   {
+      return 1;
+   }
+
+   ops = backend;
+
+   return ops->init();
 }
 
 int
@@ -650,15 +677,16 @@ history_tick_worker(void)
 {
    prometheus_metrics_container_t* container = NULL;
 
-   if (pgexporter_history_init() != 0)
-   {
-      pgexporter_log_error("history: failed to init history db");
-      goto child_done;
-   }
-
+   /* Scrape first so no history connection sits idle during the scrape */
    if (pgexporter_prometheus_scrape(&container) != 0)
    {
       pgexporter_log_error("history: failed to scrape metrics");
+      goto child_done;
+   }
+
+   if (pgexporter_history_init() != 0)
+   {
+      pgexporter_log_error("history: failed to init history db");
       goto child_done;
    }
 

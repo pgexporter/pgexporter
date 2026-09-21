@@ -194,6 +194,8 @@ MCTF_TEST_SETUP(history)
    pgexporter_snprintf(db_path, MAX_PATH, "/tmp/pgexporter-test/history-%d.db", (int)getpid());
    unlink_db(db_path);
    pgexporter_snprintf(config->history_path, MAX_PATH, "%s", db_path);
+
+   pgexporter_history_create();
 }
 
 MCTF_TEST_TEARDOWN(history)
@@ -481,6 +483,7 @@ MCTF_TEST(test_history_store_metrics_edge_cases)
    /* Set up an in-memory test database */
    unlink_db("test_edge_cases.db");
    pgexporter_snprintf(config->history_path, MAX_PATH, "test_edge_cases.db");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_create(), 0, cleanup, "history_create failed");
    MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "history_init failed");
 
    /* Create a dummy container */
@@ -553,6 +556,7 @@ MCTF_TEST(test_history_store_metrics_crlf_line_ending)
 
    unlink_db("test_crlf.db");
    pgexporter_snprintf(config->history_path, MAX_PATH, "test_crlf.db");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_create(), 0, cleanup, "history_create failed");
    MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "history_init failed");
 
    container = malloc(sizeof(prometheus_metrics_container_t));
@@ -597,6 +601,7 @@ MCTF_TEST(test_history_store_metrics_escaped_quote_in_label)
 
    unlink_db("test_escaped_quote.db");
    pgexporter_snprintf(config->history_path, MAX_PATH, "test_escaped_quote.db");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_create(), 0, cleanup, "history_create failed");
    MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "history_init failed");
 
    container = malloc(sizeof(prometheus_metrics_container_t));
@@ -643,6 +648,7 @@ MCTF_TEST(test_history_store_metrics_bare_metric_no_value)
 
    unlink_db("test_bare_metric.db");
    pgexporter_snprintf(config->history_path, MAX_PATH, "test_bare_metric.db");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_create(), 0, cleanup, "history_create failed");
    MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "history_init failed");
 
    container = malloc(sizeof(prometheus_metrics_container_t));

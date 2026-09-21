@@ -52,6 +52,7 @@ PGDATA_DIR="$PGEXPORTER_ROOT_DIR/postgresql"
 PG_DATABASE=postgres
 PG_USER_NAME=pgexporter
 PG_USER_PASSWORD=pgexporter
+PG_HISTORY_DATABASE=pgexporter_history
 USER=$(whoami)
 MODE="dev"
 PORT=6432
@@ -301,6 +302,7 @@ start_local_postgresql() {
 
   psql -q -h /tmp -p "$PORT" -U "$USER" -d postgres -c "CREATE ROLE $PG_USER_NAME WITH LOGIN PASSWORD '$PG_USER_PASSWORD'" >/dev/null
   psql -q -h /tmp -p "$PORT" -U "$USER" -d postgres -c "GRANT pg_monitor TO $PG_USER_NAME" >/dev/null
+  psql -q -h /tmp -p "$PORT" -U "$USER" -d postgres -c "CREATE DATABASE $PG_HISTORY_DATABASE WITH OWNER $PG_USER_NAME TEMPLATE template0 ENCODING UTF8" >/dev/null
   psql -q -h /tmp -p "$PORT" -U "$USER" -d postgres -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements" >/dev/null
 }
 
@@ -333,6 +335,8 @@ EOF
    fi
    $EXECUTABLE_DIRECTORY/pgexporter-admin -f $CONFIGURATION_DIRECTORY/pgexporter_users.conf -U $PG_USER_NAME -P $PG_USER_PASSWORD user add
    echo "Add user $PG_USER_NAME to pgexporter_users.conf file ... ok"
+   $EXECUTABLE_DIRECTORY/pgexporter-admin -f $CONFIGURATION_DIRECTORY/pgexporter_history.conf -U $PG_USER_NAME -P $PG_USER_PASSWORD user add
+   echo "Add user $PG_USER_NAME to pgexporter_history.conf file ... ok"
    echo ""
 }
 

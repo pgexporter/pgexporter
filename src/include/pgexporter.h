@@ -33,7 +33,7 @@
 extern "C" {
 #endif
 
-#include "ev.h"
+#include <ev.h>
 #if HAVE_OPENBSD
 #include <sys/limits.h>
 #endif

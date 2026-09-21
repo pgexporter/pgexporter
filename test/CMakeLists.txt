@@ -41,6 +41,7 @@ set(TESTCASE_FILES
   testcases/test_art.c
   testcases/test_deque.c
   testcases/test_history.c
+  testcases/test_history_postgresql.c
   testcases/test_history_http.c
   testcases/test_message_complete.c
   testcases/test_tls.c
