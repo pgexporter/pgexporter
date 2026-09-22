@@ -4426,8 +4426,14 @@ extract_key_value(char* str, char** key, char** value)
 
             if (start_left)
             {
-               left[idx] = c;
-               idx++;
+               /* left is MISC_LENGTH bytes but the config line can be
+                * LINE_LENGTH, so stop copying once full instead of
+                * writing past the buffer for a key longer than that. */
+               if (idx < (int)sizeof(left) - 1)
+               {
+                  left[idx] = c;
+                  idx++;
+               }
             }
          }
          else
@@ -4459,8 +4465,14 @@ extract_key_value(char* str, char** key, char** value)
             {
                if (c != '#')
                {
-                  right[idx] = c;
-                  idx++;
+                  /* Same bound as left[] below: right is MISC_LENGTH bytes,
+                   * the config line can be LINE_LENGTH, so stop copying once
+                   * full instead of writing past the buffer. */
+                  if (idx < (int)sizeof(right) - 1)
+                  {
+                     right[idx] = c;
+                     idx++;
+                  }
                }
                else
                {

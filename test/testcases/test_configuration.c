@@ -38,6 +38,9 @@
 #include <utils.h>
 
 #include <mctf.h>
+
+#include <stdlib.h>
+#include <unistd.h>
 #include <stdlib.h>
 
 MCTF_TEST(test_configuration_time_format_output)
@@ -485,5 +488,73 @@ MCTF_TEST(test_configuration_json_put_size_value)
 
 cleanup:
    pgexporter_json_destroy(res);
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_configuration_read_bounds_long_key_and_value)
+{
+   /* Regression test for a stack-buffer-overflow in extract_key_value():
+    * left[] and right[] are MISC_LENGTH bytes, but a configuration line can
+    * be up to LINE_LENGTH bytes, so a key or a value longer than
+    * MISC_LENGTH - 1 characters used to write past the end of the buffer.
+    * Confirmed with AddressSanitizer before the fix; this proves it no
+    * longer crashes and that the recognized 'host' field is truncated
+    * rather than corrupted. */
+   FILE* file = NULL;
+   char path[] = "/tmp/pgexporter_test_long_value_XXXXXX";
+   int fd = -1;
+   void* shmem = NULL;
+   struct configuration* config = NULL;
+   char long_value[MISC_LENGTH + 80];
+   char long_key[MISC_LENGTH + 80];
+
+   memset(long_value, 'a', sizeof(long_value) - 1);
+   long_value[sizeof(long_value) - 1] = '\0';
+
+   memset(long_key, 'k', sizeof(long_key) - 1);
+   long_key[sizeof(long_key) - 1] = '\0';
+
+   fd = mkstemp(path);
+   MCTF_ASSERT(fd != -1, cleanup, "mkstemp failed for the scratch config file");
+
+   file = fdopen(fd, "w");
+   MCTF_ASSERT_PTR_NONNULL(file, cleanup, "fdopen failed for the scratch config file");
+
+   fprintf(file, "[pgexporter]\n");
+   fprintf(file, "host = %s\n", long_value);
+   fprintf(file, "%s = 1\n", long_key);
+   fprintf(file, "metrics = 5002\n");
+   fprintf(file, "\n");
+   fprintf(file, "[primary]\n");
+   fprintf(file, "host = localhost\n");
+   fprintf(file, "port = 5432\n");
+   fclose(file);
+   file = NULL;
+
+   MCTF_ASSERT(pgexporter_create_shared_memory(sizeof(struct configuration), HUGEPAGE_OFF, &shmem) == 0,
+               cleanup, "failed to create shared memory for the test configuration");
+   MCTF_ASSERT_PTR_NONNULL(shmem, cleanup, "shared memory pointer is NULL");
+
+   pgexporter_init_configuration(shmem);
+   config = (struct configuration*)shmem;
+
+   /* The assertion that matters: this call must return, not crash. */
+   MCTF_ASSERT_INT_EQ(pgexporter_read_configuration(shmem, path), 0,
+                      cleanup, "pgexporter_read_configuration should parse a config with an over-long key/value without failing");
+
+   MCTF_ASSERT(strlen(config->host) < MISC_LENGTH, cleanup,
+               "config->host must be truncated to fit within MISC_LENGTH, not left unset or overrun");
+   MCTF_ASSERT(strlen(config->host) > 0, cleanup, "config->host should still hold the truncated value, not be empty");
+
+cleanup:
+   if (file != NULL)
+   {
+      fclose(file);
+   }
+   if (shmem != NULL)
+   {
+      pgexporter_destroy_shared_memory(shmem, sizeof(struct configuration));
+   }
+   unlink(path);
    MCTF_FINISH();
 }
