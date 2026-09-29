@@ -730,13 +730,13 @@ retry_cache_json_locking:
       struct prometheus_metric* metric_data = (struct prometheus_metric*)metrics_iterator->value->data;
       struct deque_iterator* definition_iterator = NULL;
 
-      data = pgexporter_append(data, "#HELP ");
+      data = pgexporter_append(data, "# HELP ");
       data = pgexporter_append(data, metric_data->name);
       data = pgexporter_append_char(data, ' ');
       data = pgexporter_append(data, metric_data->help);
       data = pgexporter_append_char(data, '\n');
 
-      data = pgexporter_append(data, "#TYPE ");
+      data = pgexporter_append(data, "# TYPE ");
       data = pgexporter_append(data, metric_data->name);
       data = pgexporter_append_char(data, ' ');
       data = pgexporter_append(data, metric_data->type);
