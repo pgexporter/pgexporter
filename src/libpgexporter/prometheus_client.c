@@ -1003,18 +1003,25 @@ parse_body_to_bridge(int endpoint, time_t timestamp, char* body, struct promethe
       }
       else if (line[0] == '#')
       {
-         if (!strncmp(&line[1], "HELP", 4))
+         char* rest = line + 1;
+
+         while (*rest == ' ')
          {
-            sscanf(line + 6, "%127s %1021[^\n]", name, help);
+            rest++;
+         }
+
+         if (!strncmp(rest, "HELP", 4))
+         {
+            sscanf(rest + 4, "%127s %1021[^\n]", name, help);
 
             metric_find_create(bridge, name, &metric);
 
             metric_set_name(metric, name);
             metric_set_help(metric, help);
          }
-         else if (!strncmp(&line[1], "TYPE", 4))
+         else if (!strncmp(rest, "TYPE", 4))
          {
-            sscanf(line + 6, "%127s %127[^\n]", name, type);
+            sscanf(rest + 4, "%127s %127[^\n]", name, type);
             metric_set_type(metric, type);
          }
          else

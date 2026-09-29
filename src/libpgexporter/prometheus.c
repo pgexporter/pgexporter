@@ -680,8 +680,8 @@ general_information(prometheus_metrics_container_t* container)
 
    /* pgexporter_state */
    data = pgexporter_vappend(data, 3,
-                             "#HELP pgexporter_state The state of pgexporter\n",
-                             "#TYPE pgexporter_state gauge\n",
+                             "# HELP pgexporter_state The state of pgexporter\n",
+                             "# TYPE pgexporter_state gauge\n",
                              "pgexporter_state 1\n");
    add_metric_to_art(container->general_metrics, "pgexporter_state", data, NULL, NULL, 0);
    free(data);
@@ -689,8 +689,8 @@ general_information(prometheus_metrics_container_t* container)
 
    /* pgexporter_logging_info */
    data = pgexporter_vappend(data, 3,
-                             "#HELP pgexporter_logging_info The number of INFO logging statements\n",
-                             "#TYPE pgexporter_logging_info gauge\n",
+                             "# HELP pgexporter_logging_info The number of INFO logging statements\n",
+                             "# TYPE pgexporter_logging_info gauge\n",
                              "pgexporter_logging_info ");
    data = pgexporter_append_ulong(data, atomic_load(&config->logging_info));
    data = pgexporter_append(data, "\n");
@@ -700,8 +700,8 @@ general_information(prometheus_metrics_container_t* container)
 
    /* pgexporter_logging_warn */
    data = pgexporter_vappend(data, 3,
-                             "#HELP pgexporter_logging_warn The number of WARN logging statements\n",
-                             "#TYPE pgexporter_logging_warn gauge\n",
+                             "# HELP pgexporter_logging_warn The number of WARN logging statements\n",
+                             "# TYPE pgexporter_logging_warn gauge\n",
                              "pgexporter_logging_warn ");
    data = pgexporter_append_ulong(data, atomic_load(&config->logging_warn));
    data = pgexporter_append(data, "\n");
@@ -711,8 +711,8 @@ general_information(prometheus_metrics_container_t* container)
 
    /* pgexporter_logging_error */
    data = pgexporter_vappend(data, 3,
-                             "#HELP pgexporter_logging_error The number of ERROR logging statements\n",
-                             "#TYPE pgexporter_logging_error gauge\n",
+                             "# HELP pgexporter_logging_error The number of ERROR logging statements\n",
+                             "# TYPE pgexporter_logging_error gauge\n",
                              "pgexporter_logging_error ");
    data = pgexporter_append_ulong(data, atomic_load(&config->logging_error));
    data = pgexporter_append(data, "\n");
@@ -722,8 +722,8 @@ general_information(prometheus_metrics_container_t* container)
 
    /* pgexporter_logging_fatal */
    data = pgexporter_vappend(data, 3,
-                             "#HELP pgexporter_logging_fatal The number of FATAL logging statements\n",
-                             "#TYPE pgexporter_logging_fatal gauge\n",
+                             "# HELP pgexporter_logging_fatal The number of FATAL logging statements\n",
+                             "# TYPE pgexporter_logging_fatal gauge\n",
                              "pgexporter_logging_fatal ");
    data = pgexporter_append_ulong(data, atomic_load(&config->logging_fatal));
    data = pgexporter_append(data, "\n");
@@ -742,8 +742,8 @@ query_statistics_information(prometheus_metrics_container_t* container)
 
    /* pgexporter_query_executions_total */
    data = pgexporter_vappend(data, 3,
-                             "#HELP pgexporter_query_executions_total The total number of metric queries executed\n",
-                             "#TYPE pgexporter_query_executions_total counter\n",
+                             "# HELP pgexporter_query_executions_total The total number of metric queries executed\n",
+                             "# TYPE pgexporter_query_executions_total counter\n",
                              "pgexporter_query_executions_total ");
    data = pgexporter_append_ulong(data, atomic_load(&config->query_executions_total));
    data = pgexporter_append(data, "\n");
@@ -753,8 +753,8 @@ query_statistics_information(prometheus_metrics_container_t* container)
 
    /* pgexporter_query_errors_total */
    data = pgexporter_vappend(data, 3,
-                             "#HELP pgexporter_query_errors_total The total number of metric queries that failed\n",
-                             "#TYPE pgexporter_query_errors_total counter\n",
+                             "# HELP pgexporter_query_errors_total The total number of metric queries that failed\n",
+                             "# TYPE pgexporter_query_errors_total counter\n",
                              "pgexporter_query_errors_total ");
    data = pgexporter_append_ulong(data, atomic_load(&config->query_errors_total));
    data = pgexporter_append(data, "\n");
@@ -764,8 +764,8 @@ query_statistics_information(prometheus_metrics_container_t* container)
 
    /* pgexporter_query_timeouts_total */
    data = pgexporter_vappend(data, 3,
-                             "#HELP pgexporter_query_timeouts_total The total number of metric queries that timed out\n",
-                             "#TYPE pgexporter_query_timeouts_total counter\n",
+                             "# HELP pgexporter_query_timeouts_total The total number of metric queries that timed out\n",
+                             "# TYPE pgexporter_query_timeouts_total counter\n",
                              "pgexporter_query_timeouts_total ");
    data = pgexporter_append_ulong(data, atomic_load(&config->query_timeouts_total));
    data = pgexporter_append(data, "\n");
@@ -783,8 +783,8 @@ server_information(prometheus_metrics_container_t* container)
    config = (struct configuration*)shmem;
 
    data = pgexporter_vappend(data, 2,
-                             "#HELP pgexporter_postgresql_active The state of PostgreSQL\n",
-                             "#TYPE pgexporter_postgresql_active gauge\n");
+                             "# HELP pgexporter_postgresql_active The state of PostgreSQL\n",
+                             "# TYPE pgexporter_postgresql_active gauge\n");
 
    for (int server = 0; server < config->number_of_servers; server++)
    {
@@ -849,8 +849,8 @@ version_information(prometheus_metrics_container_t* container)
       if (current != NULL)
       {
          data = pgexporter_vappend(data, 2,
-                                   "#HELP pgexporter_postgresql_version The PostgreSQL version\n",
-                                   "#TYPE pgexporter_postgresql_version gauge\n");
+                                   "# HELP pgexporter_postgresql_version The PostgreSQL version\n",
+                                   "# TYPE pgexporter_postgresql_version gauge\n");
 
          server = 0;
 
@@ -923,8 +923,8 @@ uptime_information(prometheus_metrics_container_t* container)
       if (current != NULL)
       {
          data = pgexporter_vappend(data, 2,
-                                   "#HELP pgexporter_postgresql_uptime The PostgreSQL uptime in seconds\n",
-                                   "#TYPE pgexporter_postgresql_uptime counter\n");
+                                   "# HELP pgexporter_postgresql_uptime The PostgreSQL uptime in seconds\n",
+                                   "# TYPE pgexporter_postgresql_uptime counter\n");
 
          server = 0;
 
@@ -991,8 +991,8 @@ primary_information(prometheus_metrics_container_t* container)
       if (current != NULL)
       {
          data = pgexporter_vappend(data, 2,
-                                   "#HELP pgexporter_postgresql_primary Is the PostgreSQL instance the primary\n",
-                                   "#TYPE pgexporter_postgresql_primary gauge\n");
+                                   "# HELP pgexporter_postgresql_primary Is the PostgreSQL instance the primary\n",
+                                   "# TYPE pgexporter_postgresql_primary gauge\n");
 
          server = 0;
 
@@ -1044,8 +1044,8 @@ fips_information(prometheus_metrics_container_t* container)
    openssl_fips = pgexporter_fips_pgexporter();
 
    data = pgexporter_vappend(data, 2,
-                             "#HELP pgexporter_fips Is pgexporter running with FIPS-compliant OpenSSL\n",
-                             "#TYPE pgexporter_fips gauge\n");
+                             "# HELP pgexporter_fips Is pgexporter running with FIPS-compliant OpenSSL\n",
+                             "# TYPE pgexporter_fips gauge\n");
 
    data = pgexporter_vappend(data, 2,
                              "pgexporter_fips ",
@@ -1060,8 +1060,8 @@ fips_information(prometheus_metrics_container_t* container)
    }
 
    data = pgexporter_vappend(data, 2,
-                             "#HELP pgexporter_postgresql_fips Is PostgreSQL running in FIPS mode\n",
-                             "#TYPE pgexporter_postgresql_fips gauge\n");
+                             "# HELP pgexporter_postgresql_fips Is PostgreSQL running in FIPS mode\n",
+                             "# TYPE pgexporter_postgresql_fips gauge\n");
 
    for (server = 0; server < config->number_of_servers; server++)
    {
@@ -1098,8 +1098,8 @@ core_information(prometheus_metrics_container_t* container)
    char* data = NULL;
 
    data = pgexporter_vappend(data, 5,
-                             "#HELP pgexporter_version The pgexporter version\n",
-                             "#TYPE pgexporter_version counter\n",
+                             "# HELP pgexporter_version The pgexporter version\n",
+                             "# TYPE pgexporter_version counter\n",
                              "pgexporter_version{pgexporter_version=\"",
                              VERSION,
                              "\"} 1\n");
@@ -1129,8 +1129,8 @@ extension_list_information(prometheus_metrics_container_t* container)
    }
 
    data = pgexporter_vappend(data, 2,
-                             "#HELP pgexporter_postgresql_extension_info Information about installed PostgreSQL extensions\n",
-                             "#TYPE pgexporter_postgresql_extension_info gauge\n");
+                             "# HELP pgexporter_postgresql_extension_info Information about installed PostgreSQL extensions\n",
+                             "# TYPE pgexporter_postgresql_extension_info gauge\n");
 
    for (int server = 0; server < config->number_of_servers; server++)
    {
@@ -1222,14 +1222,14 @@ settings_information(prometheus_metrics_container_t* container)
       {
          safe_key = safe_prometheus_key(pgexporter_get_column(0, current));
          data = pgexporter_vappend(data, 12,
-                                   "#HELP pgexporter_",
+                                   "# HELP pgexporter_",
                                    &all->tag[0],
                                    "_",
                                    safe_key,
                                    " ",
                                    pgexporter_get_column(2, current),
                                    "\n",
-                                   "#TYPE pgexporter_",
+                                   "# TYPE pgexporter_",
                                    &all->tag[0],
                                    "_",
                                    safe_key,
@@ -1337,9 +1337,9 @@ alert_information(prometheus_metrics_container_t* container)
       pgexporter_snprintf(metric_name, sizeof(metric_name), "pgexporter_alert_%s", alert->name);
 
       data = pgexporter_vappend(data, 5,
-                                "#HELP ", metric_name, " ", alert->description, "\n");
+                                "# HELP ", metric_name, " ", alert->description, "\n");
       data = pgexporter_vappend(data, 3,
-                                "#TYPE ", metric_name, " gauge\n");
+                                "# TYPE ", metric_name, " gauge\n");
 
       for (server = 0; server < config->number_of_servers; server++)
       {
@@ -2719,7 +2719,7 @@ static void
 append_help_info(char** data, char* tag, char* name, char* description)
 {
    *data = pgexporter_vappend(*data, 2,
-                              "#HELP pgexporter_",
+                              "# HELP pgexporter_",
                               tag);
 
    if (strlen(name) > 0)
@@ -2756,7 +2756,7 @@ static void
 append_type_info(char** data, char* tag, char* name, int typeId)
 {
    *data = pgexporter_vappend(*data, 2,
-                              "#TYPE pgexporter_",
+                              "# TYPE pgexporter_",
                               tag);
 
    if (strlen(name) > 0)
@@ -3151,7 +3151,7 @@ prometheus_endpoints_information(SSL* client_ssl, int client_fd)
          line = strtok_r(body_copy, "\n", &saveptr);
          while (line != NULL)
          {
-            if (!first_line && strncmp(line, "#HELP", 5) == 0)
+            if (!first_line && strncmp(line, "# HELP", 6) == 0)
             {
                data = pgexporter_append(data, "\n");
             }
