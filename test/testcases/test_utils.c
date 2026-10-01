@@ -30,9 +30,23 @@
 #include <mctf.h>
 #include <utils.h>
 
+#include <configuration.h>
 #include <limits.h>
+#include <memory.h>
+#include <message.h>
+#include <shmem.h>
 #include <stdlib.h>
 #include <string.h>
+
+MCTF_MODULE_SETUP(utils)
+{
+   pgexporter_memory_init();
+}
+
+MCTF_MODULE_TEARDOWN(utils)
+{
+   pgexporter_memory_destroy();
+}
 
 MCTF_TEST(test_utils_append_basic)
 {
@@ -161,5 +175,165 @@ MCTF_TEST(test_utils_append_double)
 
 cleanup:
    free(s);
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_utils_copy_string)
+{
+   char* dest = NULL;
+
+   MCTF_ASSERT(pgexporter_copy_string("hello", &dest) == 0, cleanup, "copy_string basic failed");
+   MCTF_ASSERT_PTR_NONNULL(dest, cleanup, "dest should not be NULL");
+   MCTF_ASSERT_STR_EQ(dest, "hello", cleanup, "copy_string content mismatch");
+   free(dest);
+   dest = NULL;
+
+   MCTF_ASSERT(pgexporter_copy_string("", &dest) == 0, cleanup, "copy_string empty failed");
+   MCTF_ASSERT_PTR_NONNULL(dest, cleanup, "dest should not be NULL for empty string");
+   MCTF_ASSERT_STR_EQ(dest, "", cleanup, "copy_string empty content mismatch");
+   free(dest);
+   dest = NULL;
+
+   MCTF_ASSERT(pgexporter_copy_string(NULL, &dest) != 0, cleanup, "copy_string NULL should fail");
+   MCTF_ASSERT_PTR_NULL(dest, cleanup, "dest should remain NULL for NULL input");
+
+cleanup:
+   if (dest != NULL)
+   {
+      free(dest);
+      dest = NULL;
+   }
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_utils_extract_username_database_normal)
+{
+   unsigned char* buf = NULL;
+   size_t total = 4 + 4 + 5 + 6 + 9 + 5 + 1;
+   struct message msg;
+   char* username = NULL;
+   char* database = NULL;
+   char* appname = NULL;
+   int rc = 1;
+
+   buf = malloc(total);
+   MCTF_ASSERT_PTR_NONNULL(buf, cleanup, "malloc failed for startup message");
+   memset(buf, 0, total);
+   buf[0] = (total >> 24) & 0xFF;
+   buf[1] = (total >> 16) & 0xFF;
+   buf[2] = (total >> 8) & 0xFF;
+   buf[3] = total & 0xFF;
+   buf[4] = 0x00;
+   buf[5] = 0x03;
+   buf[6] = 0x00;
+   buf[7] = 0x00;
+   memcpy(buf + 8, "user", 5);
+   memcpy(buf + 8 + 5, "alice", 6);
+   memcpy(buf + 8 + 5 + 6, "database", 9);
+   memcpy(buf + 8 + 5 + 6 + 9, "mydb", 5);
+
+   memset(&msg, 0, sizeof(msg));
+   msg.kind = 0;
+   msg.length = (ssize_t)total;
+   msg.data = buf;
+
+   rc = pgexporter_extract_username_database(&msg, &username, &database, &appname);
+   MCTF_ASSERT_INT_EQ(rc, 0, cleanup, "extract normal should return 0");
+   MCTF_ASSERT_PTR_NONNULL(username, cleanup, "username should not be NULL");
+   MCTF_ASSERT_PTR_NONNULL(database, cleanup, "database should not be NULL");
+   MCTF_ASSERT_STR_EQ(username, "alice", cleanup, "username should be alice");
+   MCTF_ASSERT_STR_EQ(database, "mydb", cleanup, "database should be mydb");
+
+cleanup:
+   free(username);
+   free(database);
+   free(appname);
+   free(buf);
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_utils_extract_username_database_defaults)
+{
+   unsigned char* buf = NULL;
+   const char* name = "alice";
+   size_t namelen = strlen(name);
+   size_t total = 4 + 4 + 5 + namelen + 1 + 1;
+   struct message msg;
+   char* username = NULL;
+   char* database = NULL;
+   char* appname = NULL;
+   int rc = 1;
+
+   buf = malloc(total);
+   MCTF_ASSERT_PTR_NONNULL(buf, cleanup, "malloc failed for startup message");
+   memset(buf, 0, total);
+   buf[0] = (total >> 24) & 0xFF;
+   buf[1] = (total >> 16) & 0xFF;
+   buf[2] = (total >> 8) & 0xFF;
+   buf[3] = total & 0xFF;
+   buf[4] = 0x00;
+   buf[5] = 0x03;
+   buf[6] = 0x00;
+   buf[7] = 0x00;
+   memcpy(buf + 8, "user", 5);
+   memcpy(buf + 8 + 5, name, namelen + 1);
+
+   memset(&msg, 0, sizeof(msg));
+   msg.kind = 0;
+   msg.length = (ssize_t)total;
+   msg.data = buf;
+
+   rc = pgexporter_extract_username_database(&msg, &username, &database, &appname);
+   MCTF_ASSERT_INT_EQ(rc, 0, cleanup, "extract defaults should return 0");
+   MCTF_ASSERT_PTR_NONNULL(username, cleanup, "username should not be NULL");
+   MCTF_ASSERT_PTR_NONNULL(database, cleanup, "database should default to non-NULL");
+   MCTF_ASSERT_STR_EQ(database, username, cleanup, "database should equal username content");
+   MCTF_ASSERT(username != database, cleanup, "database must be a copy, not aliased to username");
+
+cleanup:
+   free(username);
+   free(database);
+   free(appname);
+   free(buf);
+   MCTF_FINISH();
+}
+
+MCTF_TEST_NEGATIVE(test_utils_extract_username_database_both_missing)
+{
+   unsigned char* buf = NULL;
+   size_t total = 4 + 4 + 1;
+   struct message msg;
+   char* username = NULL;
+   char* database = NULL;
+   char* appname = NULL;
+   int rc = 0;
+
+   buf = malloc(total);
+   MCTF_ASSERT_PTR_NONNULL(buf, cleanup, "malloc failed for startup message");
+   memset(buf, 0, total);
+   buf[0] = (total >> 24) & 0xFF;
+   buf[1] = (total >> 16) & 0xFF;
+   buf[2] = (total >> 8) & 0xFF;
+   buf[3] = total & 0xFF;
+   buf[4] = 0x00;
+   buf[5] = 0x03;
+   buf[6] = 0x00;
+   buf[7] = 0x00;
+
+   memset(&msg, 0, sizeof(msg));
+   msg.kind = 0;
+   msg.length = (ssize_t)total;
+   msg.data = buf;
+
+   rc = pgexporter_extract_username_database(&msg, &username, &database, &appname);
+   MCTF_ASSERT(rc != 0, cleanup, "extract with both missing should fail");
+   MCTF_ASSERT_PTR_NULL(username, cleanup, "username should be NULL on failure");
+   MCTF_ASSERT_PTR_NULL(database, cleanup, "database should be NULL on failure");
+
+cleanup:
+   free(username);
+   free(database);
+   free(appname);
+   free(buf);
    MCTF_FINISH();
 }
