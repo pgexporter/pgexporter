@@ -170,7 +170,18 @@ pgexporter_extract_username_database(struct message* msg, char** username, char*
 
    if (*database == NULL)
    {
-      *database = *username;
+      if (*username != NULL)
+      {
+         if (pgexporter_copy_string(*username, database))
+         {
+            goto error;
+         }
+      }
+      else
+      {
+         pgexporter_log_error("Startup message missing both username and database");
+         goto error;
+      }
    }
 
    pgexporter_log_trace("Username: %s", *username);
@@ -183,6 +194,20 @@ pgexporter_extract_username_database(struct message* msg, char** username, char*
    free(array);
 
    return 0;
+
+error:
+   for (int i = 0; i < counter; i++)
+   {
+      free(array[i]);
+   }
+   free(array);
+   free(un);
+   free(db);
+   free(an);
+   *username = NULL;
+   *database = NULL;
+   *appname = NULL;
+   return 1;
 }
 
 int
@@ -1056,6 +1081,40 @@ pgexporter_compare_string(const char* str1, const char* str2)
       return false;
    }
    return strcmp(str1, str2) == 0;
+}
+
+int
+pgexporter_copy_string(const char* from, char** to)
+{
+   char* tmp = NULL;
+   size_t size = 0;
+
+   if (from == NULL || to == NULL)
+   {
+      goto error;
+   }
+
+   size = strlen(from) + 1;
+   tmp = malloc(size);
+   if (tmp == NULL)
+   {
+      goto error;
+   }
+   memset(tmp, 0, size);
+   memcpy(tmp, from, size);
+
+   *to = tmp;
+
+   return 0;
+
+error:
+   free(tmp);
+   if (to != NULL)
+   {
+      *to = NULL;
+   }
+
+   return 1;
 }
 
 unsigned long

@@ -209,7 +209,10 @@ pgexporter_remote_management_auth(int client_fd, char* address, SSL** client_ssl
 
       /* Extract parameters: username / database */
       pgexporter_log_trace("remote_management_auth: username/database (%d)", client_fd);
-      pgexporter_extract_username_database(request_msg, &username, &database, &appname);
+      if (pgexporter_extract_username_database(request_msg, &username, &database, &appname))
+      {
+         goto error;
+      }
 
       /* Must be admin database */
       if (strcmp("admin", database) != 0)

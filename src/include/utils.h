@@ -549,6 +549,15 @@ bool
 pgexporter_compare_string(const char* str1, const char* str2);
 
 /**
+ * Copy a string
+ * @param from The from string
+ * @param to The to string
+ * @return 0 upon success, otherwise 1
+ */
+int
+pgexporter_copy_string(const char* from, char** to);
+
+/**
  * Calculate the directory size
  * @param directory The directory
  * @return The size in bytes
