@@ -111,7 +111,8 @@ dnf install git gcc cmake make liburing-devel pkgconf \
             libzstd libzstd-devel \
             libasan libasan-static \
             lz4 lz4-devel \
-            bzip2 bzip2-devel
+            bzip2 bzip2-devel \
+            sqlite sqlite-devel
 ```
 
 Alternative [clang 8+](https://clang.llvm.org/) can be used.
