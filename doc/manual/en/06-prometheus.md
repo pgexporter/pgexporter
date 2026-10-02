@@ -3747,6 +3747,35 @@ Indicates whether a defined replication slot is temporary or permanent.
 | slot_type | The type of replication (physical or logical). | |
 | database | The database associated with the slot (for logical slots). | |
 
+## pgexporter_pg_replication_slots_retained_wal_bytes
+
+WAL retained by this replication slot in bytes, computed as
+`pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)`. Returns 0 when
+`restart_lsn` is NULL or on a standby server. Available from `pg_replication_slots` (PostgreSQL 13+).
+
+| Attribute  | Description |
+| :--------- | :---------- |
+| server     | The configured name/identifier for the PostgreSQL server. |
+| slot_name  | The name of the replication slot. |
+| slot_type  | The type of replication (physical or logical). |
+| database   | The database associated with the slot (logical slots only). |
+| wal_status | WAL retention status: `reserved`, `extended`, `unreserved`, or `lost`. Empty (`n/a`) for physical slots. |
+
+## pgexporter_pg_replication_slots_safe_wal_size
+
+Bytes of WAL that can still be written before the slot risks being dropped
+(i.e., before `wal_status` becomes `lost`). Returns -1 when no WAL retention
+limit is set (`max_slot_wal_keep_size = -1`) or for physical slots.
+Available from `pg_replication_slots` (PostgreSQL 13+).
+
+| Attribute  | Description |
+| :--------- | :---------- |
+| server     | The configured name/identifier for the PostgreSQL server. |
+| slot_name  | The name of the replication slot. |
+| slot_type  | Physical or logical. |
+| database   | Database for logical slots. |
+| wal_status | WAL retention status: `reserved`, `extended`, `unreserved`, or `lost`. Empty (`n/a`) for physical slots. |
+
 ## pgexporter_pg_stat_bgwriter_buffers_alloc
 
 Reflects `buffers_alloc` from `pg_stat_bgwriter`: the total number of buffers allocated directly by backend processes.

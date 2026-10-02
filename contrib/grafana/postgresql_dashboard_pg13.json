@@ -1268,6 +1268,154 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
+      "description": "WAL retained by each replication slot in bytes. High values indicate a stuck slot is blocking WAL recycling and consuming disk.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "bytes",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "yellow",
+                "value": 1073741824
+              },
+              {
+                "color": "red",
+                "value": 10737418240
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "w": 12,
+        "h": 8,
+        "y": 91
+      },
+      "id": 16,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_replication_slots_retained_wal_bytes",
+          "legendFormat": "{{slot_name}} ({{slot_type}})",
+          "refId": "A"
+        }
+      ],
+      "title": "Replication Slot Retained WAL",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Bytes of WAL that can still be written before wal_status changes to extended or lost. -1 means unknown (physical slots or early state).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "bytes",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "No limit / physical slot",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red"
+              },
+              {
+                "color": "yellow",
+                "value": 1073741824
+              },
+              {
+                "color": "green",
+                "value": 10737418240
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "w": 12,
+        "h": 8,
+        "y": 91
+      },
+      "id": 17,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "min"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "asc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_replication_slots_safe_wal_size",
+          "legendFormat": "{{slot_name}} ({{slot_type}})",
+          "refId": "A"
+        }
+      ],
+      "title": "Replication Slot WAL Headroom",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
       "description": "Multixact age of databases since last vacuum",
       "fieldConfig": {
         "defaults": {
@@ -1301,7 +1449,7 @@
         "h": 8,
         "y": 83
       },
-      "id": 16,
+      "id": 18,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -1369,7 +1517,7 @@
         "h": 8,
         "y": 83
       },
-      "id": 17,
+      "id": 19,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -1456,9 +1604,9 @@
         "x": 0,
         "w": 12,
         "h": 8,
-        "y": 91
+        "y": 99
       },
-      "id": 18,
+      "id": 20,
       "options": {
         "legend": {
           "calcs": [
@@ -1551,9 +1699,9 @@
         "x": 12,
         "w": 12,
         "h": 8,
-        "y": 91
+        "y": 99
       },
-      "id": 19,
+      "id": 21,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -1649,9 +1797,9 @@
         "x": 0,
         "w": 24,
         "h": 5,
-        "y": 99
+        "y": 107
       },
-      "id": 20,
+      "id": 22,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -1708,9 +1856,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 104
+        "y": 112
       },
-      "id": 21,
+      "id": 23,
       "panels": [],
       "title": "Query Analysis",
       "type": "row"
@@ -1751,9 +1899,9 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 105
+        "y": 113
       },
-      "id": 22,
+      "id": 24,
       "options": {
         "legend": {
           "calcs": [
@@ -1819,9 +1967,9 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 105
+        "y": 113
       },
-      "id": 23,
+      "id": 25,
       "options": {
         "legend": {
           "calcs": [
@@ -1887,9 +2035,9 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 105
+        "y": 113
       },
-      "id": 24,
+      "id": 26,
       "options": {
         "legend": {
           "calcs": [
@@ -1955,9 +2103,9 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 112
+        "y": 120
       },
-      "id": 25,
+      "id": 27,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -2025,9 +2173,9 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 122
+        "y": 130
       },
-      "id": 26,
+      "id": 28,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -2095,9 +2243,9 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 132
+        "y": 140
       },
-      "id": 27,
+      "id": 29,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -2186,9 +2334,9 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 142
+        "y": 150
       },
-      "id": 28,
+      "id": 30,
       "options": {
         "legend": {
           "calcs": [
@@ -2243,9 +2391,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 152
+        "y": 160
       },
-      "id": 29,
+      "id": 31,
       "panels": [],
       "title": "Long Running Transactions",
       "type": "row"
@@ -2287,9 +2435,9 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 153
+        "y": 161
       },
-      "id": 30,
+      "id": 32,
       "options": {
         "displayMode": "gradient",
         "minVizHeight": 10,
@@ -2382,9 +2530,9 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 153
+        "y": 161
       },
-      "id": 31,
+      "id": 33,
       "options": {
         "legend": {
           "calcs": [
@@ -2457,9 +2605,9 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 160
+        "y": 168
       },
-      "id": 32,
+      "id": 34,
       "options": {
         "filterable": true,
         "cellHeight": "sm",

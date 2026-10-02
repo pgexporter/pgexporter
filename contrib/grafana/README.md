@@ -52,7 +52,7 @@ Dashboards are automatically provisioned - no manual import needed.
 - **System Health**: Primary/Replica status, connection count, database sizes
 - **Performance**: Cache hit ratio (with thresholds), tuple operations, locks
 - **Query Analysis**: Top executed queries, slowest queries, highest WAL usage
-- **Replication**: WAL archiver status, replication slots
+- **Replication**: WAL archiver status, replication slots, replication slot retained WAL bytes, replication slot WAL headroom
 - **I/O Statistics**: Disk reads, buffer writes, checkpoints
 
 ---

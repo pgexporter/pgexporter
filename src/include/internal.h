@@ -146,7 +146,41 @@ extern "C" {
                       "    - query: SELECT\n"                                                                                                                                           \
                       "                slot_name,\n"                                                                                                                                    \
                       "                slot_type,\n"                                                                                                                                    \
-                      "                database,\n"                                                                                                                                     \
+                      "                COALESCE(database, '') AS database,\n"                                                                                                           \
+                      "                active,\n"                                                                                                                                       \
+                      "                temporary,\n"                                                                                                                                    \
+                      "                COALESCE(wal_status, '') AS wal_status,\n"                                                                                                       \
+                      "                COALESCE(safe_wal_size, -1) AS safe_wal_size,\n"                                                                                                 \
+                      "                COALESCE(CASE WHEN pg_is_in_recovery() THEN 0 ELSE pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)::bigint END, 0) AS retained_wal_bytes\n"   \
+                      "              FROM pg_replication_slots;\n"                                                                                                                      \
+                      "      version: 13\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "      - name: slot_name\n"                                                                                                                                       \
+                      "        type: label\n"                                                                                                                                           \
+                      "      - name: slot_type\n"                                                                                                                                       \
+                      "        type: label\n"                                                                                                                                           \
+                      "      - name: database\n"                                                                                                                                        \
+                      "        type: label\n"                                                                                                                                           \
+                      "      - description: Is the replication active\n"                                                                                                                \
+                      "        name: active\n"                                                                                                                                          \
+                      "        type: gauge\n"                                                                                                                                           \
+                      "      - description: Is the replication temporary\n"                                                                                                             \
+                      "        name: temporary\n"                                                                                                                                       \
+                      "        type: gauge\n"                                                                                                                                           \
+                      "      - description: WAL retention status (reserved, extended, unreserved, lost)\n"                                                                              \
+                      "        name: wal_status\n"                                                                                                                                      \
+                      "        type: label\n"                                                                                                                                           \
+                      "      - description: Bytes of WAL that can still be written before the slot is dropped (wal_status = lost). -1 if no WAL retention limit or physical slot.\n"    \
+                      "        name: safe_wal_size\n"                                                                                                                                   \
+                      "        type: gauge\n"                                                                                                                                           \
+                      "      - description: Bytes of WAL retained by this slot (pg_wal_lsn_diff of current LSN minus restart_lsn)\n"                                                    \
+                      "        name: retained_wal_bytes\n"                                                                                                                              \
+                      "        type: gauge\n"                                                                                                                                           \
+                      "\n"                                                                                                                                                              \
+                      "    - query: SELECT\n"                                                                                                                                           \
+                      "                slot_name,\n"                                                                                                                                    \
+                      "                slot_type,\n"                                                                                                                                    \
+                      "                COALESCE(database, '') AS database,\n"                                                                                                           \
                       "                active,\n"                                                                                                                                       \
                       "                temporary,\n"                                                                                                                                    \
                       "                two_phase,\n"                                                                                                                                    \
@@ -155,7 +189,10 @@ extern "C" {
                       "                conflicting,\n"                                                                                                                                  \
                       "                invalidation_reason,\n"                                                                                                                          \
                       "                failover,\n"                                                                                                                                     \
-                      "                synced\n"                                                                                                                                        \
+                      "                synced,\n"                                                                                                                                       \
+                      "                COALESCE(wal_status, '') AS wal_status,\n"                                                                                                       \
+                      "                COALESCE(safe_wal_size, -1) AS safe_wal_size,\n"                                                                                                 \
+                      "                COALESCE(CASE WHEN pg_is_in_recovery() THEN 0 ELSE pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)::bigint END, 0) AS retained_wal_bytes\n"   \
                       "              FROM pg_replication_slots;\n"                                                                                                                      \
                       "      version: 18\n"                                                                                                                                             \
                       "      columns:\n"                                                                                                                                                \
@@ -192,6 +229,15 @@ extern "C" {
                       "      - name: synced\n"                                                                                                                                          \
                       "        type: gauge\n"                                                                                                                                           \
                       "        description: Is this slot synced from primary\n"                                                                                                         \
+                      "      - description: WAL retention status (reserved, extended, unreserved, lost)\n"                                                                              \
+                      "        name: wal_status\n"                                                                                                                                      \
+                      "        type: label\n"                                                                                                                                           \
+                      "      - description: Bytes of WAL that can still be written before the slot is dropped (wal_status = lost). -1 if no WAL retention limit or physical slot.\n"    \
+                      "        name: safe_wal_size\n"                                                                                                                                   \
+                      "        type: gauge\n"                                                                                                                                           \
+                      "      - description: Bytes of WAL retained by this slot (pg_wal_lsn_diff of current LSN minus restart_lsn)\n"                                                    \
+                      "        name: retained_wal_bytes\n"                                                                                                                              \
+                      "        type: gauge\n"                                                                                                                                           \
                       "    tag: pg_replication_slots\n"                                                                                                                                 \
                       "    sort: data\n"                                                                                                                                                \
                       "    collector: replication\n"                                                                                                                                    \

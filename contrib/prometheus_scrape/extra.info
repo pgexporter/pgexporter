@@ -2219,6 +2219,25 @@ pgexporter_pg_replication_slots_temporary
 * 0: Slot is permanent.
 Version: 10+
 
+pgexporter_pg_replication_slots_retained_wal_bytes
++ Bytes of WAL retained by this replication slot, computed as pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn). Returns 0 if the slot has never been used (restart_lsn is NULL). Only available on primary servers. High values indicate a stuck slot is blocking WAL recycling and consuming disk space.
+* server: The configured name/identifier for the PostgreSQL server.
+* slot_name: The name of the replication slot.
+* slot_type: The type of replication (physical or logical).
+* database: The database associated with the slot (logical slots only; n/a for physical).
+* wal_status: WAL retention status label — reserved, extended, unreserved, or lost (n/a for physical slots).
+Version: 13+
+
+pgexporter_pg_replication_slots_safe_wal_size
++ Bytes of WAL that can still be written before wal_status changes to extended or lost. Returns -1 when max_slot_wal_keep_size is not set (unlimited) or for physical slots where this is not tracked. Set max_slot_wal_keep_size in postgresql.conf to enable real values.
+* server: The configured name/identifier for the PostgreSQL server.
+* slot_name: The name of the replication slot.
+* slot_type: Physical or logical.
+* database: Database for logical slots; n/a for physical.
+* wal_status: WAL retention status label — reserved, extended, unreserved, or lost (n/a for physical slots).
+* -1: Unknown — max_slot_wal_keep_size is not set, or physical slot.
+Version: 13+
+
 pgexporter_pg_stat_bgwriter_buffers_alloc
 + Reflects `buffers_alloc` from `pg_stat_bgwriter`: the total number of buffers allocated directly by backend processes.
 * server: The configured name/identifier for the PostgreSQL server.
