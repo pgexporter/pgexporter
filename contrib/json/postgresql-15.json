@@ -71,8 +71,8 @@
       "sort": "data",
       "queries": [
         {
-          "query": "SELECT slot_name, slot_type, database, active, temporary FROM pg_replication_slots;",
-          "version": 10,
+          "query": "SELECT slot_name, slot_type, COALESCE(database, '') AS database, active, temporary, COALESCE(wal_status, '') AS wal_status, COALESCE(safe_wal_size, -1) AS safe_wal_size, COALESCE(CASE WHEN pg_is_in_recovery() THEN 0 ELSE pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)::bigint END, 0) AS retained_wal_bytes FROM pg_replication_slots;",
+          "version": 13,
           "columns": [
             {
               "name": "slot_name",
@@ -94,6 +94,21 @@
             {
               "description": "Is the replication temporary",
               "name": "temporary",
+              "type": "gauge"
+            },
+            {
+              "description": "WAL retention status (reserved, extended, unreserved, lost)",
+              "name": "wal_status",
+              "type": "label"
+            },
+            {
+              "description": "Bytes of WAL that can still be written before the slot is dropped (wal_status = lost). -1 if no WAL retention limit or physical slot.",
+              "name": "safe_wal_size",
+              "type": "gauge"
+            },
+            {
+              "description": "Bytes of WAL retained by this slot (pg_wal_lsn_diff of current LSN minus restart_lsn)",
+              "name": "retained_wal_bytes",
               "type": "gauge"
             }
           ]
