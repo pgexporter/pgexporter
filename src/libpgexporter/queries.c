@@ -251,7 +251,7 @@ pgexporter_query_execute(int server, char* sql, char* tag, struct query** query)
 }
 
 int
-pgexporter_execute_command(int server, char* sql)
+pgexporter_command_execute(int server, char* sql)
 {
    struct message* qmsg = NULL;
    void* data = NULL;
@@ -262,13 +262,13 @@ pgexporter_execute_command(int server, char* sql)
 
    if (pgexporter_create_query_message(sql, &qmsg))
    {
-      pgexporter_log_error("pgexporter_execute_command: failed to create message");
+      pgexporter_log_error("pgexporter_command_execute: failed to create message");
       goto error;
    }
 
    if (round_trip(config->servers[server].ssl, config->servers[server].fd, qmsg, &data, &data_size))
    {
-      pgexporter_log_error("pgexporter_execute_command: failed to send or receive");
+      pgexporter_log_error("pgexporter_command_execute: failed to send or receive");
       goto error;
    }
 
@@ -280,7 +280,7 @@ pgexporter_execute_command(int server, char* sql)
 
    if (!pgexporter_has_message('C', data, data_size))
    {
-      pgexporter_log_error("pgexporter_execute_command: no CommandComplete message found");
+      pgexporter_log_error("pgexporter_command_execute: no CommandComplete message found");
       goto error;
    }
 
@@ -290,7 +290,7 @@ pgexporter_execute_command(int server, char* sql)
    return 0;
 
 error:
-   pgexporter_log_error("pgexporter_execute_command: command failed");
+   pgexporter_log_error("pgexporter_command_execute: command failed");
 
    pgexporter_free_message(qmsg);
    free(data);
@@ -350,7 +350,7 @@ error:
 }
 
 int
-pgexporter_execute_command_params(SSL* ssl, int fd, char* sql, int nparams, char** values)
+pgexporter_command_execute_params(SSL* ssl, int fd, char* sql, int nparams, char** values)
 {
    struct message* m = NULL;
    void* buffer = NULL;
@@ -363,13 +363,13 @@ pgexporter_execute_command_params(SSL* ssl, int fd, char* sql, int nparams, char
        pgexporter_create_execute_message("", 0, &m) || append_message(m, &buffer, &size) ||
        pgexporter_create_sync_message(&m) || append_message(m, &buffer, &size))
    {
-      pgexporter_log_error("pgexporter_execute_command_params: failed to create messages");
+      pgexporter_log_error("pgexporter_command_execute_params: failed to create messages");
       goto error;
    }
 
    if (send_buffer(ssl, fd, buffer, size, &data, &data_size))
    {
-      pgexporter_log_error("pgexporter_execute_command_params: failed to send or receive");
+      pgexporter_log_error("pgexporter_command_execute_params: failed to send or receive");
       goto error;
    }
 
@@ -381,7 +381,7 @@ pgexporter_execute_command_params(SSL* ssl, int fd, char* sql, int nparams, char
 
    if (!pgexporter_has_message('C', data, data_size))
    {
-      pgexporter_log_error("pgexporter_execute_command_params: no CommandComplete message found");
+      pgexporter_log_error("pgexporter_command_execute_params: no CommandComplete message found");
       goto error;
    }
 
@@ -1585,7 +1585,7 @@ pgexporter_apply_metrics_timeout(int server)
       char* set_query = pgexporter_append(NULL, "SET statement_timeout = ");
       set_query = pgexporter_append_int(set_query, (int)pgexporter_time_convert(config->metrics_query_timeout, FORMAT_TIME_MS));
       set_query = pgexporter_append(set_query, ";");
-      if (pgexporter_execute_command(server, set_query) != 0)
+      if (pgexporter_command_execute(server, set_query) != 0)
       {
          pgexporter_log_debug("Failed to set statement_timeout=%" PRId64 "ms on server '%s'",
                               pgexporter_time_convert(config->metrics_query_timeout, FORMAT_TIME_MS), &config->servers[server].name[0]);
