@@ -31,7 +31,9 @@
 #include <configuration.h>
 #include <extension.h>
 #include <message.h>
+#include <network.h>
 #include <queries.h>
+#include <security.h>
 #include <shmem.h>
 #include <tscommon.h>
 #include <utils.h>
@@ -70,6 +72,98 @@ MCTF_TEST(test_database_connection)
 
 cleanup:
    pgexporter_close_connections();
+   pgexporter_test_teardown();
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_database_authenticate_host)
+{
+   struct configuration* config;
+   SSL* ssl = NULL;
+   SSL* bad_ssl = NULL;
+   int fd = -1;
+   int bad_fd = -1;
+   int server = -1;
+   int user = -1;
+   int status;
+   char* result = NULL;
+
+   pgexporter_test_setup();
+
+   config = (struct configuration*)shmem;
+
+   for (int i = 0; i < config->number_of_servers; i++)
+   {
+      if (config->servers[i].type == SERVER_TYPE_POSTGRESQL)
+      {
+         server = i;
+         break;
+      }
+   }
+
+   MCTF_ASSERT(server >= 0, cleanup, "No PostgreSQL server configured");
+
+   for (int usr = 0; user == -1 && usr < config->number_of_users; usr++)
+   {
+      if (!strcmp(&config->users[usr].username[0], &config->servers[server].username[0]))
+      {
+         user = usr;
+      }
+   }
+
+   MCTF_ASSERT(user >= 0, cleanup, "No user configured for server %s", config->servers[server].name);
+
+   status = pgexporter_authenticate_host(config->servers[server].name,
+                                         config->servers[server].host,
+                                         config->servers[server].port,
+                                         config->servers[server].tls_mode,
+                                         config->servers[server].tls_cert_file,
+                                         config->servers[server].tls_key_file,
+                                         config->servers[server].tls_ca_file,
+                                         "postgres",
+                                         &config->users[user].username[0],
+                                         &config->users[user].password[0],
+                                         &ssl, &fd);
+   MCTF_ASSERT_INT_EQ(status, AUTH_SUCCESS, cleanup, "authenticate_host failed");
+   MCTF_ASSERT(fd != -1, cleanup, "No socket returned");
+
+   result = query_value(ssl, fd, "SELECT 1", 0, NULL);
+   MCTF_ASSERT_STR_EQ(result, "1", cleanup, "Query on the authenticated connection failed");
+
+   status = pgexporter_authenticate_host(config->servers[server].name,
+                                         config->servers[server].host,
+                                         config->servers[server].port,
+                                         config->servers[server].tls_mode,
+                                         config->servers[server].tls_cert_file,
+                                         config->servers[server].tls_key_file,
+                                         config->servers[server].tls_ca_file,
+                                         "postgres",
+                                         &config->users[user].username[0],
+                                         "not-the-password",
+                                         &bad_ssl, &bad_fd);
+   MCTF_ASSERT(status == AUTH_BAD_PASSWORD || status == AUTH_ERROR, cleanup, "Wrong password was not rejected");
+   MCTF_ASSERT_INT_EQ(bad_fd, -1, cleanup, "Failed authentication returned a socket");
+
+   status = pgexporter_authenticate_host(config->servers[server].name,
+                                         config->servers[server].host,
+                                         1,
+                                         SERVER_TLS_OFF,
+                                         "", "", "",
+                                         "postgres",
+                                         &config->users[user].username[0],
+                                         &config->users[user].password[0],
+                                         &bad_ssl, &bad_fd);
+   MCTF_ASSERT_INT_EQ(status, AUTH_ERROR, cleanup, "Unreachable port was not reported");
+   MCTF_ASSERT_INT_EQ(bad_fd, -1, cleanup, "Failed connection returned a socket");
+
+cleanup:
+   free(result);
+   if (fd != -1)
+   {
+      pgexporter_write_terminate(ssl, fd);
+      pgexporter_close_ssl(ssl);
+      pgexporter_disconnect(fd);
+   }
    pgexporter_test_teardown();
    MCTF_FINISH();
 }
@@ -232,6 +326,7 @@ MCTF_TEST(test_database_query_params)
    MCTF_ASSERT_INT_EQ(pgexporter_query_execute_params(ssl, fd, "SELECT $1::text, $2::text, $3::text", 3, values, "test", &query), 0,
                       cleanup, "Failed to execute query");
    MCTF_ASSERT_PTR_NONNULL(query->tuples, cleanup, "Query returned no rows");
+   MCTF_ASSERT_INT_EQ(query->tuples->server, -1, cleanup, "Rows are not tied to a monitored server");
    MCTF_ASSERT_INT_EQ(query->number_of_columns, 3, cleanup, "Expected 3 columns, got %d", query->number_of_columns);
    MCTF_ASSERT_STR_EQ(query->tuples->data[0], "it's", cleanup, "Quote was not preserved");
    MCTF_ASSERT_STR_EQ(query->tuples->data[1], "back\\slash", cleanup, "Backslash was not preserved");
@@ -390,11 +485,11 @@ MCTF_TEST(test_database_command_params)
    pgexporter_open_connections();
    MCTF_ASSERT_INT_EQ(get_connection(&ssl, &fd), 0, cleanup, "No connected server");
 
-   MCTF_ASSERT_INT_EQ(pgexporter_execute_command_params(ssl, fd, "CREATE TEMP TABLE test_command (id int PRIMARY KEY, name text)", 0, NULL), 0,
+   MCTF_ASSERT_INT_EQ(pgexporter_command_execute_params(ssl, fd, "CREATE TEMP TABLE test_command (id int PRIMARY KEY, name text)", 0, NULL), 0,
                       cleanup, "Failed to create table");
-   MCTF_ASSERT_INT_EQ(pgexporter_execute_command_params(ssl, fd, "INSERT INTO test_command VALUES ($1, $2)", 2, alice), 0,
+   MCTF_ASSERT_INT_EQ(pgexporter_command_execute_params(ssl, fd, "INSERT INTO test_command VALUES ($1, $2)", 2, alice), 0,
                       cleanup, "Failed to insert first row");
-   MCTF_ASSERT_INT_EQ(pgexporter_execute_command_params(ssl, fd, "INSERT INTO test_command VALUES ($1, $2)", 2, bob), 0,
+   MCTF_ASSERT_INT_EQ(pgexporter_command_execute_params(ssl, fd, "INSERT INTO test_command VALUES ($1, $2)", 2, bob), 0,
                       cleanup, "Failed to insert second row");
 
    result = query_value(ssl, fd, "SELECT name FROM test_command WHERE id = $1", 1, id);
@@ -420,7 +515,7 @@ MCTF_TEST_NEGATIVE(test_database_command_params_error)
    pgexporter_open_connections();
    MCTF_ASSERT_INT_EQ(get_connection(&ssl, &fd), 0, cleanup, "No connected server");
 
-   MCTF_ASSERT_INT_EQ(pgexporter_execute_command_params(ssl, fd, "INSERT INTO missing_table VALUES ($1)", 1, values), 1,
+   MCTF_ASSERT_INT_EQ(pgexporter_command_execute_params(ssl, fd, "INSERT INTO missing_table VALUES ($1)", 1, values), 1,
                       cleanup, "Insert into a missing table was not reported");
 
    result = query_value(ssl, fd, "SELECT 1", 0, NULL);
@@ -448,7 +543,7 @@ MCTF_TEST(test_database_pipeline)
    pgexporter_open_connections();
    MCTF_ASSERT_INT_EQ(get_connection(&ssl, &fd), 0, cleanup, "No connected server");
 
-   MCTF_ASSERT_INT_EQ(pgexporter_execute_command_params(ssl, fd, "CREATE TEMP TABLE test_pipeline (id int PRIMARY KEY, name text)", 0, NULL), 0,
+   MCTF_ASSERT_INT_EQ(pgexporter_command_execute_params(ssl, fd, "CREATE TEMP TABLE test_pipeline (id int PRIMARY KEY, name text)", 0, NULL), 0,
                       cleanup, "Failed to create table");
 
    MCTF_ASSERT_INT_EQ(pgexporter_pipeline_create(&pipeline), 0, cleanup, "Failed to create pipeline");
@@ -497,7 +592,7 @@ MCTF_TEST(test_database_pipeline_reuse)
    pgexporter_open_connections();
    MCTF_ASSERT_INT_EQ(get_connection(&ssl, &fd), 0, cleanup, "No connected server");
 
-   MCTF_ASSERT_INT_EQ(pgexporter_execute_command_params(ssl, fd, "CREATE TEMP TABLE test_reuse (id int PRIMARY KEY)", 0, NULL), 0,
+   MCTF_ASSERT_INT_EQ(pgexporter_command_execute_params(ssl, fd, "CREATE TEMP TABLE test_reuse (id int PRIMARY KEY)", 0, NULL), 0,
                       cleanup, "Failed to create table");
    MCTF_ASSERT_INT_EQ(pgexporter_pipeline_create(&pipeline), 0, cleanup, "Failed to create pipeline");
 
@@ -561,7 +656,7 @@ MCTF_TEST_NEGATIVE(test_database_pipeline_rollback)
    pgexporter_open_connections();
    MCTF_ASSERT_INT_EQ(get_connection(&ssl, &fd), 0, cleanup, "No connected server");
 
-   MCTF_ASSERT_INT_EQ(pgexporter_execute_command_params(ssl, fd, "CREATE TEMP TABLE test_rollback (id int PRIMARY KEY)", 0, NULL), 0,
+   MCTF_ASSERT_INT_EQ(pgexporter_command_execute_params(ssl, fd, "CREATE TEMP TABLE test_rollback (id int PRIMARY KEY)", 0, NULL), 0,
                       cleanup, "Failed to create table");
    MCTF_ASSERT_INT_EQ(pgexporter_pipeline_create(&pipeline), 0, cleanup, "Failed to create pipeline");
    MCTF_ASSERT_INT_EQ(pgexporter_pipeline_prepare(pipeline, "insert", "INSERT INTO test_rollback VALUES ($1)", 1), 0, cleanup, "Failed to prepare insert");

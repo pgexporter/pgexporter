@@ -121,13 +121,15 @@ pgexporter_query_execute(int server, char* sql, char* tag, struct query** query)
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_execute_command(int server, char* sql);
+pgexporter_command_execute(int server, char* sql);
 
 /**
  * Execute a parameterized query with the extended query protocol.
  * Values are sent separately from the SQL, so they need no quoting.
  * Unlike pgexporter_query_execute this is not tied to a monitored server
- * and does not count towards the query statistics.
+ * and hence returned tuples have server set to -1
+ * The statement must return a result set. A statement that only completes,
+ * such as INSERT, uses pgexporter_command_execute_params.
  * @param ssl The SSL structure, or NULL
  * @param fd The socket
  * @param sql The SQL text, using $1..$n placeholders
@@ -150,7 +152,7 @@ pgexporter_query_execute_params(SSL* ssl, int fd, char* sql, int nparams, char**
  * @return 0 upon success, otherwise 1
  */
 int
-pgexporter_execute_command_params(SSL* ssl, int fd, char* sql, int nparams, char** values);
+pgexporter_command_execute_params(SSL* ssl, int fd, char* sql, int nparams, char** values);
 
 /** @struct query_pipeline
  * A batch of extended query protocol commands sent in one round trip.
