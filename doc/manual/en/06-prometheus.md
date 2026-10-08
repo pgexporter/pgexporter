@@ -3883,6 +3883,16 @@ Reports the total count of extensions currently installed in the connected datab
 | server | The configured name/identifier for the PostgreSQL server. |
 | extensions | Comma-separated list of installed extension names (as a label). |
 
+## pgexporter_pg_file_settings
+
+Counts the number of settings applied from each configuration file, from pg_file_settings.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| sourcefile | The source file from pg_file_settings. |
+| applied | The applied status from pg_file_settings. |
+
 ## pgexporter_pg_indexes
 
 Counts the number of indexes defined on each table within each schema.
