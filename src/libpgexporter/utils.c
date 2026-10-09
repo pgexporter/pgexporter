@@ -1827,19 +1827,22 @@ pgexporter_get_symlink(char* symlink)
 {
    ssize_t size;
    char link[1024];
-   size_t alloc;
-   char* result = NULL;
 
    memset(&link[0], 0, sizeof(link));
    size = readlink(symlink, &link[0], sizeof(link));
-   link[size + 1] = '\0';
+   /* A target that fills the whole buffer may have been truncated */
+   if (size == -1 || (size_t)size == sizeof(link))
+   {
+      return NULL;
+   }
+   link[size] = '\0';
 
-   alloc = strlen(&link[0]) + 1;
-   result = malloc(alloc);
-   memset(result, 0, alloc);
-   memcpy(result, &link[0], strlen(&link[0]));
+   if (strlen(&link[0]) == 0)
+   {
+      return NULL;
+   }
 
-   return result;
+   return pgexporter_append(NULL, &link[0]);
 }
 
 int
