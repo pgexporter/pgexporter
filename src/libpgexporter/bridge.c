@@ -300,6 +300,7 @@ retry_cache_locking:
          status = pgexporter_http_respond_chunked_start(ssl, fd, "text/plain; charset=utf-8");
          if (status != MESSAGE_STATUS_OK)
          {
+            atomic_store(&cache->lock, STATE_FREE);
             goto error;
          }
 
@@ -316,6 +317,7 @@ retry_cache_locking:
                                                         "text/plain; version=0.0.1; charset=utf-8");
          if (status != MESSAGE_STATUS_OK)
          {
+            atomic_store(&cache->lock, STATE_FREE);
             goto error;
          }
 
@@ -650,17 +652,15 @@ bridge_metrics(SSL* ssl, int client_fd)
 {
    time_t start_time;
    int dt;
-   signed char cache_is_free;
    signed char cache_json_is_free;
+   bool json_locked = false;
    char* data = NULL;
    struct prometheus_bridge* bridge = NULL;
    struct art_iterator* metrics_iterator = NULL;
-   struct prometheus_cache* cache;
    struct prometheus_cache* cache_json;
    struct configuration* config = NULL;
 
    config = (struct configuration*)shmem;
-   cache = (struct prometheus_cache*)bridge_cache_shmem;
    cache_json = (struct prometheus_cache*)bridge_json_cache_shmem;
 
    if (pgexporter_prometheus_client_create_bridge(&bridge))
@@ -684,44 +684,29 @@ bridge_metrics(SSL* ssl, int client_fd)
       goto error;
    }
 
-   cache_is_free = STATE_FREE;
-   cache_json_is_free = STATE_FREE;
-
    start_time = time(NULL);
 
-retry_cache_locking:
+   /* metrics_page() holds the lock on the bridge cache */
    if (is_bridge_cache_configured())
    {
-      if (atomic_compare_exchange_strong(&cache->lock, &cache_is_free, STATE_IN_USE))
-      {
-         bridge_cache_invalidate();
+      bridge_cache_invalidate();
 
-         if (is_bridge_json_cache_configured())
-         {
+      if (is_bridge_json_cache_configured())
+      {
 retry_cache_json_locking:
-            if (!atomic_compare_exchange_strong(&cache_json->lock, &cache_json_is_free, STATE_IN_USE))
-            {
-               dt = (int)difftime(time(NULL), start_time);
-               if (dt >= (pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S) > 0 ? pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S) : DEFAULT_BLOCKING_TIMEOUT_SECONDS))
-               {
-                  goto error;
-               }
-
-               /* Sleep for 10ms */
-               SLEEP_AND_GOTO(10000000L, retry_cache_json_locking);
-            }
-         }
-      }
-      else
-      {
-         dt = (int)difftime(time(NULL), start_time);
-         if (dt >= (pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S) > 0 ? pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S) : DEFAULT_BLOCKING_TIMEOUT_SECONDS))
+         cache_json_is_free = STATE_FREE;
+         if (!atomic_compare_exchange_strong(&cache_json->lock, &cache_json_is_free, STATE_IN_USE))
          {
-            goto error;
-         }
+            dt = (int)difftime(time(NULL), start_time);
+            if (dt >= (pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S) > 0 ? pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S) : DEFAULT_BLOCKING_TIMEOUT_SECONDS))
+            {
+               goto error;
+            }
 
-         /* Sleep for 10ms */
-         SLEEP_AND_GOTO(10000000L, retry_cache_locking);
+            /* Sleep for 10ms */
+            SLEEP_AND_GOTO(10000000L, retry_cache_json_locking);
+         }
+         json_locked = true;
       }
    }
 
@@ -812,12 +797,11 @@ retry_cache_json_locking:
    if (is_bridge_cache_configured())
    {
       bridge_cache_finalize();
-      atomic_store(&cache->lock, STATE_FREE);
+   }
 
-      if (is_bridge_json_cache_configured())
-      {
-         atomic_store(&cache_json->lock, STATE_FREE);
-      }
+   if (json_locked)
+   {
+      atomic_store(&cache_json->lock, STATE_FREE);
    }
 
    pgexporter_art_iterator_destroy(metrics_iterator);
@@ -827,6 +811,11 @@ retry_cache_json_locking:
    return;
 
 error:
+
+   if (json_locked)
+   {
+      atomic_store(&cache_json->lock, STATE_FREE);
+   }
 
    pgexporter_art_iterator_destroy(metrics_iterator);
 
@@ -846,10 +835,10 @@ bridge_json_metrics(SSL* ssl, int fd)
    config = (struct configuration*)shmem;
    cache = (struct prometheus_cache*)bridge_json_cache_shmem;
 
-   cache_is_free = STATE_FREE;
    start_time = time(NULL);
 
 retry_cache_locking:
+   cache_is_free = STATE_FREE;
    if (is_bridge_json_cache_configured())
    {
       if (!atomic_compare_exchange_strong(&cache->lock, &cache_is_free, STATE_IN_USE))
@@ -867,6 +856,7 @@ retry_cache_locking:
       status = pgexporter_http_respond_chunked_start(ssl, fd, "text/plain; charset=utf-8");
       if (status != MESSAGE_STATUS_OK)
       {
+         atomic_store(&cache->lock, STATE_FREE);
          goto error;
       }
 
