@@ -2380,6 +2380,16 @@ pgexporter_pg_statio_all_sequences_blks_hit
 * server: The configured name/identifier for the PostgreSQL server.
 Version: 10+
 
+pgexporter_pg_statio_all_indexes_idx_blks_read
++ Aggregates `idx_blks_read` from `pg_statio_all_indexes`: total disk blocks read for all indexes in the database.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
+pgexporter_pg_statio_all_indexes_idx_blks_hit
++ Aggregates `idx_blks_hit` from `pg_statio_all_indexes`: total buffer cache hits for all indexes in the database.
+* server: The configured name/identifier for the PostgreSQL server.
+Version: 10+
+
 pgexporter_pg_stat_archiver_archived_count
 + Reflects `archived_count` from `pg_stat_archiver`: the total number of WAL files successfully archived since server start.
 * server: The configured name/identifier for the PostgreSQL server.

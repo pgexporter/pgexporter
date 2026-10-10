@@ -4046,6 +4046,30 @@ Buffer cache hits for this sequence, from `pg_statio_all_sequences`.
 | schemaname | The name of the schema the sequence belongs to. |
 | relname | The name of the sequence. |
 
+## pgexporter_pg_statio_all_indexes_idx_blks_read
+
+Disk blocks read from this index, from `pg_statio_all_indexes`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The name of the database. |
+| schemaname | The name of the schema the index belongs to. |
+| relname | The name of the table this index is on. |
+| indexrelname | The name of the index. |
+
+## pgexporter_pg_statio_all_indexes_idx_blks_hit
+
+Buffer cache hits for this index, from `pg_statio_all_indexes`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The name of the database. |
+| schemaname | The name of the schema the index belongs to. |
+| relname | The name of the table this index is on. |
+| indexrelname | The name of the index. |
+
 ## pgexporter_pg_stat_user_functions_calls
 
 Reflects `calls` from `pg_stat_user_functions`: the number of times this specific user-defined function has been called.

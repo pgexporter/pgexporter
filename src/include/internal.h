@@ -608,6 +608,33 @@ extern "C" {
                       "    collector: statio_all_sequences\n"                                                                                                                           \
                       "    database: all\n"                                                                                                                                             \
                       "\n"                                                                                                                                                              \
+                      "# All indexes statio\n"                                                                                                                                          \
+                      "  - queries:\n"                                                                                                                                                  \
+                      "    - query: SELECT\n"                                                                                                                                           \
+                      "                schemaname,\n"                                                                                                                                   \
+                      "                relname,\n"                                                                                                                                      \
+                      "                indexrelname,\n"                                                                                                                                 \
+                      "                idx_blks_read AS idx_blks_read,\n"                                                                                                               \
+                      "                idx_blks_hit AS idx_blks_hit\n"                                                                                                                  \
+                      "              FROM pg_statio_all_indexes;\n"                                                                                                                     \
+                      "      version: 10\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: schemaname\n"                                                                                                                                    \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: relname\n"                                                                                                                                       \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: indexrelname\n"                                                                                                                                  \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: idx_blks_read\n"                                                                                                                                 \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of disk blocks read from this index in postgres db.\n"                                                                             \
+                      "        - name: idx_blks_hit\n"                                                                                                                                  \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of buffer hits in this index in postgres db.\n"                                                                                    \
+                      "    tag: pg_statio_all_indexes\n"                                                                                                                                \
+                      "    collector: statio_all_indexes\n"                                                                                                                             \
+                      "    database: all\n"                                                                                                                                             \
+                      "\n"                                                                                                                                                              \
                       "# Stat user functions\n"                                                                                                                                         \
                       "  - queries:\n"                                                                                                                                                  \
                       "    - query: SELECT\n"                                                                                                                                           \
