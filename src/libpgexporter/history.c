@@ -32,6 +32,7 @@
 #include <history.h>
 #include <history_postgresql.h>
 #include <history_sqlite.h>
+#include <history_timescaledb.h>
 #include <http.h>
 #include <http_server.h>
 #include <json.h>
@@ -351,6 +352,7 @@ static const struct
 } backend_registry[] = {
    {HISTORY_BACKEND_SQLITE, &pgexporter_history_sqlite_ops},
    {HISTORY_BACKEND_POSTGRESQL, &pgexporter_history_postgresql_ops},
+   {HISTORY_BACKEND_TIMESCALEDB, &pgexporter_history_timescaledb_ops},
 };
 
 #define BACKEND_REGISTRY_SIZE (sizeof(backend_registry) / sizeof(backend_registry[0]))

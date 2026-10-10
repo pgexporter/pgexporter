@@ -109,6 +109,7 @@ extern "C" {
 
 #define HISTORY_BACKEND_SQLITE       0
 #define HISTORY_BACKEND_POSTGRESQL   1
+#define HISTORY_BACKEND_TIMESCALEDB  2
 
 #define VERSION_GREATER              1
 #define VERSION_EQUAL                0

@@ -1864,23 +1864,26 @@ pgexporter_validate_configuration(void* shm)
    /* The backend's own required settings, checked only when history is enabled */
    if (config->history > 0)
    {
-      if (config->history_backend == HISTORY_BACKEND_POSTGRESQL)
+      if (config->history_backend == HISTORY_BACKEND_POSTGRESQL ||
+          config->history_backend == HISTORY_BACKEND_TIMESCALEDB)
       {
+         const char* backend = config->history_backend == HISTORY_BACKEND_TIMESCALEDB ? "timescaledb" : "postgresql";
+
          if (strlen(config->history_postgresql_host) == 0)
          {
-            pgexporter_log_fatal("pgexporter: history_backend is postgresql but history_postgresql_host is not set");
+            pgexporter_log_fatal("pgexporter: history_backend is %s but history_postgresql_host is not set", backend);
             return 1;
          }
 
          if (strlen(config->history_postgresql_database) == 0)
          {
-            pgexporter_log_fatal("pgexporter: history_backend is postgresql but history_postgresql_database is not set");
+            pgexporter_log_fatal("pgexporter: history_backend is %s but history_postgresql_database is not set", backend);
             return 1;
          }
 
          if (strlen(config->history_postgresql_user) == 0)
          {
-            pgexporter_log_fatal("pgexporter: history_backend is postgresql but history_postgresql_user is not set");
+            pgexporter_log_fatal("pgexporter: history_backend is %s but history_postgresql_user is not set", backend);
             return 1;
          }
 
@@ -2195,7 +2198,9 @@ pgexporter_read_history_user_configuration(void* shm)
 
    memset(&config->history_user, 0, sizeof(struct user));
 
-   if (config->history <= 0 || config->history_backend != HISTORY_BACKEND_POSTGRESQL)
+   if (config->history <= 0 ||
+       (config->history_backend != HISTORY_BACKEND_POSTGRESQL &&
+        config->history_backend != HISTORY_BACKEND_TIMESCALEDB))
    {
       return 0;
    }
@@ -4546,6 +4551,11 @@ as_history_backend(char* str)
       return HISTORY_BACKEND_POSTGRESQL;
    }
 
+   if (!strcasecmp(str, "timescaledb"))
+   {
+      return HISTORY_BACKEND_TIMESCALEDB;
+   }
+
    /* Negative signals an unrecognised value to the callers' < 0 checks */
    return -1;
 }
@@ -5885,6 +5895,9 @@ to_history_backend(char* where, int value)
          break;
       case HISTORY_BACKEND_POSTGRESQL:
          pgexporter_snprintf(where, MISC_LENGTH, "%s", "postgresql");
+         break;
+      case HISTORY_BACKEND_TIMESCALEDB:
+         pgexporter_snprintf(where, MISC_LENGTH, "%s", "timescaledb");
          break;
       default:
          return 1;
