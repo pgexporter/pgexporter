@@ -255,6 +255,25 @@ metrics:
     - name: blks_hit
       type: counter
       description: Number of buffer hits read from sequences in postgres db.
+- tag: pg_statio_all_indexes
+  collector: statio_all_indexes
+  database: all
+  queries:
+  - query: SELECT schemaname, relname, indexrelname, idx_blks_read AS idx_blks_read, idx_blks_hit AS idx_blks_hit FROM pg_statio_all_indexes;
+    version: 10
+    columns:
+    - name: schemaname
+      type: label
+    - name: relname
+      type: label
+    - name: indexrelname
+      type: label
+    - name: idx_blks_read
+      type: counter
+      description: Number of disk blocks read from this index in postgres db.
+    - name: idx_blks_hit
+      type: counter
+      description: Number of buffer hits in this index in postgres db.
 - tag: pg_stat_user_functions
   collector: stat_user_functions
   sort: data
