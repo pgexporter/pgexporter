@@ -182,6 +182,7 @@ jobs:
         run: |
           brew update
           brew install \
+            llvm \
             libyaml \
             docutils \
             check \
@@ -195,7 +196,11 @@ jobs:
         run: |
           mkdir -p $BUILD_DIR
           cd $BUILD_DIR
-          export CC=$(xcrun -find clang)
+          # Use Homebrew's Clang rather than whatever Apple Clang ships with the
+          # runner's Xcode: older Xcode command line tools (e.g. Xcode 15's Apple
+          # Clang 15) reject a plain `= {0}` initializer on an _Atomic-qualified
+          # pointer/function-pointer type. The project's floor is Clang 16+.
+          export CC=$(brew --prefix llvm)/bin/clang
           cmake -DCMAKE_BUILD_TYPE=Debug -DDOCS=FALSE ..
           make -j$(sysctl -n hw.ncpu)
 
