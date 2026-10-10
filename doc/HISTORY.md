@@ -75,10 +75,11 @@ The maximum supported interval is approximately **24.8 days**. Larger values are
 The storage backend is selected with `history_backend` (or `bridge_history_backend`
 for bridge history). The currently supported backends are:
 
-| Backend    | Value        | Description |
-|------------|--------------|-------------|
-| SQLite     | `sqlite`     | Default. Local file-based storage. |
-| PostgreSQL | `postgresql` | Stores history in a PostgreSQL database. |
+| Backend    | Value         | Description |
+|------------|---------------|-------------|
+| SQLite     | `sqlite`      | Default. Local file-based storage. |
+| PostgreSQL | `postgresql`  | Stores history in a PostgreSQL database. |
+| TimescaleDB | `timescaledb` | Stores history in a TimescaleDB hypertable. Uses the `history_postgresql_*` connection settings. |
 
 Either way the store, meaning the SQLite file or the PostgreSQL schema, is created
 when pgexporter starts, so a missing database or a wrong credential is reported
@@ -156,6 +157,31 @@ radius small.
 The role does **not** need `pg_monitor`. That is a requirement of the roles used to
 scrape monitored servers — pgexporter refuses to start when one of those lacks it —
 but the history role only touches its own tables.
+
+### TimescaleDB
+
+The TimescaleDB backend uses the same connection settings and the same `series` /
+`sample` tables as the PostgreSQL backend. `sample` is a hypertable partitioned on
+`ts`, in chunks of one day. `series` stays an ordinary table.
+
+```ini
+[pgexporter]
+
+history_backend                  = timescaledb
+history_postgresql_host          = history.example.com
+history_postgresql_port          = 5432
+history_postgresql_database      = pgexporter_history
+history_postgresql_user          = pgexporter
+history_postgresql_password_file = /etc/pgexporter/pgexporter_history.conf
+```
+
+Install the `timescaledb` extension in that database before starting pgexporter.
+Use a database the plain PostgreSQL backend has not already filled: an existing 
+`sample` table is not migrated into a hypertable.
+
+Retention drops whole chunks with `drop_chunks` instead of deleting rows. A chunk
+that still overlaps the retention cutoff is kept, so samples can outlive
+`history_retention` by up to one day.
 
 ### Retention and pruning
 
