@@ -5773,6 +5773,78 @@ Minimum allocation size on a specific NUMA node, from `pg_shmem_allocations_numa
 | server | The configured name/identifier for the PostgreSQL server. |
 | numa_node | NUMA node number. |
 
+## pgexporter_pg_stat_slru_blks_zeroed
+
+Number of blocks zeroed during initializations, from `pg_stat_slru`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| name | Name of the SLRU. |
+
+## pgexporter_pg_stat_slru_blks_hit
+
+Number of times disk blocks were found already in the SLRU, from `pg_stat_slru`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| name | Name of the SLRU. |
+
+## pgexporter_pg_stat_slru_blks_read
+
+Number of disk blocks read for this SLRU, from `pg_stat_slru`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| name | Name of the SLRU. |
+
+## pgexporter_pg_stat_slru_blks_written
+
+Number of disk blocks written for this SLRU, from `pg_stat_slru`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| name | Name of the SLRU. |
+
+## pgexporter_pg_stat_slru_blks_exists
+
+Number of blocks checked for existence for this SLRU, from `pg_stat_slru`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| name | Name of the SLRU. |
+
+## pgexporter_pg_stat_slru_flushes
+
+Number of flushes of dirty data for this SLRU, from `pg_stat_slru`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| name | Name of the SLRU. |
+
+## pgexporter_pg_stat_slru_truncates
+
+Number of truncates for this SLRU, from `pg_stat_slru`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| name | Name of the SLRU. |
+
+## pgexporter_pg_stat_slru_stats_reset_seconds
+
+Seconds since statistics were last reset, from `pg_stat_slru`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| name | Name of the SLRU. |
+
 ## pgexporter_pg_replication_slots_two_phase_at
 
 LSN at which two-phase commit state was enabled for replication slot, from `pg_replication_slots`.

@@ -834,6 +834,64 @@
       ]
     },
     {
+      "tag": "pg_stat_slru",
+      "collector": "slru",
+      "sort": "data",
+      "queries": [
+        {
+          "query": "SELECT name, blks_zeroed, blks_hit, blks_read, blks_written, blks_exists, flushes, truncates, EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - stats_reset))::bigint AS stats_reset_seconds FROM pg_stat_slru ORDER BY name;",
+          "version": 13,
+          "columns": [
+            {
+              "name": "name",
+              "type": "label",
+              "description": "Name of the SLRU"
+            },
+            {
+              "name": "blks_zeroed",
+              "type": "counter",
+              "description": "Number of blocks zeroed during initializations"
+            },
+            {
+              "name": "blks_hit",
+              "type": "counter",
+              "description": "Number of times disk blocks were found already in the SLRU"
+            },
+            {
+              "name": "blks_read",
+              "type": "counter",
+              "description": "Number of disk blocks read for this SLRU"
+            },
+            {
+              "name": "blks_written",
+              "type": "counter",
+              "description": "Number of disk blocks written for this SLRU"
+            },
+            {
+              "name": "blks_exists",
+              "type": "counter",
+              "description": "Number of blocks checked for existence for this SLRU"
+            },
+            {
+              "name": "flushes",
+              "type": "counter",
+              "description": "Number of flushes of dirty data for this SLRU"
+            },
+            {
+              "name": "truncates",
+              "type": "counter",
+              "description": "Number of truncates for this SLRU"
+            },
+            {
+              "name": "stats_reset_seconds",
+              "type": "counter",
+              "description": "Seconds since statistics were last reset"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "tag": "pg_stat_progress_vacuum",
       "collector": "vacuum_progress",
       "sort": "data",
