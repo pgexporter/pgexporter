@@ -979,6 +979,52 @@ extern "C" {
                       "    tag: pg_shmem_allocations_numa\n"                                                                                                                            \
                       "    sort: data\n"                                                                                                                                                \
                       "    collector: shmem_numa\n"                                                                                                                                     \
+                      "# SLRU cache statistics\n"                                                                                                                                       \
+                      "  - queries:\n"                                                                                                                                                  \
+                      "    - query: SELECT\n"                                                                                                                                           \
+                      "                name,\n"                                                                                                                                         \
+                      "                blks_zeroed,\n"                                                                                                                                  \
+                      "                blks_hit,\n"                                                                                                                                     \
+                      "                blks_read,\n"                                                                                                                                    \
+                      "                blks_written,\n"                                                                                                                                 \
+                      "                blks_exists,\n"                                                                                                                                  \
+                      "                flushes,\n"                                                                                                                                      \
+                      "                truncates,\n"                                                                                                                                    \
+                      "                EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - stats_reset))::bigint AS stats_reset_seconds\n"                                                          \
+                      "              FROM pg_stat_slru\n"                                                                                                                               \
+                      "              ORDER BY name;\n"                                                                                                                                  \
+                      "      version: 13\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: name\n"                                                                                                                                          \
+                      "          type: label\n"                                                                                                                                         \
+                      "          description: Name of the SLRU\n"                                                                                                                       \
+                      "        - name: blks_zeroed\n"                                                                                                                                   \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of blocks zeroed during initializations\n"                                                                                         \
+                      "        - name: blks_hit\n"                                                                                                                                      \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of times disk blocks were found already in the SLRU\n"                                                                             \
+                      "        - name: blks_read\n"                                                                                                                                     \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of disk blocks read for this SLRU\n"                                                                                               \
+                      "        - name: blks_written\n"                                                                                                                                  \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of disk blocks written for this SLRU\n"                                                                                            \
+                      "        - name: blks_exists\n"                                                                                                                                   \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of blocks checked for existence for this SLRU\n"                                                                                   \
+                      "        - name: flushes\n"                                                                                                                                       \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of flushes of dirty data for this SLRU\n"                                                                                          \
+                      "        - name: truncates\n"                                                                                                                                     \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of truncates for this SLRU\n"                                                                                                      \
+                      "        - name: stats_reset_seconds\n"                                                                                                                           \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Seconds since statistics were last reset\n"                                                                                               \
+                      "    tag: pg_stat_slru\n"                                                                                                                                         \
+                      "    sort: data\n"                                                                                                                                                \
+                      "    collector: slru\n"                                                                                                                                           \
                       "\n"                                                                                                                                                              \
                       "# Vacuum progress information\n"                                                                                                                                 \
                       "  - queries:\n"                                                                                                                                                  \
