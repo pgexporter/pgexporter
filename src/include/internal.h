@@ -536,6 +536,27 @@ extern "C" {
                       "    sort: data\n"                                                                                                                                                \
                       "    collector: connections\n"                                                                                                                                    \
                       "\n"                                                                                                                                                              \
+                      "# Get number of prepared transactions\n"                                                                                                                         \
+                      "  - queries:\n"                                                                                                                                                  \
+                      "    - query: SELECT database, COUNT(*) AS count,\n"                                                                                                              \
+                      "              MAX(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - prepared)))::bigint\n"                                                                                 \
+                      "              AS oldest_age_seconds\n"                                                                                                                           \
+                      "              FROM pg_prepared_xacts\n"                                                                                                                          \
+                      "              GROUP BY database;\n"                                                                                                                              \
+                      "      version: 10\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: database\n"                                                                                                                                      \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: count\n"                                                                                                                                         \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Number of prepared transactions.\n"                                                                                                       \
+                      "        - name: oldest_age_seconds\n"                                                                                                                            \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Age in seconds of the oldest prepared transaction.\n"                                                                                     \
+                      "    tag: pg_prepared_xacts\n"                                                                                                                                    \
+                      "    sort: data\n"                                                                                                                                                \
+                      "    collector: prepared_xacts\n"                                                                                                                                 \
+                      "\n"                                                                                                                                                              \
                       "# All tables statio\n"                                                                                                                                           \
                       "  - queries:\n"                                                                                                                                                  \
                       "    - query: SELECT\n"                                                                                                                                           \
