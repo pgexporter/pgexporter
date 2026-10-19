@@ -39,17 +39,19 @@ extern "C" {
 /**
  * Create the schema and turn sample into a hypertable if that has not been done yet.
  * The timescaledb extension must already be installed.
+ * @param store The store whose PostgreSQL connection is used
  * @return 0 on success, 1 on failure
  */
 int
-pgexporter_history_timescaledb_create(void);
+pgexporter_history_timescaledb_create(const struct history_store* store);
 
 /**
  * Connect to the history store. Does nothing when already connected.
+ * @param store The store whose PostgreSQL connection is used
  * @return 0 on success, 1 on failure
  */
 int
-pgexporter_history_timescaledb_init(void);
+pgexporter_history_timescaledb_init(const struct history_store* store);
 
 /**
  * Insert a batch of records inside a single transaction.
@@ -74,12 +76,13 @@ pgexporter_history_timescaledb_query_range(const char* metric, time_t start, tim
                                            struct history_record** records_out, int* count_out);
 
 /**
- * Drop chunks older than config->history_retention, then remove any series
+ * Drop chunks older than the store's retention, then remove any series
  * left with no samples at all. A chunk that still overlaps the cutoff is kept.
+ * @param store The store whose retention is used
  * @return 0 on success, 1 on failure
  */
 int
-pgexporter_history_timescaledb_prune(void);
+pgexporter_history_timescaledb_prune(const struct history_store* store);
 
 /**
  * Close the connection to the history store.

@@ -82,6 +82,11 @@ The cache can be configured using the following settings
 The cache can be disabled by setting `bridge_cache_max_size` to 0. By disabling the cache
 each endpoint is scrapped upon each bridge invocation.
 
+## History
+
+The bridge can record a history of the metrics it aggregates, with the `endpoint`
+label kept on every sample, using the `bridge_history_*` settings. See `HISTORY.md`.
+
 ## Bridge/JSON
 
 The bridge has an optional component that will server a JSON presentation of the bridge data.

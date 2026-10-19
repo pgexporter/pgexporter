@@ -30,6 +30,7 @@
 #include <pgexporter.h>
 #include <art.h>
 #include <bridge.h>
+#include <bridge_history.h>
 #include <http_server.h>
 #include <cache.h>
 #include <deque.h>
@@ -802,6 +803,25 @@ retry_cache_json_locking:
    if (json_locked)
    {
       atomic_store(&cache_json->lock, STATE_FREE);
+   }
+
+   /* Store the fresh scrape in bridge history immediately. */
+   if (config->bridge_history > 0)
+   {
+      const struct history_store* store = pgexporter_bridge_history_store();
+
+      if (pgexporter_history_claim_slot(store, -1))
+      {
+         if (pgexporter_history_init(store) == 0)
+         {
+            if (pgexporter_bridge_history_store_metrics(bridge) != 0)
+            {
+               pgexporter_log_warn("bridge history: failed to store metrics snapshot");
+            }
+         }
+         pgexporter_history_shutdown();
+         pgexporter_history_release_slot(store);
+      }
    }
 
    pgexporter_art_iterator_destroy(metrics_iterator);

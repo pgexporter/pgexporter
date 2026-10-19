@@ -50,6 +50,23 @@ bridge_history_path      = /var/lib/pgexporter/bridge_history.db
 
 Both can be enabled at the same time on a combined instance.
 
+Bridge history requires `bridge_endpoints`. Each snapshot scrapes every endpoint, and
+every sample keeps the `endpoint` label the bridge adds, so two nodes that both report
+`server="primary"` stay separate series. An endpoint that cannot be reached is left
+out of that snapshot. With the `sqlite` backend, `bridge_history_path` must differ from
+`history_path`. The `postgresql` and `timescaledb` backends use `bridge_history_postgresql_*`,
+the same settings as `history_postgresql_*`, and the two stores must not share a database:
+a retention prune deletes every sample in the database it opens.
+
+```ini
+bridge_history_backend                  = postgresql
+bridge_history_postgresql_host          = history.example.com
+bridge_history_postgresql_port          = 5432
+bridge_history_postgresql_database      = pgexporter_bridge_history
+bridge_history_postgresql_user          = pgexporter
+bridge_history_postgresql_password_file = /etc/pgexporter/pgexporter_bridge_history.conf
+```
+
 The `history` and `bridge_history` settings are the ports on which the respective
 history JSON APIs are served, following the same fork-per-request model as the
 metrics, console and bridge endpoints.
@@ -62,7 +79,9 @@ If either port is unset (or `-1`), that history module is disabled.
 saved snapshots.
 
 Whenever Prometheus (or any client) scrapes your `/metrics` endpoint, a snapshot
-is **always** saved to the history database — regardless of the timer. The timer
+is **always** saved to the history database — regardless of the timer. For bridge
+history the same applies to a scrape of the bridge `/metrics` endpoint that is not
+served from the bridge cache. The timer
 only adds *automatic* snapshots on top of that. If a scrape already saved a
 snapshot within the configured period, the automatic timer skips its turn to
 avoid saving the same data twice.
@@ -230,4 +249,7 @@ The endpoint supports TLS via the `history_cert_file`, `history_key_file`
 and `history_ca_file` configuration keys; when unset, the endpoint serves
 plain HTTP.
 
-Bridge history (`bridge_history`) does not yet expose an HTTP API.
+The same API is served on the `bridge_history` port from the bridge history store,
+using the `bridge_cert_file`, `bridge_key_file` and `bridge_ca_file` keys for TLS.
+Each record's `labels` carries the `endpoint` it was scraped from. The `history`
+port only ever serves the local store.

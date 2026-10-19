@@ -38,18 +38,19 @@ extern "C" {
 
 /**
  * Create the database file and its schema if they do not exist yet.
+ * @param store The store whose path is used
  * @return 0 on success, 1 on failure
  */
 int
-pgexporter_history_sqlite_create(void);
+pgexporter_history_sqlite_create(const struct history_store* store);
 
 /**
- * Open (or create) the SQLite database file and initialise the schema.
- * The path is taken from config->history_path.
+ * Open (or create) the SQLite database file at the store's path.
+ * @param store The store whose path is used
  * @return 0 on success, 1 on failure
  */
 int
-pgexporter_history_sqlite_init(void);
+pgexporter_history_sqlite_init(const struct history_store* store);
 
 /**
  * Insert a batch of records inside a single transaction.
@@ -74,13 +75,14 @@ pgexporter_history_sqlite_query_range(const char* metric, time_t start, time_t e
                                       struct history_record** records_out, int* count_out);
 
 /**
- * Delete samples whose timestamp is older than config->history_retention, then
+ * Delete samples whose timestamp is older than the store's retention, then
  * remove any series left with no samples at all.
  *
+ * @param store The store whose retention is used
  * @return 0 on success, 1 on failure
  */
 int
-pgexporter_history_sqlite_prune(void);
+pgexporter_history_sqlite_prune(const struct history_store* store);
 
 /**
  * Close the SQLite database connection.

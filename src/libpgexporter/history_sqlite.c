@@ -106,26 +106,26 @@ exec_sql(const char* sql, const char* what)
 }
 
 static int
-open_db(void)
+open_db(const struct history_store* store)
 {
-   struct configuration* config;
+   const char* path;
 
    if (db != NULL)
    {
       return 0;
    }
 
-   config = (struct configuration*)shmem;
+   path = store != NULL && store->path != NULL ? store->path : "";
 
-   if (!config || !config->history_path[0])
+   if (!path[0])
    {
       pgexporter_log_error("history_sqlite: no history path configured");
       goto error;
    }
 
-   if (sqlite3_open_v2(config->history_path, &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL) != SQLITE_OK)
+   if (sqlite3_open_v2(path, &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL) != SQLITE_OK)
    {
-      pgexporter_log_error("history_sqlite: failed to open db %s: %s", config->history_path, db ? sqlite3_errmsg(db) : "out of memory");
+      pgexporter_log_error("history_sqlite: failed to open db %s: %s", path, db ? sqlite3_errmsg(db) : "out of memory");
       goto error;
    }
 
@@ -153,13 +153,12 @@ error:
 }
 
 int
-pgexporter_history_sqlite_create(void)
+pgexporter_history_sqlite_create(const struct history_store* store)
 {
-   struct configuration* config = (struct configuration*)shmem;
    bool opened = db != NULL;
    int ret = 1;
 
-   if (open_db())
+   if (open_db(store))
    {
       goto done;
    }
@@ -168,7 +167,7 @@ pgexporter_history_sqlite_create(void)
 
    if (ret == 0)
    {
-      pgexporter_log_debug("history_sqlite: created at %s", config->history_path);
+      pgexporter_log_debug("history_sqlite: created at %s", store->path);
    }
 
 done:
@@ -183,9 +182,9 @@ done:
 }
 
 int
-pgexporter_history_sqlite_init(void)
+pgexporter_history_sqlite_init(const struct history_store* store)
 {
-   return open_db();
+   return open_db(store);
 }
 
 /**
@@ -464,9 +463,9 @@ error:
 }
 
 int
-pgexporter_history_sqlite_prune(void)
+pgexporter_history_sqlite_prune(const struct history_store* store)
 {
-   struct configuration* config;
+   pgexporter_time_t retention;
    sqlite3_stmt* stmt = NULL;
    const char* sql = "DELETE FROM sample WHERE ts < ?;";
    const char* sweep_sql = "DELETE FROM series WHERE NOT EXISTS ("
@@ -475,14 +474,19 @@ pgexporter_history_sqlite_prune(void)
    time_t cutoff;
    int64_t retention_s;
 
-   config = (struct configuration*)shmem;
-
-   if (!db || !config || !pgexporter_time_is_valid(config->history_retention))
+   if (!db || store == NULL)
    {
       return 0;
    }
 
-   retention_s = pgexporter_time_convert(config->history_retention, FORMAT_TIME_S);
+   retention = store->retention;
+
+   if (!pgexporter_time_is_valid(retention))
+   {
+      return 0;
+   }
+
+   retention_s = pgexporter_time_convert(retention, FORMAT_TIME_S);
    if (retention_s <= 0)
    {
       return 0;

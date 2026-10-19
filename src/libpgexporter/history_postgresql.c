@@ -44,12 +44,12 @@
 static const char* prune_sql = "DELETE FROM pgexporter.sample WHERE ts < $1::bigint";
 
 int
-pgexporter_history_postgresql_create(void)
+pgexporter_history_postgresql_create(const struct history_store* store)
 {
    bool connected = pgexporter_history_server_connected();
    int ret = 1;
 
-   if (pgexporter_history_postgresql_init())
+   if (pgexporter_history_postgresql_init(store))
    {
       goto done;
    }
@@ -67,9 +67,9 @@ done:
 }
 
 int
-pgexporter_history_postgresql_init(void)
+pgexporter_history_postgresql_init(const struct history_store* store)
 {
-   return pgexporter_history_server_init();
+   return pgexporter_history_server_init(store);
 }
 
 int
@@ -86,9 +86,9 @@ pgexporter_history_postgresql_query_range(const char* metric, time_t start, time
 }
 
 int
-pgexporter_history_postgresql_prune(void)
+pgexporter_history_postgresql_prune(const struct history_store* store)
 {
-   return pgexporter_history_server_prune(prune_sql, false);
+   return pgexporter_history_server_prune(prune_sql, false, store->retention);
 }
 
 int

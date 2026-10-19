@@ -30,6 +30,7 @@
 #include <pgexporter.h>
 #include <configuration.h>
 #include <history.h>
+#include <local_history.h>
 #include <memory.h>
 #include <message.h>
 #include <network.h>
@@ -121,7 +122,7 @@ MCTF_TEST(test_history_timescaledb_create)
    SKIP_WITHOUT_TIMESCALEDB();
 
    MCTF_ASSERT_INT_EQ(pgexporter_read_history_user_configuration(shmem), 0, cleanup, "Failed to read history credential");
-   MCTF_ASSERT_INT_EQ(pgexporter_history_create(), 0, cleanup, "Failed to create the history store");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_create(pgexporter_local_history_store()), 0, cleanup, "Failed to create the history store");
    MCTF_ASSERT_INT_EQ((int)history_scalar("SELECT COUNT(*) FROM timescaledb_information.hypertables WHERE hypertable_name = 'sample'"),
                       1, cleanup, "sample should be a hypertable");
 
@@ -134,8 +135,8 @@ MCTF_TEST(test_history_timescaledb_create_again)
    SKIP_WITHOUT_TIMESCALEDB();
 
    MCTF_ASSERT_INT_EQ(pgexporter_read_history_user_configuration(shmem), 0, cleanup, "Failed to read history credential");
-   MCTF_ASSERT_INT_EQ(pgexporter_history_create(), 0, cleanup, "First create failed");
-   MCTF_ASSERT_INT_EQ(pgexporter_history_create(), 0, cleanup, "Create on an existing hypertable failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_create(pgexporter_local_history_store()), 0, cleanup, "First create failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_create(pgexporter_local_history_store()), 0, cleanup, "Create on an existing hypertable failed");
 
 cleanup:
    MCTF_FINISH();
@@ -184,7 +185,7 @@ MCTF_TEST(test_history_timescaledb_prune_drops_old_chunk)
    make_record(&in[1], now, "s", "m", "", 2.0);
    MCTF_ASSERT_INT_EQ(pgexporter_history_write_batch(in, 2), 0, cleanup, "write failed");
 
-   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(), 0, cleanup, "prune failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(pgexporter_local_history_store()), 0, cleanup, "prune failed");
 
    MCTF_ASSERT_INT_EQ(pgexporter_history_query_range("m", 0, now + 10, &out, &count), 0,
                       cleanup, "query failed");
@@ -212,7 +213,7 @@ MCTF_TEST(test_history_timescaledb_prune_disabled_keeps_all)
    make_record(&in[1], now, "s", "m", "", 2.0);
    MCTF_ASSERT_INT_EQ(pgexporter_history_write_batch(in, 2), 0, cleanup, "write failed");
 
-   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(), 0, cleanup, "prune with disabled retention should succeed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(pgexporter_local_history_store()), 0, cleanup, "prune with disabled retention should succeed");
 
    MCTF_ASSERT_INT_EQ(pgexporter_history_query_range("m", 0, now + 10, NULL, &count), 0,
                       cleanup, "query failed");
@@ -237,7 +238,7 @@ MCTF_TEST(test_history_timescaledb_prune_sweeps_orphan_series)
    make_record(&in[1], now, "primary", "live_series", "server=\"primary\"", 2.0);
    MCTF_ASSERT_INT_EQ(pgexporter_history_write_batch(in, 2), 0, cleanup, "write failed");
 
-   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(), 0, cleanup, "prune failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(pgexporter_local_history_store()), 0, cleanup, "prune failed");
 
    MCTF_ASSERT_INT_EQ((int)history_scalar("SELECT COUNT(*) FROM pgexporter.series"), 1, cleanup,
                       "a series with no samples left is no longer a series");
@@ -252,8 +253,8 @@ static int
 prepare_store(void)
 {
    if (pgexporter_read_history_user_configuration(shmem) ||
-       pgexporter_history_create() ||
-       pgexporter_history_init())
+       pgexporter_history_create(pgexporter_local_history_store()) ||
+       pgexporter_history_init(pgexporter_local_history_store()))
    {
       return 1;
    }

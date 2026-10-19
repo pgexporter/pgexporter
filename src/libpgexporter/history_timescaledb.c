@@ -72,13 +72,13 @@ extension_installed(int* installed)
 }
 
 int
-pgexporter_history_timescaledb_create(void)
+pgexporter_history_timescaledb_create(const struct history_store* store)
 {
    bool connected = pgexporter_history_server_connected();
    int installed = 0;
    int ret = 1;
 
-   if (pgexporter_history_timescaledb_init())
+   if (pgexporter_history_timescaledb_init(store))
    {
       goto done;
    }
@@ -118,9 +118,9 @@ done:
 }
 
 int
-pgexporter_history_timescaledb_init(void)
+pgexporter_history_timescaledb_init(const struct history_store* store)
 {
-   return pgexporter_history_server_init();
+   return pgexporter_history_server_init(store);
 }
 
 int
@@ -137,9 +137,9 @@ pgexporter_history_timescaledb_query_range(const char* metric, time_t start, tim
 }
 
 int
-pgexporter_history_timescaledb_prune(void)
+pgexporter_history_timescaledb_prune(const struct history_store* store)
 {
-   return pgexporter_history_server_prune(prune_sql, true);
+   return pgexporter_history_server_prune(prune_sql, true, store->retention);
 }
 
 int
