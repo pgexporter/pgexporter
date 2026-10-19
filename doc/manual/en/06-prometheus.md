@@ -3946,6 +3946,24 @@ SSL connection status for database connections
 | :-------- | :---------- |
 | server | The configured name/identifier for the PostgreSQL server. |
 
+## pgexporter_pg_prepared_xacts_count
+
+The number of prepared transactions (two-phase commit) per database, from `pg_prepared_xacts`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The name of the database. |
+
+## pgexporter_pg_prepared_xacts_oldest_age_seconds
+
+The age in seconds of the oldest prepared transaction (two-phase commit) per database, from `pg_prepared_xacts`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| database | The name of the database. |
+
 ## pgexporter_pg_statio_all_tables_heap_blks_read
 
 Disk blocks read from the heap for this table, from `pg_statio_all_tables`.
