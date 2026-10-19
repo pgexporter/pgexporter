@@ -135,6 +135,7 @@ extern "C" {
 #define MANAGEMENT_ERROR_BRIDGE_NETWORK                     901
 #define MANAGEMENT_ERROR_BRIDGE_JSON_NOFORK                 902
 #define MANAGEMENT_ERROR_BRIDGE_JSON_NETWORK                903
+#define MANAGEMENT_ERROR_BRIDGE_HISTORY_NOFORK              904
 
 #define MANAGEMENT_ERROR_CONF_GET_NOFORK                    1000
 #define MANAGEMENT_ERROR_CONF_GET_NETWORK                   1001

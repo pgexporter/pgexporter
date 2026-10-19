@@ -103,18 +103,47 @@ void
 pgexporter_history_records_free(struct history_record* records, int count);
 
 /**
+ * @struct history_store
+ * One history store: its settings and the shared state of its workers.
+ */
+struct history_store
+{
+   const char* name;                                   /**< Log prefix */
+   int port;                                           /**< Port of the history JSON API */
+   int backend;                                        /**< HISTORY_BACKEND_* id */
+   const char* path;                                   /**< SQLite file path */
+   char* pg_host;                                      /**< PostgreSQL host, or a Unix socket directory */
+   int pg_port;                                        /**< PostgreSQL port, or the Unix socket number */
+   char* pg_database;                                  /**< PostgreSQL database */
+   char* pg_user;                                      /**< PostgreSQL role */
+   char* pg_password;                                  /**< PostgreSQL password; empty for trust or peer */
+   int pg_tls;                                         /**< PostgreSQL TLS mode (SERVER_TLS_*) */
+   char* pg_tls_cert_file;                             /**< PostgreSQL client certificate */
+   char* pg_tls_key_file;                              /**< PostgreSQL client key */
+   char* pg_tls_ca_file;                               /**< PostgreSQL CA file */
+   pgexporter_time_t interval;                         /**< Minimum time between snapshots */
+   pgexporter_time_t retention;                        /**< How long records are kept */
+   atomic_bool* running;                               /**< Snapshot single-flight flag */
+   atomic_int_least64_t* last_store;                   /**< Time of the last snapshot */
+   atomic_int* worker_pid;                             /**< PID of the snapshot worker */
+   atomic_bool* retention_running;                     /**< Retention single-flight flag */
+   atomic_int* retention_pid;                          /**< PID of the retention worker */
+   void (*collect)(const struct history_store* store); /**< Scrape and store one snapshot in a worker */
+};
+
+/**
  * Virtual function table for a history storage backend.
  * Every backend must provide one static instance of this struct and expose it
  * so that history.c can register it in the backend registry.
  */
 struct history_backend_ops
 {
-   int (*create)(void);                                           /**< Create the store: schema or file. */
-   int (*init)(void);                                             /**< Open the store for this process. */
+   int (*create)(const struct history_store* store);              /**< Create the store: schema or file. */
+   int (*init)(const struct history_store* store);                /**< Open the store for this process. */
    int (*write_batch)(struct history_record* records, int count); /**< Persist a batch of history records. */
    int (*query_range)(const char* metric, time_t start, time_t end,
                       struct history_record** out, int* count_out); /**< Query records for a metric and time range. */
-   int (*prune)(void);                                              /**< Remove records older than configured retention. */
+   int (*prune)(const struct history_store* store);                 /**< Remove records older than the store's retention. */
    int (*shutdown)(void);                                           /**< Release backend resources. */
 };
 
@@ -122,20 +151,24 @@ struct history_backend_ops
  * Create the store, meaning the schema or the file, if it does not exist yet.
  * Called once at startup, before any worker is forked, and leaves the store closed
  * unless it was already open.
+ * @param store The store, may be NULL
  * @return 0 on success, 1 on failure
  */
 int
-pgexporter_history_create(void);
+pgexporter_history_create(const struct history_store* store);
 
 /**
  * Open the backend connection/file. The store must already have been created.
+ * Write, query and shutdown calls then act on this store.
+ * @param store The store, may be NULL
  * @return 0 on success, 1 on failure
  */
 int
-pgexporter_history_init(void);
+pgexporter_history_init(const struct history_store* store);
 
 /**
- * Write a batch of records inside a single transaction.
+ * Write a batch of records inside a single transaction, and record the time as
+ * the last snapshot of the store opened by pgexporter_history_init().
  * @param records  Array of history_record structs
  * @param count    Number of records in the array
  * @return 0 on success, 1 on failure
@@ -157,11 +190,12 @@ pgexporter_history_query_range(const char* metric, time_t start, time_t end,
                                struct history_record** records_out, int* count_out);
 
 /**
- * Delete records older than the configured retention threshold.
+ * Delete records older than the store's retention.
+ * @param store The store opened by pgexporter_history_init()
  * @return 0 on success, 1 on failure
  */
 int
-pgexporter_history_prune(void);
+pgexporter_history_prune(const struct history_store* store);
 
 /**
  * Close the backend connection/file.
@@ -170,64 +204,58 @@ pgexporter_history_prune(void);
 int
 pgexporter_history_shutdown(void);
 
-struct prometheus_metrics_container;
-
 /**
- * Persist a metrics container as one history snapshot.
- * The container's metrics are serialized to Prometheus exposition text and
- * written to the history backend, which must already be initialized via
- * pgexporter_history_init().
- *
- * @param container The metrics container to store
- */
-int
-pgexporter_history_store_metrics(struct prometheus_metrics_container* container);
-
-/**
- * Claim the exclusive right to write a history snapshot.
+ * Claim the exclusive right to write a snapshot to a store.
  *
  * Fails if another writer already holds the slot, or if the current
- * history_interval bucket already contains a snapshot. On success the caller
+ * interval bucket already contains a snapshot. On success the caller
  * must invoke pgexporter_history_release_slot() once it is done.
  *
+ * @param store    The store
  * @param interval Minimum seconds between snapshots, or -1 to snapshot immediately
  * @return true if the slot was claimed, otherwise false
  */
 bool
-pgexporter_history_claim_slot(int interval);
+pgexporter_history_claim_slot(const struct history_store* store, int interval);
 
 /**
  * Release a slot claimed by pgexporter_history_claim_slot().
+ * @param store The store
  */
 void
-pgexporter_history_release_slot(void);
+pgexporter_history_release_slot(const struct history_store* store);
 
 /**
- * Periodic callback: fork a history worker to snapshot current metrics.
- * Skipped if a previous worker is still running.
+ * Fork a worker that runs the store's collect callback.
+ * Skipped if a previous worker is still running or the interval bucket is taken.
+ * @param store The store, may be NULL
  */
 void
-pgexporter_history_tick_cb(void);
+pgexporter_history_tick(const struct history_store* store);
 
 /**
- * Periodic callback: fork a retention worker to prune old records.
+ * Fork a worker that prunes the store.
+ * Skipped if a previous retention worker is still running.
+ * @param store The store, may be NULL
  */
 void
-pgexporter_history_retention_tick_cb(void);
+pgexporter_history_retention_tick(const struct history_store* store);
 
 /**
- * HTTP entry point for the history JSON API.
+ * Serve one request on the history JSON API of a store.
  *
  * Serves GET /history/<metric_name>?timestamp=<epoch>&duration=<seconds>.
  * Both query parameters are optional; timestamp defaults to now and duration
  * defaults to -3600. duration may be negative, in which case
  * the queried window ends at timestamp and starts duration seconds earlier.
+ * Called in a forked child; exits.
  *
- * @param ssl The SSL connection, or NULL for plain HTTP
- * @param fd  The client socket file descriptor
+ * @param store The store, may be NULL
+ * @param ssl   The SSL connection, or NULL for plain HTTP
+ * @param fd    The client socket file descriptor
  */
 void
-pgexporter_history_http(SSL* ssl, int fd);
+pgexporter_history_serve(const struct history_store* store, SSL* ssl, int fd);
 
 #ifdef __cplusplus
 }

@@ -50,6 +50,7 @@
 
 static SSL* ssl = NULL;
 static int fd = -1;
+static const struct history_store* connected = NULL;
 
 static const char* schema_sql[] = {
    "CREATE SCHEMA IF NOT EXISTS pgexporter",
@@ -100,40 +101,56 @@ static const char* sweep_sql =
 static const char*
 backend_tag(void)
 {
-   struct configuration* config;
+   bool bridge = connected != NULL && connected->name != NULL && strcmp(connected->name, "history") != 0;
 
-   config = (struct configuration*)shmem;
-
-   if (config != NULL && config->history_backend == HISTORY_BACKEND_TIMESCALEDB)
+   if (connected != NULL && connected->backend == HISTORY_BACKEND_TIMESCALEDB)
    {
-      return "history_timescaledb";
+      return bridge ? "bridge_history_timescaledb" : "history_timescaledb";
    }
 
-   return "history_postgresql";
+   return bridge ? "bridge_history_postgresql" : "history_postgresql";
+}
+
+static const char*
+host_setting(void)
+{
+   if (connected != NULL && connected->name != NULL && strcmp(connected->name, "history") != 0)
+   {
+      return "bridge_history_postgresql_host";
+   }
+
+   return "history_postgresql_host";
+}
+
+static const char*
+database_setting(void)
+{
+   if (connected != NULL && connected->name != NULL && strcmp(connected->name, "history") != 0)
+   {
+      return "bridge_history_postgresql_database";
+   }
+
+   return "history_postgresql_database";
 }
 
 static int
 validate_configuration(void)
 {
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (!config)
+   if (connected == NULL || connected->pg_host == NULL || connected->pg_database == NULL)
    {
       pgexporter_log_error("%s: no configuration available", backend_tag());
       return 1;
    }
 
-   if (strlen(config->history_postgresql_host) == 0)
+   if (strlen(connected->pg_host) == 0)
    {
-      pgexporter_log_error("%s: history_postgresql_host is not set", backend_tag());
+      pgexporter_log_error("%s: %s is not set", backend_tag(), host_setting());
       return 1;
    }
 
-   if (strlen(config->history_postgresql_database) == 0)
+   if (strlen(connected->pg_database) == 0)
    {
-      pgexporter_log_error("%s: history_postgresql_database is not set", backend_tag());
+      pgexporter_log_error("%s: %s is not set", backend_tag(), database_setting());
       return 1;
    }
 
@@ -143,42 +160,49 @@ validate_configuration(void)
 static int
 connect_store(void)
 {
-   struct configuration* config;
-
-   config = (struct configuration*)shmem;
-
-   if (pgexporter_authenticate_host("history", config->history_postgresql_host, config->history_postgresql_port,
-                                    config->history_postgresql_tls, config->history_postgresql_tls_cert_file,
-                                    config->history_postgresql_tls_key_file, config->history_postgresql_tls_ca_file,
-                                    config->history_postgresql_database, config->history_user.username,
-                                    config->history_user.password, &ssl, &fd) != AUTH_SUCCESS)
+   if (pgexporter_authenticate_host("history", connected->pg_host, connected->pg_port,
+                                    connected->pg_tls, connected->pg_tls_cert_file,
+                                    connected->pg_tls_key_file, connected->pg_tls_ca_file,
+                                    connected->pg_database, connected->pg_user,
+                                    connected->pg_password, &ssl, &fd) != AUTH_SUCCESS)
    {
       pgexporter_log_error("%s: failed to connect to %s:%d/%s as %s",
-                           backend_tag(),
-                           config->history_postgresql_host, config->history_postgresql_port,
-                           config->history_postgresql_database, config->history_user.username);
+                           backend_tag(), connected->pg_host, connected->pg_port,
+                           connected->pg_database, connected->pg_user);
       return 1;
    }
 
    pgexporter_log_debug("%s: connected to %s:%d/%s",
-                        backend_tag(),
-                        config->history_postgresql_host, config->history_postgresql_port,
-                        config->history_postgresql_database);
+                        backend_tag(), connected->pg_host, connected->pg_port,
+                        connected->pg_database);
 
    return 0;
 }
 
 int
-pgexporter_history_server_init(void)
+pgexporter_history_server_init(const struct history_store* store)
 {
-   if (validate_configuration())
+   if (store == NULL)
    {
       return 1;
    }
 
-   if (fd != -1)
+   if (fd != -1 && connected == store)
    {
       return 0;
+   }
+
+   if (fd != -1)
+   {
+      pgexporter_history_server_shutdown();
+   }
+
+   connected = store;
+
+   if (validate_configuration())
+   {
+      connected = NULL;
+      return 1;
    }
 
    if (connect_store())
@@ -207,6 +231,7 @@ pgexporter_history_server_shutdown(void)
 
    ssl = NULL;
    fd = -1;
+   connected = NULL;
 }
 
 bool
@@ -514,22 +539,19 @@ pgexporter_history_server_command(const char* sql, int nparams, char** values)
 }
 
 int
-pgexporter_history_server_prune(const char* prune_sql, bool returns_rows)
+pgexporter_history_server_prune(const char* prune_sql, bool returns_rows, pgexporter_time_t retention)
 {
-   struct configuration* config;
    char cutoff_buf[32];
    char* values[1];
    time_t cutoff;
    int64_t retention_s;
 
-   config = (struct configuration*)shmem;
-
-   if (fd == -1 || !config || !pgexporter_time_is_valid(config->history_retention))
+   if (fd == -1 || !pgexporter_time_is_valid(retention))
    {
       return 0;
    }
 
-   retention_s = pgexporter_time_convert(config->history_retention, FORMAT_TIME_S);
+   retention_s = pgexporter_time_convert(retention, FORMAT_TIME_S);
    if (retention_s <= 0)
    {
       return 0;

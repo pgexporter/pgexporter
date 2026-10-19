@@ -30,6 +30,7 @@
 #include <pgexporter.h>
 #include <configuration.h>
 #include <history.h>
+#include <local_history.h>
 #include <memory.h>
 #include <message.h>
 #include <network.h>
@@ -149,7 +150,7 @@ cleanup:
 MCTF_TEST(test_history_postgresql_create)
 {
    MCTF_ASSERT_INT_EQ(pgexporter_read_history_user_configuration(shmem), 0, cleanup, "Failed to read history credential");
-   MCTF_ASSERT_INT_EQ(pgexporter_history_create(), 0, cleanup, "Failed to create the history store");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_create(pgexporter_local_history_store()), 0, cleanup, "Failed to create the history store");
    MCTF_ASSERT_INT_EQ(count_history_tables(), 2, cleanup, "Expected the series and sample tables");
 
 cleanup:
@@ -159,8 +160,8 @@ cleanup:
 MCTF_TEST(test_history_postgresql_create_again)
 {
    MCTF_ASSERT_INT_EQ(pgexporter_read_history_user_configuration(shmem), 0, cleanup, "Failed to read history credential");
-   MCTF_ASSERT_INT_EQ(pgexporter_history_create(), 0, cleanup, "First create failed");
-   MCTF_ASSERT_INT_EQ(pgexporter_history_create(), 0, cleanup, "Create on an existing schema failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_create(pgexporter_local_history_store()), 0, cleanup, "First create failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_create(pgexporter_local_history_store()), 0, cleanup, "Create on an existing schema failed");
    MCTF_ASSERT_INT_EQ(count_history_tables(), 2, cleanup, "Expected the series and sample tables");
 
 cleanup:
@@ -170,14 +171,14 @@ cleanup:
 MCTF_TEST(test_history_postgresql_init)
 {
    MCTF_ASSERT_INT_EQ(pgexporter_read_history_user_configuration(shmem), 0, cleanup, "Failed to read history credential");
-   MCTF_ASSERT_INT_EQ(pgexporter_history_create(), 0, cleanup, "Failed to create the history store");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_create(pgexporter_local_history_store()), 0, cleanup, "Failed to create the history store");
 
-   MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "First init failed");
-   MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "Init while connected should succeed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(pgexporter_local_history_store()), 0, cleanup, "First init failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(pgexporter_local_history_store()), 0, cleanup, "Init while connected should succeed");
 
    pgexporter_history_shutdown();
 
-   MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "Init after shutdown failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(pgexporter_local_history_store()), 0, cleanup, "Init after shutdown failed");
 
 cleanup:
    MCTF_FINISH();
@@ -190,7 +191,7 @@ MCTF_TEST_NEGATIVE(test_history_postgresql_init_no_password)
    config->history_postgresql_password_file[0] = '\0';
 
    MCTF_ASSERT_INT_EQ(pgexporter_read_history_user_configuration(shmem), 0, cleanup, "Failed to read history credential");
-   MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 1, cleanup, "Login without a password should fail");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(pgexporter_local_history_store()), 1, cleanup, "Login without a password should fail");
 
 cleanup:
    MCTF_FINISH();
@@ -203,7 +204,7 @@ MCTF_TEST_NEGATIVE(test_history_postgresql_create_missing_database)
    pgexporter_snprintf(config->history_postgresql_database, MISC_LENGTH, "%s", "pgexporter_missing");
 
    MCTF_ASSERT_INT_EQ(pgexporter_read_history_user_configuration(shmem), 0, cleanup, "Failed to read history credential");
-   MCTF_ASSERT_INT_EQ(pgexporter_history_create(), 1, cleanup, "Create against a missing database should fail");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_create(pgexporter_local_history_store()), 1, cleanup, "Create against a missing database should fail");
 
 cleanup:
    MCTF_FINISH();
@@ -401,7 +402,7 @@ MCTF_TEST(test_history_postgresql_prune_deletes_old_keeps_new)
    make_record(&in[3], now, "s", "m", "", 4.0);
    MCTF_ASSERT_INT_EQ(pgexporter_history_write_batch(in, 4), 0, cleanup, "write failed");
 
-   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(), 0, cleanup, "prune failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(pgexporter_local_history_store()), 0, cleanup, "prune failed");
 
    MCTF_ASSERT_INT_EQ(pgexporter_history_query_range("m", 0, now + 10, &out, &count), 0,
                       cleanup, "query failed");
@@ -430,7 +431,7 @@ MCTF_TEST(test_history_postgresql_prune_disabled_keeps_all)
    make_record(&in[2], now, "s", "m", "", 3.0);
    MCTF_ASSERT_INT_EQ(pgexporter_history_write_batch(in, 3), 0, cleanup, "write failed");
 
-   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(), 0, cleanup,
+   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(pgexporter_local_history_store()), 0, cleanup,
                       "prune with disabled retention should succeed");
 
    MCTF_ASSERT_INT_EQ(pgexporter_history_query_range("m", 0, now + 10, NULL, &count), 0,
@@ -459,7 +460,7 @@ MCTF_TEST(test_history_postgresql_prune_sweeps_orphan_series)
    MCTF_ASSERT_INT_EQ((int)history_scalar("SELECT COUNT(*) FROM pgexporter.series"), 2, cleanup,
                       "expected 2 series before prune");
 
-   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(), 0, cleanup, "prune failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(pgexporter_local_history_store()), 0, cleanup, "prune failed");
 
    MCTF_ASSERT_INT_EQ((int)history_scalar("SELECT COUNT(*) FROM pgexporter.sample"), 1, cleanup,
                       "only the sample inside the retention window should remain");
@@ -484,7 +485,7 @@ MCTF_TEST(test_history_postgresql_prune_keeps_series_reusable)
 
    make_record(&in[0], now - 7200, "primary", "pg_up", "server=\"primary\"", 1.0);
    MCTF_ASSERT_INT_EQ(pgexporter_history_write_batch(in, 1), 0, cleanup, "write failed");
-   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(), 0, cleanup, "prune failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_prune(pgexporter_local_history_store()), 0, cleanup, "prune failed");
    MCTF_ASSERT_INT_EQ((int)history_scalar("SELECT COUNT(*) FROM pgexporter.series"), 0, cleanup,
                       "series should have been swept");
 
@@ -503,8 +504,8 @@ static int
 prepare_store(void)
 {
    if (pgexporter_read_history_user_configuration(shmem) ||
-       pgexporter_history_create() ||
-       pgexporter_history_init())
+       pgexporter_history_create(pgexporter_local_history_store()) ||
+       pgexporter_history_init(pgexporter_local_history_store()))
    {
       return 1;
    }

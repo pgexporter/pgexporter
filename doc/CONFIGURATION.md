@@ -52,11 +52,20 @@ See a [sample](./etc/pgexporter.conf) configuration for running `pgexporter` on 
 | bridge_cache_max_size | `10M` | String | No | The maximum amount of data to keep in cache when serving bridge responses. Changes require restart. If set to zero, the caching will be disabled. Supports suffixes: 'B' (bytes), the default if omitted, 'K' or 'KB' (kilobytes), 'M' or 'MB' (megabytes), 'G' or 'GB' (gigabytes).|
 | bridge_json | | Int | No | The bridge JSON port |
 | bridge_json_cache_max_size | `10M` | String | No | The maximum amount of data to keep in cache when serving bridge JSON responses. Changes require restart. Supports suffixes: 'B' (bytes), the default if omitted, 'K' or 'KB' (kilobytes), 'M' or 'MB' (megabytes), 'G' or 'GB' (gigabytes).|
-| bridge_history | | Int | No | The port for the bridge history JSON API. If unset, bridge history is disabled. See `HISTORY.md`. Changes require restart. |
+| bridge_history | | Int | No | The port for the bridge history JSON API. If unset, bridge history is disabled. Requires `bridge_endpoints`. SQLite also requires `bridge_history_path`. TLS uses the `bridge_cert_file`, `bridge_key_file` and `bridge_ca_file` keys. See `HISTORY.md`. Changes require restart. |
 | bridge_history_interval | 0 | String | No | The minimum time between saved snapshots of bridge metrics. Whenever a client scrapes the bridge endpoint, a snapshot is always saved. If another scrape already saved a snapshot within this period, the automatic timer skips. When set to zero, the automatic timer is disabled entirely and snapshots are only saved on incoming scrapes. Supports suffixes: 'ms' (milliseconds), 's' (seconds, default), 'm' (minutes), 'h' (hours), 'd' (days), 'w' (weeks). |
 | bridge_history_retention | 0 | String | No | How long bridge history records are kept before being pruned. If set to zero, records are kept forever. Supports suffixes: 'ms' (milliseconds), 's' (seconds, default), 'm' (minutes), 'h' (hours), 'd' (days), 'w' (weeks). |
-| bridge_history_backend | `sqlite` | String | No | The bridge history storage backend. Valid options: `sqlite`. Only takes effect when `bridge_history` is set. Changes require restart. |
-| bridge_history_path | | String | No | Filesystem path to the bridge history storage file (used by the `sqlite` backend). Can interpolate environment variables (e.g., `$HOME`). |
+| bridge_history_backend | `sqlite` | String | No | The bridge history storage backend. Valid options: `sqlite`, `postgresql`, `timescaledb`. Only takes effect when `bridge_history` is set. Changes require restart. |
+| bridge_history_path | | String | No | Filesystem path to the bridge history storage file (used by the `sqlite` backend). Must differ from `history_path`. Can interpolate environment variables (e.g., `$HOME`). |
+| bridge_history_postgresql_host | | String | No | Host of the PostgreSQL server holding the bridge history (used by the `postgresql` and `timescaledb` backends). A value starting with `/` is treated as a Unix domain socket directory. Required when `bridge_history_backend` is `postgresql` or `timescaledb` and `bridge_history` is set. Changes require restart. |
+| bridge_history_postgresql_port | 5432 | Int | No | Port of the PostgreSQL server holding the bridge history (used by the `postgresql` and `timescaledb` backends). Changes require restart. |
+| bridge_history_postgresql_database | `pgexporter_bridge_history` | String | No | Database holding the bridge history schema (used by the `postgresql` and `timescaledb` backends). Must differ from `history_postgresql_database` when both stores use the same host and port. Changes require restart. |
+| bridge_history_postgresql_user | | String | No | Role used to connect to the bridge history database (used by the `postgresql` and `timescaledb` backends). Required when `bridge_history_backend` is `postgresql` or `timescaledb` and `bridge_history` is set. Changes require restart. |
+| bridge_history_postgresql_password_file | | String | No | Encrypted single-entry credential file for `bridge_history_postgresql_user`, in the same format as `pgexporter_users.conf` and managed with `pgexporter-admin`. May be omitted when the server accepts `trust` or `peer` authentication. Can interpolate environment variables (e.g., `$HOME`). Changes require restart. |
+| bridge_history_postgresql_tls | `off` | String | No | TLS mode for the connection to the bridge history database. Valid options: `off`, `try`, `on`. `on` requires `bridge_history_postgresql_tls_ca_file`. Changes require restart. |
+| bridge_history_postgresql_tls_cert_file | | String | No | Client certificate for the connection to the bridge history database. Can interpolate environment variables (e.g., `$HOME`). Changes require restart. |
+| bridge_history_postgresql_tls_key_file | | String | No | Client key for the connection to the bridge history database. Can interpolate environment variables (e.g., `$HOME`). Changes require restart. |
+| bridge_history_postgresql_tls_ca_file | | String | No | Certificate Authority (CA) file for the connection to the bridge history database. Can interpolate environment variables (e.g., `$HOME`). Changes require restart. |
 | management | 0 | Int | No | The remote management port (disable = 0) |
 | cache | `on` | Bool | No | Cache connection |
 | alerts | `off` | Bool | No | Enable or disable alerting. If enabled, built-in alerts are parsed and evaluated. Automatically enabled when `--alerts` CLI flag is used. See `ALERT.md` for a list of built-in alerts. |
@@ -219,7 +228,7 @@ The `conf set` command modifies runtime configuration values without requiring a
 
 **Parameters that require a restart** when changed via `conf set`:
 `host`, `metrics`, `management`, `console`, `history`, `bridge`, `bridge_json`,
-`bridge_history`, `unix_socket_dir`, `pidfile`, `ev_backend`, `hugepage`, `tls`,
+`bridge_history`, `bridge_history_backend`, `bridge_history_postgresql_*`, `unix_socket_dir`, `pidfile`, `ev_backend`, `hugepage`, `tls`,
 `log_type`, `metrics_cache_max_size`
 
 For these structural parameters, `conf set` will validate the input and report

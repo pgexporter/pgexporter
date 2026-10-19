@@ -39,12 +39,14 @@ extern "C" {
 #include <time.h>
 
 /**
- * Connect to the history server configured by history_postgresql_*.
- * Does nothing when already connected.
+ * Connect to the PostgreSQL server described by the store.
+ * Does nothing when already connected to that store. A connection to a different
+ * store is closed first.
+ * @param store The store, may be NULL
  * @return 0 on success, 1 on failure
  */
 int
-pgexporter_history_server_init(void);
+pgexporter_history_server_init(const struct history_store* store);
 
 /**
  * Close the connection to the history server.
@@ -121,16 +123,17 @@ int
 pgexporter_history_server_command(const char* sql, int nparams, char** values);
 
 /**
- * Delete samples older than history_retention, then remove series left with none.
+ * Delete samples older than retention, then remove series left with none.
  * prune_sql takes the cutoff epoch as $1. When returns_rows is true the statement
  * is a query, such as drop_chunks, and its rows are discarded.
  * Returns 0 when retention is disabled or the connection is closed.
  * @param prune_sql    The delete statement
  * @param returns_rows Whether prune_sql returns a result set
+ * @param retention    How long samples are kept
  * @return 0 on success, 1 on failure
  */
 int
-pgexporter_history_server_prune(const char* prune_sql, bool returns_rows);
+pgexporter_history_server_prune(const char* prune_sql, bool returns_rows, pgexporter_time_t retention);
 
 #ifdef __cplusplus
 }

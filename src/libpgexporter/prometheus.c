@@ -33,6 +33,7 @@
 #include <extension.h>
 #include <fips.h>
 #include <history.h>
+#include <local_history.h>
 #include <http.h>
 #include <http_server.h>
 #include <logging.h>
@@ -544,16 +545,18 @@ retry_cache_locking:
          /* Store metrics in history immediately. */
          if (config->history > 0)
          {
-            if (pgexporter_history_claim_slot(-1))
+            const struct history_store* store = pgexporter_local_history_store();
+
+            if (pgexporter_history_claim_slot(store, -1))
             {
-               if (pgexporter_history_init() == 0)
+               if (pgexporter_history_init(store) == 0)
                {
-                  if (pgexporter_history_store_metrics(container) != 0)
+                  if (pgexporter_local_history_store_metrics(container) != 0)
                   {
                      pgexporter_log_warn("history: failed to store metrics snapshot");
                   }
                }
-               pgexporter_history_release_slot();
+               pgexporter_history_release_slot(store);
             }
          }
 

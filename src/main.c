@@ -30,6 +30,7 @@
 #include <pgexporter.h>
 #include <art.h>
 #include <bridge.h>
+#include <bridge_history.h>
 #include <cmd.h>
 #include <console.h>
 #include <configuration.h>
@@ -38,6 +39,7 @@
 #include <ext_query_alts.h>
 #include <fips.h>
 #include <history.h>
+#include <local_history.h>
 #include <internal.h>
 #include <json.h>
 #include <logging.h>
@@ -99,6 +101,7 @@ static void coredump_cb(void);
 static void sigchld_cb(void);
 static void accept_console_cb(struct io_watcher* watcher);
 static void accept_history_cb(struct io_watcher* watcher);
+static void accept_bridge_history_cb(struct io_watcher* watcher);
 static bool accept_fatal(int error);
 static int reload_configuration(bool* restart);
 static void reload_set_configuration(SSL* ssl, int client_fd, uint8_t compression, uint8_t encryption, struct json* payload);
@@ -130,6 +133,7 @@ static void restart_console(void);
 static void restart_history(void);
 static void restart_bridge(void);
 static void restart_bridge_json(void);
+static void restart_bridge_history(void);
 static void bridge_serve(SSL* ssl, int fd);
 static void bridge_json_serve(SSL* ssl, int fd);
 
@@ -154,6 +158,9 @@ static int bridge_fds_length = -1;
 static struct accept_io io_bridge_json[MAX_FDS];
 static int* bridge_json_fds = NULL;
 static int bridge_json_fds_length = -1;
+static struct accept_io io_bridge_history[MAX_FDS];
+static int* bridge_history_fds = NULL;
+static int bridge_history_fds_length = -1;
 static struct accept_io io_management[MAX_FDS];
 static int* management_fds = NULL;
 static int management_fds_length = -1;
@@ -424,6 +431,39 @@ shutdown_bridge_json(bool remove __attribute__((unused)))
 }
 
 static void
+start_bridge_history(void)
+{
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+
+   if (config->bridge_history != -1)
+   {
+      for (int i = 0; i < bridge_history_fds_length; i++)
+      {
+         int sockfd = *(bridge_history_fds + i);
+
+         memset(&io_bridge_history[i], 0, sizeof(struct accept_io));
+         pgexporter_event_accept_init(&io_bridge_history[i].watcher, sockfd, accept_bridge_history_cb);
+         io_bridge_history[i].socket = sockfd;
+         io_bridge_history[i].argv = argv_ptr;
+         pgexporter_io_start(&io_bridge_history[i].watcher);
+      }
+   }
+}
+
+static void
+shutdown_bridge_history(bool remove __attribute__((unused)))
+{
+   for (int i = 0; i < bridge_history_fds_length; i++)
+   {
+      stop_io_watcher(&io_bridge_history[i].watcher);
+      pgexporter_disconnect(io_bridge_history[i].socket);
+      errno = 0;
+   }
+}
+
+static void
 start_management(void)
 {
    for (int i = 0; i < management_fds_length; i++)
@@ -492,6 +532,10 @@ static struct periodic_watcher history_watcher;
 static struct periodic_watcher history_retention_watcher;
 static bool history_started = false;
 static bool history_retention_started = false;
+static struct periodic_watcher bridge_history_watcher;
+static struct periodic_watcher bridge_history_retention_watcher;
+static bool bridge_history_started = false;
+static bool bridge_history_retention_started = false;
 
 int
 main(int argc, char** argv)
@@ -1101,6 +1145,31 @@ main(int argc, char** argv)
       exit(1);
    }
 
+   ret = pgexporter_read_bridge_history_user_configuration(shmem);
+   if (ret != 0)
+   {
+      if (ret == 2)
+      {
+         warnx("pgexporter: Invalid master key file");
+      }
+      else if (ret == 3)
+      {
+         warnx("pgexporter: BRIDGE HISTORY: More than one user in %s", config->bridge_history_postgresql_password_file);
+      }
+      else if (ret == 4)
+      {
+         warnx("pgexporter: BRIDGE HISTORY: %s does not hold a password for %s", config->bridge_history_postgresql_password_file, config->bridge_history_postgresql_user);
+      }
+      else
+      {
+         warnx("pgexporter: BRIDGE HISTORY: Unable to read %s", config->bridge_history_postgresql_password_file);
+      }
+#ifdef HAVE_SYSTEMD
+      sd_notify(0, "STATUS=Invalid bridge_history_postgresql_password_file");
+#endif
+      exit(1);
+   }
+
    config = (struct configuration*)shmem;
 
    if (create_pidfile())
@@ -1220,12 +1289,20 @@ main(int argc, char** argv)
    pgexporter_set_proc_title(argc, argv, "main", NULL);
 
    /* The store is created here and errors surface at startup */
-   if (config->history > 0 && pgexporter_history_create())
+   if (config->history > 0 && pgexporter_history_create(pgexporter_local_history_store()))
    {
 #ifdef HAVE_SYSTEMD
       sd_notify(0, "STATUS=Error in creating the history store");
 #endif
       errx(1, "Error in creating the history store");
+   }
+
+   if (config->bridge_history > 0 && pgexporter_history_create(pgexporter_bridge_history_store()))
+   {
+#ifdef HAVE_SYSTEMD
+      sd_notify(0, "STATUS=Error in creating the bridge history store");
+#endif
+      errx(1, "Error in creating the bridge history store");
    }
 
    if (pgexporter_init_prometheus_cache(&prometheus_cache_shmem_size, &prometheus_cache_shmem))
@@ -1437,6 +1514,30 @@ main(int argc, char** argv)
       }
    }
 
+   if (config->bridge_history > 0)
+   {
+      /* Bind bridge history socket */
+      if (pgexporter_bind(config->host, config->bridge_history, &bridge_history_fds, &bridge_history_fds_length))
+      {
+         pgexporter_log_fatal("pgexporter: Could not bind to %s:%d", config->host, config->bridge_history);
+#ifdef HAVE_SYSTEMD
+         sd_notifyf(0, "STATUS=Could not bind to %s:%d", config->host, config->bridge_history);
+#endif
+         exit(1);
+      }
+
+      if (bridge_history_fds_length > MAX_FDS)
+      {
+         pgexporter_log_fatal("pgexporter: Too many descriptors %d", bridge_history_fds_length);
+#ifdef HAVE_SYSTEMD
+         sd_notifyf(0, "STATUS=Too many descriptors %d", bridge_history_fds_length);
+#endif
+         exit(1);
+      }
+
+      start_bridge_history();
+   }
+
    if (config->management > 0)
    {
       /* Bind management socket */
@@ -1479,7 +1580,7 @@ main(int argc, char** argv)
             history_interval_ms = INT_MAX;
          }
 
-         if (pgexporter_periodic_init(&history_watcher, pgexporter_history_tick_cb, (int)history_interval_ms) == 0)
+         if (pgexporter_periodic_init(&history_watcher, pgexporter_local_history_tick_cb, (int)history_interval_ms) == 0)
          {
             pgexporter_periodic_start(&history_watcher);
             history_started = true;
@@ -1494,17 +1595,58 @@ main(int argc, char** argv)
        * snapshot interval */
       if (pgexporter_time_is_valid(config->history_retention))
       {
-         if (pgexporter_periodic_init(&history_retention_watcher, pgexporter_history_retention_tick_cb, HISTORY_RETENTION_PRUNE_INTERVAL_MS) == 0)
+         if (pgexporter_periodic_init(&history_retention_watcher, pgexporter_local_history_retention_tick_cb, HISTORY_RETENTION_PRUNE_INTERVAL_MS) == 0)
          {
             pgexporter_periodic_start(&history_retention_watcher);
             history_retention_started = true;
 
             /* Prune once at startup */
-            pgexporter_history_retention_tick_cb();
+            pgexporter_local_history_retention_tick_cb();
          }
          else
          {
             pgexporter_log_error("History: failed to initialize the retention tick watcher; pruning disabled");
+         }
+      }
+   }
+   if (config->bridge_history > 0)
+   {
+      int64_t bridge_history_interval_s = pgexporter_time_convert(config->bridge_history_interval, FORMAT_TIME_S);
+      pgexporter_log_debug("Bridge history configured. Tick interval: %lld seconds", (long long)bridge_history_interval_s);
+      if (bridge_history_interval_s > 0)
+      {
+         int64_t bridge_history_interval_ms = pgexporter_time_convert(config->bridge_history_interval, FORMAT_TIME_MS);
+
+         if (bridge_history_interval_ms > INT_MAX)
+         {
+            pgexporter_log_warn("Bridge history: interval exceeds the maximum supported timer value; capping at ~24.8 days");
+            bridge_history_interval_ms = INT_MAX;
+         }
+
+         if (pgexporter_periodic_init(&bridge_history_watcher, pgexporter_bridge_history_tick_cb, (int)bridge_history_interval_ms) == 0)
+         {
+            pgexporter_periodic_start(&bridge_history_watcher);
+            bridge_history_started = true;
+         }
+         else
+         {
+            pgexporter_log_error("Bridge history: failed to initialize the periodic tick watcher; bridge history snapshots disabled");
+         }
+      }
+
+      if (pgexporter_time_is_valid(config->bridge_history_retention))
+      {
+         if (pgexporter_periodic_init(&bridge_history_retention_watcher, pgexporter_bridge_history_retention_tick_cb, HISTORY_RETENTION_PRUNE_INTERVAL_MS) == 0)
+         {
+            pgexporter_periodic_start(&bridge_history_retention_watcher);
+            bridge_history_retention_started = true;
+
+            /* Prune once at startup */
+            pgexporter_bridge_history_retention_tick_cb();
+         }
+         else
+         {
+            pgexporter_log_error("Bridge history: failed to initialize the retention tick watcher; pruning disabled");
          }
       }
    }
@@ -1529,6 +1671,10 @@ main(int argc, char** argv)
    for (int i = 0; i < bridge_json_fds_length; i++)
    {
       pgexporter_log_debug("Bridge JSON: %d", *(bridge_json_fds + i));
+   }
+   for (int i = 0; i < bridge_history_fds_length; i++)
+   {
+      pgexporter_log_debug("Bridge history: %d", *(bridge_history_fds + i));
    }
    for (int i = 0; i < management_fds_length; i++)
    {
@@ -1626,6 +1772,21 @@ main(int argc, char** argv)
       shutdown_history(true);
    }
 
+   if (bridge_history_retention_started)
+   {
+      pgexporter_periodic_stop(&bridge_history_retention_watcher);
+   }
+
+   if (bridge_history_started)
+   {
+      pgexporter_periodic_stop(&bridge_history_watcher);
+   }
+
+   if (config->bridge_history != -1)
+   {
+      shutdown_bridge_history(true);
+   }
+
    for (int i = 0; i < 7; i++)
    {
       pgexporter_signal_stop(&signal_watchers[i]);
@@ -1638,6 +1799,7 @@ main(int argc, char** argv)
    free(history_fds);
    free(bridge_fds);
    free(bridge_json_fds);
+   free(bridge_history_fds);
    free(management_fds);
 
    free(bin_path);
@@ -2257,6 +2419,37 @@ restart_bridge_json(void)
 }
 
 static void
+restart_bridge_history(void)
+{
+   struct configuration* config = (struct configuration*)shmem;
+
+   shutdown_bridge_history(false);
+
+   free(bridge_history_fds);
+   bridge_history_fds = NULL;
+   bridge_history_fds_length = 0;
+
+   if (pgexporter_bind(config->host, config->bridge_history, &bridge_history_fds, &bridge_history_fds_length))
+   {
+      pgexporter_log_fatal("Could not bind to %s:%d", config->host, config->bridge_history);
+      exit(1);
+   }
+
+   if (bridge_history_fds_length > MAX_FDS)
+   {
+      pgexporter_log_fatal("Too many descriptors %d", bridge_history_fds_length);
+      exit(1);
+   }
+
+   start_bridge_history();
+
+   for (int i = 0; i < bridge_history_fds_length; i++)
+   {
+      pgexporter_log_debug("Bridge history: %d", *(bridge_history_fds + i));
+   }
+}
+
+static void
 accept_http_cb(struct io_watcher* watcher,
                void (*serve_fn)(SSL* ssl, int fd),
                const char* title,
@@ -2345,7 +2538,7 @@ static void
 accept_history_cb(struct io_watcher* watcher)
 {
    struct configuration* config = (struct configuration*)shmem;
-   accept_http_cb(watcher, pgexporter_history_http, "history",
+   accept_http_cb(watcher, pgexporter_local_history_http, "history",
                   config->history_cert_file, config->history_key_file,
                   config->history_ca_file, MANAGEMENT_ERROR_HISTORY_NOFORK,
                   restart_history);
@@ -2369,6 +2562,16 @@ accept_bridge_json_cb(struct io_watcher* watcher)
                   config->bridge_cert_file, config->bridge_key_file,
                   config->bridge_ca_file, MANAGEMENT_ERROR_BRIDGE_JSON_NOFORK,
                   restart_bridge_json);
+}
+
+static void
+accept_bridge_history_cb(struct io_watcher* watcher)
+{
+   struct configuration* config = (struct configuration*)shmem;
+   accept_http_cb(watcher, pgexporter_bridge_history_http, "bridge_history",
+                  config->bridge_cert_file, config->bridge_key_file,
+                  config->bridge_ca_file, MANAGEMENT_ERROR_BRIDGE_HISTORY_NOFORK,
+                  restart_bridge_history);
 }
 
 static void
@@ -2516,6 +2719,19 @@ sigchld_cb(void)
       {
          atomic_store(&config->history_retention_worker_pid, 0);
          atomic_store(&config->history_retention_worker_running, false);
+      }
+
+      /* And for the bridge history workers. */
+      if (config != NULL && pid == (pid_t)atomic_load(&config->bridge_history_worker_pid))
+      {
+         atomic_store(&config->bridge_history_worker_pid, 0);
+         atomic_store(&config->bridge_history_worker_running, false);
+      }
+
+      if (config != NULL && pid == (pid_t)atomic_load(&config->bridge_history_retention_worker_pid))
+      {
+         atomic_store(&config->bridge_history_retention_worker_pid, 0);
+         atomic_store(&config->bridge_history_retention_worker_running, false);
       }
    }
 }

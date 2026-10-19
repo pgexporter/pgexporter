@@ -28,10 +28,10 @@
  */
 
 /*
- * Exercises pgexporter_history_http() end-to-end (path routing, query-param
+ * Exercises pgexporter_local_history_http() end-to-end (path routing, query-param
  * parsing, SQLite lookup, JSON encoding) without a live daemon: each test
  * binds an ephemeral loopback TCP listener, forks a child that accepts the
- * one connection and calls pgexporter_history_http(NULL, fd) directly on it,
+ * one connection and calls pgexporter_local_history_http(NULL, fd) directly on it,
  * while the parent drives the request with the same HTTP client library
  * test_http.c uses (pgexporter_http_create/pgexporter_http_invoke). This
  * mirrors how main.c invokes the same function from a forked per-connection
@@ -40,7 +40,9 @@
  */
 
 #include <pgexporter.h>
+#include <bridge_history.h>
 #include <history.h>
+#include <local_history.h>
 #include <http.h>
 #include <memory.h>
 #include <shmem.h>
@@ -135,11 +137,11 @@ create_loopback_listener(int* out_port)
 }
 
 /* Fork a child that accepts the single incoming connection and serves it via
- * pgexporter_history_http(NULL, fd), while the parent issues `path` as a GET
+ * pgexporter_local_history_http(NULL, fd), while the parent issues `path` as a GET
  * through the real HTTP client and returns the response (caller destroys via
  * pgexporter_http_response_destroy). Returns PGEXPORTER_HTTP_STATUS_OK/ERROR. */
 static int
-do_http_get(const char* path, struct http_response** out_response)
+do_http_get_with(void (*serve_fn)(SSL* ssl, int fd), const char* path, struct http_response** out_response)
 {
    int listen_fd = -1;
    int port = 0;
@@ -170,7 +172,7 @@ do_http_get(const char* path, struct http_response** out_response)
       {
          _exit(1);
       }
-      pgexporter_history_http(NULL, client_fd);
+      serve_fn(NULL, client_fd);
       _exit(1);
    }
 
@@ -198,6 +200,12 @@ do_http_get(const char* path, struct http_response** out_response)
    return ret;
 }
 
+static int
+do_http_get(const char* path, struct http_response** out_response)
+{
+   return do_http_get_with(pgexporter_local_history_http, path, out_response);
+}
+
 MCTF_TEST_SETUP(history_http)
 {
    struct configuration* config;
@@ -212,7 +220,7 @@ MCTF_TEST_SETUP(history_http)
    unlink_db(db_path);
    pgexporter_snprintf(config->history_path, MAX_PATH, "%s", db_path);
 
-   pgexporter_history_create();
+   pgexporter_history_create(pgexporter_local_history_store());
 }
 
 MCTF_TEST_TEARDOWN(history_http)
@@ -232,7 +240,7 @@ MCTF_TEST(test_history_http_valid_query_returns_200_json)
    char* body = NULL;
    time_t now = time(NULL);
 
-   MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "init failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(pgexporter_local_history_store()), 0, cleanup, "init failed");
    make_record(&in[0], now, "srv1", "pg_up", "server=\"srv1\"", 1.0);
    make_record(&in[1], now, "srv1", "pg_up", "server=\"srv1\"", 1.0);
    MCTF_ASSERT_INT_EQ(pgexporter_history_write_batch(in, 2), 0, cleanup, "write_batch failed");
@@ -263,7 +271,7 @@ MCTF_TEST(test_history_http_no_matching_rows_returns_empty_array)
    struct http_response* response = NULL;
    char* body = NULL;
 
-   MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "init failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(pgexporter_local_history_store()), 0, cleanup, "init failed");
    MCTF_ASSERT_INT_EQ(pgexporter_history_shutdown(), 0, cleanup, "shutdown before request failed");
 
    MCTF_ASSERT_INT_EQ(do_http_get("/history/does_not_exist", &response), PGEXPORTER_HTTP_STATUS_OK, cleanup,
@@ -285,7 +293,7 @@ MCTF_TEST_NEGATIVE(test_history_http_missing_metric_returns_400)
 {
    struct http_response* response = NULL;
 
-   MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "init failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(pgexporter_local_history_store()), 0, cleanup, "init failed");
    MCTF_ASSERT_INT_EQ(pgexporter_history_shutdown(), 0, cleanup, "shutdown before request failed");
 
    MCTF_ASSERT_INT_EQ(do_http_get("/history/", &response), PGEXPORTER_HTTP_STATUS_OK, cleanup,
@@ -302,7 +310,7 @@ MCTF_TEST(test_history_http_unknown_path_returns_404)
 {
    struct http_response* response = NULL;
 
-   MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "init failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(pgexporter_local_history_store()), 0, cleanup, "init failed");
    MCTF_ASSERT_INT_EQ(pgexporter_history_shutdown(), 0, cleanup, "shutdown before request failed");
 
    MCTF_ASSERT_INT_EQ(do_http_get("/not-history", &response), PGEXPORTER_HTTP_STATUS_OK, cleanup,
@@ -319,7 +327,7 @@ MCTF_TEST_NEGATIVE(test_history_http_non_numeric_timestamp_returns_400)
 {
    struct http_response* response = NULL;
 
-   MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "init failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(pgexporter_local_history_store()), 0, cleanup, "init failed");
    MCTF_ASSERT_INT_EQ(pgexporter_history_shutdown(), 0, cleanup, "shutdown before request failed");
 
    MCTF_ASSERT_INT_EQ(do_http_get("/history/pg_up?timestamp=not-a-number", &response), PGEXPORTER_HTTP_STATUS_OK,
@@ -336,7 +344,7 @@ MCTF_TEST_NEGATIVE(test_history_http_non_numeric_duration_returns_400)
 {
    struct http_response* response = NULL;
 
-   MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "init failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(pgexporter_local_history_store()), 0, cleanup, "init failed");
    MCTF_ASSERT_INT_EQ(pgexporter_history_shutdown(), 0, cleanup, "shutdown before request failed");
 
    MCTF_ASSERT_INT_EQ(do_http_get("/history/pg_up?duration=not-a-number", &response), PGEXPORTER_HTTP_STATUS_OK,
@@ -357,7 +365,7 @@ MCTF_TEST(test_history_http_zero_duration_zero_width_window)
    char* body = NULL;
    time_t now = time(NULL);
 
-   MCTF_ASSERT_INT_EQ(pgexporter_history_init(), 0, cleanup, "init failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(pgexporter_local_history_store()), 0, cleanup, "init failed");
    /* One row exactly at `now`, one a second before it: with duration=0 the
     * query window collapses to [now, now], so only the exact-match row should
     * come back. */
@@ -382,5 +390,52 @@ MCTF_TEST(test_history_http_zero_duration_zero_width_window)
 
 cleanup:
    pgexporter_http_response_destroy(response);
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_history_http_bridge_serves_bridge_store)
+{
+   struct configuration* config = (struct configuration*)shmem;
+   struct history_record in[1];
+   struct http_response* response = NULL;
+   char bridge_db[MAX_PATH];
+   char path[256];
+   char* body = NULL;
+   time_t now = time(NULL);
+
+   pgexporter_snprintf(bridge_db, sizeof(bridge_db), "/tmp/pgexporter-test/history-http-bridge-%d.db", (int)getpid());
+   unlink_db(bridge_db);
+   config->bridge_history_backend = HISTORY_BACKEND_SQLITE;
+   pgexporter_snprintf(config->bridge_history_path, MAX_PATH, "%s", bridge_db);
+
+   MCTF_ASSERT_INT_EQ(pgexporter_history_create(pgexporter_bridge_history_store()), 0, cleanup, "bridge create failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_init(pgexporter_bridge_history_store()), 0, cleanup, "bridge init failed");
+   make_record(&in[0], now, "primary", "pg_up", "endpoint=\"node:5001\",server=\"primary\"", 1.0);
+   MCTF_ASSERT_INT_EQ(pgexporter_history_write_batch(in, 1), 0, cleanup, "bridge write failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_history_shutdown(), 0, cleanup, "shutdown before request failed");
+
+   pgexporter_snprintf(path, sizeof(path), "/history/pg_up?timestamp=%ld&duration=10", (long)now);
+
+   MCTF_ASSERT_INT_EQ(do_http_get_with(pgexporter_bridge_history_http, path, &response), PGEXPORTER_HTTP_STATUS_OK,
+                      cleanup, "HTTP request failed at the transport layer");
+   MCTF_ASSERT_PTR_NONNULL(response, cleanup, "no response object returned");
+   MCTF_ASSERT_INT_EQ(response->status_code, 200, cleanup, "expected 200, got %d", response->status_code);
+
+   body = (char*)response->payload.data;
+   MCTF_ASSERT_PTR_NONNULL(body, cleanup, "expected a response body");
+   MCTF_ASSERT_PTR_NONNULL(strstr(body, "node:5001"), cleanup, "expected the bridge row: %s", body);
+
+   pgexporter_http_response_destroy(response);
+   response = NULL;
+
+   MCTF_ASSERT_INT_EQ(do_http_get(path, &response), PGEXPORTER_HTTP_STATUS_OK, cleanup,
+                      "HTTP request failed at the transport layer");
+   body = (char*)response->payload.data;
+   MCTF_ASSERT(body == NULL || strstr(body, "node:5001") == NULL, cleanup,
+               "the local history API must not serve bridge rows: %s", body);
+
+cleanup:
+   pgexporter_http_response_destroy(response);
+   unlink_db(bridge_db);
    MCTF_FINISH();
 }

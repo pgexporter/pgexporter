@@ -474,6 +474,22 @@ struct configuration
    int bridge_history_backend;                 /**< The bridge history storage backend */
    char bridge_history_path[MAX_PATH];         /**< Path for the bridge history storage file */
 
+   char bridge_history_postgresql_host[MISC_LENGTH];         /**< Host of the bridge history store, or a directory holding a Unix socket */
+   int bridge_history_postgresql_port;                       /**< Port of the bridge history store, or the Unix socket number */
+   char bridge_history_postgresql_database[MISC_LENGTH];     /**< Database holding the bridge series/sample schema */
+   char bridge_history_postgresql_user[MAX_USERNAME_LENGTH]; /**< Role to authenticate as when reading and writing bridge history */
+   char bridge_history_postgresql_password_file[MAX_PATH];   /**< Encrypted credential for that role; empty for trust/peer auth */
+   int bridge_history_postgresql_tls;                        /**< TLS negotiation mode for the connection (SERVER_TLS_*) */
+   char bridge_history_postgresql_tls_cert_file[MAX_PATH];   /**< Client certificate presented to the bridge history store */
+   char bridge_history_postgresql_tls_key_file[MAX_PATH];    /**< Private key belonging to that client certificate */
+   char bridge_history_postgresql_tls_ca_file[MAX_PATH];     /**< CA verifying the bridge history store's certificate; needed when tls is on */
+
+   atomic_bool bridge_history_worker_running;           /**< State of the bridge history ticker */
+   atomic_int_least64_t bridge_history_last_store_time; /**< Timestamp of last bridge store */
+   atomic_int bridge_history_worker_pid;                /**< PID of the forked bridge history worker (0 if none) */
+   atomic_bool bridge_history_retention_worker_running; /**< State of the bridge retention pruner */
+   atomic_int bridge_history_retention_worker_pid;      /**< PID of the forked bridge retention worker (0 if none) */
+
    bool cache;          /**< Cache connection */
    bool alerts_enabled; /**< Is alerting enabled */
 
@@ -555,6 +571,7 @@ struct configuration
    struct user users[NUMBER_OF_USERS];                           /**< The users */
    struct user admins[NUMBER_OF_ADMINS];                         /**< The admins */
    struct user history_user;                                     /**< Resolved history store credential; password may be empty for trust/peer */
+   struct user bridge_history_user;                              /**< Resolved bridge history store credential; password may be empty for trust/peer */
    struct prometheus prometheus[NUMBER_OF_METRICS];              /**< The Prometheus metrics */
    struct endpoint endpoints[NUMBER_OF_ENDPOINTS];               /**< The Prometheus metrics */
    struct extension_metrics extensions[NUMBER_OF_EXTENSIONS];    /**< Extension metrics by extension */

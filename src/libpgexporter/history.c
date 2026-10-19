@@ -40,13 +40,11 @@
 #include <memory.h>
 #include <message.h>
 #include <network.h>
-#include <prometheus.h>
 #include <security.h>
 #include <utils.h>
 #include <value.h>
 
 /* system */
-#include <ctype.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,6 +70,7 @@ struct history_label
 };
 
 static const struct history_backend_ops* ops = NULL;
+static const struct history_store* opened = NULL;
 
 static int
 label_compare(const void* a, const void* b)
@@ -358,40 +357,42 @@ static const struct
 #define BACKEND_REGISTRY_SIZE (sizeof(backend_registry) / sizeof(backend_registry[0]))
 
 static const struct history_backend_ops*
-lookup_backend(void)
+lookup_backend(const struct history_store* store)
 {
-   struct configuration* config = (struct configuration*)shmem;
-   int backend = config->history_backend;
+   if (store == NULL)
+   {
+      return NULL;
+   }
 
    for (size_t i = 0; i < BACKEND_REGISTRY_SIZE; i++)
    {
-      if (backend_registry[i].id == backend)
+      if (backend_registry[i].id == store->backend)
       {
          return backend_registry[i].ops;
       }
    }
 
-   pgexporter_log_error("history: unknown backend %d", backend);
+   pgexporter_log_error("%s: unknown backend %d", store->name, store->backend);
    return NULL;
 }
 
 int
-pgexporter_history_create(void)
+pgexporter_history_create(const struct history_store* store)
 {
-   const struct history_backend_ops* backend = lookup_backend();
+   const struct history_backend_ops* backend = lookup_backend(store);
 
    if (backend == NULL)
    {
       return 1;
    }
 
-   return backend->create();
+   return backend->create(store);
 }
 
 int
-pgexporter_history_init(void)
+pgexporter_history_init(const struct history_store* store)
 {
-   const struct history_backend_ops* backend = lookup_backend();
+   const struct history_backend_ops* backend = lookup_backend(store);
 
    if (backend == NULL)
    {
@@ -399,8 +400,9 @@ pgexporter_history_init(void)
    }
 
    ops = backend;
+   opened = store;
 
-   return ops->init();
+   return ops->init(store);
 }
 
 int
@@ -410,7 +412,15 @@ pgexporter_history_write_batch(struct history_record* records, int count)
    {
       return 1;
    }
-   return ops->write_batch(records, count);
+
+   if (ops->write_batch(records, count))
+   {
+      return 1;
+   }
+
+   atomic_store(opened->last_store, (int64_t)time(NULL));
+
+   return 0;
 }
 
 int
@@ -425,13 +435,13 @@ pgexporter_history_query_range(const char* metric, time_t start, time_t end,
 }
 
 int
-pgexporter_history_prune(void)
+pgexporter_history_prune(const struct history_store* store)
 {
-   if (ops == NULL)
+   if (ops == NULL || store == NULL)
    {
       return 1;
    }
-   return ops->prune();
+   return ops->prune(store);
 }
 
 int
@@ -445,213 +455,8 @@ pgexporter_history_shutdown(void)
    }
    ret = ops->shutdown();
    ops = NULL;
+   opened = NULL;
    return ret;
-}
-
-/**
- * Parse a raw Prometheus container directly into an array
- * of history_record structs and store them in the database.
- *
- * @param container The metrics container
- * @return 0 on success, 1 on failure
- */
-int
-pgexporter_history_store_metrics(struct prometheus_metrics_container* container)
-{
-   int capacity = 100;
-   int count = 0;
-   struct history_record* records = NULL;
-   time_t now = time(NULL);
-   int status = 1;
-
-   if (container == NULL)
-   {
-      return 1;
-   }
-
-   records = malloc(sizeof(struct history_record) * capacity);
-   if (records == NULL)
-   {
-      return 1;
-   }
-
-   struct art* trees[] = {
-      container->general_metrics,
-      container->server_metrics,
-      container->version_metrics,
-      container->uptime_metrics,
-      container->primary_metrics,
-      container->fips_metrics,
-      container->core_metrics,
-      container->extension_metrics,
-      container->extension_list_metrics,
-      container->settings_metrics,
-      container->custom_metrics,
-      container->alert_metrics};
-
-   for (size_t i = 0; i < sizeof(trees) / sizeof(trees[0]); i++)
-   {
-      struct art_iterator* iter = NULL;
-      if (trees[i] == NULL)
-      {
-         continue;
-      }
-
-      if (pgexporter_art_iterator_create(trees[i], &iter) == 0)
-      {
-         while (pgexporter_art_iterator_next(iter))
-         {
-            char* val = NULL;
-            if (pgexporter_prometheus_iterator_value(iter, &val) && val != NULL)
-            {
-               const char* line = val;
-               /* Iterate over each line in the multiline Prometheus exposition block */
-               while (*line != '\0')
-               {
-                  const char* next_line = strchr(line, '\n');
-                  size_t line_len;
-                  if (next_line)
-                  {
-                     line_len = next_line - line;
-                  }
-                  else
-                  {
-                     line_len = strlen(line);
-                  }
-
-                  if (line_len > 0 && line[line_len - 1] == '\r')
-                  {
-                     line_len--;
-                  }
-
-                  if (line_len == 0 || line[0] == '#')
-                  {
-                     if (!next_line)
-                        break;
-                     line = next_line + 1;
-                     continue;
-                  }
-
-                  char metric_name[PROMETHEUS_LENGTH] = {0};
-                  char* labels = NULL;
-                  char server[MISC_LENGTH] = {0};
-                  double value = 0.0;
-
-                  const char* p = line;
-                  const char* end_of_line = line + line_len;
-                  const char* name_start = p;
-
-                  /* Extract the metric name, stopping at the first brace or whitespace */
-                  while (p < end_of_line && *p != '{' && !isspace((unsigned char)*p))
-                  {
-                     p++;
-                  }
-
-                  size_t name_len = p - name_start;
-                  pgexporter_snprintf(metric_name, sizeof(metric_name), "%.*s", (int)name_len, name_start);
-
-                  /* If labels are present, extract the full label string and look for the 'server' label */
-                  if (p < end_of_line && *p == '{')
-                  {
-                     p++;
-                     const char* labels_start = p;
-                     bool escaped = false;
-                     bool in_quotes = false;
-                     while (p < end_of_line)
-                     {
-                        if (!escaped && *p == '"')
-                           in_quotes = !in_quotes;
-                        else if (!in_quotes && *p == '}')
-                           break;
-                        escaped = (*p == '\\' && !escaped);
-                        p++;
-                     }
-
-                     if (p < end_of_line && *p == '}')
-                     {
-                        size_t labels_len = p - labels_start;
-                        labels = malloc(labels_len + 1);
-                        if (labels == NULL)
-                        {
-                           pgexporter_log_error("history: labels malloc failed");
-                           goto cleanup;
-                        }
-                        memcpy(labels, labels_start, labels_len);
-                        labels[labels_len] = '\0';
-
-                        /* Same parser as the label hash: no false "server" match, no early quote end */
-                        pgexporter_history_label_find(labels, "server", server, sizeof(server));
-                        p++;
-                     }
-                  }
-
-                  /* Skip any trailing whitespace before the value */
-                  while (p < end_of_line && isspace((unsigned char)*p))
-                  {
-                     p++;
-                  }
-
-                  if (p < end_of_line)
-                  {
-                     /* we must strtod from a null-terminated string, so let's copy the rest of the line */
-                     char val_buf[64] = {0};
-                     size_t val_len = end_of_line - p;
-                     pgexporter_snprintf(val_buf, sizeof(val_buf), "%.*s", (int)val_len, p);
-                     value = strtod(val_buf, NULL);
-                  }
-
-                  if (count >= capacity)
-                  {
-                     struct history_record* new_records = NULL;
-                     capacity *= 2;
-                     new_records = realloc(records, sizeof(struct history_record) * capacity);
-                     if (new_records == NULL)
-                     {
-                        pgexporter_log_error("history: realloc failed");
-                        free(labels);
-                        goto cleanup;
-                     }
-                     records = new_records;
-                  }
-
-                  memset(&records[count], 0, sizeof(struct history_record));
-                  records[count].ts = now;
-                  records[count].value = value;
-                  pgexporter_snprintf(records[count].metric, PROMETHEUS_LENGTH, "%s", metric_name);
-                  pgexporter_snprintf(records[count].server, MISC_LENGTH, "%s", server);
-                  records[count].labels = labels; /* transfer ownership; may be NULL */
-                  labels = NULL;
-
-                  count++;
-
-                  if (!next_line)
-                     break;
-                  line = next_line + 1;
-               }
-            }
-         }
-         pgexporter_art_iterator_destroy(iter);
-      }
-   }
-
-   if (count > 0 && records != NULL)
-   {
-      struct configuration* config = (struct configuration*)shmem;
-      status = pgexporter_history_write_batch(records, count);
-      if (status == 0)
-      {
-         atomic_store(&config->history_last_store_time, (int64_t)time(NULL));
-      }
-   }
-   else
-   {
-      status = 0;
-   }
-
-cleanup:
-   pgexporter_history_records_free(records, count);
-
-   return status;
 }
 
 void
@@ -670,49 +475,13 @@ pgexporter_history_records_free(struct history_record* records, int count)
    free(records);
 }
 
-/**
- * Child-process worker that fetches the current metrics directly
- * and persists them as one history snapshot. Called after fork(); exit(0)s.
- */
-static void
-history_tick_worker(void)
-{
-   prometheus_metrics_container_t* container = NULL;
-
-   /* Scrape first so no history connection sits idle during the scrape */
-   if (pgexporter_prometheus_scrape(&container) != 0)
-   {
-      pgexporter_log_error("history: failed to scrape metrics");
-      goto child_done;
-   }
-
-   if (pgexporter_history_init() != 0)
-   {
-      pgexporter_log_error("history: failed to init history db");
-      goto child_done;
-   }
-
-   pgexporter_history_store_metrics(container);
-
-child_done:
-   if (container != NULL)
-   {
-      pgexporter_prometheus_destroy_container(container);
-   }
-
-   pgexporter_history_shutdown();
-   pgexporter_history_release_slot();
-   exit(0);
-}
-
 bool
-pgexporter_history_claim_slot(int interval)
+pgexporter_history_claim_slot(const struct history_store* store, int interval)
 {
-   struct configuration* config = (struct configuration*)shmem;
    bool expected = false;
    time_t now = time(NULL);
 
-   if (config == NULL || config->history == 0)
+   if (store == NULL || store->port == 0)
    {
       return false;
    }
@@ -722,48 +491,45 @@ pgexporter_history_claim_slot(int interval)
       return false;
    }
 
-   if (!atomic_compare_exchange_strong(&config->history_worker_running, &expected, true))
+   if (!atomic_compare_exchange_strong(store->running, &expected, true))
    {
       return false;
    }
 
    if (interval > 0 &&
-       (time_t)atomic_load(&config->history_last_store_time) / interval == now / interval)
+       (time_t)atomic_load(store->last_store) / interval == now / interval)
    {
-      atomic_store(&config->history_worker_running, false);
+      atomic_store(store->running, false);
       return false;
    }
-   atomic_store(&config->history_worker_pid, (int)getpid());
+   atomic_store(store->worker_pid, (int)getpid());
 
    return true;
 }
 
 void
-pgexporter_history_release_slot(void)
+pgexporter_history_release_slot(const struct history_store* store)
 {
-   struct configuration* config = (struct configuration*)shmem;
-
-   if (config == NULL)
+   if (store == NULL)
    {
       return;
    }
 
-   atomic_store(&config->history_worker_pid, 0);
-   atomic_store(&config->history_worker_running, false);
+   atomic_store(store->worker_pid, 0);
+   atomic_store(store->running, false);
 }
 
 void
-pgexporter_history_tick_cb(void)
+pgexporter_history_tick(const struct history_store* store)
 {
-   struct configuration* config = (struct configuration*)shmem;
    pid_t pid;
 
-   if (config == NULL)
+   if (store == NULL)
    {
       return;
    }
 
-   if (!pgexporter_history_claim_slot(pgexporter_time_convert(config->history_interval, FORMAT_TIME_S)))
+   if (!pgexporter_history_claim_slot(store, pgexporter_time_convert(store->interval, FORMAT_TIME_S)))
    {
       return;
    }
@@ -771,61 +537,60 @@ pgexporter_history_tick_cb(void)
    pid = fork();
    if (pid < 0)
    {
-      pgexporter_log_error("history: failed to fork ticker worker");
-      pgexporter_history_release_slot();
+      pgexporter_log_error("%s: failed to fork ticker worker", store->name);
+      pgexporter_history_release_slot(store);
       return;
    }
    else if (pid > 0)
    {
       /* claim_slot() recorded our own pid; replace it with the worker's so
        * sigchld_cb can clear the flag if the worker dies before resetting it. */
-      atomic_store(&config->history_worker_pid, (int)pid);
+      atomic_store(store->worker_pid, (int)pid);
       return;
    }
 
-   history_tick_worker();
+   store->collect(store);
+   pgexporter_history_release_slot(store);
+   exit(0);
 }
 
 /**
  * Child-process worker that opens its own database connection and prunes
- * records older than the configured retention. Called after fork(); exit(0)s.
+ * records older than the store's retention. Called after fork(); exit(0)s.
  */
 static void
-history_retention_worker(void)
+history_retention_worker(const struct history_store* store)
 {
-   struct configuration* config = (struct configuration*)shmem;
-
-   if (pgexporter_history_init() != 0)
+   if (pgexporter_history_init(store) != 0)
    {
-      pgexporter_log_error("history: failed to init history db for retention");
+      pgexporter_log_error("%s: failed to init history db for retention", store->name);
       goto child_done;
    }
 
-   if (pgexporter_history_prune() != 0)
+   if (pgexporter_history_prune(store) != 0)
    {
-      pgexporter_log_error("history: prune failed");
+      pgexporter_log_error("%s: prune failed", store->name);
    }
 
 child_done:
    pgexporter_history_shutdown();
-   atomic_store(&config->history_retention_worker_pid, 0);
-   atomic_store(&config->history_retention_worker_running, false);
+   atomic_store(store->retention_pid, 0);
+   atomic_store(store->retention_running, false);
    exit(0);
 }
 
 void
-pgexporter_history_retention_tick_cb(void)
+pgexporter_history_retention_tick(const struct history_store* store)
 {
-   struct configuration* config = (struct configuration*)shmem;
    pid_t pid;
    bool expected = false;
 
-   if (config == NULL || config->history == 0)
+   if (store == NULL || store->port == 0)
    {
       return;
    }
 
-   if (!atomic_compare_exchange_strong(&config->history_retention_worker_running, &expected, true))
+   if (!atomic_compare_exchange_strong(store->retention_running, &expected, true))
    {
       /* Previous retention worker still running */
       return;
@@ -834,19 +599,19 @@ pgexporter_history_retention_tick_cb(void)
    pid = fork();
    if (pid < 0)
    {
-      pgexporter_log_error("history: failed to fork retention worker");
-      atomic_store(&config->history_retention_worker_running, false);
+      pgexporter_log_error("%s: failed to fork retention worker", store->name);
+      atomic_store(store->retention_running, false);
       return;
    }
    else if (pid > 0)
    {
       /* Record worker pid so sigchld_cb can clear the running flag
        * if the worker dies before resetting it itself. */
-      atomic_store(&config->history_retention_worker_pid, (int)pid);
+      atomic_store(store->retention_pid, (int)pid);
       return;
    }
 
-   history_retention_worker();
+   history_retention_worker(store);
 }
 
 static bool
@@ -905,7 +670,7 @@ history_query_param(const char* query, const char* name, char* out, size_t out_s
 }
 
 void
-pgexporter_history_http(SSL* ssl, int fd)
+pgexporter_history_serve(const struct history_store* store, SSL* ssl, int fd)
 {
    struct http_server_request* req = NULL;
    struct configuration* config;
@@ -927,7 +692,7 @@ pgexporter_history_http(SSL* ssl, int fd)
 
    config = (struct configuration*)shmem;
 
-   if (pgexporter_history_init())
+   if (pgexporter_history_init(store))
    {
       pgexporter_log_error("History: failed to initialize backend");
       goto error;
@@ -972,7 +737,7 @@ pgexporter_history_http(SSL* ssl, int fd)
             }
          }
 
-         base_url = pgexporter_format_and_append(base_url, "https://localhost:%d%s", config->history, redirect_path);
+         base_url = pgexporter_format_and_append(base_url, "https://localhost:%d%s", store->port, redirect_path);
 
          if (pgexporter_http_respond_redirect(NULL, fd, base_url) != MESSAGE_STATUS_OK)
          {

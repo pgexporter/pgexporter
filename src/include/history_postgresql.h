@@ -38,17 +38,19 @@ extern "C" {
 
 /**
  * Create the schema in the history store if it does not exist yet.
+ * @param store The store whose PostgreSQL connection is used
  * @return 0 on success, 1 on failure
  */
 int
-pgexporter_history_postgresql_create(void);
+pgexporter_history_postgresql_create(const struct history_store* store);
 
 /**
  * Connect to the history store. Does nothing when already connected.
+ * @param store The store whose PostgreSQL connection is used
  * @return 0 on success, 1 on failure
  */
 int
-pgexporter_history_postgresql_init(void);
+pgexporter_history_postgresql_init(const struct history_store* store);
 
 /**
  * Insert a batch of records inside a single transaction.
@@ -73,13 +75,14 @@ pgexporter_history_postgresql_query_range(const char* metric, time_t start, time
                                           struct history_record** records_out, int* count_out);
 
 /**
- * Delete samples whose timestamp is older than config->history_retention, then
+ * Delete samples whose timestamp is older than the store's retention, then
  * remove any series left with no samples at all.
  *
+ * @param store The store whose retention is used
  * @return 0 on success, 1 on failure
  */
 int
-pgexporter_history_postgresql_prune(void);
+pgexporter_history_postgresql_prune(const struct history_store* store);
 
 /**
  * Close the connection to the history store.
