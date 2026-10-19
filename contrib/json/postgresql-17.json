@@ -385,6 +385,33 @@
       ]
     },
     {
+      "tag": "pg_prepared_xacts",
+      "collector": "prepared_xacts",
+      "sort": "data",
+      "queries": [
+        {
+          "query": "SELECT database, COUNT(*) AS count, MAX(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - prepared)))::bigint AS oldest_age_seconds FROM pg_prepared_xacts GROUP BY database;",
+          "version": 10,
+          "columns": [
+            {
+              "name": "database",
+              "type": "label"
+            },
+            {
+              "name": "count",
+              "type": "gauge",
+              "description": "Number of prepared transactions."
+            },
+            {
+              "name": "oldest_age_seconds",
+              "type": "gauge",
+              "description": "Age in seconds of the oldest prepared transaction."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "tag": "pg_statio_all_tables",
       "collector": "statio_all_tables",
       "database": "all",
