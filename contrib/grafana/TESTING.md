@@ -104,6 +104,14 @@ Test each row of panels:
 - [ ] Transactions: Shows commits/rollbacks per second
 - [ ] Tuple Operations: Shows SELECT/INSERT/UPDATE/DELETE rates
 
+**I/O Cache Statistics Row:**
+- [ ] Table Buffer Cache Hit Ratio: Gauge shows percentage with color thresholds (green ≥95%, yellow 90–95%, red <90%)
+- [ ] Table Block I/O: Timeseries shows heap/index reads vs hits per table ({{relname}})
+- [ ] Sequence Buffer Cache Hit Ratio: Gauge shows percentage with same color thresholds
+- [ ] Sequence Block I/O: Timeseries shows reads vs hits per sequence ({{relname}})
+- [ ] Index Buffer Cache Hit Ratio: Gauge shows percentage with same color thresholds
+- [ ] Index Block I/O: Timeseries shows reads vs hits per index ({{indexrelname}})
+
 **Query Analysis Row (requires pg_stat_statements):**
 - [ ] Most Executed Queries: Bar chart or table shows top queries
 - [ ] Slowest Queries: Shows queries with longest execution time
