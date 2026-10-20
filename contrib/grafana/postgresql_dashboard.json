@@ -1026,11 +1026,322 @@
     },
     {
       "collapsed": false,
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 74},
+      "id": 62,
+      "title": "I/O Cache Statistics",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Percentage of table heap block reads served from PostgreSQL shared_buffers instead of disk. Below 95% suggests shared_buffers may need increasing or queries may be doing full scans.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 90},
+              {"color": "green", "value": 95}
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 75},
+      "id": 63,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "text": {}
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "expr": "100 * sum(pgexporter_pg_statio_all_tables_heap_blks_hit) / (sum(pgexporter_pg_statio_all_tables_heap_blks_hit) + sum(pgexporter_pg_statio_all_tables_heap_blks_read))",
+          "legendFormat": "Table Heap Cache Hit Ratio",
+          "refId": "A"
+        }
+      ],
+      "title": "Table Buffer Cache Hit Ratio",
+      "type": "gauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Rate of disk reads and buffer cache hits for table heap and index blocks, from pg_statio_all_tables. High disk reads relative to hits indicate cache pressure on specific tables.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {"type": "linear"},
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {"group": "A", "mode": "none"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green"}]},
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 18, "x": 6, "y": 75},
+      "id": 64,
+      "options": {
+        "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "expr": "rate(pgexporter_pg_statio_all_tables_heap_blks_read[5m])",
+          "legendFormat": "Heap Reads - {{relname}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "expr": "rate(pgexporter_pg_statio_all_tables_heap_blks_hit[5m])",
+          "legendFormat": "Heap Hits - {{relname}}",
+          "refId": "B"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "expr": "rate(pgexporter_pg_statio_all_tables_idx_blks_read[5m])",
+          "legendFormat": "Index Reads - {{relname}}",
+          "refId": "C"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "expr": "rate(pgexporter_pg_statio_all_tables_idx_blks_hit[5m])",
+          "legendFormat": "Index Hits - {{relname}}",
+          "refId": "D"
+        }
+      ],
+      "title": "Table Block I/O",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Percentage of sequence block reads served from shared_buffers instead of disk, from pg_statio_all_sequences. Spikes in disk reads indicate memory pressure.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 90},
+              {"color": "green", "value": 95}
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 83},
+      "id": 65,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "text": {}
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "expr": "100 * sum(pgexporter_pg_statio_all_sequences_blks_hit) / (sum(pgexporter_pg_statio_all_sequences_blks_hit) + sum(pgexporter_pg_statio_all_sequences_blks_read))",
+          "legendFormat": "Sequence Cache Hit Ratio",
+          "refId": "A"
+        }
+      ],
+      "title": "Sequence Buffer Cache Hit Ratio",
+      "type": "gauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Rate of disk reads and buffer cache hits for sequences, from pg_statio_all_sequences. Sequences normally have a very high hit ratio; sustained disk reads indicate memory pressure.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {"type": "linear"},
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {"group": "A", "mode": "none"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green"}]},
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 18, "x": 6, "y": 83},
+      "id": 66,
+      "options": {
+        "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "expr": "rate(pgexporter_pg_statio_all_sequences_blks_read[5m])",
+          "legendFormat": "Reads - {{relname}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "expr": "rate(pgexporter_pg_statio_all_sequences_blks_hit[5m])",
+          "legendFormat": "Hits - {{relname}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Sequence Block I/O",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Percentage of index block reads served from shared_buffers instead of disk, from pg_statio_all_indexes. Low values mean indexes are missing from cache - consider increasing shared_buffers or dropping unused indexes.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 90},
+              {"color": "green", "value": 95}
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 91},
+      "id": 67,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "text": {}
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "expr": "100 * sum(pgexporter_pg_statio_all_indexes_idx_blks_hit) / (sum(pgexporter_pg_statio_all_indexes_idx_blks_hit) + sum(pgexporter_pg_statio_all_indexes_idx_blks_read))",
+          "legendFormat": "Index Cache Hit Ratio",
+          "refId": "A"
+        }
+      ],
+      "title": "Index Buffer Cache Hit Ratio",
+      "type": "gauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Rate of disk reads and buffer cache hits per index, from pg_statio_all_indexes. Identifies which specific indexes are causing disk I/O pressure.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {"type": "linear"},
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {"group": "A", "mode": "none"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green"}]},
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 18, "x": 6, "y": 91},
+      "id": 68,
+      "options": {
+        "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "expr": "rate(pgexporter_pg_statio_all_indexes_idx_blks_read[5m])",
+          "legendFormat": "Reads - {{indexrelname}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+          "expr": "rate(pgexporter_pg_statio_all_indexes_idx_blks_hit[5m])",
+          "legendFormat": "Hits - {{indexrelname}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Index Block I/O",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 74
+        "y": 99
       },
       "id": 13,
       "panels": [],
@@ -1112,7 +1423,7 @@
         "x": 0,
         "w": 12,
         "h": 8,
-        "y": 75
+        "y": 100
       },
       "id": 14,
       "options": {
@@ -1239,7 +1550,7 @@
         "x": 0,
         "w": 12,
         "h": 8,
-        "y": 83
+        "y": 108
       },
       "id": 16,
       "options": {
@@ -1351,7 +1662,7 @@
         "x": 12,
         "w": 12,
         "h": 8,
-        "y": 83
+        "y": 108
       },
       "id": 15,
       "options": {
@@ -1426,7 +1737,7 @@
         "x": 0,
         "w": 12,
         "h": 8,
-        "y": 99
+        "y": 124
       },
       "id": 60,
       "options": {
@@ -1506,7 +1817,7 @@
         "x": 12,
         "w": 12,
         "h": 8,
-        "y": 99
+        "y": 124
       },
       "id": 61,
       "options": {
@@ -1576,7 +1887,7 @@
         "x": 0,
         "w": 12,
         "h": 8,
-        "y": 91
+        "y": 116
       },
       "id": 50,
       "options": {
@@ -1644,7 +1955,7 @@
         "x": 12,
         "w": 12,
         "h": 8,
-        "y": 91
+        "y": 116
       },
       "id": 17,
       "options": {
@@ -1733,7 +2044,7 @@
         "x": 0,
         "w": 12,
         "h": 8,
-        "y": 107
+        "y": 132
       },
       "id": 51,
       "options": {
@@ -1828,7 +2139,7 @@
         "x": 12,
         "w": 12,
         "h": 8,
-        "y": 107
+        "y": 132
       },
       "id": 52,
       "options": {
@@ -1926,7 +2237,7 @@
         "x": 0,
         "w": 24,
         "h": 5,
-        "y": 115
+        "y": 140
       },
       "id": 53,
       "options": {
@@ -1985,7 +2296,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 120
+        "y": 145
       },
       "id": 18,
       "panels": [],
@@ -2028,7 +2339,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 121
+        "y": 146
       },
       "id": 27,
       "options": {
@@ -2096,7 +2407,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 121
+        "y": 146
       },
       "id": 28,
       "options": {
@@ -2164,7 +2475,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 121
+        "y": 146
       },
       "id": 29,
       "options": {
@@ -2232,7 +2543,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 128
+        "y": 153
       },
       "id": 19,
       "options": {
@@ -2302,7 +2613,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 138
+        "y": 163
       },
       "id": 20,
       "options": {
@@ -2372,7 +2683,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 148
+        "y": 173
       },
       "id": 21,
       "options": {
@@ -2463,7 +2774,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 158
+        "y": 183
       },
       "id": 22,
       "options": {
@@ -2520,7 +2831,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 168
+        "y": 193
       },
       "id": 23,
       "panels": [],
@@ -2603,7 +2914,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 169
+        "y": 194
       },
       "id": 24,
       "options": {
@@ -2722,7 +3033,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 177
+        "y": 202
       },
       "id": 25,
       "options": {
@@ -2791,7 +3102,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 178
+        "y": 203
       },
       "id": 26,
       "options": {
@@ -2843,7 +3154,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 193
+        "y": 218
       },
       "id": 30,
       "panels": [],
@@ -2887,7 +3198,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 194
+        "y": 219
       },
       "id": 31,
       "options": {
@@ -2982,7 +3293,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 194
+        "y": 219
       },
       "id": 32,
       "options": {
@@ -3057,7 +3368,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 201
+        "y": 226
       },
       "id": 33,
       "options": {
@@ -3186,7 +3497,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 209
+        "y": 234
       },
       "id": 34,
       "options": {
@@ -3352,7 +3663,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 209
+        "y": 234
       },
       "id": 35,
       "options": {
