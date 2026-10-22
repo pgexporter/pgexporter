@@ -4117,6 +4117,50 @@ Counts active WAL streaming replication connections, grouped by the `application
 | application_name | The application name reported by the replication connection. |
 | state | Hardcoded to 'streaming' in the query. |
 
+## pgexporter_pg_stat_replication_lag_write_seconds
+
+Reflects `write_lag` from `pg_stat_replication`: seconds between local WAL flush and the standby's write notice (-1 when the standby is caught up and idle).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server (the primary). |
+| application_name | The application name reported by the replication connection. |
+| sync_state | Synchronous state of the standby (async, potential, sync, quorum). |
+| client_addr | IP address of the standby. `n/a` for Unix-socket connections. |
+
+## pgexporter_pg_stat_replication_lag_flush_seconds
+
+Reflects `flush_lag` from `pg_stat_replication`: seconds between local WAL flush and the standby's flush notice (-1 when the standby is caught up and idle).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server (the primary). |
+| application_name | The application name reported by the replication connection. |
+| sync_state | Synchronous state of the standby (async, potential, sync, quorum). |
+| client_addr | IP address of the standby. `n/a` for Unix-socket connections. |
+
+## pgexporter_pg_stat_replication_lag_replay_seconds
+
+Reflects `replay_lag` from `pg_stat_replication`: seconds between local WAL flush and the standby's apply notice (-1 when the standby is caught up and idle).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server (the primary). |
+| application_name | The application name reported by the replication connection. |
+| sync_state | Synchronous state of the standby (async, potential, sync, quorum). |
+| client_addr | IP address of the standby. `n/a` for Unix-socket connections. |
+
+## pgexporter_pg_stat_replication_lag_wal_distance_bytes
+
+Number of WAL bytes the standby has yet to replay (`pg_wal_lsn_diff(sent_lsn, replay_lsn)`, -1 when not known).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server (the primary). |
+| application_name | The application name reported by the replication connection. |
+| sync_state | Synchronous state of the standby (async, potential, sync, quorum). |
+| client_addr | IP address of the standby. `n/a` for Unix-socket connections. |
+
 ## pgexporter_pg_stat_walreceiver_receive_start_lsn
 
 First WAL byte+1 position when receiver is started (numeric representation).
