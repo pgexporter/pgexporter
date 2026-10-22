@@ -6505,3 +6505,100 @@ Number of distinct processes affected.
 | :-------- | :---------- |
 | server | The configured name/identifier for the PostgreSQL server. |
 | event | IPC wait event name. |
+
+## pgexporter_pg_stat_subscription_stats_sync_table_error_count
+
+Number of errors during table sync (renamed from `sync_error_count` in PostgreSQL 19+), from `pg_stat_subscription_stats`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| subid | Subscription OID. |
+| subname | Subscription name. |
+
+## pgexporter_pg_stat_recovery_promote_triggered
+
+Whether promotion was triggered on this standby, from `pg_stat_recovery` (PostgreSQL 19+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pause_state | Current recovery pause state. |
+
+## pgexporter_pg_stat_recovery_last_replayed_tli
+
+Timeline of the last replayed WAL record on this standby, from `pg_stat_recovery` (PostgreSQL 19+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pause_state | Current recovery pause state. |
+
+## pgexporter_pg_stat_recovery_replay_end_tli
+
+Target timeline for WAL replay on this standby, from `pg_stat_recovery` (PostgreSQL 19+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pause_state | Current recovery pause state. |
+
+## pgexporter_pg_stat_progress_repack_heap_tuples_scanned
+
+Number of heap tuples scanned so far during repack/cluster/vacuum full, from `pg_stat_progress_repack` (PostgreSQL 19+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pid | PID of the backend running the repack. |
+| datname | Name of the database. |
+| command | Operation being performed (CLUSTER, REPACK, VACUUM FULL). |
+| phase | Current phase of the repack operation. |
+
+## pgexporter_pg_stat_progress_repack_heap_tuples_written
+
+Number of heap tuples written so far during repack/cluster/vacuum full, from `pg_stat_progress_repack` (PostgreSQL 19+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pid | PID of the backend running the repack. |
+| datname | Name of the database. |
+| command | Operation being performed (CLUSTER, REPACK, VACUUM FULL). |
+| phase | Current phase of the repack operation. |
+
+## pgexporter_pg_stat_progress_repack_heap_blks_total
+
+Total number of heap blocks to process during repack/cluster/vacuum full, from `pg_stat_progress_repack` (PostgreSQL 19+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pid | PID of the backend running the repack. |
+| datname | Name of the database. |
+| command | Operation being performed (CLUSTER, REPACK, VACUUM FULL). |
+| phase | Current phase of the repack operation. |
+
+## pgexporter_pg_stat_progress_repack_heap_blks_scanned
+
+Number of heap blocks scanned so far during repack/cluster/vacuum full, from `pg_stat_progress_repack` (PostgreSQL 19+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pid | PID of the backend running the repack. |
+| datname | Name of the database. |
+| command | Operation being performed (CLUSTER, REPACK, VACUUM FULL). |
+| phase | Current phase of the repack operation. |
+
+## pgexporter_pg_stat_progress_repack_index_rebuild_count
+
+Number of indexes rebuilt so far during repack/cluster/vacuum full, from `pg_stat_progress_repack` (PostgreSQL 19+).
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pid | PID of the backend running the repack. |
+| datname | Name of the database. |
+| command | Operation being performed (CLUSTER, REPACK, VACUUM FULL). |
+| phase | Current phase of the repack operation. |
