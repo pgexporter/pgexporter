@@ -600,6 +600,51 @@
       ]
     },
     {
+      "tag": "pg_stat_replication_lag",
+      "collector": "stat_replication_lag",
+      "sort": "data",
+      "queries": [
+        {
+          "query": "SELECT application_name, sync_state, COALESCE(host(client_addr), '') AS client_addr, COALESCE(EXTRACT(EPOCH FROM write_lag), -1) AS write_seconds, COALESCE(EXTRACT(EPOCH FROM flush_lag), -1) AS flush_seconds, COALESCE(EXTRACT(EPOCH FROM replay_lag), -1) AS replay_seconds, COALESCE(pg_wal_lsn_diff(sent_lsn, replay_lsn)::bigint, -1) AS wal_distance_bytes FROM pg_stat_replication WHERE state = 'streaming';",
+          "version": 10,
+          "columns": [
+            {
+              "name": "application_name",
+              "type": "label"
+            },
+            {
+              "name": "sync_state",
+              "type": "label"
+            },
+            {
+              "name": "client_addr",
+              "type": "label"
+            },
+            {
+              "name": "write_seconds",
+              "type": "gauge",
+              "description": "Seconds between writing WAL locally and receiving the notice that the standby has written it. -1 when caught up or idle."
+            },
+            {
+              "name": "flush_seconds",
+              "type": "gauge",
+              "description": "Seconds between writing WAL locally and receiving the notice that the standby has flushed it. -1 when caught up or idle."
+            },
+            {
+              "name": "replay_seconds",
+              "type": "gauge",
+              "description": "Seconds between writing WAL locally and receiving the notice that the standby has applied it. -1 when caught up or idle."
+            },
+            {
+              "name": "wal_distance_bytes",
+              "type": "gauge",
+              "description": "Number of WAL bytes the standby has yet to replay (pg_wal_lsn_diff(sent_lsn, replay_lsn)). -1 when unknown."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "tag": "pg_stat_archiver",
       "collector": "stat_archiver",
       "sort": "data",

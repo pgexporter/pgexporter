@@ -676,6 +676,42 @@ extern "C" {
                       "    sort: data\n"                                                                                                                                                \
                       "    collector: stat_replication\n"                                                                                                                               \
                       "\n"                                                                                                                                                              \
+                      "# WAL processing lag and WAL distance per streaming standby.\n"                                                                                                  \
+                      "  - queries:\n"                                                                                                                                                  \
+                      "    - query: SELECT\n"                                                                                                                                           \
+                      "                application_name,\n"                                                                                                                             \
+                      "                sync_state,\n"                                                                                                                                   \
+                      "                COALESCE(host(client_addr), '') AS client_addr,\n"                                                                                               \
+                      "                COALESCE(EXTRACT(EPOCH FROM write_lag), -1) AS write_seconds,\n"                                                                                 \
+                      "                COALESCE(EXTRACT(EPOCH FROM flush_lag), -1) AS flush_seconds,\n"                                                                                 \
+                      "                COALESCE(EXTRACT(EPOCH FROM replay_lag), -1) AS replay_seconds,\n"                                                                               \
+                      "                COALESCE(pg_wal_lsn_diff(sent_lsn, replay_lsn)::bigint, -1) AS wal_distance_bytes\n"                                                             \
+                      "              FROM pg_stat_replication\n"                                                                                                                        \
+                      "              WHERE state = 'streaming';\n"                                                                                                                      \
+                      "      version: 10\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: application_name\n"                                                                                                                              \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: sync_state\n"                                                                                                                                    \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: client_addr\n"                                                                                                                                   \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: write_seconds\n"                                                                                                                                 \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Seconds between writing WAL locally and receiving the notice that the standby has written it. -1 when caught up or idle.\n"               \
+                      "        - name: flush_seconds\n"                                                                                                                                 \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Seconds between writing WAL locally and receiving the notice that the standby has flushed it. -1 when caught up or idle.\n"               \
+                      "        - name: replay_seconds\n"                                                                                                                                \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Seconds between writing WAL locally and receiving the notice that the standby has applied it. -1 when caught up or idle.\n"               \
+                      "        - name: wal_distance_bytes\n"                                                                                                                            \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Number of WAL bytes the standby has yet to replay (pg_wal_lsn_diff(sent_lsn, replay_lsn)). -1 when unknown.\n"                            \
+                      "    tag: pg_stat_replication_lag\n"                                                                                                                              \
+                      "    sort: data\n"                                                                                                                                                \
+                      "    collector: stat_replication_lag\n"                                                                                                                           \
+                      "\n"                                                                                                                                                              \
                       "  - queries:\n"                                                                                                                                                  \
                       "    - query: SELECT\n"                                                                                                                                           \
                       "                archived_count,\n"                                                                                                                               \
