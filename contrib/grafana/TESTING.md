@@ -67,9 +67,9 @@ Use this checklist to verify all dashboard features work correctly.
 ###  Dashboard Provisioning
 
 - [ ] **Folder exists**: "pgexporter" folder appears in Grafana sidebar
-- [ ] **All dashboards present**: 6 dashboards (PG13-PG18) appear in the folder
+- [ ] **All dashboards present**: 5 dashboards (PG13, PG15-PG18) appear in the folder
 - [ ] **No import errors**: Dashboards load without "JSON parsing error" messages
-- [ ] **Home dashboard**: PG14 dashboard loads as the default home
+- [ ] **Home dashboard**: PG18 dashboard loads as the default home
 
 ### Template Variables (Dropdowns)
 
@@ -77,7 +77,7 @@ Use this checklist to verify all dashboard features work correctly.
   - Shows available PostgreSQL servers
   - "All" option works correctly
   - Filtering updates all panels
-- [ ] **Database dropdown** (PG14+): "Database" filter appears
+- [ ] **Database dropdown** (PG15+): "Database" filter appears
   - Shows available databases
   - Multi-select works (hold Ctrl/Cmd)
 
@@ -110,7 +110,7 @@ Test each row of panels:
   - Color thresholds visible (yellow >100ms, red >1s)
 - [ ] Highest WAL: Shows queries generating most WAL
 
-**Memory Row (PG14+ only):**
+**Memory Row (PG15+ only):**
 - [ ] Memory Usage by Context: Shows memory allocation breakdown
 - [ ] Displays "Used" and "Free" columns
 
@@ -173,7 +173,7 @@ CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 SELECT * FROM pg_stat_statements LIMIT 5;
 ```
 
-### Problem: Memory panels are empty (PG14+)
+### Problem: Memory panels are empty (PG15+)
 
 Memory context metrics require the `pg_backend_memory_contexts` view:
 

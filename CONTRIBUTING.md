@@ -115,7 +115,7 @@ When modifying queries or metrics in `src/include/internal.h`:
    ```
 3. Commit both `src/include/internal.h` and the regenerated `contrib/yaml/*.yaml` and `contrib/json/*.json` files together
 
-The generator uses `internal.h` as the single source of truth, automatically creating YAML and JSON outputs for PostgreSQL 13–18. Do not manually edit the generated contrib files.
+The generator uses `internal.h` as the single source of truth, automatically creating YAML and JSON outputs for PostgreSQL 13, 15–18. Do not manually edit the generated contrib files.
 
 ## Editing Grafana Dashboards
 
