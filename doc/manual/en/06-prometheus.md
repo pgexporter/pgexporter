@@ -101,7 +101,7 @@ Reports whether PostgreSQL is running in FIPS mode.
 
 **Detection method varies by PostgreSQL version:**
 
-**PostgreSQL 14-17:**
+**PostgreSQL 15-17:**
 - Uses `pgexporter_ext_fips()` from the pgexporter_ext extension
 - Requires pgexporter_ext to be installed (optional, returns 0 if not installed)
 - Checks the PostgreSQL backend's own OpenSSL (supports OpenSSL 1.1 and 3.0)

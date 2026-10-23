@@ -44,7 +44,7 @@ pgexporter_fips_pgexporter(void);
 
 /**
  * Check if PostgreSQL server is running in FIPS mode
- * Supports PostgreSQL 14+ (14-17 via pgexporter_ext_fips(), 18+ via fips_mode() from pgcrypto)
+ * Supports PostgreSQL 15+ (15-17 via pgexporter_ext_fips(), 18+ via fips_mode() from pgcrypto)
  * @param server The server index
  * @param status Set to true if FIPS mode is active, false otherwise
  * @return 0 on success, 1 on error

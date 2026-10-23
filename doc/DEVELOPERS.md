@@ -393,7 +393,7 @@ When modifying queries or metrics in `src/include/internal.h`:
    ```
 3. Commit both `src/include/internal.h` and the regenerated `contrib/yaml/*.yaml` and `contrib/json/*.json` files together
 
-The generator parses `internal.h` (the single source of truth), validates schemas, and outputs YAML and JSON for PostgreSQL 13–18. Manual edits to contrib files will be detected and rejected by the CI drift check.
+The generator parses `internal.h` (the single source of truth), validates schemas, and outputs YAML and JSON for PostgreSQL 13, 15–18. Manual edits to contrib files will be detected and rejected by the CI drift check.
 
 ### AUTHORS
 

@@ -28,7 +28,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List
 
-SUPPORTED_VERSIONS: List[int] = [13, 14, 15, 16, 17, 18]
+SUPPORTED_VERSIONS: List[int] = [13, 15, 16, 17, 18]
 
 # The template is built from the highest supported version
 TEMPLATE_VERSION: int = SUPPORTED_VERSIONS[-1]
