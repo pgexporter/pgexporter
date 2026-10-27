@@ -1468,11 +1468,12 @@ pgexporter_detect_databases(int server)
    current = query->tuples;
    while (current != NULL)
    {
-      if (config->servers[server].number_of_databases >= NUMBER_OF_DATABASES)
+      /* Keep the last slot for postgres, which the single-database metrics use */
+      if (config->servers[server].number_of_databases >= NUMBER_OF_DATABASES - 1)
       {
          pgexporter_log_warn("Maximum number of databases reached for server %s (%d)",
                              config->servers[server].name, NUMBER_OF_DATABASES);
-         goto error;
+         break;
       }
 
       db_idx = config->servers[server].number_of_databases;
@@ -1485,7 +1486,15 @@ pgexporter_detect_databases(int server)
    }
 
    db_idx = config->servers[server].number_of_databases;
-   strcpy((char*)&config->servers[server].databases[db_idx], "postgres");
+   if (config->servers[server].number_of_databases >= NUMBER_OF_DATABASES)
+   {
+      pgexporter_log_warn("Maximum number of databases reached for server %s (%d)",
+                          config->servers[server].name, NUMBER_OF_DATABASES);
+      goto error;
+   }
+
+   pgexporter_snprintf((char*)&config->servers[server].databases[db_idx],
+                       DB_NAME_LENGTH, "%s", "postgres");
    config->servers[server].number_of_databases++;
 
    pgexporter_log_debug("Server %s: Detected databases:", config->servers[server].name);
