@@ -51,6 +51,7 @@ Dashboards are automatically provisioned - no manual import needed.
 
 - **System Health**: Primary/Replica status, connection count, database sizes
 - **Performance**: Cache hit ratio (with thresholds), tuple operations, locks
+- **I/O Cache Statistics**: Table/index buffer cache hit ratio gauges, table block I/O, index block I/O, sequence block I/O
 - **Query Analysis**: Top executed queries, slowest queries, highest WAL usage
 - **Replication**: WAL archiver status, replication slots, replication slot retained WAL bytes, replication slot WAL headroom
 - **I/O Statistics**: Disk reads, buffer writes, checkpoints

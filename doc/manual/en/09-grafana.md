@@ -163,6 +163,11 @@ Cache Hit Ratio, Disk Reads, Tuple Operations (Select/Insert/Update/Delete), Bac
 
 ![image](../images/grafana_pgexporter_dashboard_perf_indicator.png)
 
+#### I/O Cache Statistics
+Table Buffer Cache Hit Ratio, Table Block I/O (heap and index blocks), Sequence Buffer Cache Hit Ratio, Sequence Block I/O, Index Buffer Cache Hit Ratio, Index Block I/O.
+
+![image](../images/grafana_pgexporter_dashboard_io_cache.png)
+
 #### Query Analysis
 Most Executed Queries, Slowest Queries, Highest WAL Usage Queries, Index Usage (requires `pg_stat_statements`).
 
