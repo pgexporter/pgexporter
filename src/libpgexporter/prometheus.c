@@ -2674,12 +2674,10 @@ append:
                                          "\"");
             }
 
-            safe_key = safe_prometheus_key(metric_val);
             data = pgexporter_vappend(data, 3,
                                       "} ",
-                                      get_value(store[idx].tag, store[idx].name, safe_key),
+                                      get_value(store[idx].tag, store[idx].name, metric_val),
                                       "\n");
-            safe_prometheus_key_free(safe_key);
 
             add_column_to_store(store, idx, data, temp->sort_type, tuple);
 
