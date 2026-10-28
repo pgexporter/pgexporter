@@ -34,7 +34,7 @@ def setup_logging(verbose: bool = False) -> logging.Logger:
     return logging.getLogger(__name__)
 
 
-SUPPORTED_VERSIONS: List[int] = [13, 14, 15, 16, 17, 18]
+SUPPORTED_VERSIONS: List[int] = [13, 14, 15, 16, 17, 18, 19]
 
 
 def extract_internal_yaml(internal_h_path: Path, macro_name: str = 'INTERNAL_YAML') -> str:

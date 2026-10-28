@@ -2440,6 +2440,67 @@ extern "C" {
                       "        - name: stats_reset_seconds\n"                                                                                                                           \
                       "          type: counter\n"                                                                                                                                       \
                       "          description: Seconds since statistics were last reset\n"                                                                                               \
+                      "\n"                                                                                                                                                              \
+                      "    - query: SELECT\n"                                                                                                                                           \
+                      "                subid,\n"                                                                                                                                        \
+                      "                subname,\n"                                                                                                                                      \
+                      "                apply_error_count,\n"                                                                                                                            \
+                      "                sync_seq_error_count,\n"                                                                                                                         \
+                      "                sync_table_error_count,\n"                                                                                                                       \
+                      "                confl_insert_exists,\n"                                                                                                                          \
+                      "                confl_update_origin_differs,\n"                                                                                                                  \
+                      "                confl_update_exists,\n"                                                                                                                          \
+                      "                confl_update_deleted,\n"                                                                                                                         \
+                      "                confl_update_missing,\n"                                                                                                                         \
+                      "                confl_delete_origin_differs,\n"                                                                                                                  \
+                      "                confl_delete_missing,\n"                                                                                                                         \
+                      "                confl_multiple_unique_conflicts,\n"                                                                                                              \
+                      "                EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - stats_reset))::bigint AS stats_reset_seconds\n"                                                          \
+                      "              FROM pg_stat_subscription_stats;\n"                                                                                                                \
+                      "      version: 19\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: subid\n"                                                                                                                                         \
+                      "          type: label\n"                                                                                                                                         \
+                      "          description: Subscription OID\n"                                                                                                                       \
+                      "        - name: subname\n"                                                                                                                                       \
+                      "          type: label\n"                                                                                                                                         \
+                      "          description: Subscription name\n"                                                                                                                      \
+                      "        - name: apply_error_count\n"                                                                                                                             \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of errors during apply\n"                                                                                                          \
+                      "        - name: sync_seq_error_count\n"                                                                                                                          \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of errors during sequence synchronization\n"                                                                                       \
+                      "        - name: sync_table_error_count\n"                                                                                                                        \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of errors during table sync (renamed from sync_error_count in PG19)\n"                                                             \
+                      "        - name: confl_insert_exists\n"                                                                                                                           \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of conflicts where INSERT tried to insert existing row\n"                                                                          \
+                      "        - name: confl_update_origin_differs\n"                                                                                                                   \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of conflicts where UPDATE had different origin\n"                                                                                  \
+                      "        - name: confl_update_exists\n"                                                                                                                           \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of conflicts where UPDATE target already exists\n"                                                                                 \
+                      "        - name: confl_update_deleted\n"                                                                                                                          \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of conflicts where UPDATE target was concurrently deleted\n"                                                                       \
+                      "        - name: confl_update_missing\n"                                                                                                                          \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of conflicts where UPDATE target is missing\n"                                                                                     \
+                      "        - name: confl_delete_origin_differs\n"                                                                                                                   \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of conflicts where DELETE had different origin\n"                                                                                  \
+                      "        - name: confl_delete_missing\n"                                                                                                                          \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of conflicts where DELETE target is missing\n"                                                                                     \
+                      "        - name: confl_multiple_unique_conflicts\n"                                                                                                               \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of conflicts with multiple unique constraint violations\n"                                                                         \
+                      "        - name: stats_reset_seconds\n"                                                                                                                           \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Seconds since statistics were last reset\n"                                                                                               \
                       "    tag: pg_stat_subscription_stats\n"                                                                                                                           \
                       "    sort: data\n"                                                                                                                                                \
                       "    collector: subscription_stats\n"                                                                                                                             \
@@ -3028,6 +3089,93 @@ extern "C" {
                       "    tag: pg_long_running_transactions\n"                                                                                                                         \
                       "    sort: data\n"                                                                                                                                                \
                       "    collector: long_running_txns\n"                                                                                                                              \
+                      "\n"                                                                                                                                                              \
+                      "\n"                                                                                                                                                              \
+                      "#\n"                                                                                                                                                             \
+                      "# PostgreSQL 19\n"                                                                                                                                               \
+                      "#\n"                                                                                                                                                             \
+                      "\n"                                                                                                                                                              \
+                      "# Recovery statistics (standby only)\n"                                                                                                                          \
+                      "  - queries:\n"                                                                                                                                                  \
+                      "    - query: SELECT\n"                                                                                                                                           \
+                      "                promote_triggered,\n"                                                                                                                            \
+                      "                last_replayed_tli,\n"                                                                                                                            \
+                      "                replay_end_tli,\n"                                                                                                                               \
+                      "                pause_state\n"                                                                                                                                   \
+                      "              FROM pg_stat_recovery\n"                                                                                                                           \
+                      "              WHERE promote_triggered IS NOT NULL;\n"                                                                                                            \
+                      "      version: 19\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: promote_triggered\n"                                                                                                                             \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Whether promotion was triggered on this standby\n"                                                                                        \
+                      "        - name: last_replayed_tli\n"                                                                                                                             \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Timeline of the last replayed WAL record\n"                                                                                               \
+                      "        - name: replay_end_tli\n"                                                                                                                                \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Target timeline for WAL replay\n"                                                                                                         \
+                      "        - name: pause_state\n"                                                                                                                                   \
+                      "          type: label\n"                                                                                                                                         \
+                      "          description: Current recovery pause state\n"                                                                                                           \
+                      "    tag: pg_stat_recovery\n"                                                                                                                                     \
+                      "    sort: data\n"                                                                                                                                                \
+                      "    collector: stat_recovery\n"                                                                                                                                  \
+                      "    server: replica\n"                                                                                                                                           \
+                      "\n"                                                                                                                                                              \
+                      "# Table repack / CLUSTER / VACUUM FULL progress\n"                                                                                                               \
+                      "  - queries:\n"                                                                                                                                                  \
+                      "    - query: SELECT\n"                                                                                                                                           \
+                      "                pid,\n"                                                                                                                                          \
+                      "                datname,\n"                                                                                                                                      \
+                      "                command,\n"                                                                                                                                      \
+                      "                phase,\n"                                                                                                                                        \
+                      "                heap_tuples_scanned,\n"                                                                                                                          \
+                      "                heap_tuples_inserted,\n"                                                                                                                         \
+                      "                heap_tuples_updated,\n"                                                                                                                          \
+                      "                heap_tuples_deleted,\n"                                                                                                                          \
+                      "                heap_blks_total,\n"                                                                                                                              \
+                      "                heap_blks_scanned,\n"                                                                                                                            \
+                      "                index_rebuild_count\n"                                                                                                                           \
+                      "              FROM pg_stat_progress_repack;\n"                                                                                                                   \
+                      "      version: 19\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: pid\n"                                                                                                                                           \
+                      "          type: label\n"                                                                                                                                         \
+                      "          description: PID of the backend running the repack\n"                                                                                                  \
+                      "        - name: datname\n"                                                                                                                                       \
+                      "          type: label\n"                                                                                                                                         \
+                      "          description: Name of the database\n"                                                                                                                   \
+                      "        - name: command\n"                                                                                                                                       \
+                      "          type: label\n"                                                                                                                                         \
+                      "          description: Operation being performed (CLUSTER, REPACK, VACUUM FULL)\n"                                                                               \
+                      "        - name: phase\n"                                                                                                                                         \
+                      "          type: label\n"                                                                                                                                         \
+                      "          description: Current phase of the repack operation\n"                                                                                                  \
+                      "        - name: heap_tuples_scanned\n"                                                                                                                           \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Number of heap tuples scanned so far\n"                                                                                                   \
+                      "        - name: heap_tuples_inserted\n"                                                                                                                          \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Number of heap tuples inserted so far\n"                                                                                                  \
+                      "        - name: heap_tuples_updated\n"                                                                                                                           \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Number of heap tuples updated so far\n"                                                                                                   \
+                      "        - name: heap_tuples_deleted\n"                                                                                                                           \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Number of heap tuples deleted so far\n"                                                                                                   \
+                      "        - name: heap_blks_total\n"                                                                                                                               \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Total number of heap blocks to process\n"                                                                                                 \
+                      "        - name: heap_blks_scanned\n"                                                                                                                             \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Number of heap blocks scanned so far\n"                                                                                                   \
+                      "        - name: index_rebuild_count\n"                                                                                                                           \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Number of indexes rebuilt so far\n"                                                                                                       \
+                      "    tag: pg_stat_progress_repack\n"                                                                                                                              \
+                      "    sort: data\n"                                                                                                                                                \
+                      "    collector: stat_progress_repack\n"                                                                                                                           \
                       "\n"
 
 #define INTERNAL_ALERTS_YAML ""                                                                                                                                                  \
