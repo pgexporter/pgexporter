@@ -123,7 +123,7 @@ See a [sample](./etc/pgexporter.conf) configuration for running `pgexporter` on 
 | tls_ca_file | | String | No | All | Certificate Authority (CA) file for TLS. This file must be owned by either the user running pgexporter or root. Can interpolate environment variables (e.g., `$HOME`) |
 | extensions | | String | No | PostgreSQL | Comma-separated list of extensions to enable for this specific server. Overrides global extensions setting. If specified, only listed extensions will be enabled. If empty, all extensions are disabled for this server. |
 
-Note, that PostgreSQL 13+ is required for PostgreSQL servers.
+Note, that PostgreSQL 15+ is required for PostgreSQL servers.
 
 Note, that if `host` starts with a `/` it represents a path and `pgexporter` will connect using a Unix Domain Socket.
 

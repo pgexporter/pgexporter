@@ -192,7 +192,7 @@ Set `password_encryption` value in `/tmp/pgsql/postgresql.conf` to be `scram-sha
 password_encryption = scram-sha-256
 ```
 
-For version 13, the default `password_encryption` is `md5`, while for version 14 and above, it is `scram-sha-256`. **Note:** pgexporter no longer supports MD5 authentication. You **must** set `password_encryption = scram-sha-256` in `postgresql.conf` and use `scram-sha-256` in `pg_hba.conf` for all PostgreSQL versions.
+Supported PostgreSQL versions (15 and later) default to `scram-sha-256` for `password_encryption`. **Note:** pgexporter does not support MD5 authentication. Set `password_encryption = scram-sha-256` in `postgresql.conf` and use `scram-sha-256` in `pg_hba.conf`.
 
 #### Start PostgreSQL
 
@@ -393,7 +393,7 @@ When modifying queries or metrics in `src/include/internal.h`:
    ```
 3. Commit both `src/include/internal.h` and the regenerated `contrib/yaml/*.yaml` and `contrib/json/*.json` files together
 
-The generator parses `internal.h` (the single source of truth), validates schemas, and outputs YAML and JSON for PostgreSQL 13, 15–18. Manual edits to contrib files will be detected and rejected by the CI drift check.
+The generator parses `internal.h` (the single source of truth), validates schemas, and outputs YAML and JSON for PostgreSQL 15–18. Manual edits to contrib files will be detected and rejected by the CI drift check.
 
 ### AUTHORS
 
