@@ -5,7 +5,7 @@ Generate versioned Grafana dashboard JSON files from a single annotated template
 The template (postgresql_dashboard.json) is the superset dashboard containing
 all panels across every supported PostgreSQL version.  Panels that require a
 minimum PostgreSQL version carry a "version" field (e.g. "version": 14).
-Panels without this field are available from PostgreSQL 13 onward.
+Panels without this field are included in all supported-version dashboards (PostgreSQL 15+).
 
 For each target PostgreSQL version the script:
   1. Filters out panels whose "version" exceeds the target.
@@ -28,7 +28,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List
 
-SUPPORTED_VERSIONS: List[int] = [13, 15, 16, 17, 18]
+SUPPORTED_VERSIONS: List[int] = [15, 16, 17, 18]
 
 # The template is built from the highest supported version
 TEMPLATE_VERSION: int = SUPPORTED_VERSIONS[-1]
