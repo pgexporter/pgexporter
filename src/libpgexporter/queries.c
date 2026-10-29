@@ -1327,6 +1327,7 @@ process_server_parameters(int server, struct deque* server_parameters)
    int status = 0;
    int major = 0;
    int minor = 0;
+   int parsed = 0;
    struct deque_iterator* iter = NULL;
    struct configuration* config;
 
@@ -1342,10 +1343,13 @@ process_server_parameters(int server, struct deque* server_parameters)
       if (!strcmp("server_version", iter->tag))
       {
          char* server_version = pgexporter_value_to_string(iter->value, FORMAT_TEXT, NULL, 0);
-         if (sscanf(server_version, "%d.%d", &major, &minor) == 2)
+         parsed = sscanf(server_version, "%d.%d", &major, &minor);
+
+         /* Pre-release builds report only the major version, e.g. "19beta1", "19rc1" or "19devel" */
+         if (parsed >= 1)
          {
             config->servers[server].version = major;
-            config->servers[server].minor_version = minor;
+            config->servers[server].minor_version = parsed == 2 ? minor : 0;
          }
          else
          {
