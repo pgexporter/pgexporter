@@ -136,9 +136,8 @@ You could also use pgexporter dashboards which are available in [contrib/grafana
 
 ![image](../images/grafana_import_dashboard.png)
 
-We provide 5 version-specific dashboards to support the unique features of each PostgreSQL version:
+We provide 4 version-specific dashboards to support the unique features of each PostgreSQL version:
 
-*   `postgresql_dashboard_pg13.json`
 *   `postgresql_dashboard_pg15.json` (+ Memory Contexts)
 *   `postgresql_dashboard_pg16.json` (+ pg_stat_io)
 *   `postgresql_dashboard_pg17.json` (+ Wait Events)

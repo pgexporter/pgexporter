@@ -67,7 +67,7 @@ Use this checklist to verify all dashboard features work correctly.
 ###  Dashboard Provisioning
 
 - [ ] **Folder exists**: "pgexporter" folder appears in Grafana sidebar
-- [ ] **All dashboards present**: 5 dashboards (PG13, PG15-PG18) appear in the folder
+- [ ] **All dashboards present**: 4 dashboards (PG15-PG18) appear in the folder
 - [ ] **No import errors**: Dashboards load without "JSON parsing error" messages
 - [ ] **Home dashboard**: PG18 dashboard loads as the default home
 
