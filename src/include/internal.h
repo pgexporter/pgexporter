@@ -1395,6 +1395,59 @@ extern "C" {
                       "    sort: data\n"                                                                                                                                                \
                       "    collector: analyze_progress\n"                                                                                                                               \
                       "\n"                                                                                                                                                              \
+                      "# Index creation progress information\n"                                                                                                                         \
+                      "  - queries:\n"                                                                                                                                                  \
+                      "    - query: SELECT\n"                                                                                                                                           \
+                      "                pid,\n"                                                                                                                                          \
+                      "                COALESCE(datname, '') AS database,\n"                                                                                                            \
+                      "                COALESCE(relid::regclass::text, '') AS relation,\n"                                                                                              \
+                      "                COALESCE(index_relid::regclass::text, '') AS index_name,\n"                                                                                      \
+                      "                command,\n"                                                                                                                                      \
+                      "                phase,\n"                                                                                                                                        \
+                      "                lockers_total,\n"                                                                                                                                \
+                      "                lockers_done,\n"                                                                                                                                 \
+                      "                blocks_total,\n"                                                                                                                                 \
+                      "                blocks_done,\n"                                                                                                                                  \
+                      "                tuples_total,\n"                                                                                                                                 \
+                      "                tuples_done\n"                                                                                                                                   \
+                      "              FROM pg_stat_progress_create_index\n"                                                                                                              \
+                      "              ORDER BY pid;\n"                                                                                                                                   \
+                      "      version: 12\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: pid\n"                                                                                                                                           \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: database\n"                                                                                                                                      \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: relation\n"                                                                                                                                      \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: index_name\n"                                                                                                                                    \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: command\n"                                                                                                                                       \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: phase\n"                                                                                                                                         \
+                      "          type: label\n"                                                                                                                                         \
+                      "        - name: lockers_total\n"                                                                                                                                 \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Total number of lockers affecting index creation\n"                                                                                       \
+                      "        - name: lockers_done\n"                                                                                                                                  \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Number of lockers already processed\n"                                                                                                    \
+                      "        - name: blocks_total\n"                                                                                                                                  \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Total number of blocks to process\n"                                                                                                      \
+                      "        - name: blocks_done\n"                                                                                                                                   \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Number of blocks already processed\n"                                                                                                     \
+                      "        - name: tuples_total\n"                                                                                                                                  \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Total number of tuples to process\n"                                                                                                      \
+                      "        - name: tuples_done\n"                                                                                                                                   \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Number of tuples already processed\n"                                                                                                     \
+                      "    tag: pg_stat_progress_create_index\n"                                                                                                                        \
+                      "    sort: data\n"                                                                                                                                                \
+                      "    collector: create_index_progress\n"                                                                                                                          \
+                      "\n"                                                                                                                                                              \
                       "# Table-level vacuum and analyze statistics\n"                                                                                                                   \
                       "  - queries:\n"                                                                                                                                                  \
                       "    - query: SELECT\n"                                                                                                                                           \

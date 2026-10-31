@@ -5693,6 +5693,90 @@ Total time (milliseconds) spent in analyze delay/throttling for currently runnin
 | database | The database being monitored. |
 | pid | Process ID of the analyze operation. |
 
+## pgexporter_pg_stat_progress_create_index_lockers_total
+
+Total number of lockers affecting index creation, from `pg_stat_progress_create_index`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pid | Process ID of the index creation operation. |
+| database | The database being monitored. |
+| relation | Relation being indexed. |
+| index_name | Index being created. |
+| command | Index creation command. |
+| phase | Current phase of index creation. |
+
+## pgexporter_pg_stat_progress_create_index_lockers_done
+
+Number of lockers already processed during index creation, from `pg_stat_progress_create_index`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pid | Process ID of the index creation operation. |
+| database | The database being monitored. |
+| relation | Relation being indexed. |
+| index_name | Index being created. |
+| command | Index creation command. |
+| phase | Current phase of index creation. |
+
+## pgexporter_pg_stat_progress_create_index_blocks_total
+
+Total number of blocks to process during index creation, from `pg_stat_progress_create_index`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pid | Process ID of the index creation operation. |
+| database | The database being monitored. |
+| relation | Relation being indexed. |
+| index_name | Index being created. |
+| command | Index creation command. |
+| phase | Current phase of index creation. |
+
+## pgexporter_pg_stat_progress_create_index_blocks_done
+
+Number of blocks already processed during index creation, from `pg_stat_progress_create_index`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pid | Process ID of the index creation operation. |
+| database | The database being monitored. |
+| relation | Relation being indexed. |
+| index_name | Index being created. |
+| command | Index creation command. |
+| phase | Current phase of index creation. |
+
+## pgexporter_pg_stat_progress_create_index_tuples_total
+
+Total number of tuples to process during index creation, from `pg_stat_progress_create_index`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pid | Process ID of the index creation operation. |
+| database | The database being monitored. |
+| relation | Relation being indexed. |
+| index_name | Index being created. |
+| command | Index creation command. |
+| phase | Current phase of index creation. |
+
+## pgexporter_pg_stat_progress_create_index_tuples_done
+
+Number of tuples already processed during index creation, from `pg_stat_progress_create_index`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| pid | Process ID of the index creation operation. |
+| database | The database being monitored. |
+| relation | Relation being indexed. |
+| index_name | Index being created. |
+| command | Index creation command. |
+| phase | Current phase of index creation. |
+
 ## pgexporter_pg_stat_subscription_stats_confl_insert_exists
 
 Number of conflicts where INSERT tried to insert an existing row in logical replication, from `pg_stat_subscription_stats`.
