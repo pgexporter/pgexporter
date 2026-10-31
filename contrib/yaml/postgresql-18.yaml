@@ -671,6 +671,43 @@ metrics:
     - name: pct_child_tables_completed
       type: gauge
       description: Percentage of child tables completed
+- tag: pg_stat_progress_create_index
+  collector: create_index_progress
+  sort: data
+  queries:
+  - query: SELECT pid, COALESCE(datname, '') AS database, COALESCE(relid::regclass::text, '') AS relation, COALESCE(index_relid::regclass::text, '') AS index_name, command, phase, lockers_total, lockers_done, blocks_total, blocks_done, tuples_total, tuples_done FROM pg_stat_progress_create_index ORDER BY pid;
+    version: 12
+    columns:
+    - name: pid
+      type: label
+    - name: database
+      type: label
+    - name: relation
+      type: label
+    - name: index_name
+      type: label
+    - name: command
+      type: label
+    - name: phase
+      type: label
+    - name: lockers_total
+      type: gauge
+      description: Total number of lockers affecting index creation
+    - name: lockers_done
+      type: gauge
+      description: Number of lockers already processed
+    - name: blocks_total
+      type: gauge
+      description: Total number of blocks to process
+    - name: blocks_done
+      type: gauge
+      description: Number of blocks already processed
+    - name: tuples_total
+      type: gauge
+      description: Total number of tuples to process
+    - name: tuples_done
+      type: gauge
+      description: Number of tuples already processed
 - tag: pg_stat_user_tables_vacuum
   collector: stat_user_tables
   sort: data
