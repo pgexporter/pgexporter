@@ -114,7 +114,7 @@ pgexporter_cache_append(struct prometheus_cache* cache, char* data)
 
    if (origin_length + append_length >= cache->size)
    {
-      pgexporter_log_debug("Cannot append %d bytes to the cache because it will overflow the size of %d bytes (currently at %d bytes).",
+      pgexporter_log_debug("Cannot append %zu bytes to the cache because it will overflow the size of %zu bytes (currently at %zu bytes).",
                            append_length,
                            cache->size,
                            origin_length);

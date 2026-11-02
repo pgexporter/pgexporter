@@ -452,7 +452,7 @@ pgexporter_append(char* orig, char* s);
  * @return The resulting string
  */
 char*
-pgexporter_format_and_append(char* buf, char* format, ...);
+pgexporter_format_and_append(char* buf, char* format, ...) __attribute__((format(printf, 2, 3)));
 
 /**
  * Append an integer
