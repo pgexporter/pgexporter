@@ -476,10 +476,10 @@ retry_cache_locking:
       if (is_metrics_cache_configured() && is_metrics_cache_valid())
       {
          // serve the message directly out of the cache
-         pgexporter_log_debug("Serving metrics out of cache (%d/%d bytes valid until %lld)",
+         pgexporter_log_debug("Serving metrics out of cache (%zu/%zu bytes valid until %lld)",
                               strlen(cache->data),
                               cache->size,
-                              cache->valid_until);
+                              (long long)cache->valid_until);
 
          msg.kind = 0;
          msg.length = strlen(cache->data);

@@ -140,7 +140,7 @@ pgexporter_transfer_connection_read(int client_fd, int* server, int* fd)
    memset(&buf4[0], 0, sizeof(buf4));
    if (read_complete(NULL, client_fd, &buf4, sizeof(buf4)))
    {
-      pgexporter_log_warn("pgexporter_transfer_connection_read: %d %s", socket, strerror(errno));
+      pgexporter_log_warn("pgexporter_transfer_connection_read: %d %s", client_fd, strerror(errno));
       errno = 0;
       goto error;
    }
