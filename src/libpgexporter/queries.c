@@ -211,7 +211,7 @@ pgexporter_open_connections(void)
          }
          else
          {
-            pgexporter_log_error("Failed login for '%s' on server '%s'", &config->users[user].username, &config->servers[server].name);
+            pgexporter_log_error("Failed login for '%s' on server '%s'", config->users[user].username, config->servers[server].name);
          }
       }
    }

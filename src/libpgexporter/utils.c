@@ -2694,7 +2694,7 @@ pgexporter_backtrace(void)
 
    if (s != NULL)
    {
-      pgexporter_log_debug(s);
+      pgexporter_log_debug("%s", s);
    }
 
    free(s);

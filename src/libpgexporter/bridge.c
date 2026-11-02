@@ -295,8 +295,8 @@ retry_cache_locking:
       if (is_bridge_cache_configured() && is_bridge_cache_valid())
       {
          // serve the message directly out of the cache
-         pgexporter_log_debug("Serving bridge out of cache (%d/%d bytes valid until %lld)",
-                              strlen(cache->data), cache->size, cache->valid_until);
+         pgexporter_log_debug("Serving bridge out of cache (%zu/%zu bytes valid until %lld)",
+                              strlen(cache->data), cache->size, (long long)cache->valid_until);
 
          status = pgexporter_http_respond_chunked_start(ssl, fd, "text/plain; charset=utf-8");
          if (status != MESSAGE_STATUS_OK)
@@ -642,7 +642,7 @@ bridge_json_cache_set(char* data)
    }
    else
    {
-      pgexporter_log_warn("Bridge/JSON: The data won't fit - %lld > %lld", strlen(data), cache->size);
+      pgexporter_log_warn("Bridge/JSON: The data won't fit - %zu > %zu", strlen(data), cache->size);
    }
 
    return true;
