@@ -90,6 +90,10 @@ pgexporter_transfer_connection_write(int server)
    iov[0].iov_len = sizeof(buf2);
 
    cmptr = malloc(CMSG_SPACE(sizeof(int)));
+   if (cmptr == NULL)
+   {
+      goto error;
+   }
    memset(cmptr, 0, CMSG_SPACE(sizeof(int)));
    cmptr->cmsg_level = SOL_SOCKET;
    cmptr->cmsg_type = SCM_RIGHTS;
@@ -153,6 +157,10 @@ pgexporter_transfer_connection_read(int client_fd, int* server, int* fd)
    iov[0].iov_len = sizeof(buf2);
 
    cmptr = malloc(CMSG_SPACE(sizeof(int)));
+   if (cmptr == NULL)
+   {
+      goto error;
+   }
    memset(cmptr, 0, CMSG_SPACE(sizeof(int)));
    cmptr->cmsg_len = CMSG_LEN(sizeof(int));
    cmptr->cmsg_level = SOL_SOCKET;
