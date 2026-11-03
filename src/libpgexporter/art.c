@@ -133,22 +133,22 @@ node_get_child(struct art_node* node, unsigned char ch);
 static struct art_leaf*
 node_get_minimum(struct art_node* node);
 
-static void
+static int
 create_art_leaf(struct art_leaf** leaf, unsigned char* key, uint32_t key_len, uintptr_t value, enum value_type type, struct value_config* config);
 
-static void
+static int
 create_art_node(struct art_node** node, enum art_node_type type);
 
-static void
+static int
 create_art_node4(struct art_node4** node);
 
-static void
+static int
 create_art_node16(struct art_node16** node);
 
-static void
+static int
 create_art_node48(struct art_node48** node);
 
-static void
+static int
 create_art_node256(struct art_node256** node);
 
 // Destroy ART nodes/leaves recursively
@@ -311,6 +311,10 @@ pgexporter_art_create(struct art** tree)
 {
    struct art* t = NULL;
    t = malloc(sizeof(struct art));
+   if (t == NULL)
+   {
+      return 1;
+   }
    t->size = 0;
    t->root = NULL;
    *tree = t;
@@ -569,11 +573,15 @@ min(uint32_t a, uint32_t b)
    return a;
 }
 
-static void
+static int
 create_art_leaf(struct art_leaf** leaf, unsigned char* key, uint32_t key_len, uintptr_t value, enum value_type type, struct value_config* config)
 {
    struct art_leaf* l = NULL;
    l = malloc(sizeof(struct art_leaf) + key_len);
+   if (l == NULL)
+   {
+      return 1;
+   }
    memset(l, 0, sizeof(struct art_leaf) + key_len);
    if (config != NULL)
    {
@@ -587,9 +595,10 @@ create_art_leaf(struct art_leaf** leaf, unsigned char* key, uint32_t key_len, ui
    l->key_len = key_len;
    memcpy(l->key, key, key_len);
    *leaf = l;
+   return 0;
 }
 
-static void
+static int
 create_art_node(struct art_node** node, enum art_node_type type)
 {
    struct art_node* n = NULL;
@@ -598,6 +607,10 @@ create_art_node(struct art_node** node, enum art_node_type type)
       case Node4:
       {
          struct art_node4* n4 = malloc(sizeof(struct art_node4));
+         if (n4 == NULL)
+         {
+            return 1;
+         }
          memset(n4, 0, sizeof(struct art_node4));
          n4->node.type = Node4;
          n = (struct art_node*)n4;
@@ -606,6 +619,10 @@ create_art_node(struct art_node** node, enum art_node_type type)
       case Node16:
       {
          struct art_node16* n16 = malloc(sizeof(struct art_node16));
+         if (n16 == NULL)
+         {
+            return 1;
+         }
          memset(n16, 0, sizeof(struct art_node16));
          n16->node.type = Node16;
          n = (struct art_node*)n16;
@@ -614,6 +631,10 @@ create_art_node(struct art_node** node, enum art_node_type type)
       case Node48:
       {
          struct art_node48* n48 = malloc(sizeof(struct art_node48));
+         if (n48 == NULL)
+         {
+            return 1;
+         }
          memset(n48, 0, sizeof(struct art_node48));
          n48->node.type = Node48;
          n = (struct art_node*)n48;
@@ -622,6 +643,10 @@ create_art_node(struct art_node** node, enum art_node_type type)
       case Node256:
       {
          struct art_node256* n256 = malloc(sizeof(struct art_node256));
+         if (n256 == NULL)
+         {
+            return 1;
+         }
          memset(n256, 0, sizeof(struct art_node256));
          n256->node.type = Node256;
          n = (struct art_node*)n256;
@@ -629,38 +654,55 @@ create_art_node(struct art_node** node, enum art_node_type type)
       }
    }
    *node = n;
+   return 0;
 }
 
-static void
+static int
 create_art_node4(struct art_node4** node)
 {
    struct art_node* n = NULL;
-   create_art_node(&n, Node4);
+   if (create_art_node(&n, Node4) != 0)
+   {
+      return 1;
+   }
    *node = (struct art_node4*)n;
+   return 0;
 }
 
-static void
+static int
 create_art_node16(struct art_node16** node)
 {
    struct art_node* n = NULL;
-   create_art_node(&n, Node16);
+   if (create_art_node(&n, Node16) != 0)
+   {
+      return 1;
+   }
    *node = (struct art_node16*)n;
+   return 0;
 }
 
-static void
+static int
 create_art_node48(struct art_node48** node)
 {
    struct art_node* n = NULL;
-   create_art_node(&n, Node48);
+   if (create_art_node(&n, Node48) != 0)
+   {
+      return 1;
+   }
    *node = (struct art_node48*)n;
+   return 0;
 }
 
-static void
+static int
 create_art_node256(struct art_node256** node)
 {
    struct art_node* n = NULL;
-   create_art_node(&n, Node256);
+   if (create_art_node(&n, Node256) != 0)
+   {
+      return 1;
+   }
    *node = (struct art_node256*)n;
+   return 0;
 }
 
 static void
@@ -787,7 +829,10 @@ art_node_insert(struct art_node* node, struct art_node** node_ref, uint32_t dept
    {
       // Lazy expansion, skip creating an inner node since it currently will have only this one leaf.
       // We will compare keys when reach leaf anyway, the path doesn't need to 100% match the key along the way
-      create_art_leaf(&leaf, key, key_len, value, type, config);
+      if (create_art_leaf(&leaf, key, key_len, value, type, config) != 0)
+      {
+         return NULL;
+      }
       *node_ref = SET_LEAF(leaf);
       *new = true;
       return NULL;
@@ -816,8 +861,15 @@ art_node_insert(struct art_node* node, struct art_node** node_ref, uint32_t dept
       // we compare with the existing key in the left most leaf and find an exact diverging point to split the node (see details below).
       // This way we inductively guarantee that all children to a parent share the same prefix even if it's only partially stored
       leaf_key = GET_LEAF(node)->key;
-      create_art_node(&new_node, Node4);
-      create_art_leaf(&leaf, key, key_len, value, type, config);
+      if (create_art_node(&new_node, Node4) != 0)
+      {
+         return NULL;
+      }
+      if (create_art_leaf(&leaf, key, key_len, value, type, config) != 0)
+      {
+         free(new_node);
+         return NULL;
+      }
       // Get the diverging index after point of depth
       for (idx = depth; idx < min(key_len, GET_LEAF(node)->key_len); idx++)
       {
@@ -858,8 +910,15 @@ art_node_insert(struct art_node* node, struct art_node** node_ref, uint32_t dept
    if (diff_len < node->prefix_len)
    {
       // case 2, split the node
-      create_art_node(&new_node, Node4);
-      create_art_leaf(&leaf, key, key_len, value, type, config);
+      if (create_art_node(&new_node, Node4) != 0)
+      {
+         return NULL;
+      }
+      if (create_art_leaf(&leaf, key, key_len, value, type, config) != 0)
+      {
+         free(new_node);
+         return NULL;
+      }
       new_node->prefix_len = diff_len;
       memcpy(new_node->prefix, node->prefix, min(MAX_PREFIX_LEN, diff_len));
       // We need to know if new bytes that were once outside the partial prefix range will now come into the range
@@ -910,7 +969,11 @@ art_node_insert(struct art_node* node, struct art_node** node_ref, uint32_t dept
       else
       {
          // add a child to current node since the spot is available
-         create_art_leaf(&leaf, key, key_len, value, type, config);
+         if (create_art_leaf(&leaf, key, key_len, value, type, config) != 0)
+         {
+            free(new_node);
+            return NULL;
+         }
          node_add_child(node, node_ref, key[depth], SET_LEAF(leaf));
          *new = true;
          return NULL;
@@ -1102,7 +1165,10 @@ node4_add_child(struct art_node4* node, struct art_node** node_ref, unsigned cha
    {
       // expand
       struct art_node16* new_node = NULL;
-      create_art_node16(&new_node);
+      if (create_art_node16(&new_node) != 0)
+      {
+         return;
+      }
       copy_header((struct art_node*)new_node, (struct art_node*)node);
       memcpy(new_node->children, node->children, node->node.num_children * sizeof(void*));
       memcpy(new_node->keys, node->keys, node->node.num_children);
@@ -1132,7 +1198,10 @@ node16_add_child(struct art_node16* node, struct art_node** node_ref, unsigned c
    {
       // expand
       struct art_node48* new_node = NULL;
-      create_art_node48(&new_node);
+      if (create_art_node48(&new_node) != 0)
+      {
+         return;
+      }
       copy_header((struct art_node*)new_node, (struct art_node*)node);
       memcpy(new_node->children, node->children, node->node.num_children * sizeof(void*));
       for (int i = 0; i < node->node.num_children; i++)
@@ -1165,7 +1234,10 @@ node48_add_child(struct art_node48* node, struct art_node** node_ref, unsigned c
    {
       // expand
       struct art_node256* new_node = NULL;
-      create_art_node256(&new_node);
+      if (create_art_node256(&new_node) != 0)
+      {
+         return;
+      }
       copy_header((struct art_node*)new_node, (struct art_node*)node);
       for (int i = 0; i < 256; i++)
       {
@@ -1410,7 +1482,10 @@ node16_remove_child(struct art_node16* node, struct art_node** node_ref, unsigne
    // Trick from libart, do not downgrade immediately to avoid jumping on 4/5 boundary
    if (node->node.num_children <= 3)
    {
-      create_art_node4(&new_node);
+      if (create_art_node4(&new_node) != 0)
+      {
+         return;
+      }
       copy_header((struct art_node*)new_node, (struct art_node*)node);
       memcpy(new_node->keys, node->keys, node->node.num_children);
       memcpy(new_node->children, node->children, node->node.num_children * sizeof(void*));
@@ -1431,7 +1506,10 @@ node48_remove_child(struct art_node48* node, struct art_node** node_ref, unsigne
 
    if (node->node.num_children <= 12)
    {
-      create_art_node16(&new_node);
+      if (create_art_node16(&new_node) != 0)
+      {
+         return;
+      }
       copy_header((struct art_node*)new_node, (struct art_node*)node);
       for (int i = 0; i < 256; i++)
       {
@@ -1469,7 +1547,10 @@ node256_remove_child(struct art_node256* node, struct art_node** node_ref, unsig
 
    if (node->node.num_children <= 37)
    {
-      create_art_node48(&new_node);
+      if (create_art_node48(&new_node) != 0)
+      {
+         return;
+      }
       copy_header((struct art_node*)new_node, (struct art_node*)node);
       for (int i = 0; i < 256; i++)
       {
@@ -1494,6 +1575,10 @@ pgexporter_art_iterator_create(struct art* t, struct art_iterator** iter)
       return 1;
    }
    i = malloc(sizeof(struct art_iterator));
+   if (i == NULL)
+   {
+      return 1;
+   }
    i->count = 0;
    i->tree = t;
    i->key = NULL;
