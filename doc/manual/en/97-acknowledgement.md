@@ -49,6 +49,7 @@ Hanu-man12 <shawharshit116@gmail.com>
 R Sai Pranav <rajasaipranav0@gmail.com>
 Shubham Kapoor <165891311+shubhamk0205@users.noreply.github.com>
 Hardik Kaurani <hardikkaurani1@gmail.com>
+Ameya Gupta <ameya7072@gmail.com>
 ```
 
 ## Committers
