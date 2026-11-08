@@ -101,7 +101,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   message(STATUS "Detected macOS with Homebrew prefix: ${HOMEBREW_PREFIX}")
   
   set(CMAKE_PREFIX_PATH "${HOMEBREW_PREFIX}" ${CMAKE_PREFIX_PATH})
-  include_directories("${HOMEBREW_PREFIX}/include")
   link_directories("${HOMEBREW_PREFIX}/lib")
   
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_DARWIN_C_SOURCE -I${HOMEBREW_PREFIX}/include")
