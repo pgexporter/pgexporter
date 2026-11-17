@@ -30,6 +30,11 @@
 #include <pgexporter.h>
 #include <configuration.h>
 #include <json.h>
+#include <logging.h>
+#include <err.h>
+#include <sys/stat.h>
+#include <security.h>
+#include <aes.h>
 #include <management.h>
 #include <network.h>
 #include <shmem.h>
@@ -40,9 +45,9 @@
 
 #include <mctf.h>
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <stdlib.h>
 
 MCTF_TEST(test_configuration_time_format_output)
 {
@@ -588,5 +593,213 @@ MCTF_TEST(test_configuration_internal_metrics_subscription)
 
 cleanup:
    pgexporter_test_config_restore();
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_configuration_reload_time_logging)
+{
+   char test_home[] = "/tmp/pgexporter_reload_home_XXXXXX";
+   char dir_path[MAX_PATH];
+   char key_path[MAX_PATH];
+   char conf_path[] = "/tmp/pgexporter_reload_conf_XXXXXX";
+   char users_path[] = "/tmp/pgexporter_reload_users_XXXXXX";
+   char log_path[] = "/tmp/pgexporter_reload_log_XXXXXX";
+   bool home_created = false;
+   int conf_fd = -1;
+   int users_fd = -1;
+   int log_fd = -1;
+   FILE* f = NULL;
+   char* master_key = NULL;
+   unsigned char* master_salt = NULL;
+   char* encrypted = NULL;
+   int encrypted_length = 0;
+   char* encoded = NULL;
+   size_t encoded_length = 0;
+   struct configuration* config = NULL;
+   bool restart_required = false;
+   char log_buf[32768];
+   size_t nread = 0;
+
+   MCTF_ASSERT_PTR_NONNULL(mkdtemp(test_home), cleanup, "mkdtemp failed for test_home");
+   home_created = true;
+   setenv("PGEXPORTER_HOME", test_home, 1);
+
+   pgexporter_snprintf(dir_path, sizeof(dir_path), "%s/.pgexporter", test_home);
+   MCTF_ASSERT_INT_EQ(mkdir(dir_path, S_IRWXU), 0, cleanup, "mkdir failed for .pgexporter");
+
+   pgexporter_snprintf(key_path, sizeof(key_path), "%s/master.key", dir_path);
+   f = fopen(key_path, "w");
+   MCTF_ASSERT_PTR_NONNULL(f, cleanup, "fopen failed for master.key");
+   fprintf(f, "masterkey123\nAAAAAAAAAAAAAAAAAAAAAA==\n");
+   fclose(f);
+   f = NULL;
+   MCTF_ASSERT_INT_EQ(chmod(key_path, S_IRUSR | S_IWUSR), 0, cleanup, "chmod failed for master.key");
+
+   MCTF_ASSERT_INT_EQ(pgexporter_get_master_key_and_salt(&master_key, &master_salt, NULL), 0,
+                      cleanup, "pgexporter_get_master_key_and_salt failed");
+   pgexporter_set_master_salt(master_salt);
+
+   MCTF_ASSERT_INT_EQ(pgexporter_encrypt("pgexporter", master_key, &encrypted, &encrypted_length, ENCRYPTION_AES_256_GCM), 0,
+                      cleanup, "pgexporter_encrypt failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_base64_encode(encrypted, encrypted_length, &encoded, &encoded_length), 0,
+                      cleanup, "pgexporter_base64_encode failed");
+
+   conf_fd = mkstemp(conf_path);
+   MCTF_ASSERT(conf_fd != -1, cleanup, "mkstemp failed for conf_path");
+   close(conf_fd);
+
+   users_fd = mkstemp(users_path);
+   MCTF_ASSERT(users_fd != -1, cleanup, "mkstemp failed for users_path");
+   close(users_fd);
+
+   log_fd = mkstemp(log_path);
+   MCTF_ASSERT(log_fd != -1, cleanup, "mkstemp failed for log_path");
+   close(log_fd);
+
+   f = fopen(users_path, "w");
+   MCTF_ASSERT_PTR_NONNULL(f, cleanup, "fopen failed for users_path");
+   fprintf(f, "pgexporter:%s\n", encoded);
+   fclose(f);
+   f = NULL;
+
+   f = fopen(conf_path, "w");
+   MCTF_ASSERT_PTR_NONNULL(f, cleanup, "fopen failed for conf_path");
+   fprintf(f,
+           "[pgexporter]\n"
+           "host = localhost\n"
+           "metrics = 5002\n"
+           "unix_socket_dir = /tmp\n"
+           "pidfile = /tmp/pgexporter_reload_test.pid\n"
+           "log_type = file\n"
+           "log_level = debug5\n"
+           "log_path = %s\n"
+           "metrics_cache_max_age = 10s\n"
+           "metrics_query_timeout = 5s\n"
+           "bridge_cache_max_age = 15s\n"
+           "history_interval = 1m\n"
+           "history_retention = 1h\n"
+           "bridge_history_interval = 2m\n"
+           "bridge_history_retention = 2h\n"
+           "blocking_timeout = 30s\n"
+           "authentication_timeout = 5s\n"
+           "\n"
+           "[primary]\n"
+           "host = localhost\n"
+           "port = 5432\n"
+           "user = pgexporter\n",
+           log_path);
+   fclose(f);
+   f = NULL;
+
+   MCTF_ASSERT_INT_EQ(pgexporter_create_shared_memory(sizeof(struct configuration), HUGEPAGE_OFF, &shmem), 0,
+                      cleanup, "failed to create shared memory");
+   pgexporter_init_configuration(shmem);
+   config = (struct configuration*)shmem;
+
+   memcpy(config->configuration_path, conf_path, strlen(conf_path));
+   memcpy(config->users_path, users_path, strlen(users_path));
+
+   MCTF_ASSERT_INT_EQ(pgexporter_read_configuration(shmem, conf_path), 0,
+                      cleanup, "initial pgexporter_read_configuration failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_read_users_configuration(shmem, users_path), 0,
+                      cleanup, "initial pgexporter_read_users_configuration failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_validate_configuration(shmem), 0,
+                      cleanup, "initial pgexporter_validate_configuration failed");
+   MCTF_ASSERT_INT_EQ(pgexporter_start_logging(), 0,
+                      cleanup, "pgexporter_start_logging failed");
+
+   f = fopen(conf_path, "w");
+   MCTF_ASSERT_PTR_NONNULL(f, cleanup, "fopen failed for updated conf_path");
+   fprintf(f,
+           "[pgexporter]\n"
+           "host = localhost\n"
+           "metrics = 5002\n"
+           "unix_socket_dir = /tmp\n"
+           "pidfile = /tmp/pgexporter_reload_test.pid\n"
+           "log_type = file\n"
+           "log_level = debug5\n"
+           "log_path = %s\n"
+           "metrics_cache_max_age = 25s\n"
+           "metrics_query_timeout = 12s\n"
+           "bridge_cache_max_age = 35s\n"
+           "history_interval = 3m\n"
+           "history_retention = 4h\n"
+           "bridge_history_interval = 5m\n"
+           "bridge_history_retention = 6h\n"
+           "blocking_timeout = 45s\n"
+           "authentication_timeout = 8s\n"
+           "\n"
+           "[primary]\n"
+           "host = localhost\n"
+           "port = 5432\n"
+           "user = pgexporter\n",
+           log_path);
+   fclose(f);
+   f = NULL;
+
+   MCTF_ASSERT_INT_EQ(pgexporter_reload_configuration(&restart_required), 0,
+                      cleanup, "pgexporter_reload_configuration failed");
+
+   pgexporter_stop_logging();
+
+   f = fopen(log_path, "r");
+   MCTF_ASSERT_PTR_NONNULL(f, cleanup, "fopen failed for log_path");
+   nread = fread(log_buf, 1, sizeof(log_buf) - 1, f);
+   log_buf[nread] = '\0';
+   fclose(f);
+   f = NULL;
+
+   MCTF_ASSERT(!restart_required, cleanup, "time parameters should not require restart");
+
+   MCTF_ASSERT_PTR_NONNULL(strstr(log_buf, "Reloaded metrics_cache_max_age - Existing 10000 New 25000"),
+                           cleanup, "expected debug log for metrics_cache_max_age");
+   MCTF_ASSERT_PTR_NONNULL(strstr(log_buf, "Reloaded metrics_query_timeout - Existing 5000 New 12000"),
+                           cleanup, "expected debug log for metrics_query_timeout");
+   MCTF_ASSERT_PTR_NONNULL(strstr(log_buf, "Reloaded bridge_cache_max_age - Existing 15000 New 35000"),
+                           cleanup, "expected debug log for bridge_cache_max_age");
+   MCTF_ASSERT_PTR_NONNULL(strstr(log_buf, "Reloaded history_interval - Existing 60000 New 180000"),
+                           cleanup, "expected debug log for history_interval");
+   MCTF_ASSERT_PTR_NONNULL(strstr(log_buf, "Reloaded history_retention - Existing 3600000 New 14400000"),
+                           cleanup, "expected debug log for history_retention");
+   MCTF_ASSERT_PTR_NONNULL(strstr(log_buf, "Reloaded bridge_history_interval - Existing 120000 New 300000"),
+                           cleanup, "expected debug log for bridge_history_interval");
+   MCTF_ASSERT_PTR_NONNULL(strstr(log_buf, "Reloaded bridge_history_retention - Existing 7200000 New 21600000"),
+                           cleanup, "expected debug log for bridge_history_retention");
+   MCTF_ASSERT_PTR_NONNULL(strstr(log_buf, "Reloaded blocking_timeout - Existing 30000 New 45000"),
+                           cleanup, "expected debug log for blocking_timeout");
+   MCTF_ASSERT_PTR_NONNULL(strstr(log_buf, "Reloaded authentication_timeout - Existing 5000 New 8000"),
+                           cleanup, "expected debug log for authentication_timeout");
+
+cleanup:
+   if (f != NULL)
+   {
+      fclose(f);
+   }
+   if (master_key != NULL)
+   {
+      pgexporter_cleanse(master_key, strlen(master_key));
+      free(master_key);
+   }
+   free(master_salt);
+   free(encrypted);
+   free(encoded);
+   pgexporter_stop_logging();
+   if (shmem != NULL)
+   {
+      pgexporter_destroy_shared_memory(shmem, sizeof(struct configuration));
+      shmem = NULL;
+   }
+   unlink(conf_path);
+   unlink(users_path);
+   unlink(log_path);
+   if (home_created)
+   {
+      unsigned char default_salt[PBKDF2_SALT_LENGTH];
+      pgexporter_delete_directory(test_home);
+      unsetenv("PGEXPORTER_HOME");
+      memset(default_salt, 0x42, PBKDF2_SALT_LENGTH);
+      pgexporter_set_master_salt(default_salt);
+      pgexporter_clear_aes_cache();
+   }
    MCTF_FINISH();
 }

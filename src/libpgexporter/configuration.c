@@ -103,6 +103,7 @@ static void copy_promethus(struct prometheus* dst, struct prometheus* src);
 static void copy_endpoint(struct endpoint* dst, struct endpoint* src);
 static int restart_int(char* name, int e, int n);
 static int restart_string(char* name, char* e, char* n);
+static int restart_time(char* name, pgexporter_time_t e, pgexporter_time_t n, bool requires_restart);
 static bool is_supported_backend(ev_backend_t backend);
 static void validate_event_backend(struct configuration* config);
 static const char* ev_backend_to_string(ev_backend_t backend);
@@ -1472,6 +1473,20 @@ pgexporter_read_configuration(void* shm, char* filename)
                   if (!strcmp(section, "pgexporter"))
                   {
                      if (as_milliseconds(value, &config->blocking_timeout, PGEXPORTER_TIME_SEC(30)))
+                     {
+                        unknown = true;
+                     }
+                  }
+                  else
+                  {
+                     unknown = true;
+                  }
+               }
+               else if (!strcmp(key, "authentication_timeout"))
+               {
+                  if (!strcmp(section, "pgexporter"))
+                  {
+                     if (as_milliseconds(value, &config->authentication_timeout, PGEXPORTER_TIME_SEC(5)))
                      {
                         unknown = true;
                      }
@@ -5744,8 +5759,10 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    /* Network resources */
    memcpy(config->host, reload->host, MISC_LENGTH);
    config->metrics = reload->metrics;
+   restart_time("metrics_cache_max_age", config->metrics_cache_max_age, reload->metrics_cache_max_age, false);
    config->metrics_cache_max_age = reload->metrics_cache_max_age;
    config->metrics_cache_max_size = reload->metrics_cache_max_size;
+   restart_time("metrics_query_timeout", config->metrics_query_timeout, reload->metrics_query_timeout, false);
    config->metrics_query_timeout = reload->metrics_query_timeout;
    config->console = reload->console;
    config->management = reload->management;
@@ -5791,6 +5808,7 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
       new_endpoints = pgexporter_append(new_endpoints, "");
    }
 
+   restart_time("bridge_cache_max_age", config->bridge_cache_max_age, reload->bridge_cache_max_age, false);
    config->bridge_cache_max_age = reload->bridge_cache_max_age;
    config->bridge_cache_max_size = reload->bridge_cache_max_size;
    config->bridge_json = reload->bridge_json;
@@ -5798,7 +5816,9 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
 
    /* History */
    config->history = reload->history;
+   restart_time("history_interval", config->history_interval, reload->history_interval, false);
    config->history_interval = reload->history_interval;
+   restart_time("history_retention", config->history_retention, reload->history_retention, false);
    config->history_retention = reload->history_retention;
    config->history_backend = reload->history_backend;
    memcpy(config->history_path, reload->history_path, MAX_PATH);
@@ -5815,7 +5835,9 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
 
    /* Bridge history */
    config->bridge_history = reload->bridge_history;
+   restart_time("bridge_history_interval", config->bridge_history_interval, reload->bridge_history_interval, false);
    config->bridge_history_interval = reload->bridge_history_interval;
+   restart_time("bridge_history_retention", config->bridge_history_retention, reload->bridge_history_retention, false);
    config->bridge_history_retention = reload->bridge_history_retention;
    config->bridge_history_backend = reload->bridge_history_backend;
    memcpy(config->bridge_history_path, reload->bridge_history_path, MAX_PATH);
@@ -5872,7 +5894,9 @@ transfer_configuration(struct configuration* config, struct configuration* reloa
    memcpy(config->scrape_ca_file, reload->scrape_ca_file, MAX_PATH);
 
    /* Timeouts */
+   restart_time("blocking_timeout", config->blocking_timeout, reload->blocking_timeout, false);
    config->blocking_timeout = reload->blocking_timeout;
+   restart_time("authentication_timeout", config->authentication_timeout, reload->authentication_timeout, false);
    config->authentication_timeout = reload->authentication_timeout;
 
    /* System */
@@ -6096,6 +6120,29 @@ restart_string(char* name, char* e, char* n)
    {
       pgexporter_log_warn("Restart required for %s - Existing %s New %s", name, e, n);
       return 1;
+   }
+
+   return 0;
+}
+
+static int
+restart_time(char* name, pgexporter_time_t e, pgexporter_time_t n, bool requires_restart)
+{
+   int64_t old_time = pgexporter_time_convert(e, FORMAT_TIME_MS);
+   int64_t new_time = pgexporter_time_convert(n, FORMAT_TIME_MS);
+
+   if (old_time != new_time)
+   {
+      if (requires_restart)
+      {
+         pgexporter_log_warn("Restart required for %s - Existing %" PRId64 " New %" PRId64, name, old_time, new_time);
+         return 1;
+      }
+      else
+      {
+         pgexporter_log_debug("Reloaded %s - Existing %" PRId64 " New %" PRId64, name, old_time, new_time);
+         return 0;
+      }
    }
 
    return 0;
