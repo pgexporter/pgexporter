@@ -72,8 +72,8 @@ See a [sample][sample] configuration for running [**pgexporter**][pgexporter] on
 | pidfile | | String | No | Path to the PID file |
 | update_process_title | `verbose` | String | No | The behavior for updating the operating system process title. Allowed settings are: `never` (or `off`), does not update the process title; `strict` to set the process title without overriding the existing initial process title length; `minimal` to set the process title to the base description; `verbose` (or `full`) to set the process title to the full description. Please note that `strict` and `minimal` are honored only on those systems that do not provide a native way to set the process title (e.g., Linux). On other systems, there is no difference between `strict` and `minimal` and the assumed behaviour is `minimal` even if `strict` is used. `never` and `verbose` are always honored, on every system. On Linux systems the process title is always trimmed to 255 characters, while on system that provide a natve way to set the process title it can be longer. |
 | extensions | | String | No | Comma-separated list of extensions to enable globally. If specified, only listed extensions will be enabled for metrics collection. If empty, all extensions are disabled. If not specified, all detected extensions are enabled by default. |
-| collectors | | String | No | Comma-separated list of collectors to enable. If specified, only listed collectors will produce metrics. |
-| exclude_collectors | | String | No | Comma-separated list of collectors to exclude. Listed collectors will be skipped during metrics collection. |
+| collectors | | String | No | Comma-separated list of collectors to enable. If specified, only listed collectors will produce metrics. See [Collector Configuration](#collector-configuration) for the names. |
+| exclude_collectors | | String | No | Comma-separated list of collectors to exclude. Listed collectors will be skipped during metrics collection. See [Collector Configuration](#collector-configuration) for the names. |
 
 ## Server section
 
@@ -133,6 +133,44 @@ extensions =
 # No extensions setting - inherits global or default
 [replica2]
 ```
+
+## Collector Configuration
+
+Every metric query has a collector name. The `collectors` and `exclude_collectors` properties (and the
+`-C` / `-X` command line options) use these names to decide which metrics are produced.
+
+**Where to find the names:**
+- **Built-in metrics**: the `collector:` values in `contrib/yaml/postgresql-<version>.yaml` for your
+  PostgreSQL version (13, 15, 16, 17 or 18; use the 13 file for PostgreSQL 14). These files are generated
+  from `src/include/internal.h`. Newer versions have more collectors
+- **Extension metrics**: the name of the extension, for example `pg_stat_statements`
+- **`settings`**: the `pgexporter_pg_settings_*` metrics
+- **`extensions_list`**: the `pgexporter_postgresql_extension_info` metric
+- **Custom metrics**: the `collector` you set in your own YAML files under `metrics_path`
+
+To list the built-in collector names for PostgreSQL 18:
+```
+grep "collector:" contrib/yaml/postgresql-18.yaml | sed 's/.*collector: *//' | sort -u
+```
+
+**Behavior:**
+- **`collectors`**: only the listed collectors produce metrics
+- **`exclude_collectors`**: all collectors except the listed ones produce metrics
+- Names are not validated, so a misspelled name matches nothing
+- Do not put the same name in both lists
+- General metrics such as `pgexporter_state` are always produced
+
+**Examples:**
+```
+# Only collect database, lock and background writer metrics
+[pgexporter]
+collectors = db, locks, stat_bgwriter
+
+# Collect everything except table bloat and pg_stat_statements
+[pgexporter]
+exclude_collectors = table_bloat, pg_stat_statements
+```
+
 ## pgexporter_users configuration
 
 The `pgexporter_users` configuration defines the users known to the system. This file is created and managed through the `pgexporter-admin` tool.

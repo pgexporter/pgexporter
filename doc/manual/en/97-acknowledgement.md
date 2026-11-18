@@ -47,6 +47,7 @@ Mohamed Adel <mmomoadel@gmail.com>
 Mohamed Hamed <alkmohamed40@gmail.com>
 Hanu-man12 <shawharshit116@gmail.com>
 R Sai Pranav <rajasaipranav0@gmail.com>
+Shubham Kapoor <165891311+shubhamk0205@users.noreply.github.com>
 ```
 
 ## Committers
