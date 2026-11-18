@@ -182,10 +182,13 @@ update_process_title
   process title it can be longer. Default is verbose
 
 collectors
-  Comma-separated list of collectors to enable. If specified, only listed collectors will produce metrics
+  Comma-separated list of collectors to enable. If specified, only listed collectors will produce metrics.
+  The built-in collector names are the collector values in contrib/yaml/postgresql-<version>.yaml.
+  Extension metrics use the extension name, and settings and extensions_list are also available
 
 exclude_collectors
-  Comma-separated list of collectors to exclude. Listed collectors will be skipped during metrics collection
+  Comma-separated list of collectors to exclude. Listed collectors will be skipped during metrics collection.
+  Uses the same names as collectors
 
 The options for the PostgreSQL section are
 
