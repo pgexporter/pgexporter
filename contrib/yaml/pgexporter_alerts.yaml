@@ -30,6 +30,14 @@ alerts:
   threshold: 1
   servers: all
 
+- name: subscription_worker_down
+  description: Subscription apply worker is not running
+  type: query
+  query: "SELECT COUNT(*) FROM pg_subscription WHERE subenabled AND oid NOT IN (SELECT subid FROM pg_stat_subscription WHERE relid IS NULL)"
+  operator: ">"
+  threshold: 0
+  servers: all
+
 - name: replication_slot_inactive
   description: Replication slots exist but none are active
   type: query

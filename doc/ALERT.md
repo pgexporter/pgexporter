@@ -49,6 +49,7 @@ Each YAML file is a sequence of alerts. Every alert can include seven properties
 *   `connections_high`: Active connections exceed 80% of `max_connections` (threshold: 80).
 *   `replication_lag`: Replication lag (in seconds) exceeds 300 seconds.
 *   `wal_receiver_down`: The WAL receiver process on a replica is not running.
+*   `subscription_worker_down`: An enabled subscription has no running apply worker.
 *   `replication_slot_inactive`: There are replication slots, but none are active.
 *   `xid_wraparound`: Transaction ID age exceeds 1,500,000,000.
 *   `multixact_wraparound`: MultiXact age exceeds 1,500,000,000.
