@@ -2505,6 +2505,64 @@ extern "C" {
                       "    sort: data\n"                                                                                                                                                \
                       "    collector: subscription_stats\n"                                                                                                                             \
                       "\n"                                                                                                                                                              \
+                      "# Logical replication subscription worker health\n"                                                                                                              \
+                      "  - queries:\n"                                                                                                                                                  \
+                      "    - query: SELECT\n"                                                                                                                                           \
+                      "                s.subname,\n"                                                                                                                                    \
+                      "                s.subenabled,\n"                                                                                                                                 \
+                      "                COALESCE(st.pid, 0) AS pid,\n"                                                                                                                   \
+                      "                CASE WHEN st.pid IS NOT NULL THEN 1 ELSE 0 END AS worker_running,\n"                                                                             \
+                      "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - st.last_msg_receipt_time))::bigint, -1) AS last_msg_receipt_seconds\n"                          \
+                      "              FROM pg_subscription s\n"                                                                                                                          \
+                      "              LEFT JOIN pg_stat_subscription st\n"                                                                                                               \
+                      "                ON st.subid = s.oid AND st.relid IS NULL;\n"                                                                                                     \
+                      "      version: 13\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: subname\n"                                                                                                                                       \
+                      "          type: label\n"                                                                                                                                         \
+                      "          description: Subscription name\n"                                                                                                                      \
+                      "        - name: subenabled\n"                                                                                                                                    \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Is the subscription enabled\n"                                                                                                            \
+                      "        - name: pid\n"                                                                                                                                           \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Process ID of the subscription apply worker (0 if not running)\n"                                                                         \
+                      "        - name: worker_running\n"                                                                                                                                \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Is the subscription apply worker running\n"                                                                                               \
+                      "        - name: last_msg_receipt_seconds\n"                                                                                                                      \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Seconds since the last message was received from the publisher (-1 if unavailable)\n"                                                     \
+                      "    - query: SELECT\n"                                                                                                                                           \
+                      "                s.subname,\n"                                                                                                                                    \
+                      "                s.subenabled,\n"                                                                                                                                 \
+                      "                COALESCE(st.pid, 0) AS pid,\n"                                                                                                                   \
+                      "                CASE WHEN st.pid IS NOT NULL THEN 1 ELSE 0 END AS worker_running,\n"                                                                             \
+                      "                COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - st.last_msg_receipt_time))::bigint, -1) AS last_msg_receipt_seconds\n"                          \
+                      "              FROM pg_subscription s\n"                                                                                                                          \
+                      "              LEFT JOIN pg_stat_subscription st\n"                                                                                                               \
+                      "                ON st.subid = s.oid AND st.relid IS NULL AND st.leader_pid IS NULL;\n"                                                                           \
+                      "      version: 16\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: subname\n"                                                                                                                                       \
+                      "          type: label\n"                                                                                                                                         \
+                      "          description: Subscription name\n"                                                                                                                      \
+                      "        - name: subenabled\n"                                                                                                                                    \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Is the subscription enabled\n"                                                                                                            \
+                      "        - name: pid\n"                                                                                                                                           \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Process ID of the subscription apply worker (0 if not running)\n"                                                                         \
+                      "        - name: worker_running\n"                                                                                                                                \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Is the subscription apply worker running\n"                                                                                               \
+                      "        - name: last_msg_receipt_seconds\n"                                                                                                                      \
+                      "          type: gauge\n"                                                                                                                                         \
+                      "          description: Seconds since the last message was received from the publisher (-1 if unavailable)\n"                                                     \
+                      "    tag: pg_stat_subscription\n"                                                                                                                                 \
+                      "    sort: name\n"                                                                                                                                                \
+                      "    collector: subscription\n"                                                                                                                                   \
+                      "\n"                                                                                                                                                              \
                       "#\n"                                                                                                                                                             \
                       "# PostgreSQL 15\n"                                                                                                                                               \
                       "#\n"                                                                                                                                                             \
@@ -3209,6 +3267,14 @@ extern "C" {
                              "  query: \"SELECT CASE WHEN pg_is_in_recovery() THEN (SELECT CASE WHEN COUNT(*) = 0 THEN 1 ELSE 0 END FROM pg_stat_wal_receiver) ELSE -1 END\"\n"  \
                              "  operator: \"==\"\n"                                                                                                                              \
                              "  threshold: 1\n"                                                                                                                                  \
+                             "  servers: all\n"                                                                                                                                  \
+                             "\n"                                                                                                                                                \
+                             "- name: subscription_worker_down\n"                                                                                                                \
+                             "  description: Subscription apply worker is not running\n"                                                                                         \
+                             "  type: query\n"                                                                                                                                   \
+                             "  query: \"SELECT COUNT(*) FROM pg_subscription WHERE subenabled AND oid NOT IN (SELECT subid FROM pg_stat_subscription WHERE relid IS NULL)\"\n"  \
+                             "  operator: \">\"\n"                                                                                                                               \
+                             "  threshold: 0\n"                                                                                                                                  \
                              "  servers: all\n"                                                                                                                                  \
                              "\n"                                                                                                                                                \
                              "- name: replication_slot_inactive\n"                                                                                                               \

@@ -5693,6 +5693,42 @@ Total time (milliseconds) spent in analyze delay/throttling for currently runnin
 | database | The database being monitored. |
 | pid | Process ID of the analyze operation. |
 
+## pgexporter_pg_stat_subscription_subenabled
+
+Is the subscription enabled, from `pg_stat_subscription`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| subname | Subscription name. |
+
+## pgexporter_pg_stat_subscription_pid
+
+Process ID of the subscription apply worker (0 if not running), from `pg_stat_subscription`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| subname | Subscription name. |
+
+## pgexporter_pg_stat_subscription_worker_running
+
+Is the subscription apply worker running, from `pg_stat_subscription`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| subname | Subscription name. |
+
+## pgexporter_pg_stat_subscription_last_msg_receipt_seconds
+
+Seconds since the last message was received from the publisher (-1 if unavailable), from `pg_stat_subscription`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| subname | Subscription name. |
+
 ## pgexporter_pg_stat_subscription_stats_confl_insert_exists
 
 Number of conflicts where INSERT tried to insert an existing row in logical replication, from `pg_stat_subscription_stats`.

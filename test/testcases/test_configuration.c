@@ -36,6 +36,7 @@
 #include <tsclient.h>
 #include <tscommon.h>
 #include <utils.h>
+#include <yaml_configuration.h>
 
 #include <mctf.h>
 
@@ -556,5 +557,36 @@ cleanup:
       pgexporter_destroy_shared_memory(shmem, sizeof(struct configuration));
    }
    unlink(path);
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_configuration_internal_metrics_subscription)
+{
+   struct configuration* config = (struct configuration*)shmem;
+   bool found = false;
+
+   MCTF_ASSERT_PTR_NONNULL(config, cleanup, "configuration is not initialized");
+
+   pgexporter_test_config_save();
+
+   MCTF_ASSERT_INT_EQ(pgexporter_read_internal_yaml_metrics(config, true), 0,
+                      cleanup, "failed to load the internal metrics YAML");
+   MCTF_ASSERT(config->number_of_metrics > 0, cleanup, "no internal metrics were loaded");
+
+   for (int i = 0; i < config->number_of_metrics; i++)
+   {
+      if (!strcmp(config->prometheus[i].tag, "pg_stat_subscription"))
+      {
+         found = true;
+         MCTF_ASSERT_STR_EQ(config->prometheus[i].collector, "subscription", cleanup,
+                            "pg_stat_subscription collector mismatch");
+         break;
+      }
+   }
+
+   MCTF_ASSERT(found, cleanup, "pg_stat_subscription is missing from the internal metrics");
+
+cleanup:
+   pgexporter_test_config_restore();
    MCTF_FINISH();
 }

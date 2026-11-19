@@ -1007,6 +1007,28 @@ metrics:
     - name: stats_reset_seconds
       type: counter
       description: Seconds since statistics were last reset
+- tag: pg_stat_subscription
+  collector: subscription
+  sort: name
+  queries:
+  - query: SELECT s.subname, s.subenabled, COALESCE(st.pid, 0) AS pid, CASE WHEN st.pid IS NOT NULL THEN 1 ELSE 0 END AS worker_running, COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - st.last_msg_receipt_time))::bigint, -1) AS last_msg_receipt_seconds FROM pg_subscription s LEFT JOIN pg_stat_subscription st ON st.subid = s.oid AND st.relid IS NULL AND st.leader_pid IS NULL;
+    version: 16
+    columns:
+    - name: subname
+      type: label
+      description: Subscription name
+    - name: subenabled
+      type: gauge
+      description: Is the subscription enabled
+    - name: pid
+      type: gauge
+      description: Process ID of the subscription apply worker (0 if not running)
+    - name: worker_running
+      type: gauge
+      description: Is the subscription apply worker running
+    - name: last_msg_receipt_seconds
+      type: gauge
+      description: Seconds since the last message was received from the publisher (-1 if unavailable)
 - tag: pg_wal_prefetch_reset
   collector: wal_prefetch_reset
   queries:
