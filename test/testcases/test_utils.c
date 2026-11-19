@@ -37,6 +37,7 @@
 #include <shmem.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 MCTF_MODULE_SETUP(utils)
@@ -657,5 +658,65 @@ cleanup:
    free(link_target);
    link_target = NULL;
    pgexporter_delete_directory("test_get_symlink");
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_utils_copy_file_preserves_mode)
+{
+   static const mode_t modes[] = {
+      S_IRUSR | S_IWUSR,           /* 0600 */
+      S_IRUSR | S_IWUSR | S_IRGRP, /* 0640 */
+      S_IRUSR | S_IWUSR | S_IROTH, /* 0604 */
+   };
+   char src[] = "/tmp/pgexporter_copy_src_XXXXXX";
+   char dst[] = "/tmp/pgexporter_copy_dst_XXXXXX";
+   int fd = -1;
+   struct stat st;
+   int rc = 1;
+   mode_t old_umask;
+
+   /* Use a restrictive umask so open() alone cannot create the file with
+    * the requested mode; otherwise the test would pass without fchmod(). */
+   old_umask = umask(077);
+
+   for (int i = 0; i < (int)(sizeof(modes) / sizeof(modes[0])); i++)
+   {
+      strcpy(src, "/tmp/pgexporter_copy_src_XXXXXX");
+      strcpy(dst, "/tmp/pgexporter_copy_dst_XXXXXX");
+
+      fd = mkstemp(src);
+      MCTF_ASSERT(fd >= 0, cleanup, "mkstemp failed for source");
+      close(fd);
+      fd = -1;
+
+      MCTF_ASSERT(chmod(src, modes[i]) == 0, cleanup, "chmod source failed");
+
+      fd = mkstemp(dst);
+      MCTF_ASSERT(fd >= 0, cleanup, "mkstemp failed for destination");
+      close(fd);
+      fd = -1;
+      unlink(dst);
+
+      rc = pgexporter_copy_file(src, dst);
+      MCTF_ASSERT(rc == 0, cleanup, "copy_file failed");
+
+      MCTF_ASSERT(stat(dst, &st) == 0, cleanup, "stat destination failed");
+      MCTF_ASSERT((st.st_mode & 0777) == modes[i], cleanup,
+                  "destination mode %03o, expected %03o",
+                  (unsigned int)(st.st_mode & 0777),
+                  (unsigned int)modes[i]);
+
+      unlink(src);
+      unlink(dst);
+   }
+
+cleanup:
+   if (fd >= 0)
+   {
+      close(fd);
+   }
+   unlink(src);
+   unlink(dst);
+   umask(old_umask);
    MCTF_FINISH();
 }
