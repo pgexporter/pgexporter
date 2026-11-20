@@ -203,16 +203,32 @@ pgexporter_bind_unix_socket(const char* directory, const char* file, int* fd)
       goto error;
    }
 
+   /* The management socket is unauthenticated, so only the owner may connect */
+   if (chmod(&buf[0], S_IRUSR | S_IWUSR) == -1)
+   {
+      pgexporter_log_error("pgexporter_bind_unix_socket: chmod: %s/%s %s", directory, file, strerror(errno));
+      errno = 0;
+      unlink(&buf[0]);
+      goto error;
+   }
+
    if (listen(*fd, config->backlog) == -1)
    {
       pgexporter_log_error("pgexporter_bind_unix_socket: listen: %s/%s %s", directory, file, strerror(errno));
       errno = 0;
+      unlink(&buf[0]);
       goto error;
    }
 
    return 0;
 
 error:
+
+   if (fd != NULL && *fd != -1)
+   {
+      pgexporter_disconnect(*fd);
+      *fd = -1;
+   }
 
    return 1;
 }
