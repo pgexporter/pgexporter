@@ -36,6 +36,7 @@ set(TESTCASE_FILES
   testcases/test_cli.c
   testcases/test_cache.c
   testcases/test_aes.c
+  testcases/test_console.c
   testcases/test_http.c
   testcases/test_alert.c
   testcases/test_art.c
