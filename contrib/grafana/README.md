@@ -44,6 +44,7 @@ Dashboards are automatically provisioned - no manual import needed.
 | `postgresql_dashboard_pg16.json` | 16.x | + pg_stat_io metrics |
 | `postgresql_dashboard_pg17.json` | 17.x | + Wait events |
 | `postgresql_dashboard_pg18.json` | 18.x | + Wait events, pg_stat_backend_io metrics |
+| `postgresql_dashboard_pg19.json` | 19.x | + Recovery state, repack progress |
 
 ### Panels Included in All Dashboards
 
@@ -64,7 +65,7 @@ contrib/grafana/
 ├── TESTING.md                         # Testing checklist
 ├── docker-compose.yml                 # Grafana + Prometheus stack
 ├── prometheus.yml                     # Prometheus scrape configuration
-├── postgresql_dashboard_pg*.json      # Dashboard definitions (4 files)
+├── postgresql_dashboard_pg*.json      # Dashboard definitions (5 files)
 └── provisioning/
     ├── dashboards/
     │   └── dashboards.yml             # Dashboard auto-provisioning
