@@ -285,15 +285,17 @@ MCTF_TEST(test_connection_bind_unix_socket_permissions)
    int client_fd = -1;
    int ret;
    char tmp_dir[] = "/tmp/pgexporter_sock_test_XXXXXX";
-   char sock_path[107];
+   char sock_path[107] = {0};
    struct stat st;
    struct sockaddr_un addr;
-   struct configuration test_config;
+   struct configuration* test_config = NULL;
    void* old_shmem = shmem;
 
-   memset(&test_config, 0, sizeof(struct configuration));
-   test_config.backlog = 5;
-   shmem = &test_config;
+   /* struct configuration is too large for the stack */
+   test_config = calloc(1, sizeof(struct configuration));
+   MCTF_ASSERT_PTR_NONNULL(test_config, cleanup, "calloc should succeed");
+   test_config->backlog = 5;
+   shmem = test_config;
 
    MCTF_ASSERT_PTR_NONNULL(mkdtemp(tmp_dir), cleanup, "mkdtemp should succeed");
 
@@ -333,6 +335,7 @@ cleanup:
    unlink(sock_path);
    rmdir(tmp_dir);
    shmem = old_shmem;
+   free(test_config);
    MCTF_FINISH();
 }
 
@@ -343,12 +346,14 @@ MCTF_TEST(test_connection_bind_unix_socket_error_cleanup)
 {
    int fd = -1;
    int ret;
-   struct configuration test_config;
+   struct configuration* test_config = NULL;
    void* old_shmem = shmem;
 
-   memset(&test_config, 0, sizeof(struct configuration));
-   test_config.backlog = 5;
-   shmem = &test_config;
+   /* struct configuration is too large for the stack */
+   test_config = calloc(1, sizeof(struct configuration));
+   MCTF_ASSERT_PTR_NONNULL(test_config, cleanup, "calloc should succeed");
+   test_config->backlog = 5;
+   shmem = test_config;
 
    /* Binding to an uncreatable directory should fail and reset fd to -1 */
    ret = pgexporter_bind_unix_socket("/dev/null/invalid_dir", "test.sock", &fd);
@@ -361,5 +366,6 @@ cleanup:
       close(fd);
    }
    shmem = old_shmem;
+   free(test_config);
    MCTF_FINISH();
 }
