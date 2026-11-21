@@ -3732,6 +3732,252 @@
       "title": "Backend I/O Timing (pg_stat_get_backend_io)",
       "type": "timeseries",
       "version": 18
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Standby recovery state metrics: whether promotion was triggered, timelines and pause state (PostgreSQL 19+, replica only).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 242
+      },
+      "id": 36,
+      "options": {
+        "legend": {
+          "calcs": [
+            "last"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_stat_recovery_promote_triggered{server=~\"$server\"}",
+          "legendFormat": "Promote Triggered - {{server}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_stat_recovery_last_replayed_tli{server=~\"$server\"}",
+          "legendFormat": "Last Replayed TLI - {{server}}",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_stat_recovery_replay_end_tli{server=~\"$server\"}",
+          "legendFormat": "Replay End TLI - {{server}}",
+          "refId": "C"
+        }
+      ],
+      "title": "Recovery State (pg_stat_recovery)",
+      "type": "timeseries",
+      "version": 19
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Progress of CLUSTER, VACUUM FULL, and REPACK operations: heap tuples scanned/inserted/updated/deleted, blocks processed and indexes rebuilt (PostgreSQL 19+).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 242
+      },
+      "id": 37,
+      "options": {
+        "legend": {
+          "calcs": [
+            "last",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_stat_progress_repack_heap_tuples_scanned{server=~\"$server\"}",
+          "legendFormat": "Tuples Scanned - {{datname}} / {{command}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_stat_progress_repack_heap_tuples_inserted{server=~\"$server\"}",
+          "legendFormat": "Tuples Inserted - {{datname}} / {{command}}",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_stat_progress_repack_heap_tuples_updated{server=~\"$server\"}",
+          "legendFormat": "Tuples Updated - {{datname}} / {{command}}",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_stat_progress_repack_heap_tuples_deleted{server=~\"$server\"}",
+          "legendFormat": "Tuples Deleted - {{datname}} / {{command}}",
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_stat_progress_repack_heap_blks_scanned{server=~\"$server\"}",
+          "legendFormat": "Blocks Scanned - {{datname}} / {{command}}",
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pgexporter_pg_stat_progress_repack_index_rebuild_count{server=~\"$server\"}",
+          "legendFormat": "Indexes Rebuilt - {{datname}} / {{command}}",
+          "refId": "F"
+        }
+      ],
+      "title": "Repack Progress (pg_stat_progress_repack)",
+      "type": "timeseries",
+      "version": 19
     }
   ],
   "refresh": "30s",
@@ -3740,7 +3986,7 @@
     "pgexporter",
     "postgresql",
     "monitoring",
-    "pg18"
+    "pg19"
   ],
   "templating": {
     "list": [
@@ -3800,9 +4046,9 @@
     ]
   },
   "timezone": "browser",
-  "title": "PostgreSQL 18 Performance Dashboard - pgexporter",
-  "uid": "pgexporter-pg18",
+  "title": "PostgreSQL 19 Performance Dashboard - pgexporter",
+  "uid": "pgexporter-pg19",
   "version": 1,
-  "description": "PostgreSQL 18 monitoring dashboard using pgexporter metrics. Includes system health, performance indicators, replication status, and I/O statistics.",
+  "description": "PostgreSQL 19 monitoring dashboard using pgexporter metrics. Includes system health, performance indicators, replication status, and I/O statistics.",
   "liveNow": false
 }

@@ -136,12 +136,13 @@ You could also use pgexporter dashboards which are available in [contrib/grafana
 
 ![image](../images/grafana_import_dashboard.png)
 
-We provide 4 version-specific dashboards to support the unique features of each PostgreSQL version:
+We provide 5 version-specific dashboards to support the unique features of each PostgreSQL version:
 
 *   `postgresql_dashboard_pg15.json` (+ Memory Contexts)
 *   `postgresql_dashboard_pg16.json` (+ pg_stat_io)
 *   `postgresql_dashboard_pg17.json` (+ Wait Events)
 *   `postgresql_dashboard_pg18.json` (+ Wait Events, pg_stat_backend_io)
+*   `postgresql_dashboard_pg19.json` (+ Recovery state, repack progress)
 
 Select **"Upload dashboard as JSON file"**, choose the file matching your PostgreSQL version from the [contrib/grafana](../../../contrib/grafana/) directory, select your Prometheus datasource, and click **"Import"**.
 
