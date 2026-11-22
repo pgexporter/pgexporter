@@ -2007,6 +2007,55 @@ extern "C" {
                       "        - name: wal_sync_time\n"                                                                                                                                 \
                       "          type: counter\n"                                                                                                                                       \
                       "          description: Time taken for WAL files to be synced to disk in milliseconds (from pg_stat_io).\n"                                                       \
+                      "    - query: WITH wal_io AS (\n"                                                                                                                                 \
+                      "                SELECT\n"                                                                                                                                        \
+                      "                  sum(writes) as wal_write,\n"                                                                                                                   \
+                      "                  sum(fsyncs) as wal_sync,\n"                                                                                                                    \
+                      "                  sum(write_time) as wal_write_time,\n"                                                                                                          \
+                      "                  sum(fsync_time) as wal_sync_time\n"                                                                                                            \
+                      "                FROM pg_stat_io\n"                                                                                                                               \
+                      "                WHERE object = 'wal'\n"                                                                                                                          \
+                      "              )\n"                                                                                                                                               \
+                      "              SELECT\n"                                                                                                                                          \
+                      "                wal_records,\n"                                                                                                                                  \
+                      "                wal_fpi,\n"                                                                                                                                      \
+                      "                wal_bytes,\n"                                                                                                                                    \
+                      "                wal_fpi_bytes,\n"                                                                                                                                \
+                      "                wal_buffers_full,\n"                                                                                                                             \
+                      "                wal_write,\n"                                                                                                                                    \
+                      "                wal_sync,\n"                                                                                                                                     \
+                      "                wal_write_time,\n"                                                                                                                               \
+                      "                wal_sync_time\n"                                                                                                                                 \
+                      "              FROM pg_stat_wal, wal_io;\n"                                                                                                                       \
+                      "      version: 19\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: wal_records\n"                                                                                                                                   \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of WAL records generated.\n"                                                                                                       \
+                      "        - name: wal_fpi\n"                                                                                                                                       \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of WAL full page images generated.\n"                                                                                              \
+                      "        - name: wal_bytes\n"                                                                                                                                     \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Total bytes of generated WAL.\n"                                                                                                          \
+                      "        - name: wal_fpi_bytes\n"                                                                                                                                 \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Total bytes of WAL full page images generated.\n"                                                                                         \
+                      "        - name: wal_buffers_full\n"                                                                                                                              \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of disk writes due to WAL buffers being full.\n"                                                                                   \
+                      "        - name: wal_write\n"                                                                                                                                     \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of times WAL files were written to disk (from pg_stat_io).\n"                                                                      \
+                      "        - name: wal_sync\n"                                                                                                                                      \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of times WAL files were synced to disk (from pg_stat_io).\n"                                                                       \
+                      "        - name: wal_write_time\n"                                                                                                                                \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Time taken for WAL files to be written to disk in milliseconds (from pg_stat_io).\n"                                                      \
+                      "        - name: wal_sync_time\n"                                                                                                                                 \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Time taken for WAL files to be synced to disk in milliseconds (from pg_stat_io).\n"                                                       \
                       "    tag: pg_stat_wal\n"                                                                                                                                          \
                       "    collector: stat_wal\n"                                                                                                                                       \
                       "\n"                                                                                                                                                              \

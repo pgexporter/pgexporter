@@ -866,8 +866,8 @@ metrics:
 - tag: pg_stat_wal
   collector: stat_wal
   queries:
-  - query: WITH wal_io AS ( SELECT sum(writes) as wal_write, sum(fsyncs) as wal_sync, sum(write_time) as wal_write_time, sum(fsync_time) as wal_sync_time FROM pg_stat_io WHERE object = 'wal' ) SELECT wal_records, wal_fpi, wal_bytes, wal_buffers_full, wal_write, wal_sync, wal_write_time, wal_sync_time FROM pg_stat_wal, wal_io;
-    version: 18
+  - query: WITH wal_io AS ( SELECT sum(writes) as wal_write, sum(fsyncs) as wal_sync, sum(write_time) as wal_write_time, sum(fsync_time) as wal_sync_time FROM pg_stat_io WHERE object = 'wal' ) SELECT wal_records, wal_fpi, wal_bytes, wal_fpi_bytes, wal_buffers_full, wal_write, wal_sync, wal_write_time, wal_sync_time FROM pg_stat_wal, wal_io;
+    version: 19
     columns:
     - name: wal_records
       type: counter
@@ -878,6 +878,9 @@ metrics:
     - name: wal_bytes
       type: counter
       description: Total bytes of generated WAL.
+    - name: wal_fpi_bytes
+      type: counter
+      description: Total bytes of WAL full page images generated.
     - name: wal_buffers_full
       type: counter
       description: Number of disk writes due to WAL buffers being full.
