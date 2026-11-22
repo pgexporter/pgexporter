@@ -450,21 +450,15 @@ error:
 static int
 metrics_page(SSL* client_ssl, int client_fd)
 {
-   char* data = NULL;
    time_t start_time;
    int dt;
-   time_t now;
-   char time_buf[32];
    int status;
-   struct message msg;
    struct prometheus_cache* cache;
    signed char cache_is_free;
    struct configuration* config;
 
    config = (struct configuration*)shmem;
    cache = (struct prometheus_cache*)prometheus_cache_shmem;
-
-   memset(&msg, 0, sizeof(struct message));
 
    start_time = time(NULL);
 
@@ -475,17 +469,26 @@ retry_cache_locking:
       // can serve the message out of cache?
       if (is_metrics_cache_configured() && is_metrics_cache_valid())
       {
-         // serve the message directly out of the cache
+         // serve the payload out of the cache and re-frame it
          pgexporter_log_debug("Serving metrics out of cache (%zu/%zu bytes valid until %lld)",
                               strlen(cache->data),
                               cache->size,
                               (long long)cache->valid_until);
 
-         msg.kind = 0;
-         msg.length = strlen(cache->data);
-         msg.data = cache->data;
+         status = pgexporter_http_respond_chunked_start(client_ssl, client_fd,
+                                                        "text/plain; version=0.0.1; charset=utf-8");
+         if (status != MESSAGE_STATUS_OK)
+         {
+            goto error;
+         }
 
-         status = pgexporter_write_message(client_ssl, client_fd, &msg);
+         status = pgexporter_http_respond_chunked_write(client_ssl, client_fd, cache->data);
+         if (status != MESSAGE_STATUS_OK)
+         {
+            goto error;
+         }
+
+         status = pgexporter_http_respond_chunked_end(client_ssl, client_fd);
          if (status != MESSAGE_STATUS_OK)
          {
             goto error;
@@ -496,40 +499,12 @@ retry_cache_locking:
          // build the message without the cache
          metrics_cache_invalidate();
 
-         now = time(NULL);
-
-         memset(&time_buf, 0, sizeof(time_buf));
-         ctime_r(&now, &time_buf[0]);
-         time_buf[strlen(time_buf) - 1] = 0;
-
-         /*
-          * Build the response header manually instead of using
-          * pgexporter_http_respond_chunked_start() because the cache must store
-          * only the status line + content-type + date
-          */
-         data = pgexporter_vappend(data, 5,
-                                   "HTTP/1.1 200 OK\r\n",
-                                   "Content-Type: text/plain; version=0.0.1; charset=utf-8\r\n",
-                                   "Date: ",
-                                   &time_buf[0],
-                                   "\r\n");
-         metrics_cache_append(data);
-         data = pgexporter_vappend(data, 2,
-                                   "Transfer-Encoding: chunked\r\n",
-                                   "\r\n");
-
-         msg.kind = 0;
-         msg.length = strlen(data);
-         msg.data = data;
-
-         status = pgexporter_write_message(client_ssl, client_fd, &msg);
+         status = pgexporter_http_respond_chunked_start(client_ssl, client_fd,
+                                                        "text/plain; version=0.0.1; charset=utf-8");
          if (status != MESSAGE_STATUS_OK)
          {
             goto error;
          }
-
-         free(data);
-         data = NULL;
 
          /* ART-based metrics container */
          prometheus_metrics_container_t* container = NULL;
@@ -590,15 +565,11 @@ retry_cache_locking:
       SLEEP_AND_GOTO(10000000L, retry_cache_locking);
    }
 
-   free(data);
-
    return 0;
 
 error:
 
    pgexporter_close_connections();
-
-   free(data);
 
    return 1;
 }

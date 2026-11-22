@@ -202,6 +202,39 @@ cleanup:
    MCTF_FINISH();
 }
 
+// Test that an overflow cannot be finalized as valid, even if a later append succeeds
+MCTF_TEST(test_cache_overflow_never_finalized)
+{
+   size_t cache_size = 8;
+   size_t total_size = 0;
+   void* cache_shmem = NULL;
+   struct prometheus_cache* cache = NULL;
+
+   pgexporter_cache_init(cache_size, &total_size, &cache_shmem);
+   cache = (struct prometheus_cache*)cache_shmem;
+
+   // Fill exactly
+   MCTF_ASSERT(pgexporter_cache_append(cache, "1234567"), cleanup, "append failed");
+
+   // Overflow invalidates the cache
+   MCTF_ASSERT(!pgexporter_cache_append(cache, "X"), cleanup, "append should have failed on overflow");
+
+   // A later append can succeed, but the cache is still inconsistent
+   MCTF_ASSERT(pgexporter_cache_append(cache, "abc"), cleanup, "append after overflow failed");
+   MCTF_ASSERT_INT_EQ(cache->data[0], 'a', cleanup, "data should restart after overflow");
+
+   MCTF_ASSERT(!pgexporter_cache_finalize(cache, PGEXPORTER_TIME_SEC(60)), cleanup, "finalize must fail after overflow");
+   MCTF_ASSERT_INT_EQ(cache->valid_until, 0, cleanup, "valid_until should stay cleared after overflow");
+   MCTF_ASSERT(!pgexporter_cache_is_valid(cache), cleanup, "overflowed cache must remain invalid");
+
+cleanup:
+   if (cache_shmem != NULL)
+   {
+      pgexporter_destroy_shared_memory(cache_shmem, total_size);
+   }
+   MCTF_FINISH();
+}
+
 // Test cache finalize
 MCTF_TEST(test_cache_finalize)
 {

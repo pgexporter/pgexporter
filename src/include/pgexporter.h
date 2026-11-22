@@ -349,12 +349,17 @@ struct user
  *
  * The `size` field stores the size of the allocated
  * `data` payload.
+ *
+ * The `consistent` field is cleared when an append overflows
+ * the cache, so that a partially written payload can never be
+ * finalized as valid.
  */
 struct prometheus_cache
 {
    time_t valid_until; /**< when the cache will become not valid */
    atomic_schar lock;  /**< lock to protect the cache */
    size_t size;        /**< size of the cache */
+   bool consistent;    /**< false if an append overflowed the cache */
    char data[];        /**< the payload */
 } __attribute__((aligned(64)));
 

@@ -58,6 +58,7 @@ pgexporter_cache_init(size_t cache_size, size_t* p_size, void** p_shmem)
    memset(cache, 0, struct_size + cache_size);
    cache->valid_until = 0;
    cache->size = cache_size;
+   cache->consistent = true;
    atomic_init(&cache->lock, STATE_FREE);
 
    *p_shmem = cache;
@@ -96,6 +97,7 @@ pgexporter_cache_invalidate(struct prometheus_cache* cache)
 
    memset(cache->data, 0, cache->size);
    cache->valid_until = 0;
+   cache->consistent = true;
 }
 
 bool
@@ -119,6 +121,7 @@ pgexporter_cache_append(struct prometheus_cache* cache, char* data)
                            cache->size,
                            origin_length);
       pgexporter_cache_invalidate(cache);
+      cache->consistent = false;
       return false;
    }
 
@@ -135,6 +138,12 @@ pgexporter_cache_finalize(struct prometheus_cache* cache, pgexporter_time_t max_
 
    if (cache == NULL)
    {
+      return false;
+   }
+
+   if (!cache->consistent)
+   {
+      cache->valid_until = 0;
       return false;
    }
 
