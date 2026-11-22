@@ -4922,6 +4922,14 @@ Reflects `wal_bytes` from `pg_stat_wal`: the total volume of WAL generated in by
 | :-------- | :---------- |
 | server | The configured name/identifier for the PostgreSQL server. |
 
+## pgexporter_pg_stat_wal_wal_fpi_bytes
+
+Reflects `wal_fpi_bytes` from `pg_stat_wal`: the total volume of WAL full-page images generated in bytes since the last statistics reset.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+
 ## pgexporter_pg_stat_wal_wal_buffers_full
 
 Reflects `wal_buffers_full` from `pg_stat_wal`: the number of times WAL writes occurred because the WAL buffers were full.
