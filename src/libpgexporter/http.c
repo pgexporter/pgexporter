@@ -38,6 +38,7 @@
 /* system */
 #include <errno.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <openssl/err.h>
 
@@ -46,6 +47,9 @@ static int http_read_response_body(SSL* ssl, int socket, struct http_response* h
 static int http_read_response_header(SSL* ssl, int socket, char** header_text, struct http_response* http_response);
 static int http_build_request(struct http* connection, struct http_request* request, char** full_request, size_t* full_request_size);
 static char* http_method_to_string(int method);
+static char* http_get_header(struct deque* headers, const char* name);
+static int http_remove_header(struct deque* headers, const char* name);
+static bool contains_ignore_case(const char* haystack, const char* needle);
 
 int
 pgexporter_http_create(char* hostname, int port, bool secure, char* key_file, char* cert_file, char* ca_file, struct http** result)
@@ -222,6 +226,87 @@ error:
    return PGEXPORTER_HTTP_STATUS_ERROR;
 }
 
+static char*
+http_get_header(struct deque* headers, const char* name)
+{
+   struct deque_iterator* iter = NULL;
+
+   if (headers == NULL || name == NULL)
+   {
+      return NULL;
+   }
+
+   if (pgexporter_deque_iterator_create(headers, &iter) == 0)
+   {
+      while (pgexporter_deque_iterator_next(iter))
+      {
+         if (iter->tag != NULL && strcasecmp(iter->tag, name) == 0)
+         {
+            char* val = (char*)pgexporter_value_data(iter->value);
+            pgexporter_deque_iterator_destroy(iter);
+            return val;
+         }
+      }
+      pgexporter_deque_iterator_destroy(iter);
+   }
+
+   return NULL;
+}
+
+static int
+http_remove_header(struct deque* headers, const char* name)
+{
+   int cnt = 0;
+   struct deque_iterator* iter = NULL;
+
+   if (headers == NULL || name == NULL)
+   {
+      return 0;
+   }
+
+   if (pgexporter_deque_iterator_create(headers, &iter) == 0)
+   {
+      while (pgexporter_deque_iterator_next(iter))
+      {
+         if (iter->tag != NULL && strcasecmp(iter->tag, name) == 0)
+         {
+            pgexporter_deque_iterator_remove(iter);
+            cnt++;
+         }
+      }
+      pgexporter_deque_iterator_destroy(iter);
+   }
+
+   return cnt;
+}
+
+static bool
+contains_ignore_case(const char* haystack, const char* needle)
+{
+   if (haystack == NULL || needle == NULL)
+   {
+      return false;
+   }
+
+   size_t nlen = strlen(needle);
+   size_t hlen = strlen(haystack);
+
+   if (nlen > hlen)
+   {
+      return false;
+   }
+
+   for (size_t i = 0; i <= hlen - nlen; i++)
+   {
+      if (strncasecmp(haystack + i, needle, nlen) == 0)
+      {
+         return true;
+      }
+   }
+
+   return false;
+}
+
 char*
 pgexporter_http_request_get_header(struct http_request* request, char* name)
 {
@@ -235,7 +320,7 @@ pgexporter_http_request_get_header(struct http_request* request, char* name)
       return NULL;
    }
 
-   return (char*)pgexporter_deque_get(request->payload.headers, name);
+   return http_get_header(request->payload.headers, name);
 }
 
 int
@@ -253,7 +338,7 @@ pgexporter_http_request_update_header(struct http_request* request, char* name, 
       goto error;
    }
 
-   if (pgexporter_deque_remove(request->payload.headers, name) > 0)
+   if (http_remove_header(request->payload.headers, name) > 0)
    {
       pgexporter_log_trace("Removed existing header: %s", name);
    }
@@ -285,7 +370,7 @@ pgexporter_http_request_remove_header(struct http_request* request, char* name)
       goto error;
    }
 
-   int removed = pgexporter_deque_remove(request->payload.headers, name);
+   int removed = http_remove_header(request->payload.headers, name);
    if (removed == 0)
    {
       pgexporter_log_debug("Header not found for removal: %s", name);
@@ -345,7 +430,7 @@ pgexporter_http_get_response_header(struct http_response* response, char* name)
       return NULL;
    }
 
-   return (char*)pgexporter_deque_get(response->payload.headers, name);
+   return http_get_header(response->payload.headers, name);
 }
 
 int
@@ -889,11 +974,11 @@ http_read_response_body(SSL* ssl, int socket, struct http_response* http_respons
    if (!http_response)
       return MESSAGE_STATUS_ERROR;
 
-   char* transfer_encoding = (char*)pgexporter_deque_get(http_response->payload.headers, "Transfer-Encoding");
-   char* cl_str = (char*)pgexporter_deque_get(http_response->payload.headers, "Content-Length");
+   char* transfer_encoding = http_get_header(http_response->payload.headers, "Transfer-Encoding");
+   char* cl_str = http_get_header(http_response->payload.headers, "Content-Length");
 
    // handle chunked transfer_encoding
-   if (transfer_encoding && strstr(transfer_encoding, "chunked"))
+   if (transfer_encoding && contains_ignore_case(transfer_encoding, "chunked"))
    {
       return http_read_chunked_body(ssl, socket, http_response);
    }

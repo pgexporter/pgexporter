@@ -640,6 +640,127 @@ cleanup:
    MCTF_FINISH();
 }
 
+MCTF_TEST(test_http_headers_case_insensitivity)
+{
+   struct http_request* request = NULL;
+
+   MCTF_ASSERT(pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/test", &request) == 0, cleanup, "failed to create request");
+
+   MCTF_ASSERT(pgexporter_http_request_add_header(request, "Content-Type", "application/json") == 0, cleanup, "failed to add header");
+   MCTF_ASSERT(pgexporter_http_request_add_header(request, "X-Custom-Header", "custom-value") == 0, cleanup, "failed to add header");
+
+   /* Case-insensitive lookup */
+   MCTF_ASSERT(pgexporter_http_request_get_header(request, "Content-Type") != NULL, cleanup, "failed to get header exact case");
+   MCTF_ASSERT(strcmp(pgexporter_http_request_get_header(request, "Content-Type"), "application/json") == 0, cleanup, "header value mismatch");
+   MCTF_ASSERT(pgexporter_http_request_get_header(request, "content-type") != NULL, cleanup, "failed to get header lowercase");
+   MCTF_ASSERT(strcmp(pgexporter_http_request_get_header(request, "content-type"), "application/json") == 0, cleanup, "header value mismatch");
+   MCTF_ASSERT(pgexporter_http_request_get_header(request, "CONTENT-TYPE") != NULL, cleanup, "failed to get header uppercase");
+   MCTF_ASSERT(strcmp(pgexporter_http_request_get_header(request, "CONTENT-TYPE"), "application/json") == 0, cleanup, "header value mismatch");
+   MCTF_ASSERT(pgexporter_http_request_get_header(request, "x-custom-header") != NULL, cleanup, "failed to get custom header lowercase");
+   MCTF_ASSERT(pgexporter_http_request_get_header(request, "Non-Existent") == NULL, cleanup, "non-existent header should return NULL");
+
+   /* Case-insensitive update */
+   MCTF_ASSERT(pgexporter_http_request_update_header(request, "content-type", "text/plain") == 0, cleanup, "failed to update header");
+   MCTF_ASSERT(strcmp(pgexporter_http_request_get_header(request, "Content-Type"), "text/plain") == 0, cleanup, "updated header value mismatch");
+   MCTF_ASSERT(strcmp(pgexporter_http_request_get_header(request, "CONTENT-TYPE"), "text/plain") == 0, cleanup, "updated header value mismatch");
+
+   /* Case-insensitive removal */
+   MCTF_ASSERT(pgexporter_http_request_remove_header(request, "x-custom-header") == 0, cleanup, "failed to remove header");
+   MCTF_ASSERT(pgexporter_http_request_get_header(request, "X-Custom-Header") == NULL, cleanup, "removed header should return NULL");
+
+cleanup:
+   pgexporter_http_request_destroy(request);
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_http_response_headers_case_insensitivity)
+{
+   int status;
+   struct http* connection = NULL;
+   struct http_request* request = NULL;
+   struct http_response* response = NULL;
+
+   char* response_text =
+      "HTTP/1.1 200 OK\r\n"
+      "content-type: application/json\r\n"
+      "transfer-encoding: chunked\r\n"
+      "\r\n"
+      "4\r\n"
+      "Wiki\r\n"
+      "5\r\n"
+      "pedia\r\n"
+      "0\r\n"
+      "\r\n";
+
+   MCTF_ASSERT(start_echo_server(9999, response_text) == 0, cleanup, "failed to start echo server");
+
+   response = calloc(1, sizeof(struct http_response));
+   MCTF_ASSERT_PTR_NONNULL(response, cleanup, "failed to allocate response");
+
+   MCTF_ASSERT(pgexporter_http_create("localhost", 9999, false, NULL, NULL, NULL, &connection) == 0, cleanup, "failed to establish connection");
+   MCTF_ASSERT(pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/test", &request) == 0, cleanup, "failed to create request");
+
+   status = pgexporter_http_invoke(connection, request, &response);
+   MCTF_ASSERT(status == PGEXPORTER_HTTP_STATUS_OK, cleanup, "HTTP request failed");
+   MCTF_ASSERT(pgexporter_http_get_response_header(response, "Content-Type") != NULL, cleanup, "failed to get response header exact case");
+   MCTF_ASSERT(strcmp(pgexporter_http_get_response_header(response, "Content-Type"), "application/json") == 0, cleanup, "response header value mismatch");
+   MCTF_ASSERT(pgexporter_http_get_response_header(response, "content-type") != NULL, cleanup, "failed to get response header lowercase");
+   MCTF_ASSERT(strcmp(pgexporter_http_get_response_header(response, "content-type"), "application/json") == 0, cleanup, "response header value mismatch");
+   MCTF_ASSERT(pgexporter_http_get_response_header(response, "CONTENT-TYPE") != NULL, cleanup, "failed to get response header uppercase");
+   MCTF_ASSERT(strcmp(pgexporter_http_get_response_header(response, "CONTENT-TYPE"), "application/json") == 0, cleanup, "response header value mismatch");
+   MCTF_ASSERT(pgexporter_http_get_response_header(response, "Transfer-Encoding") != NULL, cleanup, "failed to get transfer-encoding header");
+   MCTF_ASSERT(response->payload.data != NULL, cleanup, "response body should not be NULL");
+   MCTF_ASSERT(response->payload.data_size == 9, cleanup, "chunked body size mismatch");
+   MCTF_ASSERT(strcmp((char*)response->payload.data, "Wikipedia") == 0, cleanup, "chunked body content mismatch");
+
+cleanup:
+   pgexporter_http_request_destroy(request);
+   pgexporter_http_response_destroy(response);
+   pgexporter_http_destroy(connection);
+   stop_echo_server();
+   MCTF_FINISH();
+}
+
+MCTF_TEST(test_http_response_content_length_case_insensitivity)
+{
+   int status;
+   struct http* connection = NULL;
+   struct http_request* request = NULL;
+   struct http_response* response = NULL;
+
+   char* response_text =
+      "HTTP/1.1 200 OK\r\n"
+      "content-length: 13\r\n"
+      "x-custom-metric: test\r\n"
+      "\r\n"
+      "Hello, World!";
+
+   MCTF_ASSERT(start_echo_server(9999, response_text) == 0, cleanup, "failed to start echo server");
+
+   response = calloc(1, sizeof(struct http_response));
+   MCTF_ASSERT_PTR_NONNULL(response, cleanup, "failed to allocate response");
+
+   MCTF_ASSERT(pgexporter_http_create("localhost", 9999, false, NULL, NULL, NULL, &connection) == 0, cleanup, "failed to establish connection");
+   MCTF_ASSERT(pgexporter_http_request_create(PGEXPORTER_HTTP_GET, "/test", &request) == 0, cleanup, "failed to create request");
+
+   status = pgexporter_http_invoke(connection, request, &response);
+   MCTF_ASSERT(status == PGEXPORTER_HTTP_STATUS_OK, cleanup, "HTTP request failed");
+   MCTF_ASSERT(pgexporter_http_get_response_header(response, "Content-Length") != NULL, cleanup, "failed to get content-length header");
+   MCTF_ASSERT(strcmp(pgexporter_http_get_response_header(response, "Content-Length"), "13") == 0, cleanup, "content-length mismatch");
+   MCTF_ASSERT(pgexporter_http_get_response_header(response, "X-CUSTOM-METRIC") != NULL, cleanup, "failed to get custom header uppercase");
+   MCTF_ASSERT(strcmp(pgexporter_http_get_response_header(response, "X-CUSTOM-METRIC"), "test") == 0, cleanup, "custom header mismatch");
+   MCTF_ASSERT(response->payload.data != NULL, cleanup, "response body should not be NULL");
+   MCTF_ASSERT(response->payload.data_size == 13, cleanup, "content-length body size mismatch");
+   MCTF_ASSERT(strcmp((char*)response->payload.data, "Hello, World!") == 0, cleanup, "content-length body content mismatch");
+
+cleanup:
+   pgexporter_http_request_destroy(request);
+   pgexporter_http_response_destroy(response);
+   pgexporter_http_destroy(connection);
+   stop_echo_server();
+   MCTF_FINISH();
+}
+
 /* Must run last: shuts down the daemon. Defined last so it registers last and runs last. */
 MCTF_TEST(test_http_shutdown)
 {
