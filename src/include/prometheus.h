@@ -70,6 +70,18 @@ int
 pgexporter_prometheus_scrape(prometheus_metrics_container_t** container);
 
 /**
+ * Scrape like pgexporter_prometheus_scrape(), but while holding the metrics cache lock.
+ *
+ * The server connections are kept in shared memory, so a process that scrapes outside
+ * of the /metrics endpoint must use this to not run at the same time as a /metrics scrape.
+ *
+ * @param container The pointer to store the allocated and populated container
+ * @return 0 on success, 1 on failure or if the lock wasn't acquired within blocking_timeout
+ */
+int
+pgexporter_prometheus_scrape_exclusive(prometheus_metrics_container_t** container);
+
+/**
  * Destroy a metrics container
  *
  * @param container The container to destroy

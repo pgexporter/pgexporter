@@ -279,7 +279,7 @@ local_history_collect(const struct history_store* store)
    prometheus_metrics_container_t* container = NULL;
 
    /* Scrape first so no history connection sits idle during the scrape */
-   if (pgexporter_prometheus_scrape(&container) != 0)
+   if (pgexporter_prometheus_scrape_exclusive(&container) != 0)
    {
       pgexporter_log_error("history: failed to scrape metrics");
       goto done;

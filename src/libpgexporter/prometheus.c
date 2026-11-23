@@ -3405,6 +3405,47 @@ pgexporter_prometheus_scrape(prometheus_metrics_container_t** container)
    return 0;
 }
 
+int
+pgexporter_prometheus_scrape_exclusive(prometheus_metrics_container_t** container)
+{
+   int ret;
+   int timeout;
+   time_t start_time;
+   signed char cache_is_free;
+   struct prometheus_cache* cache;
+   struct configuration* config;
+
+   config = (struct configuration*)shmem;
+   cache = (struct prometheus_cache*)prometheus_cache_shmem;
+
+   timeout = pgexporter_time_convert(config->blocking_timeout, FORMAT_TIME_S);
+   if (timeout <= 0)
+   {
+      timeout = DEFAULT_BLOCKING_TIMEOUT_SECONDS;
+   }
+
+   start_time = time(NULL);
+
+retry_cache_locking:
+   cache_is_free = STATE_FREE;
+   if (!atomic_compare_exchange_strong(&cache->lock, &cache_is_free, STATE_IN_USE))
+   {
+      if ((int)difftime(time(NULL), start_time) >= timeout)
+      {
+         return 1;
+      }
+
+      /* Sleep for 10ms */
+      SLEEP_AND_GOTO(10000000L, retry_cache_locking);
+   }
+
+   ret = pgexporter_prometheus_scrape(container);
+
+   atomic_store(&cache->lock, STATE_FREE);
+
+   return ret;
+}
+
 /**
  * Output all metrics from an ART in sorted order
  */
