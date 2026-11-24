@@ -196,6 +196,47 @@ cleanup:
    MCTF_FINISH();
 }
 
+MCTF_TEST_NEGATIVE(test_configuration_reject_long_key_and_value)
+{
+   char digits[MISC_LENGTH + 80];
+   char boundary[MISC_LENGTH + 1];
+   char long_key[MISC_LENGTH + 80];
+   char long_section[MISC_LENGTH + 80];
+
+   memset(digits, '1', sizeof(digits) - 1);
+   digits[sizeof(digits) - 1] = '\0';
+
+   memset(boundary, '1', sizeof(boundary) - 1);
+   boundary[sizeof(boundary) - 1] = '\0';
+
+   memset(long_key, 'k', sizeof(long_key) - 1);
+   long_key[sizeof(long_key) - 1] = '\0';
+
+   memset(long_section, 's', sizeof(long_section) - 1);
+   memcpy(&long_section[sizeof(long_section) - 6], ".host", 6);
+
+   pgexporter_test_setup();
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_fail(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, digits) == 0,
+               cleanup, "expected conf set to fail for a too long time value");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_fail(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_AGE, boundary) == 0,
+               cleanup, "expected conf set to fail for a time value of MISC_LENGTH digits");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_fail(CONFIGURATION_ARGUMENT_METRICS_CACHE_MAX_SIZE, digits) == 0,
+               cleanup, "expected conf set to fail for a too long size value");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_fail(long_key, "1") == 0,
+               cleanup, "expected conf set to fail for a too long key");
+
+   MCTF_ASSERT(pgexporter_test_assert_conf_set_fail(long_section, "localhost") == 0,
+               cleanup, "expected conf set to fail for a too long server name");
+
+cleanup:
+   pgexporter_test_teardown();
+   MCTF_FINISH();
+}
+
 MCTF_TEST(test_configuration_get_returns_set_values)
 {
    pgexporter_test_setup();
