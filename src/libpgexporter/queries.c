@@ -967,6 +967,12 @@ build_query(void* data, size_t data_size, int server, char* tag, int columns, ch
       cols = columns;
    }
 
+   if (cols < 0 || cols > MAX_NUMBER_OF_COLUMNS)
+   {
+      pgexporter_log_error("build_query: invalid number of columns (%d)", cols);
+      goto error;
+   }
+
    q = (struct query*)malloc(sizeof(struct query));
    memset(q, 0, sizeof(struct query));
 
