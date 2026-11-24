@@ -3136,6 +3136,12 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
       {
          if (!strlen(section))
          {
+            if (end - begin + 1 >= MISC_LENGTH)
+            {
+               pgexporter_management_response_error(NULL, client_fd, NULL, MANAGEMENT_ERROR_CONF_SET_UNKNOWN_SERVER, compression, encryption, payload);
+               pgexporter_log_error("Conf Set: Unknown server value parsed (%d)", MANAGEMENT_ERROR_CONF_SET_UNKNOWN_SERVER);
+               goto error;
+            }
             memcpy(section, &config_key[begin], end - begin + 1);
             section[end - begin + 1] = '\0';
             begin = end = -1;
@@ -3154,6 +3160,12 @@ pgexporter_conf_set(SSL* ssl __attribute__((unused)), int client_fd, uint8_t com
    // try to extract it from the string
    if (!strlen(key))
    {
+      if (end - begin + 1 >= MISC_LENGTH)
+      {
+         pgexporter_management_response_error(NULL, client_fd, NULL, MANAGEMENT_ERROR_CONF_SET_UNKNOWN_CONFIGURATION_KEY, compression, encryption, payload);
+         pgexporter_log_error("Conf Set: Unknown configuration key found (%d)", MANAGEMENT_ERROR_CONF_SET_UNKNOWN_CONFIGURATION_KEY);
+         goto error;
+      }
       memcpy(key, &config_key[begin], end - begin + 1);
       key[end - begin + 1] = '\0';
    }
@@ -5212,6 +5224,10 @@ as_milliseconds(char* str, pgexporter_time_t* age, pgexporter_time_t default_age
    {
       if (isdigit(str[i]))
       {
+         if (index >= MISC_LENGTH - 1)
+         {
+            goto error;
+         }
          value[index++] = str[i];
       }
       else if (isalpha(str[i]) && multiplier_set)
@@ -5330,6 +5346,10 @@ as_bytes(char* str, long* bytes, long default_bytes)
    {
       if (isdigit(str[i]))
       {
+         if (index >= MISC_LENGTH - 1)
+         {
+            goto error;
+         }
          value[index++] = str[i];
       }
       else if (isalpha(str[i]) && multiplier_set)
