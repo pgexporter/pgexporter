@@ -46,6 +46,7 @@ set(TESTCASE_FILES
   testcases/test_bridge_history.c
   testcases/test_history_http.c
   testcases/test_message_complete.c
+  testcases/test_queries.c
   testcases/test_value.c
   testcases/test_json.c
   testcases/test_tls.c
