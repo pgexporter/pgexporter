@@ -247,6 +247,7 @@ int
 pgexporter_json_iterator_create(struct json* object, struct json_iterator** iter)
 {
    struct json_iterator* i = NULL;
+   *iter = NULL;
    if (object == NULL || object->type == JSONUnknown)
    {
       return 1;

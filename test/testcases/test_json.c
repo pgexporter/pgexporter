@@ -164,6 +164,30 @@ cleanup:
    MCTF_FINISH();
 }
 
+MCTF_TEST(test_json_iterator_failure)
+{
+   struct json* item = NULL;
+   struct json* empty = NULL;
+   struct json_iterator* iter = NULL;
+
+   pgexporter_json_create(&item);
+   pgexporter_json_create(&empty);
+
+   pgexporter_json_put(item, "1", (uintptr_t)1, ValueInt32);
+
+   MCTF_ASSERT_INT_EQ(pgexporter_json_iterator_create(item, &iter), 0, cleanup, "iterator create failed");
+   pgexporter_json_iterator_destroy(iter);
+
+   MCTF_ASSERT_INT_EQ(pgexporter_json_iterator_create(empty, &iter), 1, cleanup, "iterator create should fail for unknown type");
+   MCTF_ASSERT_PTR_NULL(iter, cleanup, "iterator should be NULL on failure");
+
+cleanup:
+   pgexporter_json_iterator_destroy(iter);
+   pgexporter_json_destroy(item);
+   pgexporter_json_destroy(empty);
+   MCTF_FINISH();
+}
+
 /* ------------------------------------------------------------------ */
 /* clear                                                               */
 /* ------------------------------------------------------------------ */
