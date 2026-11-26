@@ -303,3 +303,41 @@ cleanup:
    pgexporter_art_destroy(t);
    MCTF_FINISH();
 }
+
+MCTF_TEST(test_art_iterator_remove_collapse)
+{
+   struct art* t = NULL;
+   struct art_iterator* iter = NULL;
+   int cnt = 0;
+
+   pgexporter_art_create(&t);
+   MCTF_ASSERT_PTR_NONNULL(t, cleanup, "ART creation failed");
+
+   MCTF_ASSERT(!pgexporter_art_insert(t, "aa", 1, ValueInt32), cleanup, "Insert aa failed");
+   MCTF_ASSERT(!pgexporter_art_insert(t, "ab", 2, ValueInt32), cleanup, "Insert ab failed");
+   MCTF_ASSERT(!pgexporter_art_insert(t, "ba", 3, ValueInt32), cleanup, "Insert ba failed");
+   MCTF_ASSERT(!pgexporter_art_insert(t, "bb", 4, ValueInt32), cleanup, "Insert bb failed");
+
+   MCTF_ASSERT(!pgexporter_art_iterator_create(t, &iter), cleanup, "Iterator creation failed");
+
+   while (pgexporter_art_iterator_next(iter))
+   {
+      cnt++;
+      if (strcmp(iter->key, "aa") == 0 || strcmp(iter->key, "ab") == 0)
+      {
+         pgexporter_art_iterator_remove(iter);
+      }
+   }
+
+   MCTF_ASSERT_INT_EQ(cnt, 4, cleanup, "visited count mismatch");
+   MCTF_ASSERT_INT_EQ(t->size, 2, cleanup, "size should be 2");
+   MCTF_ASSERT(!pgexporter_art_contains_key(t, "aa"), cleanup, "aa should be removed");
+   MCTF_ASSERT(!pgexporter_art_contains_key(t, "ab"), cleanup, "ab should be removed");
+   MCTF_ASSERT(pgexporter_art_contains_key(t, "ba"), cleanup, "ba should remain");
+   MCTF_ASSERT(pgexporter_art_contains_key(t, "bb"), cleanup, "bb should remain");
+
+cleanup:
+   pgexporter_art_iterator_destroy(iter);
+   pgexporter_art_destroy(t);
+   MCTF_FINISH();
+}
