@@ -659,3 +659,52 @@ cleanup:
    pgexporter_delete_directory("test_get_symlink");
    MCTF_FINISH();
 }
+
+MCTF_TEST(test_utils_resolve_path)
+{
+   char* resolved = NULL;
+
+   setenv("PGEXPORTER_TEST_DIR", "/var/lib/pgexporter", 1);
+
+   MCTF_ASSERT_INT_EQ(pgexporter_resolve_path("$PGEXPORTER_TEST_DIR", &resolved), 0, cleanup,
+                      "bare env var path should resolve");
+   MCTF_ASSERT_STR_EQ(resolved, "/var/lib/pgexporter", cleanup, "bare env var mismatch");
+   free(resolved);
+   resolved = NULL;
+
+   MCTF_ASSERT_INT_EQ(pgexporter_resolve_path("/prefix/$PGEXPORTER_TEST_DIR", &resolved), 0, cleanup,
+                      "trailing env var path should resolve");
+   MCTF_ASSERT_STR_EQ(resolved, "/prefix//var/lib/pgexporter", cleanup, "trailing env var mismatch");
+   free(resolved);
+   resolved = NULL;
+
+   MCTF_ASSERT_INT_EQ(pgexporter_resolve_path("$PGEXPORTER_TEST_DIR/sub", &resolved), 0, cleanup,
+                      "leading env var path should resolve");
+   MCTF_ASSERT_STR_EQ(resolved, "/var/lib/pgexporter/sub", cleanup, "leading env var mismatch");
+   free(resolved);
+   resolved = NULL;
+
+   MCTF_ASSERT_INT_EQ(pgexporter_resolve_path("'$PGEXPORTER_TEST_DIR'", &resolved), 0, cleanup,
+                      "single-quoted env var should remain literal");
+   MCTF_ASSERT_STR_EQ(resolved, "$PGEXPORTER_TEST_DIR", cleanup, "single-quoted env var mismatch");
+   free(resolved);
+   resolved = NULL;
+
+   MCTF_ASSERT_INT_EQ(pgexporter_resolve_path("\"\"", &resolved), 0, cleanup,
+                      "empty quoted path should resolve to empty string");
+   MCTF_ASSERT_STR_EQ(resolved, "", cleanup, "empty quoted path mismatch");
+   free(resolved);
+   resolved = NULL;
+
+   MCTF_ASSERT(pgexporter_resolve_path(NULL, &resolved) != 0, cleanup, "NULL path should fail");
+   MCTF_ASSERT_PTR_NULL(resolved, cleanup, "failed NULL path should keep output NULL");
+
+   MCTF_ASSERT(pgexporter_resolve_path("/tmp/$PGEXPORTER_NONEXISTENT_VAR_XYZ", &resolved) != 0, cleanup,
+               "missing trailing env var should fail");
+   MCTF_ASSERT_PTR_NULL(resolved, cleanup, "failed env lookup should keep output NULL");
+
+cleanup:
+   unsetenv("PGEXPORTER_TEST_DIR");
+   free(resolved);
+   MCTF_FINISH();
+}
