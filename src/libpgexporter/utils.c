@@ -2512,28 +2512,56 @@ is_wal_file(char* file)
    return true;
 }
 
-int
-pgexporter_resolve_path(char* orig_path, char** new_path)
-{
 #if defined(HAVE_DARWIN) || defined(HAVE_OSX)
 #define GET_ENV(name) getenv(name)
 #else
 #define GET_ENV(name) secure_getenv(name)
 #endif
 
+static int
+append_resolved_env(char** res, char** env_res)
+{
+   char* env_value = NULL;
+
+   if (*env_res == NULL)
+   {
+      return 1;
+   }
+
+   env_value = GET_ENV(*env_res);
+   free(*env_res);
+   *env_res = NULL;
+
+   if (env_value == NULL)
+   {
+      return 1;
+   }
+
+   *res = pgexporter_append(*res, env_value);
+   return 0;
+}
+
+int
+pgexporter_resolve_path(char* orig_path, char** new_path)
+{
    char* res = NULL;
    char* env_res = NULL;
-   int len = strlen(orig_path);
+   int len = 0;
    bool double_quote = false;
    bool single_quote = false;
    bool in_env = false;
 
-   *new_path = NULL;
+   if (new_path != NULL)
+   {
+      *new_path = NULL;
+   }
 
-   if (orig_path == NULL)
+   if (orig_path == NULL || new_path == NULL)
    {
       goto error;
    }
+
+   len = strlen(orig_path);
 
    for (int idx = 0; idx < len; idx++)
    {
@@ -2543,18 +2571,10 @@ pgexporter_resolve_path(char* orig_path, char** new_path)
       if (in_env && !valid_env_char)
       {
          in_env = false;
-         if (env_res == NULL)
+         if (append_resolved_env(&res, &env_res))
          {
-            return 1;
+            goto error;
          }
-         char* env_value = GET_ENV(env_res);
-         free(env_res);
-         if (env_value == NULL)
-         {
-            return 1;
-         }
-         res = pgexporter_append(res, env_value);
-         env_res = NULL;
       }
 
       if (orig_path[idx] == '\"' && !single_quote)
@@ -2577,8 +2597,7 @@ pgexporter_resolve_path(char* orig_path, char** new_path)
          }
          else
          {
-            free(ch);
-            return 1;
+            goto error;
          }
       }
       else if (orig_path[idx] == '$')
@@ -2610,6 +2629,20 @@ pgexporter_resolve_path(char* orig_path, char** new_path)
       free(ch);
    }
 
+   if (in_env && append_resolved_env(&res, &env_res))
+   {
+      goto error;
+   }
+
+   if (res == NULL)
+   {
+      res = pgexporter_append(NULL, "");
+      if (res == NULL)
+      {
+         goto error;
+      }
+   }
+
    if (strlen(res) > MAX_PATH)
    {
       goto error;
@@ -2619,8 +2652,11 @@ pgexporter_resolve_path(char* orig_path, char** new_path)
    return 0;
 
 error:
+   free(res);
+   free(env_res);
    return 1;
 }
+#undef GET_ENV
 
 __attribute__((unused)) static bool
 calculate_offset(uint64_t addr, uint64_t* offset, char** filepath)
