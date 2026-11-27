@@ -2480,6 +2480,44 @@
           ]
         }
       ]
+    },
+    {
+      "tag": "pg_stat_lock",
+      "collector": "stat_lock",
+      "sort": "data",
+      "queries": [
+        {
+          "query": "SELECT locktype, waits, wait_time, fastpath_exceeded, EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - stats_reset))::bigint AS stats_reset_seconds FROM pg_stat_lock;",
+          "version": 19,
+          "columns": [
+            {
+              "name": "locktype",
+              "type": "label",
+              "description": "Type of the lockable object"
+            },
+            {
+              "name": "waits",
+              "type": "counter",
+              "description": "Number of times a lock of this type had to wait because of a conflicting lock"
+            },
+            {
+              "name": "wait_time",
+              "type": "counter",
+              "description": "Total time spent waiting for locks of this type, in milliseconds"
+            },
+            {
+              "name": "fastpath_exceeded",
+              "type": "counter",
+              "description": "Number of times a lock of this type could not be acquired via fast path because the fast path slot limit was exceeded"
+            },
+            {
+              "name": "stats_reset_seconds",
+              "type": "counter",
+              "description": "Seconds since statistics were last reset"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

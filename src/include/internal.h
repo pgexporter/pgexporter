@@ -3255,6 +3255,35 @@ extern "C" {
                       "    tag: pg_stat_progress_repack\n"                                                                                                                              \
                       "    sort: data\n"                                                                                                                                                \
                       "    collector: stat_progress_repack\n"                                                                                                                           \
+                      "# pg_stat_lock \n"                                                                                                                                               \
+                      "  - queries:\n"                                                                                                                                                  \
+                      "    - query: SELECT\n"                                                                                                                                           \
+                      "                locktype,\n"                                                                                                                                     \
+                      "                waits,\n"                                                                                                                                        \
+                      "                wait_time,\n"                                                                                                                                    \
+                      "                fastpath_exceeded,\n"                                                                                                                            \
+                      "                EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - stats_reset))::bigint AS stats_reset_seconds\n"                                                          \
+                      "                FROM pg_stat_lock;\n"                                                                                                                            \
+                      "      version: 19\n"                                                                                                                                             \
+                      "      columns:\n"                                                                                                                                                \
+                      "        - name: locktype\n"                                                                                                                                      \
+                      "          type: label\n"                                                                                                                                         \
+                      "          description: Type of the lockable object\n"                                                                                                            \
+                      "        - name: waits\n"                                                                                                                                         \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of times a lock of this type had to wait because of a conflicting lock\n"                                                          \
+                      "        - name: wait_time\n"                                                                                                                                     \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Total time spent waiting for locks of this type, in milliseconds\n"                                                                       \
+                      "        - name: fastpath_exceeded\n"                                                                                                                             \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Number of times a lock of this type could not be acquired via fast path because the fast path slot limit was exceeded\n"                  \
+                      "        - name: stats_reset_seconds\n"                                                                                                                           \
+                      "          type: counter\n"                                                                                                                                       \
+                      "          description: Seconds since statistics were last reset\n"                                                                                               \
+                      "    tag: pg_stat_lock\n"                                                                                                                                         \
+                      "    sort: data\n"                                                                                                                                                \
+                      "    collector: stat_lock\n"                                                                                                                                      \
                       "\n"
 
 #define INTERNAL_ALERTS_YAML ""                                                                                                                                                  \

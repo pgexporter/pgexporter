@@ -5977,6 +5977,42 @@ Seconds since statistics were last reset, from `pg_stat_slru`.
 | server | The configured name/identifier for the PostgreSQL server. |
 | name | Name of the SLRU. |
 
+## pgexporter_pg_stat_lock_waits
+
+Number of times a lock of this type had to wait because of a conflicting lock, from `pg_stat_lock`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| locktype | Type of the lockable object. |
+
+## pgexporter_pg_stat_lock_wait_time
+
+Total time spent waiting for locks of this type, in milliseconds, from `pg_stat_lock`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| locktype | Type of the lockable object. |
+
+## pgexporter_pg_stat_lock_fastpath_exceeded
+
+Number of times a lock of this type could not be acquired via fast path because the fast path slot limit was exceeded, from `pg_stat_lock`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| locktype | Type of the lockable object. |
+
+## pgexporter_pg_stat_lock_stats_reset_seconds
+
+Seconds since statistics were last reset, from `pg_stat_lock`.
+
+| Attribute | Description |
+| :-------- | :---------- |
+| server | The configured name/identifier for the PostgreSQL server. |
+| locktype | Type of the lockable object. |
+
 ## pgexporter_pg_replication_slots_two_phase_at
 
 LSN at which two-phase commit state was enabled for replication slot, from `pg_replication_slots`.
